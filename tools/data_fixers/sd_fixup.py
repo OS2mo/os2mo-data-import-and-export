@@ -1,3 +1,4 @@
+import datetime
 from datetime import date
 from functools import partial
 from operator import itemgetter
@@ -8,6 +9,7 @@ from typing import Tuple
 import click
 import httpx
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.config import get_importer_settings
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import mora_assert
@@ -205,6 +207,8 @@ def fixup_user(ctx, uuid):
 @click.pass_context
 def fixup_leaves(ctx, mox_base):
     """Fix all leaves that are missing a link to an engagement."""
+    settings = get_importer_settings()
+
     mora_helper = ctx.obj["mora_helper"]
     # Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
@@ -243,7 +247,7 @@ def fixup_leaves(ctx, mox_base):
     cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
     # NOTE: This will only reimport current leaves, not historic ones
     #       This behavior is inline with sd_importer.py
-    changed_at = ChangeAtSD(date.today())
+    changed_at = ChangeAtSD(settings, datetime.datetime.now())
 
     def try_fetch_leave(cpr: str) -> Tuple[str, List[dict]]:
         """Attempt to lookup engagements from a CPR.

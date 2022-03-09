@@ -9,7 +9,6 @@ from unittest.mock import patch
 import click
 import hypothesis.strategies as st
 import pytest
-from hypothesis import example
 from hypothesis import given
 from parameterized import parameterized
 from ra_utils.attrdict import attrdict
@@ -18,7 +17,7 @@ from ra_utils.generate_uuid import uuid_generator
 from .fixtures import get_employment_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
+from integrations.SD_Lon.config import ImporterSettings
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import get_from_date
 from test_case import DipexTestCase
@@ -91,22 +90,31 @@ class ChangeAtSDTest(ChangeAtSD):
 
 def setup_sd_changed_at(updates=None, hours=24):
     # TODO: remove integrations.SD_Lon.terminate_engagement_with_to_only
-    settings = {
-        "integrations.SD_Lon.job_function": "JobPositionIdentifier",
-        "integrations.SD_Lon.use_ad_integration": False,
-        "integrations.SD_Lon.monthly_hourly_divide": 8000,
-        "mora.base": "dummy",
-        "mox.base": "dummy",
-        "integrations.SD_Lon.terminate_engagement_with_to_only": False,
+    settings_dict = {
+        "municipality_code": 100,
+        "municipality_name": "Pladderballe Kommune",
+        "sd_global_from_date": "1970-01-01",
+        "sd_import_run_db": "run_db.sqlite",
+        "sd_institution_identifier": "XY",
+        "sd_password": "secret",
+        "sd_user": "user",
+        "sd_job_function": "JobPositionIdentifier",
+        "sd_use_ad_integration": False,
+        "sd_monthly_hourly_divide": 8000,
+        "mora_base": "http://dummy.url",
+        "mox_base": "http://dummy.url",
+        "sd_terminate_engagement_with_to_only": False,
     }
     if updates:
-        settings.update(updates)
+        settings_dict.update(updates)
+
+    settings = ImporterSettings.parse_obj(settings_dict)
 
     today = date.today()
     start_date = today
 
     sd_updater = ChangeAtSDTest(
-        start_date, start_date + timedelta(hours=hours), settings
+        settings, start_date, start_date + timedelta(hours=hours)
     )
 
     return sd_updater
@@ -607,20 +615,6 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater._create_engagement_type.assert_not_called()
         sd_updater._create_professions.assert_called_once()
 
-    @given(
-        job_function=st.text(),
-        exception=st.just(JobfunctionSettingsIsWrongException),
-    )
-    @example(job_function="JobPositionIdentifier", exception=None)
-    @example(job_function="EmploymentName", exception=None)
-    def test_job_function_configuration(self, job_function, exception):
-        """Test that job_function only has two valid values."""
-        if exception:
-            with self.assertRaises(exception):
-                setup_sd_changed_at({"integrations.SD_Lon.job_function": job_function})
-        else:
-            setup_sd_changed_at({"integrations.SD_Lon.job_function": job_function})
-
     @given(job_position=st.integers(), no_salary_minimum=st.integers())
     @patch("integrations.SD_Lon.sd_changed_at.sd_payloads", autospec=True)
     def test_construct_object(self, sd_payloads_mock, job_position, no_salary_minimum):
@@ -630,7 +624,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater = setup_sd_changed_at(
             {
-                "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
+                "sd_no_salary_minimum_id": no_salary_minimum,
             }
         )
         sd_updater.apply_NY_logic = (
@@ -807,9 +801,9 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater = setup_sd_changed_at(
             {
-                "integrations.SD_Lon.monthly_hourly_divide": 80000,
-                "integrations.SD_Lon.no_salary_minimum_id": 9000,
-                "integrations.SD_Lon.import.too_deep": [
+                "sd_monthly_hourly_divide": 80000,
+                "sd_no_salary_minimum_id": 9000,
+                "sd_import_too_deep": [
                     "Afdelings-niveau",
                     "NY1-niveau",
                 ],
@@ -903,9 +897,9 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater = setup_sd_changed_at(
             {
-                "integrations.SD_Lon.monthly_hourly_divide": 80000,
-                "integrations.SD_Lon.no_salary_minimum_id": 9000,
-                "integrations.SD_Lon.import.too_deep": [
+                "sd_monthly_hourly_divide": 80000,
+                "sd_no_salary_minimum_id": 9000,
+                "sd_import_too_deep": [
                     "Afdelings-niveau",
                     "NY1-niveau",
                 ],

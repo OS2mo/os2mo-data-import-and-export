@@ -10,6 +10,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Type
 
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
@@ -23,60 +24,69 @@ from ra_utils.load_settings import load_settings
 from integrations.SD_Lon.models import JobFunction
 
 
-def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
-    try:
-        json_settings = load_settings()
-    except FileNotFoundError:
-        return dict()
-
-    # Remove the "integrations.SD_Lon." part of the key name
-    json_settings = {
-        key.replace("integrations.SD_Lon.", "sd_"): value
-        for key, value in json_settings.items()
-    }
-
-    # Remove any double "sd_sd_" in the keys
-    json_settings = {
-        key.replace("sd_sd_", "sd_"): value for key, value in json_settings.items()
-    }
-
-    # Replace dots with underscores to be Pydantic compliant
-    json_settings = {
-        key.replace(".", "_"): value for key, value in json_settings.items()
-    }
-
-    # Remove settings forbidden according to the Settings model
-    properties = Settings.schema()["properties"].keys()
-    json_settings = {
-        key: value for key, value in json_settings.items() if key in properties
-    }
-
-    return json_settings
-
-
-class Settings(BaseSettings):
-
-    # Should the strings below be optional?
+class CommonSettings(BaseSettings):
+    """
+    Settings common to both the SD importer and SD-changed-at
+    """
 
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
+    sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
+    sd_import_too_deep: List[str] = []
+    sd_institution_identifier: str
+    sd_password: SecretStr
+    sd_user: str
+    sd_job_function: JobFunction
+    sd_monthly_hourly_divide: PositiveInt
+
+
+def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
+    def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
+        try:
+            json_settings = load_settings()
+        except FileNotFoundError:
+            return dict()
+
+        # Remove the "integrations.SD_Lon." part of the key name
+        json_settings = {
+            key.replace("integrations.SD_Lon.", "sd_"): value
+            for key, value in json_settings.items()
+        }
+
+        # Remove any double "sd_sd_" in the keys
+        json_settings = {
+            key.replace("sd_sd_", "sd_"): value for key, value in json_settings.items()
+        }
+
+        # Replace dots with underscores to be Pydantic compliant
+        json_settings = {
+            key.replace(".", "_"): value for key, value in json_settings.items()
+        }
+
+        # Remove settings forbidden according to the Settings model
+        properties = settings_class.schema()["properties"].keys()
+        json_settings = {
+            key: value for key, value in json_settings.items() if key in properties
+        }
+
+        return json_settings
+
+    return json_file_settings
+
+
+class ImporterSettings(CommonSettings):
     municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
-    sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
     sd_global_from_date: date
     sd_import_run_db: str
-    sd_import_too_deep: List[str] = []
     sd_importer_create_associations: bool = True
     sd_importer_create_email_addresses: bool = True
     sd_importer_employment_date_as_engagement_start_date: bool = False
-    sd_institution_identifier: str
-    sd_job_function: JobFunction
-    sd_monthly_hourly_divide: PositiveInt
-    sd_password: SecretStr
+    sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_employment_types: List[str] = []
+    sd_skip_job_functions: List[str] = []
     sd_terminate_engagement_with_to_only: bool = True
-    sd_use_ad_integration: bool = False
-    sd_user: str
+    sd_use_ad_integration: bool = True
 
     class Config:
         extra = Extra.forbid
@@ -91,11 +101,41 @@ class Settings(BaseSettings):
             return (
                 init_settings,
                 env_settings,
-                json_file_settings,
+                gen_json_file_settings_func(ImporterSettings),
+                file_secret_settings,
+            )
+
+
+class ChangedAtSettings(CommonSettings):
+    sd_import_run_db: str
+    sd_no_salary_minimum_id: Optional[int] = None
+    sd_skip_job_functions: List[str] = []
+    sd_terminate_engagement_with_to_only: bool = True
+    sd_use_ad_integration: bool = True
+
+    class Config:
+        extra = Extra.forbid
+
+        @classmethod
+        def customise_sources(
+            cls,
+            init_settings,
+            env_settings,
+            file_secret_settings,
+        ):
+            return (
+                init_settings,
+                env_settings,
+                gen_json_file_settings_func(ChangedAtSettings),
                 file_secret_settings,
             )
 
 
 @lru_cache()
-def get_settings(*args, **kwargs) -> Settings:
-    return Settings(*args, **kwargs)
+def get_importer_settings(*args, **kwargs) -> ImporterSettings:
+    return ImporterSettings(*args, **kwargs)
+
+
+@lru_cache()
+def get_changed_at_settings(*args, **kwargs) -> ChangedAtSettings:
+    return ChangedAtSettings(*args, **kwargs)

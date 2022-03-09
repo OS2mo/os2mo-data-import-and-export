@@ -18,6 +18,8 @@ import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
 
+from integrations.SD_Lon.config import CommonSettings
+
 logger = logging.getLogger("sdCommon")
 
 
@@ -105,7 +107,10 @@ def _sd_request(full_url, payload, auth):
 
 
 def sd_lookup(
-    url: str, params: Optional[Dict[str, Any]] = None, use_cache: bool = True
+    url: str,
+    settings: Optional[CommonSettings] = None,
+    params: Optional[Dict[str, Any]] = None,
+    use_cache: bool = True,
 ) -> OrderedDict:
     """Fire a requests against SD.
 
@@ -120,7 +125,16 @@ def sd_lookup(
     BASE_URL = "https://service.sd.dk/sdws/"
     full_url = BASE_URL + url
 
-    institution_identifier, sd_user, sd_password = sd_lookup_settings()
+    # Use settings if provided as an argument to this function
+    # Currently, we only have Pydantic settings models for sd_importer.py
+    # and sd_changed_at.py, so this logic is required for now, since the
+    # sd_lookup function is used elsewhere too
+    if settings is not None:
+        institution_identifier = settings.sd_institution_identifier
+        sd_user = settings.sd_user
+        sd_password = settings.sd_password
+    else:
+        institution_identifier, sd_user, sd_password = sd_lookup_settings()
 
     payload = {
         "InstitutionIdentifier": institution_identifier,
@@ -316,6 +330,7 @@ def ensure_list(element):
 # We will get to the Pydantic models later...
 def read_employment_at(
     effective_date: datetime.date,
+    settings: CommonSettings,
     employment_id: Optional[str] = None,
     status_active_indicator: bool = True,
     status_passive_indicator: bool = True,
@@ -337,5 +352,5 @@ def read_employment_at(
     if employment_id:
         params.update({"EmploymentIdentifier": employment_id})
 
-    response = sd_lookup(url, params=params)
+    response = sd_lookup(url, settings=settings, params=params)
     return response["Person"]
