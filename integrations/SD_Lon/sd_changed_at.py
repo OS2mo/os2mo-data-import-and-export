@@ -45,6 +45,9 @@ from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.engagement import create_engagement
 from integrations.SD_Lon.engagement import engagement_components
+from integrations.SD_Lon.engagement import (
+    is_employment_id_and_no_salary_minimum_consistent,
+)
 from integrations.SD_Lon.engagement import update_existing_engagement
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.models import JobFunction
@@ -122,6 +125,10 @@ class ChangeAtSD:
         self.terminate_engagement_with_to_only = (
             self.settings.sd_terminate_engagement_with_to_only
         )
+
+        # See https://os2web.atlassian.net/browse/MO-245 for more details
+        # about no_salary_minimum
+        self.no_salary_minimum = self.settings.sd_no_salary_minimum_id
 
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -720,6 +727,7 @@ class ChangeAtSD:
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
+
         # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
@@ -964,8 +972,10 @@ class ChangeAtSD:
 
         # We should not create engagements (or engagement_types) for engagements
         # with too low of a job_position id compared to no_salary_minimum_id.
-        no_salary_minimum = self.settings.sd_no_salary_minimum_id
-        if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
+        if (
+            self.no_salary_minimum is not None
+            and int(job_position) < self.no_salary_minimum
+        ):
             message = "No salary employee, with too low job_position id"
             logger.warning(message)
             return None
@@ -1009,8 +1019,7 @@ class ChangeAtSD:
             # the code, a strategy pattern is not feasible for now. Let's
             # leave it as is until the whole SD code base is rewritten
 
-            no_salary_minimum = self.settings.sd_no_salary_minimum_id
-            if no_salary_minimum and int(job_position) < no_salary_minimum:
+            if self.no_salary_minimum and int(job_position) < self.no_salary_minimum:
                 sd_from_date = profession_info["ActivationDate"]
                 sd_to_date = profession_info["DeactivationDate"]
                 self._terminate_engagement(
@@ -1102,8 +1111,9 @@ class ChangeAtSD:
         # Assume `profession` contains a `JobPositionIdentifier` which can
         # read as an integer.
         job_pos_id = int(profession["JobPositionIdentifier"])
-        no_salary_minimum = self.settings.sd_no_salary_minimum_id
-        is_above = no_salary_minimum is not None and job_pos_id > no_salary_minimum
+        is_above = (
+            self.no_salary_minimum is not None and job_pos_id > self.no_salary_minimum
+        )
         return is_above
 
     def _handle_employment_status_changes(
@@ -1184,7 +1194,12 @@ class ChangeAtSD:
                     self.edit_engagement(sd_employment, person_uuid)
                 else:
                     logger.info("Status 0, create new engagement")
-                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                    if is_employment_id_and_no_salary_minimum_consistent(
+                        sd_employment, self.no_salary_minimum
+                    ):
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 skip = True
             elif code == EmploymentStatus.AnsatMedLoen:
                 logger.info("Setting {} to status 1".format(employment_id))
@@ -1198,13 +1213,24 @@ class ChangeAtSD:
                     self.edit_engagement(sd_employment, person_uuid)
                 else:
                     logger.info("Status 1: Create new engagement")
-                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                    logger.debug(sd_employment)
+                    if is_employment_id_and_no_salary_minimum_consistent(
+                        sd_employment, self.no_salary_minimum
+                    ):
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 skip = True
             elif code == EmploymentStatus.Orlov:
                 mo_eng = self._find_engagement(employment_id, person_uuid)
                 if not mo_eng:
                     logger.info("Leave for non existent eng., create one")
-                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                    if is_employment_id_and_no_salary_minimum_consistent(
+                        sd_employment, self.no_salary_minimum
+                    ):
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 logger.info("Create a leave for {} ".format(cpr))
                 self.create_leave(status, employment_id, person_uuid)
             elif code in EmploymentStatus.let_go():
