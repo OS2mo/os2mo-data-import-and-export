@@ -1019,7 +1019,9 @@ class ChangeAtSD:
             # the code, a strategy pattern is not feasible for now. Let's
             # leave it as is until the whole SD code base is rewritten
 
-            if self.no_salary_minimum and int(job_position) < self.no_salary_minimum:
+            if not is_employment_id_and_no_salary_minimum_consistent(
+                engagement, self.no_salary_minimum
+            ):
                 sd_from_date = profession_info["ActivationDate"]
                 sd_to_date = profession_info["DeactivationDate"]
                 self._terminate_engagement(
@@ -1097,24 +1099,17 @@ class ChangeAtSD:
         """
         employment_id, engagement_info = engagement_components(engagement)
         mo_eng = self._find_engagement(employment_id, person_uuid)
-        if mo_eng is None:
-            # Only create MO engagement if SD job position allows it
-            if self._job_position_is_above_minimum_salary(engagement_info):
-                create_engagement(self, employment_id, person_uuid)
-        else:
-            update_existing_engagement(self, mo_eng, engagement, person_uuid)
 
-    def _job_position_is_above_minimum_salary(self, engagement_info: dict):
-        profession = only(engagement_info["professions"])
-        if profession is None:
-            return False
-        # Assume `profession` contains a `JobPositionIdentifier` which can
-        # read as an integer.
-        job_pos_id = int(profession["JobPositionIdentifier"])
-        is_above = (
-            self.no_salary_minimum is not None and job_pos_id > self.no_salary_minimum
+        employment_consistent = is_employment_id_and_no_salary_minimum_consistent(
+            engagement, self.no_salary_minimum
         )
-        return is_above
+
+        if mo_eng is None:
+            if employment_consistent:
+                create_engagement(self, employment_id, person_uuid)
+            return
+
+        update_existing_engagement(self, mo_eng, engagement, person_uuid)
 
     def _handle_employment_status_changes(
         self, cpr: str, sd_employment: OrderedDict, person_uuid: str
