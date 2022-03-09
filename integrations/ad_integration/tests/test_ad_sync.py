@@ -611,7 +611,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             self.ad_sync.mo_post_calls,
             [
                 self._get_expected_mo_engagement_edit_call(
-                    extension_2="", validity_from=today
+                    extension_2=None, validity_from=today
                 )
             ],
         )
@@ -641,7 +641,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             self.ad_sync.mo_post_calls,
             [
                 self._get_expected_mo_engagement_edit_call(
-                    extension_2="",
+                    extension_2=None,
                     validity_from=today_iso(),
                 )
             ],
@@ -989,14 +989,17 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self.assertEqual(self.ad_sync.mo_post_calls, [])
 
         finalize_mock = MagicMock()
+        engagement_mock = MagicMock()
         self.ad_sync._finalize_it_system = finalize_mock
         self.ad_sync._finalize_user_addresses = finalize_mock
+        self.ad_sync._edit_engagement = engagement_mock
 
         # Run full sync against the mocks
         self.ad_sync.update_all_users()
 
         if expected:
             finalize_mock.assert_called()
+            engagement_mock.assert_called()
         else:
             finalize_mock.assert_not_called()
 
