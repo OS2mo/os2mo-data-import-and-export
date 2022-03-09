@@ -24,7 +24,6 @@ import requests
 from fastapi.encoders import jsonable_encoder
 from more_itertools import last
 from more_itertools import one
-from more_itertools import only
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
