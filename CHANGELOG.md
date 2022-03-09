@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.0 - 2022-03-09
+-------------------
+
+[#46894] Use SD Pydantic settings model in SD-changed-at
+
 2.19.1 - 2022-03-09
 -------------------
 
