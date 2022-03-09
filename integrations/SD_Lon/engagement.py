@@ -1,11 +1,18 @@
+import re
 from datetime import datetime
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
+from typing import OrderedDict
 from typing import Tuple
+
+from more_itertools import one
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
+
+INTERNAL_EMPLOYEE_REGEX = re.compile("[0-9]+")
 
 
 def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
@@ -49,3 +56,52 @@ def create_engagement(sd_updater, employment_id, person_uuid) -> None:
 
     # Call MO to create corresponding engagement in MO
     sd_updater.create_new_engagement(sd_employment, status, cpr, person_uuid)
+
+
+def _is_external(employment_id: str) -> bool:
+    """
+    Check if the SD employee is an external employee. This is the
+    case (at least in some municipalities...) if the EmploymentIdentifier
+    contains letters.
+
+    Args:
+         employment_id: the SD EmploymentIdentifier
+
+    Returns:
+        True of the employment_id contains letters and False otherwise
+    """
+
+    match = INTERNAL_EMPLOYEE_REGEX.match(employment_id)
+    return match is None
+
+
+def is_employment_id_and_no_salary_minimum_consistent(
+    engagement: OrderedDict, no_salary_minimum: Optional[int] = None
+) -> bool:
+    """
+    Check that the external SD employees have JobPositionIdentifiers
+    consistent with no_salary_limit
+    (see https://os2web.atlassian.net/browse/MO-245).
+
+    Args:
+        engagement: the SD employment
+        no_salary_minimum: the minimum allowed JobPositionIdentifier
+          for external SD employees.
+
+    Returns:
+        True if the provided values are consistent and False otherwise.
+    """
+
+    if no_salary_minimum is None:
+        return True
+
+    employment_id, eng_components = engagement_components(engagement)
+    profession = one(eng_components["professions"])
+    job_pos_id_str = profession.get("JobPositionIdentifier")
+    assert job_pos_id_str, "JobPositionIdentifier not found in Profession"
+
+    job_pos_id = int(job_pos_id_str)
+
+    if _is_external(employment_id):
+        return job_pos_id >= no_salary_minimum
+    return job_pos_id < no_salary_minimum
