@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.1 - 2022-03-09
+-------------------
+
+[#48939] Do not create inconsistent external engagements
+
 2.20.0 - 2022-03-09
 -------------------
 
