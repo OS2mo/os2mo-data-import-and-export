@@ -338,6 +338,9 @@ class AdMoSync(object):
         logger.debug("Response: {}".format(response.text))
 
     def _edit_engagement(self, uuid, ad_object):
+        if "engagements" not in self.mapping:
+            return
+
         def _make_exclude_function(fieldspec):
             """Given a callable `fieldspec`, return a function which will
             return True if the date found by `fieldspec` is before today, and
@@ -365,7 +368,6 @@ class AdMoSync(object):
             engagements = self.lc.engagements.values()
             engagements = map(itemgetter(0), engagements)
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
-            engagements = filter(itemgetter("primary_boolean"), engagements)
             # Skip engagements beginning in the future
             engagements = filter(
                 _make_exclude_function(itemgetter("from_date")),
@@ -375,7 +377,6 @@ class AdMoSync(object):
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-
         else:
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
@@ -385,20 +386,18 @@ class AdMoSync(object):
                 read_all=True,
                 skip_past=True,
             )
-            engagements = filter(lambda eng: eng["is_primary"], engagements)
             # Skip engagements beginning in the future
             engagements = filter(
                 _make_exclude_function(lambda eng: eng["validity"]["from"]),
                 list(engagements),
             )
 
-        try:
-            engagement = only(engagements)
-        except ValueError:
-            logger.warn(f"More than one primary engagment for user: {uuid} - skipping")
-            engagement = None
+        for engagement in engagements:
+            if self.lc:
+                ad_object_compare = ad_object if engagement["primary_boolean"] else {}
+            else:
+                ad_object_compare = ad_object if engagement["is_primary"] else {}
 
-        if engagement:
             to_date = (
                 engagement["to_date"]
                 if self.lc
@@ -408,7 +407,9 @@ class AdMoSync(object):
                 "from": VALIDITY["from"],  # today
                 "to": to_date,
             }
-            self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+            self._edit_engagement_post_to_mo(
+                uuid, ad_object_compare, engagement, validity
+            )
 
     def _edit_engagement_post_to_mo(self, uuid, ad_object, mo_engagement, validity):
         # Populate `mo_data` with a value for each mapped field whose value has
@@ -417,7 +418,7 @@ class AdMoSync(object):
         for ad_field, mo_field in self.mapping["engagements"].items():
             # Default `mo_value` to an empty string. In case the field is
             # dropped from the AD object, this will empty its value in MO.
-            new_mo_value = ad_object.get(ad_field, "")
+            new_mo_value = ad_object.get(ad_field, None)
             old_mo_value = mo_engagement.get(mo_field)
 
             # If we cannot read the field, maybe it is because our
@@ -628,6 +629,7 @@ class AdMoSync(object):
     def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
         self._finalize_user_addresses(uuid, ad_object)
+        self._edit_engagement(uuid, {})
 
     def _update_single_user(
         self,
