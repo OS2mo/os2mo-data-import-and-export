@@ -277,6 +277,7 @@ class ChangeAtSD:
                     "DeactivationTime": to_date.strftime("%H:%M"),
                     "StatusActiveIndicator": "true",
                     "StatusPassiveIndicator": "true",
+                    "FutureInformationIndicator": "true",
                 }
             )
         else:
