@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.19.1 - 2022-03-09
+-------------------
+
+[#45401] AD_sync removes engagement info from users when the AD-account is removed and removes AD engagement info from engagements that are no longer primary
+
 2.19.0 - 2022-03-07
 -------------------
 
