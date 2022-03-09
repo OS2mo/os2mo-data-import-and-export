@@ -5,9 +5,11 @@ import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon.config import CommonSettings
+from integrations.SD_Lon.models import JobFunction
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import sd_lookup
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "sync_job_id.log"
@@ -30,12 +32,12 @@ def setup_logging():
 
 
 class JobIdSync:
-    def __init__(self, settings=None):
+    def __init__(self, settings: CommonSettings):
         logger.info("Start sync")
-        self.settings = settings or load_settings()
+        self.settings = settings
 
-        sd_job_function = self.settings["integrations.SD_Lon.job_function"]
-        if sd_job_function == "JobPositionIdentifier":
+        sd_job_function = self.settings.sd_job_function
+        if sd_job_function == JobFunction.job_position_identifier:
             logger.info("Read settings. Update job_functions and engagment types")
             self.update_job_functions = True
         else:
@@ -46,7 +48,7 @@ class JobIdSync:
 
     def _read_classes(self):
         """Read engagement_types and job_function types from MO."""
-        mora_base = self.settings["mora.base"]
+        mora_base = self.settings.mora_base
         helper = MoraHelper(hostname=mora_base, use_cache=False)
 
         self.engagement_types = helper.read_classes_in_facet("engagement_type")
@@ -96,7 +98,7 @@ class JobIdSync:
         logger.info("Edit {} to {}".format(uuid, title))
         payload = sd_payloads.edit_klasse_title(title)
         response = requests.patch(
-            url=self.settings["mox.base"] + "/klassifikation/klasse/" + uuid,
+            url=self.settings.mox_base + "/klassifikation/klasse/" + uuid,
             json=payload,
         )
         logger.info("Lora response: {}".format(response.status_code))

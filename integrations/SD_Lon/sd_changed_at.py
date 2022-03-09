@@ -39,13 +39,15 @@ from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from integrations.rundb.db_overview import DBOverview
-from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.config import ChangedAtSettings
+from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.engagement import create_engagement
 from integrations.SD_Lon.engagement import engagement_components
 from integrations.SD_Lon.engagement import update_existing_engagement
 from integrations.SD_Lon.fix_departments import FixDepartments
+from integrations.SD_Lon.models import JobFunction
 from integrations.SD_Lon.models import SDBasePerson
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
@@ -93,34 +95,32 @@ def setup_logging():
 class ChangeAtSD:
     def __init__(
         self,
+        settings: ChangedAtSettings,
         from_date: datetime.datetime,
         to_date: Optional[datetime.datetime] = None,
-        settings: Optional[dict] = None,
     ):
-        self.settings = settings or load_settings()
+        self.settings = settings
 
-        job_function_type = self.settings["integrations.SD_Lon.job_function"]
-        if job_function_type == "JobPositionIdentifier":
+        job_function_type = self.settings.sd_job_function
+        if job_function_type == JobFunction.job_position_identifier:
             logger.info("Read settings. JobPositionIdentifier for job_functions")
             self.use_jpi = True
-        elif job_function_type == "EmploymentName":
+        elif job_function_type == JobFunction.employment_name:
             logger.info("Read settings. Do not update job_functions")
             self.use_jpi = False
-        else:
-            raise exceptions.JobfunctionSettingsIsWrongException()
 
         self.employee_forced_uuids = self._read_forced_uuids()
         self.department_fixer = self._get_fix_departments()
-        self.helper = self._get_mora_helper(self.settings["mora.base"])
+        self.helper = self._get_mora_helper(self.settings.mora_base)
         self.job_sync = self._get_job_sync(self.settings)
 
         # List of job_functions that should be ignored.
-        self.skip_job_functions = self.settings.get("skip_job_functions", [])
-        self.use_ad = self.settings.get("integrations.SD_Lon.use_ad_integration", True)
+        self.skip_job_functions = self.settings.sd_skip_job_functions
+        self.use_ad = self.settings.sd_use_ad_integration
 
         # TODO: remove when MO is updated to a version greater than 2.7.0
-        self.terminate_engagement_with_to_only = self.settings.get(
-            "integrations.SD_Lon.terminate_engagement_with_to_only", True
+        self.terminate_engagement_with_to_only = (
+            self.settings.sd_terminate_engagement_with_to_only
         )
 
         try:
@@ -184,7 +184,7 @@ class ChangeAtSD:
     def _get_mora_helper(self, mora_base) -> MoraHelper:
         return MoraHelper(hostname=mora_base, use_cache=False)
 
-    def _get_job_sync(self, settings) -> JobIdSync:
+    def _get_job_sync(self, settings: ChangedAtSettings) -> JobIdSync:
         return JobIdSync(settings)
 
     def _read_forced_uuids(self):
@@ -280,7 +280,7 @@ class ChangeAtSD:
                     "DeactivationDate": "31.12.9999",
                 }
             )
-        response = sd_lookup(url, params=params)
+        response = sd_lookup(url, settings=self.settings, params=params)
 
         employment_response = ensure_list(response.get("Person", []))
 
@@ -312,7 +312,7 @@ class ChangeAtSD:
             params["DeactivationTime"] = to_date.strftime("%H:%M")
 
         url = "GetPersonChangedAtDate20111201"
-        response = sd_lookup(url, params=params)
+        response = sd_lookup(url, settings=self.settings, params=params)
         persons_changed = ensure_list(response.get("Person", []))
         return persons_changed
 
@@ -337,7 +337,7 @@ class ChangeAtSD:
             "PostalAddressIndicator": "false",
         }
         url = "GetPerson20111201"
-        response = sd_lookup(url, params=params)
+        response = sd_lookup(url, settings=self.settings, params=params)
         person = ensure_list(response.get("Person", []))
         return person
 
@@ -579,7 +579,7 @@ class ChangeAtSD:
             uuid of the newly created class.
         """
         response = requests.post(
-            url=self.settings["mox.base"] + "/klassifikation/klasse", json=payload
+            url=self.settings.mox_base + "/klassifikation/klasse", json=payload
         )
         assert response.status_code == 201
         return response.json()["uuid"]
@@ -693,7 +693,7 @@ class ChangeAtSD:
     def apply_NY_logic(self, org_unit, job_id, validity, person_uuid) -> str:
         msg = "Apply NY logic for job: {}, unit: {}, validity: {}"
         logger.debug(msg.format(job_id, org_unit, validity))
-        too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
+        too_deep = self.settings.sd_import_too_deep
         # Move users and make associations according to NY logic
         today = datetime.datetime.today()
         ou_info = self.helper.read_ou(org_unit, use_cache=False)
@@ -736,6 +736,7 @@ class ChangeAtSD:
 
             activation_date_info = read_employment_at(
                 employment_id=engagement["EmploymentIdentifier"],
+                settings=self.settings,
                 effective_date=datetime.datetime.strptime(
                     status["ActivationDate"], "%Y-%m-%d"
                 ).date(),
@@ -810,7 +811,7 @@ class ChangeAtSD:
         if engagement_type is None:
             return False
 
-        extension_field = self.settings.get("integrations.SD_Lon.employment_field")
+        extension_field = self.settings.sd_employment_field
         extension = {}
         if extension_field is not None:
             extension = {extension_field: emp_name}
@@ -918,7 +919,7 @@ class ChangeAtSD:
                     "UUIDIndicator": "true",
                     "DepartmentIdentifier": department["DepartmentIdentifier"],
                 }
-                response = sd_lookup(url, params)
+                response = sd_lookup(url, settings=self.settings, params=params)
                 logger.warning("GetDepartment returned: {}".format(response))
                 org_unit = response["Department"]["DepartmentUUIDIdentifier"]
                 if org_unit is None:
@@ -950,7 +951,7 @@ class ChangeAtSD:
             mora_assert(response)
 
     def determine_engagement_type(self, engagement, job_position):
-        split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
+        split = self.settings.sd_monthly_hourly_divide
         employment_id = calc_employment_id(engagement)
         if employment_id["value"] < split:
             return self.engagement_types.get("månedsløn")
@@ -963,9 +964,7 @@ class ChangeAtSD:
 
         # We should not create engagements (or engagement_types) for engagements
         # with too low of a job_position id compared to no_salary_minimum_id.
-        no_salary_minimum = self.settings.get(
-            "integrations.SD_Lon.no_salary_minimum_id", None
-        )
+        no_salary_minimum = self.settings.sd_no_salary_minimum_id
         if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
             message = "No salary employee, with too low job_position id"
             logger.warning(message)
@@ -1010,9 +1009,7 @@ class ChangeAtSD:
             # the code, a strategy pattern is not feasible for now. Let's
             # leave it as is until the whole SD code base is rewritten
 
-            no_salary_minimum = self.settings.get(
-                "integrations.SD_Lon.no_salary_minimum_id", None
-            )
+            no_salary_minimum = self.settings.sd_no_salary_minimum_id
             if no_salary_minimum and int(job_position) < no_salary_minimum:
                 sd_from_date = profession_info["ActivationDate"]
                 sd_to_date = profession_info["DeactivationDate"]
@@ -1035,7 +1032,7 @@ class ChangeAtSD:
                     job_function = job_position
                 logger.debug("Employment name: {}".format(job_function))
 
-                ext_field = self.settings.get("integrations.SD_Lon.employment_field")
+                ext_field = self.settings.sd_employment_field
                 extention = {}
                 if ext_field is not None:
                     extention = {ext_field: emp_name}
@@ -1105,9 +1102,7 @@ class ChangeAtSD:
         # Assume `profession` contains a `JobPositionIdentifier` which can
         # read as an integer.
         job_pos_id = int(profession["JobPositionIdentifier"])
-        no_salary_minimum = self.settings.get(
-            "integrations.SD_Lon.no_salary_minimum_id", None
-        )
+        no_salary_minimum = self.settings.sd_no_salary_minimum_id
         is_above = no_salary_minimum is not None and job_pos_id > no_salary_minimum
         return is_above
 
@@ -1353,9 +1348,10 @@ def initialize_changed_at(from_date, run_db, force=False):
         raise Exception("RunDB not created, use 'db_overview.py' to create it")
 
     _local_db_insert((from_date, from_date, "Running since {}"))
+    settings = get_changed_at_settings()
 
     logger.info("Start initial ChangedAt")
-    sd_updater = ChangeAtSD(from_date)
+    sd_updater = ChangeAtSD(settings, from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     logger.info("Ended initial ChangedAt")
@@ -1420,16 +1416,16 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
-    settings = load_settings()
-    run_db = settings["integrations.SD_Lon.import.run_db"]
+    settings = get_changed_at_settings()
+    run_db = settings.sd_import_run_db
 
     logger.info("***************")
     logger.info("Program started")
 
     if init:
-        run_db = pathlib.Path(run_db)
+        run_db_path = pathlib.Path(run_db)
 
-        initialize_changed_at(from_date, run_db, force=True)
+        initialize_changed_at(from_date, run_db_path, force=True)
         exit()
     from_date = get_from_date(run_db, force=force)
     to_date = datetime.datetime.now()
@@ -1438,7 +1434,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
     _local_db_insert((from_date, to_date, "Running since {}"))
 
     logger.info("Start ChangedAt module")
-    sd_updater = ChangeAtSD(from_date, to_date)
+    sd_updater = ChangeAtSD(settings, from_date, to_date)
 
     logger.info("Update changed persons")
     sd_updater.update_changed_persons()
@@ -1470,7 +1466,10 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
 )
 def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     """Import a single user into MO."""
-    sd_updater = ChangeAtSD(from_date, None)
+
+    settings = get_changed_at_settings()
+
+    sd_updater = ChangeAtSD(settings, from_date, None)
     sd_updater.update_changed_persons(cpr, dry_run=dry_run)
     sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
@@ -1489,7 +1488,9 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
     setup_logging()
-    sd_updater = ChangeAtSD(from_date, None)
+    settings = get_changed_at_settings()
+
+    sd_updater = ChangeAtSD(settings, from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
     sd_updater.update_all_employments(dry_run=dry_run)
 

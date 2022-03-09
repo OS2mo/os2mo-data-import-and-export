@@ -14,7 +14,7 @@ from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
 from .fixtures import get_organisation_fixture
-from integrations.SD_Lon.config import Settings
+from integrations.SD_Lon.config import ImporterSettings
 from integrations.SD_Lon.sd_importer import SdImport
 from os2mo_data_import import ImportHelper
 
@@ -71,7 +71,7 @@ def get_sd_importer(
         "sd_importer_create_associations": False,
     }
     settings_dict.update(override_settings)
-    settings = Settings.parse_obj(settings_dict)
+    settings = ImporterSettings.parse_obj(settings_dict)
 
     sd = SdImportTest(importer, settings=settings, org_only=org_only, ad_info=None)
 

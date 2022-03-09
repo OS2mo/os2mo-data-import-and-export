@@ -1,5 +1,7 @@
 import json
 from copy import deepcopy
+from typing import Any
+from typing import Dict
 from unittest.mock import patch
 
 import pytest
@@ -7,9 +9,12 @@ from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
 
-from integrations.SD_Lon.config import get_settings
-from integrations.SD_Lon.config import json_file_settings
-from integrations.SD_Lon.config import Settings
+from integrations.SD_Lon.config import gen_json_file_settings_func
+from integrations.SD_Lon.config import get_importer_settings
+from integrations.SD_Lon.config import ImporterSettings
+
+
+importer_json_file_settings = gen_json_file_settings_func(ImporterSettings)
 
 DEFAULT_MOCK_SETTINGS = {
     "integrations.SD_Lon.employment_field": "extension_1",
@@ -24,12 +29,13 @@ DEFAULT_MOCK_SETTINGS = {
     "municipality.name": "Kolding Kommune",
 }
 
-DEFAULT_EXPECTED_SETTINGS = {
+DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_employment_field": "extension_1",
     "sd_global_from_date": "2022-01-09",
     "sd_import_run_db": "run_db.sqlite",
     "sd_institution_identifier": "XYZ",
     "sd_job_function": "EmploymentName",
+    "sd_no_salary_minimum_id": None,
     "sd_monthly_hourly_divide": 50000,
     "sd_user": "user",
     "sd_password": "**********",
@@ -41,9 +47,10 @@ DEFAULT_EXPECTED_SETTINGS = {
     "sd_importer_create_associations": True,
     "sd_importer_create_email_addresses": True,
     "sd_importer_employment_date_as_engagement_start_date": False,
+    "sd_skip_job_functions": [],
     "sd_skip_employment_types": [],
     "sd_terminate_engagement_with_to_only": True,
-    "sd_use_ad_integration": False,
+    "sd_use_ad_integration": True,
 }
 
 DEFAULT_FILTERED_JSON_SETTINGS = {
@@ -74,7 +81,7 @@ def test_json_file_settings(mock_load_settings):
     mock_load_settings.return_value = DEFAULT_MOCK_SETTINGS
 
     # Act
-    settings = json_file_settings(BaseSettings())
+    settings = importer_json_file_settings(BaseSettings())
 
     # Assert
     assert settings == DEFAULT_FILTERED_JSON_SETTINGS
@@ -88,7 +95,7 @@ def test_json_file_settings_remove_unknown_settings(mock_load_settings):
     mock_load_settings.return_value = mock_settings
 
     # Act
-    settings = json_file_settings(BaseSettings())
+    settings = importer_json_file_settings(BaseSettings())
 
     # Assert
     assert settings == DEFAULT_FILTERED_JSON_SETTINGS
@@ -100,7 +107,7 @@ def test_empty_dict_on_file_not_found_error(mock_load_settings):
     mock_load_settings.side_effect = FileNotFoundError()
 
     # Act
-    json_settings = json_file_settings(BaseSettings())
+    json_settings = importer_json_file_settings(BaseSettings())
 
     # Assert
     assert json_settings == dict()
@@ -112,8 +119,8 @@ def test_set_defaults(mock_load_settings):
     mock_load_settings.return_value = DEFAULT_MOCK_SETTINGS
 
     # Act
-    get_settings.cache_clear()
-    settings_input = get_settings()
+    get_importer_settings.cache_clear()
+    settings_input = get_importer_settings()
 
     # Assert
     assert json.loads(settings_input.json()) == DEFAULT_EXPECTED_SETTINGS
@@ -121,9 +128,9 @@ def test_set_defaults(mock_load_settings):
 
 def test_forbid_extra_settings():
     with pytest.raises(ValidationError):
-        Settings(
+        ImporterSettings(
             municipality_name="name",
-            municipality_code="code",
+            municipality_code=100,
             sd_global_from_date="1970-01-01",
             sd_employment_field="extension_1",
             sd_import_run_db="run_db.sqlite",
@@ -138,8 +145,8 @@ def test_forbid_extra_settings():
 
 def test_env_settings_takes_precedence(mock_env_and_json):
     # Act
-    get_settings.cache_clear()
-    settings = get_settings()
+    get_importer_settings.cache_clear()
+    settings = get_importer_settings()
 
     # Assert
     assert settings.sd_user == "env_user"
@@ -153,8 +160,8 @@ def test_override_default(mock_load_settings):
     mock_load_settings.return_value = mock_settings
 
     # Act
-    get_settings.cache_clear()
-    settings = get_settings()
+    get_importer_settings.cache_clear()
+    settings = get_importer_settings()
 
     # Assert
     assert not settings.sd_importer_create_associations
@@ -180,4 +187,20 @@ def test_special_values(key, value):
 
     # Act and assert
     with pytest.raises(ValidationError):
-        Settings.parse_obj(mock_settings)
+        ImporterSettings.parse_obj(mock_settings)
+
+
+@parameterized.expand(["JobPositionIdentifier", "EmploymentName"])
+def test_job_function_enums_allowed(job_function):
+    assert ImporterSettings(
+        municipality_name="name",
+        municipality_code=100,
+        sd_global_from_date="1970-01-01",
+        sd_employment_field="extension_1",
+        sd_import_run_db="run_db.sqlite",
+        sd_institution_identifier="XY",
+        sd_job_function=job_function,
+        sd_monthly_hourly_divide=9000,
+        sd_password="secret",
+        sd_user="user",
+    )

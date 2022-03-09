@@ -18,10 +18,11 @@ from ra_utils.load_settings import load_setting
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
-from integrations.SD_Lon.config import get_settings
-from integrations.SD_Lon.config import Settings
+from integrations.SD_Lon.config import get_importer_settings
+from integrations.SD_Lon.config import ImporterSettings
 from integrations.SD_Lon.date_utils import format_date
 from integrations.SD_Lon.date_utils import get_employment_dates
+from integrations.SD_Lon.models import JobFunction
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -43,7 +44,7 @@ class SdImport:
     def __init__(
         self,
         importer,
-        settings: Settings,
+        settings: ImporterSettings,
         ad_info=None,
         org_only=False,
         org_id_prefix=None,
@@ -192,7 +193,9 @@ class SdImport:
             "UUIDIndicator": "true",
             "EmploymentDepartmentIndicator": "false",
         }
-        departments = sd_lookup("GetDepartment20111201", params)
+        departments = sd_lookup(
+            "GetDepartment20111201", settings=self.settings, params=params
+        )
 
         for department in departments["Department"]:
             uuid = department["DepartmentUUIDIdentifier"]
@@ -403,13 +406,17 @@ class SdImport:
             "PostalAddressIndicator": "false",
             "EffectiveDate": self.import_date,
         }
-        active_people = sd_lookup("GetPerson20111201", params)
+        active_people = sd_lookup(
+            "GetPerson20111201", settings=self.settings, params=params
+        )
         if not isinstance(active_people["Person"], list):
             active_people["Person"] = [active_people["Person"]]
 
         params["StatusActiveIndicator"] = False
         params["StatusPassiveIndicator"] = True
-        passive_people = sd_lookup("GetPerson20111201", params)
+        passive_people = sd_lookup(
+            "GetPerson20111201", settings=self.settings, params=params
+        )
         if not isinstance(passive_people["Person"], list):
             passive_people["Person"] = [passive_people["Person"]]
 
@@ -483,7 +490,9 @@ class SdImport:
             "DeactivationDate": self.import_date,
             "UUIDIndicator": "true",
         }
-        organisation = sd_lookup("GetOrganization20111201", params)
+        organisation = sd_lookup(
+            "GetOrganization20111201", settings=self.settings, params=params
+        )
         departments = organisation["Organization"]["DepartmentReference"]
 
         for department in departments:
@@ -501,6 +510,7 @@ class SdImport:
         active_people = ensure_list(
             read_employment_at(
                 effective_date,
+                settings=self.settings,
                 status_passive_indicator=False,
             )
         )
@@ -509,6 +519,7 @@ class SdImport:
         passive_people = ensure_list(
             read_employment_at(
                 effective_date,
+                settings=self.settings,
                 status_active_indicator=False,
                 status_passive_indicator=True,
             )
@@ -571,16 +582,14 @@ class SdImport:
                 primary_type_ref = "status0"
 
             job_function_type = self.settings.sd_job_function
-            if job_function_type == "EmploymentName":
+            if job_function_type == JobFunction.employment_name:
                 job_func_ref = self._add_klasse(
                     job_name, job_name, "engagement_job_function"
                 )
-            elif job_function_type == "JobPositionIdentifier":
+            elif job_function_type == JobFunction.job_position_identifier:
                 job_func_ref = self._add_klasse(
                     job_position_id, job_position_id, "engagement_job_function"
                 )
-            else:
-                raise Exception("integrations.SD_Lon.job_function is wrong")
 
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
@@ -726,7 +735,9 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
         store_integration_data=False,
         seperate_names=True,
     )
-    sd = SdImport(importer, settings=get_settings(), org_only=org_only, ad_info=None)
+    sd = SdImport(
+        importer, settings=get_importer_settings(), org_only=org_only, ad_info=None
+    )
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:
