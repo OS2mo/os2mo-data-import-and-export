@@ -15,6 +15,7 @@ from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
 from .fixtures import get_employment_fixture
+from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
 from integrations.SD_Lon.config import ImporterSettings
@@ -210,6 +211,40 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater = setup_sd_changed_at()
         result = sd_updater.read_employment_changed()
         self.assertEqual(result, expected_read_employment_result)
+
+    def test_do_not_create_engagement_for_inconsistent_external_emp(self):
+        """
+        We are testing bullet 4 in
+        https://os2web.atlassian.net/browse/MO-245, i.e. that we do not
+        create a MO engagement for a newly created external SD employee
+        who (unintentionally) has a JobPositionIdentifier below
+        no_salary_minimum.
+
+        NOTE: an external SD employee has an EmploymentIdentifier containing
+        letters (at least in some municipalities)
+        """
+
+        sd_updater = setup_sd_changed_at(
+            {
+                "sd_no_salary_minimum_id": 9000,
+            }
+        )
+        sd_updater.read_employment_changed = (
+            lambda: get_read_employment_changed_fixture(
+                employment_id="ABCDE", job_pos_id=8000  # See doc-string above
+            )
+        )
+
+        morahelper = sd_updater.morahelper_mock
+        morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
+
+        sd_updater.create_new_engagement = MagicMock()
+
+        # Act
+        sd_updater.update_all_employments()
+
+        # Assert
+        sd_updater.create_new_engagement.assert_not_called()
 
     @given(status=st.sampled_from(["1", "S"]))
     def test_update_all_employments(self, status):
