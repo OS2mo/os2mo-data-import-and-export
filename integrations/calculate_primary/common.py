@@ -369,6 +369,7 @@ class MOPrimaryEngagementUpdater(ABC):
             if response.status_code == 400:
                 # XXX: This shouldn't happen due to the previous check?
                 logger.warn("Attempted edit, but no change needed.")
+                return False
         return True
 
     def recalculate_user(self, user_uuid: Union[UUID, str], no_past=False):
