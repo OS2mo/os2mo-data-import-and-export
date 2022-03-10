@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.2 - 2022-03-10
+-------------------
+
+[#48939] Handle SD engagements inconsistent according to no-salary-minimum
+
 2.20.1 - 2022-03-09
 -------------------
 
