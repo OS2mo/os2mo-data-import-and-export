@@ -1,5 +1,6 @@
 import datetime
 import logging
+from typing import Tuple
 
 import click
 from alembic.migration import MigrationContext
@@ -80,6 +81,10 @@ class SqlExport:
     def _get_db_session(self) -> Session:
         Session = sessionmaker(bind=self.engine, autoflush=False)
         return Session()
+
+    def _get_lora_class(self, uuid: str) -> Tuple[str, dict]:
+        cls: dict = self.lc.classes.get(uuid) or {"title": None}
+        return uuid, cls
 
     def perform_export(self, resolve_dar=True, use_pickle=None):
         def timestamp():
@@ -278,9 +283,8 @@ class SqlExport:
                     primærtype_titel = ""
 
                 engagement_type_uuid = engagement_info["engagement_type"]
-                job_function_uuid = engagement_info["job_function"]
-                job_function_class = self.lc.classes.get(
-                    job_function_uuid, {"title": job_function_uuid}
+                job_function_uuid, job_function_class = self._get_lora_class(
+                    engagement_info["job_function"]
                 )
 
                 sql_engagement = Engagement(
@@ -295,7 +299,7 @@ class SqlExport:
                         engagement_type_uuid, {"title": engagement_type_uuid}
                     )["title"],
                     primærtype_titel=primærtype_titel,
-                    stillingsbetegnelse_uuid=engagement_info["job_function"],
+                    stillingsbetegnelse_uuid=job_function_uuid,
                     stillingsbetegnelse_titel=job_function_class["title"],
                     primærtype_uuid=engagement_info["primary_type"],
                     startdato=engagement_info["from_date"],
@@ -377,8 +381,10 @@ class SqlExport:
             self.lc.associations.items(), desc="Export association", unit="association"
         ):
             for association_info in association_validity:
-                job_function_uuid = association_info["job_function"]
-                job_function_class = self.lc.classes.get(job_function_uuid)
+                job_function_uuid, job_function_class = self._get_lora_class(
+                    association_info["job_function"]
+                )
+
                 sql_association = Tilknytning(
                     uuid=association,
                     bruger_uuid=association_info["user"],
