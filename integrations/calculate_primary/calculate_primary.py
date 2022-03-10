@@ -85,10 +85,10 @@ def calculate_primary(
         updater.check_user(check_user)
     if recalculate_all:
         print("Recalculate all")
-        updater.recalculate_all(no_past=True)
+        updater.recalculate_all()
     if recalculate_user:
         print("Recalculate user")
-        updater.recalculate_user(recalculate_user)
+        print(updater.recalculate_user(recalculate_user))
 
 
 if __name__ == "__main__":
