@@ -41,6 +41,7 @@ class Tests_lc_db(unittest.TestCase):
             brugernavn='AD-logon',
             startdato="0",
             slutdato="1",
+            primær_boolean=True,
         )
         self.session.add(it)
         it = ItForbindelse(
@@ -52,6 +53,7 @@ class Tests_lc_db(unittest.TestCase):
             brugernavn='if_bvn2',
             startdato="0",
             slutdato="1",
+            primær_boolean=True,
         )
         self.session.add(it)
         self.session.commit()
@@ -156,4 +158,3 @@ class Tests_lc_db(unittest.TestCase):
                     'Positions': [],
                     }
         self.assertEqual(expected, get_sts_user(self.session, 'b1', []))
-
