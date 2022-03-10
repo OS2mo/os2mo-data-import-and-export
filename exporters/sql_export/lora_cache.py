@@ -1,28 +1,28 @@
-import json
-import os
-import time
-import pickle
-import urllib
-import logging
-import pathlib
 import datetime
+import json
+import logging
+import os
+import pickle
+import re
+import time
+import urllib
+from collections import defaultdict
+from itertools import starmap
+from operator import itemgetter
+from pathlib import Path
+from typing import Optional
+from typing import Tuple
+
+import click
 import dateutil
 import lora_utils
 import requests
-from pathlib import Path
-from operator import itemgetter
-from itertools import starmap
-from collections import defaultdict
-from typing import Tuple
+from more_itertools import bucket
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_settings
+from retrying import retry
 from tqdm import tqdm
 
-import click
-import re
-from more_itertools import bucket
-from ra_utils.load_settings import load_settings
-from typing import Optional
-from retrying import retry
-from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
@@ -570,7 +570,7 @@ class LoraCache:
 
                 try:
                     job_function = rel["opgaver"][0]["uuid"]
-                except:
+                except Exception:
                     continue
 
                 user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
@@ -624,6 +624,8 @@ class LoraCache:
                 "tilknyttedeenheder",
                 "tilknyttedebrugere",
                 "organisatoriskfunktionstype",
+                "tilknyttedefunktioner",
+                "tilknyttedeitsystemer",
             ),
             "attributter": ("organisationfunktionegenskaber",),
         }
@@ -657,6 +659,13 @@ class LoraCache:
                 association_type = rel["organisatoriskfunktionstype"][0]["uuid"]
                 user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedebrugere")
 
+                it_user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedeitsystemer")
+                job_function_uuid = (
+                    get_rel_uuid_or_none(uuid, rel, "tilknyttedefunktioner")
+                    if it_user_uuid
+                    else None
+                )
+
                 associations[uuid].append(
                     {
                         "uuid": uuid,
@@ -664,10 +673,13 @@ class LoraCache:
                         "unit": unit_uuid,
                         "user_key": user_key,
                         "association_type": association_type,
+                        "it_user": it_user_uuid,
+                        "job_function": job_function_uuid,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
                 )
+
         return associations
 
     def _cache_lora_roles(self):
@@ -774,6 +786,7 @@ class LoraCache:
                     "tilknyttedeenheder",
                     "tilknyttedebrugere",
                     "tilknyttedeitsystemer",
+                    "primær",
                 ),
                 "attributter": ("organisationfunktionegenskaber",),
             }
@@ -797,6 +810,8 @@ class LoraCache:
                     user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
                     unit_uuid = None
 
+                primary_type = get_rel_uuid_or_none(uuid, rel, "primær")
+
                 it_connections[uuid].append(
                     {
                         "uuid": uuid,
@@ -804,6 +819,7 @@ class LoraCache:
                         "unit": unit_uuid,
                         "username": user_key,
                         "itsystem": itsystem,
+                        "primary_type": primary_type,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
@@ -1210,8 +1226,8 @@ class LoraCache:
             self.dar_cache = {}
             return
 
-        t = time.time()
-        msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"
+        t = time.time()  # noqa: F841
+        msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
 
         # Here we should activate read-only mode
         def read_facets():
