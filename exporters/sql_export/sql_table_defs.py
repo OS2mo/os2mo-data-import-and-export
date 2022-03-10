@@ -166,10 +166,10 @@ class ItForbindelse(Base):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     it_system_uuid = Column(String(36))  # , ForeignKey('it_systemer.uuid'))
-    primær_boolean = Column(Boolean)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     brugernavn = Column(String(250))
+    primær_boolean = Column(Boolean, nullable=False)
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
