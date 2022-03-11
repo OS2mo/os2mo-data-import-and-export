@@ -3,20 +3,18 @@ from datetime import datetime
 from datetime import timedelta
 
 import pytest
-from parameterized import parameterized
-from hypothesis import assume
 from hypothesis import given
 from hypothesis import strategies as st
-from more_itertools import one
 from more_itertools import pairwise
+from parameterized import parameterized
 
 from integrations.SD_Lon.date_utils import _get_employment_from_date
-from integrations.SD_Lon.date_utils import get_employment_dates
-from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
-from integrations.SD_Lon.date_utils import gen_date_intervals
-from integrations.SD_Lon.date_utils import is_midnight
-from integrations.SD_Lon.date_utils import to_midnight
 from integrations.SD_Lon.date_utils import gen_cut_dates
+from integrations.SD_Lon.date_utils import gen_date_intervals
+from integrations.SD_Lon.date_utils import get_employment_dates
+from integrations.SD_Lon.date_utils import is_midnight
+from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
+from integrations.SD_Lon.date_utils import to_midnight
 
 
 @st.composite
@@ -136,7 +134,7 @@ def test_get_employment_to_date_when_status_is_leave(
         [datetime(1960, 1, 2, 0, 0, 0, 0), datetime(1960, 1, 2, 0, 0, 0, 0)],
     ]
 )
-def test_to_midnight(datetime, expected):
+def test_to_midnight_parameterized(datetime, expected):
     assert to_midnight(datetime) == expected
 
 
