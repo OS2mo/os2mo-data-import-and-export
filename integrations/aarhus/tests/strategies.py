@@ -39,7 +39,7 @@ def csv_buf_from_model(draw, model: pydantic.BaseModel, delimiter: str = ";"):
 
     # Construct a strategy based on the Pydantic model `model` and the contents
     # of `overrides`.
-    strategy: st.SearchStrategy = st.builds(model, **overrides)
+    strategy: st.SearchStrategy = st.builds(model, **overrides)  # type: ignore
 
     # Construct a buffer containing a one-item CSV file based on our `strategy`
     instance = draw(strategy)  # type: ignore

@@ -50,7 +50,8 @@ class FTPFileSet(FileSet):
             ftp = FTP(self._settings.ftp_url)
         except Exception as e:
             raise config.ImproperlyConfigured(
-                "cannot connect to FTP server %r" % self._settings.ftp_url
+                "cannot connect to FTP server %r"
+                % getattr(self._settings, "ftp_url", None)
             ) from e
         else:
             ftp.encoding = "utf-8"
@@ -187,4 +188,4 @@ def read_csv(filename: str, model: T) -> List[T]:
     print(f"Processing {filename}")
     fileset = get_fileset_implementation()
     lines = fileset.read_file(filename)
-    return parse_csv(lines, model)
+    return parse_csv(lines, model)  # type: ignore

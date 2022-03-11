@@ -1,9 +1,12 @@
 from datetime import datetime
 
+import los_files
 import los_stam
+from hypothesis import given
 from pydantic import Field
 
 from .helpers import HelperMixin
+from .strategies import csv_buf_from_model
 
 
 class MockStamCSV(los_stam.StamCSV):
@@ -52,3 +55,51 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         return los_stam.StamImporter._load_csv_if_newer(
             MockStamCSV, self._datetime_last_imported
         )
+
+
+class TestParseEngagementstypeCSV:
+    @given(csv_buf_from_model(model=los_stam.Engagementstype))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Engagementstype)
+
+
+class TestParseEnhedstypeCSV:
+    @given(csv_buf_from_model(model=los_stam.Enhedstype))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Enhedstype)
+
+
+class TestParseITSystemCSV:
+    @given(csv_buf_from_model(model=los_stam.ITSystem))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.ITSystem)
+
+
+class TestParseStillingsbetegnelseCSV:
+    @given(csv_buf_from_model(model=los_stam.Stillingsbetegnelse))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Stillingsbetegnelse)
+
+
+class TestParseLederansvarCSV:
+    @given(csv_buf_from_model(model=los_stam.Lederansvar))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Lederansvar)
+
+
+class TestParseLederniveauCSV:
+    @given(csv_buf_from_model(model=los_stam.Lederniveau))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Lederniveau)
+
+
+class TestParseLedertypeCSV:
+    @given(csv_buf_from_model(model=los_stam.Ledertype))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Ledertype)
+
+
+class TestParseTilknytningsrolleCSV:
+    @given(csv_buf_from_model(model=los_stam.Tilknytningsrolle))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.Tilknytningsrolle)

@@ -79,7 +79,7 @@ class Settings(BaseSettings):
 
 def get_config() -> Settings:
     try:
-        return Settings._instance
+        return Settings._instance  # type: ignore
     except AttributeError:
         raise ImproperlyConfigured(
             "Settings are not configured - did you call `Settings.from_kwargs`?"
