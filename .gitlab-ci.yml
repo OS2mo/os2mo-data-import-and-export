@@ -321,3 +321,21 @@ Release to Prod:
   needs: []
   variables:
     ENDPOINT: os2mo/flux/dipex/update-prod
+
+Release to PyPI:
+  stage: release
+  needs: []
+  image: python:3.8-slim
+  variables:
+    POETRY_VERSION: "1.1.11"
+    POETRY_VIRTUALENVS_CREATE: "true"
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  script: poetry publish --build -u OS2mo -p $PYPI_PWD
+  before_script:
+    - cd os2mo_data_import/
+    - sed -i "s/version = .*/version = \"$CI_COMMIT_TAG\"/" pyproject.toml
+    - pip install --no-cache-dir poetry==${POETRY_VERSION}
+  rules:
+    # Matches <version core> from SemVer 2.0.0 BNF grammar.
+    # Ex. 2.3.4, but not 2.3.4-rc
+    - if: $CI_COMMIT_TAG =~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
