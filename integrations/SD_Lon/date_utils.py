@@ -118,19 +118,17 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     return format_date(mo_date)
 
 
-def to_midnight(dt) -> datetime:
+def to_midnight(dt: datetime) -> datetime:
     """Get previous midnight from datetime."""
     return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def is_midnight(dt) -> bool:
+def is_midnight(dt: datetime) -> bool:
     """Check if datetime is at midnight."""
     return dt == to_midnight(dt)
 
 
-def gen_cut_dates(
-    from_datetime: datetime, to_datetime: datetime
-) -> Iterator[datetime]:
+def gen_cut_dates(from_datetime: datetime, to_datetime: datetime) -> Iterator[datetime]:
     """Get iterator of cut-dates between from_datetime and to_datetime.
 
     Args:
@@ -147,8 +145,7 @@ def gen_cut_dates(
         return to_midnight(from_datetime) + timedelta(days=offset)
 
     midnights = takewhile(
-        lambda midnight: midnight<to_datetime,
-        tabulate(midnight_at_offset, start=1)
+        lambda midnight: midnight < to_datetime, tabulate(midnight_at_offset, start=1)
     )
     return chain([from_datetime], midnights, [to_datetime])
 
