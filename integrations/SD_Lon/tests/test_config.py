@@ -10,6 +10,7 @@ from pydantic import BaseSettings
 from pydantic import ValidationError
 
 from integrations.SD_Lon.config import gen_json_file_settings_func
+from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.config import get_importer_settings
 from integrations.SD_Lon.config import ImporterSettings
 
@@ -73,6 +74,16 @@ def mock_env_and_json(monkeypatch):
     monkeypatch.setattr(
         "integrations.SD_Lon.config.load_settings", lambda: DEFAULT_MOCK_SETTINGS
     )
+
+
+@pytest.fixture
+def mock_env(monkeypatch):
+    monkeypatch.setenv("SD_INSTITUTION_IDENTIFIER", "institution_id")
+    monkeypatch.setenv("SD_USER", "env_user")
+    monkeypatch.setenv("SD_PASSWORD", "env_pwd")
+    monkeypatch.setenv("SD_JOB_FUNCTION", "EmploymentName")
+    monkeypatch.setenv("SD_MONTHLY_HOURLY_DIVIDE", "80000")
+    monkeypatch.setenv("SD_IMPORT_RUN_DB", "env_run_db")
 
 
 @patch("integrations.SD_Lon.config.load_settings")
@@ -150,6 +161,22 @@ def test_env_settings_takes_precedence(mock_env_and_json):
 
     # Assert
     assert settings.sd_user == "env_user"
+
+
+def test_pydantic_settings_set_correctly_when_json_settings_not_found(mock_env):
+    # Act
+    get_changed_at_settings.cache_clear()
+    with patch("integrations.SD_Lon.config.load_settings") as mock_load_settings:
+        mock_load_settings.side_effect = FileNotFoundError()
+        settings = get_changed_at_settings()
+
+    # Assert
+    assert settings.sd_institution_identifier == "institution_id"
+    assert settings.sd_user == "env_user"
+    assert settings.sd_password.get_secret_value() == "env_pwd"
+    assert settings.sd_job_function == "EmploymentName"
+    assert settings.sd_monthly_hourly_divide == 80000
+    assert settings.sd_import_run_db == "env_run_db"
 
 
 @patch("integrations.SD_Lon.config.load_settings")
