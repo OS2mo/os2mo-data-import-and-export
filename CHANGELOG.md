@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.4 - 2022-03-14
+-------------------
+
+[#49146] Use RA Utils version 1.0.0 or greater (fixes problem with loading settings.json)
+
 2.20.3 - 2022-03-10
 -------------------
 
