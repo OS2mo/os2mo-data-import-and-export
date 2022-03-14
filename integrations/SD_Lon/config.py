@@ -19,6 +19,7 @@ from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
+from pydantic import UUID4
 from ra_utils.load_settings import load_settings
 
 from integrations.SD_Lon.models import JobFunction
@@ -107,6 +108,7 @@ class ImporterSettings(CommonSettings):
 
 
 class ChangedAtSettings(CommonSettings):
+    sd_fix_departments_root: Optional[UUID4] = None
     sd_import_run_db: str
     sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_job_functions: List[str] = []

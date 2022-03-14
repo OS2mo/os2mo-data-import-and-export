@@ -186,7 +186,7 @@ class ChangeAtSD:
         return SDPrimaryEngagementUpdater()
 
     def _get_fix_departments(self) -> FixDepartments:
-        return FixDepartments()
+        return FixDepartments(self.settings)
 
     def _get_mora_helper(self, mora_base) -> MoraHelper:
         return MoraHelper(hostname=mora_base, use_cache=False)

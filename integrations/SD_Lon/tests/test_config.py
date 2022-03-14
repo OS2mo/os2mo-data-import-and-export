@@ -12,8 +12,8 @@ from pydantic import ValidationError
 from integrations.SD_Lon.config import gen_json_file_settings_func
 from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.config import get_importer_settings
-from integrations.SD_Lon.config import ImporterSettings
-
+from integrations.SD_Lon.config import ImporterSettings, ChangedAtSettings
+from uuid import uuid4
 
 importer_json_file_settings = gen_json_file_settings_func(ImporterSettings)
 
@@ -65,6 +65,16 @@ DEFAULT_FILTERED_JSON_SETTINGS = {
     "sd_password": "password",
     "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
+}
+
+DEFAULT_CHANGED_AT_SETTINGS = {
+    "sd_employment_field": "extension_1",
+    "sd_import_run_db": "run_db.sqlite",
+    "sd_institution_identifier": "XY",
+    "sd_job_function": "EmploymentName",
+    "sd_monthly_hourly_divide": 9000,
+    "sd_password": "secret",
+    "sd_user": "user",
 }
 
 
@@ -231,3 +241,19 @@ def test_job_function_enums_allowed(job_function):
         sd_password="secret",
         sd_user="user",
     )
+
+
+def test_changed_at_settings_allows_optional_fix_departments_root():
+    settings = deepcopy(DEFAULT_CHANGED_AT_SETTINGS)
+
+    # sd_fix_departments_root is optional
+    assert ChangedAtSettings.parse_obj(settings)
+
+    # ... and can be set to a UUID
+    settings.update({"sd_fix_departments_root": str(uuid4())})
+    assert ChangedAtSettings.parse_obj(settings)
+
+    # ... but not a non-UUID string
+    settings.update({"sd_fix_departments_root": "not a UUID"})
+    with pytest.raises(ValidationError):
+        ChangedAtSettings.parse_obj(settings)

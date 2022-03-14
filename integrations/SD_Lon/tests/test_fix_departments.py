@@ -1,5 +1,6 @@
 from copy import deepcopy
 from datetime import date
+from typing import Optional, Dict
 from unittest import mock
 from unittest import TestCase
 from uuid import uuid4
@@ -7,8 +8,9 @@ from uuid import uuid4
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 
+from ..config import ChangedAtSettings
 from ..fix_departments import FixDepartments
-
+from integrations.SD_Lon.tests.test_config import DEFAULT_CHANGED_AT_SETTINGS
 
 def mock_sd_lookup(service_name, expected_params, response):
     base_responses = {
@@ -30,7 +32,7 @@ def mock_sd_lookup(service_name, expected_params, response):
 
 
 class _TestableFixDepartments(FixDepartments):
-    MO_ORG_ROOT = "mo-org-root"
+    MO_ORG_ROOT = "00000000-0000-0000-0000-000000000000"
     MO_CLASS_USER_KEY = "Enhed"
     MO_CLASS_UUID = uuid4()
     SD_INSTITUTION_UUID = uuid4()
@@ -39,12 +41,15 @@ class _TestableFixDepartments(FixDepartments):
     SD_DEPARTMENT_PARENT_UUID = uuid4()
 
     @classmethod
-    def get_instance(cls, settings=None):
-        load_settings = "integrations.SD_Lon.fix_departments.load_settings"
+    def get_instance(cls, settings_dict: Optional[Dict] = None):
+        all_settings_dict = deepcopy(DEFAULT_CHANGED_AT_SETTINGS)
+        if settings_dict is not None:
+            all_settings_dict.update(settings_dict)
+        settings = ChangedAtSettings.parse_obj(all_settings_dict)
+
         read_mo_org = "integrations.SD_Lon.fix_departments.MoraHelper.read_organisation"
-        with mock.patch(load_settings, return_value=settings or {}):
-            with mock.patch(read_mo_org, return_value=cls.MO_ORG_ROOT):
-                return cls()
+        with mock.patch(read_mo_org, return_value=cls.MO_ORG_ROOT):
+            return cls(settings)
 
     def get_institution(self):
         return self.SD_INSTITUTION_UUID
@@ -66,7 +71,7 @@ class _TestableFixDepartments(FixDepartments):
 
 
 class TestFixDepartmentsRootSetting(TestCase):
-    alternate_root = "mo-org-root-alternate"
+    alternate_root = str(uuid4())
 
     @parameterized.expand(
         [
@@ -78,14 +83,14 @@ class TestFixDepartmentsRootSetting(TestCase):
             # Case 2: Alternate root
             (
                 {
-                    "integrations.SD_Lon.fix_departments_root": alternate_root,
+                    "sd_fix_departments_root": alternate_root,
                 },
                 alternate_root,
             ),
         ]
     )
     def test_root(self, settings, expected_root):
-        instance = _TestableFixDepartments.get_instance(settings=settings)
+        instance = _TestableFixDepartments.get_instance(settings_dict=settings)
         self.assertEqual(instance.org_uuid, expected_root)
 
 
