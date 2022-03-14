@@ -201,6 +201,32 @@ class Ledertype(StamCSV):
         return self.type_uuid
 
 
+class Tilknytningsrolle(StamCSV):
+    association_type_uuid: uuid.UUID = Field(alias="TilknytningsrolleUUID")
+    role: str = Field(alias="Tilknytningsrolle")
+    loadtime: datetime = Field(alias="Loadtime")
+
+    @staticmethod
+    def get_filename() -> str:
+        return "STAM_UUID_Tilknytningsrolle.csv"
+
+    @staticmethod
+    def get_facet_bvn() -> str:
+        return "association_type"
+
+    @property
+    def bvn(self) -> str:
+        return self.role
+
+    @property
+    def title(self) -> str:
+        return self.role
+
+    @property
+    def class_uuid(self) -> uuid.UUID:
+        return self.association_type_uuid
+
+
 StamCSVType = Union[
     Type[Engagementstype],
     Type[Enhedstype],
@@ -209,6 +235,7 @@ StamCSVType = Union[
     Type[Lederansvar],
     Type[Lederniveau],
     Type[Ledertype],
+    Type[Tilknytningsrolle],
 ]
 
 
@@ -292,6 +319,15 @@ class StamImporter:
         return await cls._create_classes_from_csv(Ledertype, rows)
 
     @classmethod
+    async def handle_tilknytningsrolle(cls, last_import: datetime):
+        """
+        Process the external 'Tilknytningsrolle' file and create objects if file is
+        newer than last import.
+        """
+        rows = cls._load_csv_if_newer(Tilknytningsrolle, last_import)
+        return await cls._create_classes_from_csv(Tilknytningsrolle, rows)
+
+    @classmethod
     def _load_csv_if_newer(
         cls, csv_class: StamCSVType, last_import: datetime
     ) -> Union[List[StamCSVType], None]:
@@ -343,4 +379,5 @@ class StamImporter:
         await self.handle_lederansvar(last_import)
         await self.handle_lederniveau(last_import)
         await self.handle_ledertype(last_import)
+        await self.handle_tilknytningsrolle(last_import)
         print("STAM import done")
