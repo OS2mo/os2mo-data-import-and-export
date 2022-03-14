@@ -15,11 +15,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
 RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
 COPY poetry.lock pyproject.toml /code/
 WORKDIR /code
-RUN poetry install --no-interaction
-
 COPY ./os2mo_data_import ./os2mo_data_import
-RUN pip install -e ./os2mo_data_import
-
+RUN poetry install --no-interaction
 
 ENV PYTHONUNBUFFERED=1 \
     CUSTOMER_SETTINGS=/code/settings/settings.json \

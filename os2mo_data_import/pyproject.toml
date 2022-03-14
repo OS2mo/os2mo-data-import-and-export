@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "os2mo_data_import"
+version = "1.0.0"
+description = "A set of tools for OS2MO data import and export"
+authors = ["Magenta <info@magenta.dk>"]
+license = "MPL-2.0"
+readme = "README.rst"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
+keywords = ["os2mo", "dipex"]
+packages = [
+    { include = "os2mo_data_import" },
+    { include = "integration_abstraction" },
+    { include = "os2mo_helpers" },
+    { include = "mox_helpers" },
+    { include = "kle" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.6.2"
+aiohttp = "^3.8.1"
+anytree = "^2.8.0"
+certifi = "^2021.10.8"
+chardet = "^4.0.0"
+click = "^8.0.4"
+idna = "^3.3"
+openpyxl = "^3.0.9"
+requests = "^2.27.1"
+XlsxWriter = "^3.0.3"
+xmltodict = "^0.12.0"
+more-itertools = "^8.12.0"
+
+[tool.poetry.dev-dependencies]
+freezegun = "^1.2.0"
+black = "^22.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
