@@ -33,6 +33,7 @@ class CommonSettings(BaseSettings):
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
     sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
+    sd_global_from_date: date
     sd_import_too_deep: List[str] = []
     sd_institution_identifier: str
     sd_password: SecretStr
@@ -78,7 +79,6 @@ def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
 class ImporterSettings(CommonSettings):
     municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
-    sd_global_from_date: date
     sd_import_run_db: str
     sd_importer_create_associations: bool = True
     sd_importer_create_email_addresses: bool = True

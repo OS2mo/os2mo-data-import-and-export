@@ -69,6 +69,7 @@ DEFAULT_FILTERED_JSON_SETTINGS = {
 
 DEFAULT_CHANGED_AT_SETTINGS = {
     "sd_employment_field": "extension_1",
+    "sd_global_from_date": "2022-01-09",
     "sd_import_run_db": "run_db.sqlite",
     "sd_institution_identifier": "XY",
     "sd_job_function": "EmploymentName",
@@ -94,6 +95,7 @@ def mock_env(monkeypatch):
     monkeypatch.setenv("SD_JOB_FUNCTION", "EmploymentName")
     monkeypatch.setenv("SD_MONTHLY_HOURLY_DIVIDE", "80000")
     monkeypatch.setenv("SD_IMPORT_RUN_DB", "env_run_db")
+    monkeypatch.setenv("SD_GLOBAL_FROM_DATE", "2022-01-09")
 
 
 @patch("integrations.SD_Lon.config.load_settings")
