@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.5 - 2022-03-15
+-------------------
+
+[#49146] Handle missing Pydantic settings conversions
+
 2.20.4 - 2022-03-14
 -------------------
 
