@@ -19,7 +19,7 @@ from integrations.SD_Lon.date_utils import to_midnight
 
 
 @given(st.dates())
-def test_date_to_datetime(d):
+def test_date_to_datetime(d: date) -> None:
     dt = date_to_datetime(d)
     assert d.year == dt.year
     assert d.month == dt.month
