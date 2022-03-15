@@ -40,6 +40,7 @@ from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.config import ChangedAtSettings
 from integrations.SD_Lon.config import get_changed_at_settings
+from integrations.SD_Lon.date_utils import date_to_datetime
 from integrations.SD_Lon.date_utils import gen_date_intervals
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.engagement import create_engagement
@@ -60,7 +61,6 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
-from integrations.SD_Lon.date_utils import date_to_datetime
 
 
 LOG_LEVEL = logging.DEBUG

@@ -3,17 +3,18 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
 
+from integrations.SD_Lon.config import ChangedAtSettings
 from integrations.SD_Lon.config import gen_json_file_settings_func
 from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.config import get_importer_settings
-from integrations.SD_Lon.config import ImporterSettings, ChangedAtSettings
-from uuid import uuid4
+from integrations.SD_Lon.config import ImporterSettings
 
 importer_json_file_settings = gen_json_file_settings_func(ImporterSettings)
 

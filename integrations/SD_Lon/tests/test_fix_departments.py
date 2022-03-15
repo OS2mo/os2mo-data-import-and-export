@@ -1,6 +1,7 @@
 from copy import deepcopy
 from datetime import date
-from typing import Optional, Dict
+from typing import Dict
+from typing import Optional
 from unittest import mock
 from unittest import TestCase
 from uuid import uuid4
@@ -11,6 +12,7 @@ from parameterized import parameterized
 from ..config import ChangedAtSettings
 from ..fix_departments import FixDepartments
 from integrations.SD_Lon.tests.test_config import DEFAULT_CHANGED_AT_SETTINGS
+
 
 def mock_sd_lookup(service_name, expected_params, response):
     base_responses = {
