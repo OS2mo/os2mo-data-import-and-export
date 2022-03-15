@@ -3,17 +3,18 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from unittest.mock import patch
+from uuid import uuid4
 
 import pytest
 from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
 
+from integrations.SD_Lon.config import ChangedAtSettings
 from integrations.SD_Lon.config import gen_json_file_settings_func
 from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.config import get_importer_settings
 from integrations.SD_Lon.config import ImporterSettings
-
 
 importer_json_file_settings = gen_json_file_settings_func(ImporterSettings)
 
@@ -67,6 +68,17 @@ DEFAULT_FILTERED_JSON_SETTINGS = {
     "municipality_name": "Kolding Kommune",
 }
 
+DEFAULT_CHANGED_AT_SETTINGS = {
+    "sd_employment_field": "extension_1",
+    "sd_global_from_date": "2022-01-09",
+    "sd_import_run_db": "run_db.sqlite",
+    "sd_institution_identifier": "XY",
+    "sd_job_function": "EmploymentName",
+    "sd_monthly_hourly_divide": 9000,
+    "sd_password": "secret",
+    "sd_user": "user",
+}
+
 
 @pytest.fixture
 def mock_env_and_json(monkeypatch):
@@ -84,6 +96,7 @@ def mock_env(monkeypatch):
     monkeypatch.setenv("SD_JOB_FUNCTION", "EmploymentName")
     monkeypatch.setenv("SD_MONTHLY_HOURLY_DIVIDE", "80000")
     monkeypatch.setenv("SD_IMPORT_RUN_DB", "env_run_db")
+    monkeypatch.setenv("SD_GLOBAL_FROM_DATE", "2022-01-09")
 
 
 @patch("integrations.SD_Lon.config.load_settings")
@@ -231,3 +244,19 @@ def test_job_function_enums_allowed(job_function):
         sd_password="secret",
         sd_user="user",
     )
+
+
+def test_changed_at_settings_allows_optional_fix_departments_root():
+    settings = deepcopy(DEFAULT_CHANGED_AT_SETTINGS)
+
+    # sd_fix_departments_root is optional
+    assert ChangedAtSettings.parse_obj(settings)
+
+    # ... and can be set to a UUID
+    settings.update({"sd_fix_departments_root": str(uuid4())})
+    assert ChangedAtSettings.parse_obj(settings)
+
+    # ... but not a non-UUID string
+    settings.update({"sd_fix_departments_root": "not a UUID"})
+    with pytest.raises(ValidationError):
+        ChangedAtSettings.parse_obj(settings)

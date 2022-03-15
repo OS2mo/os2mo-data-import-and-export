@@ -9,8 +9,8 @@ import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.config import ChangedAtSettings
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
-from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import sd_lookup as _sd_lookup
 
@@ -37,27 +37,27 @@ def setup_logging():
     )
 
 
-class FixDepartments(object):
-    def __init__(self):
+class FixDepartments:
+    def __init__(self, settings: ChangedAtSettings):
         logger.info("Start program")
-        self.settings = load_settings()
+        self.settings = settings
 
         self.institution_uuid = self.get_institution()
         self.helper = self._get_mora_helper(self.settings)
 
-        try:
-            self.org_uuid = self.settings.get(
-                "integrations.SD_Lon.fix_departments_root",
-                self.helper.read_organisation(),
-            )
-        except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
-            exit()
-        except json.decoder.JSONDecodeError as e:
-            logger.error(e)
-            print(e)
-            exit()
+        if self.settings.sd_fix_departments_root is not None:
+            self.org_uuid = str(settings.sd_fix_departments_root)
+        else:
+            try:
+                self.org_uuid = self.helper.read_organisation()
+            except requests.exceptions.RequestException as e:
+                logger.error(e)
+                print(e)
+                exit()
+            except json.decoder.JSONDecodeError as e:
+                logger.error(e)
+                print(e)
+                exit()
 
         logger.info("Read org_unit types")
         self.level_types = self.helper.read_classes_in_facet("org_unit_level")[0]
@@ -74,7 +74,7 @@ class FixDepartments(object):
             raise Exception("Unit types not correctly configured")
 
     def _get_mora_helper(self, settings):
-        return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
+        return MoraHelper(hostname=self.settings.mora_base, use_cache=False)
 
     def get_institution(self):
         """
@@ -84,7 +84,7 @@ class FixDepartments(object):
         if a unit is a root unit.
         :return: The SD institution uuid for the organisation.
         """
-        inst_id = self.settings["integrations.SD_Lon.institution_identifier"]
+        inst_id = self.settings.sd_institution_identifier
         params = {"UUIDIndicator": "true", "InstitutionIdentifier": inst_id}
         institution_info = sd_lookup("GetInstitution20111201", params)
         institution = institution_info["Region"]["Institution"]
@@ -269,7 +269,7 @@ class FixDepartments(object):
         :return: Dict with cpr as key and SD Person objects as values.
         """
         fix_date = validity_date + datetime.timedelta(weeks=80)
-        too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
+        too_deep = self.settings.sd_import_too_deep
         sd_validity = {
             "from_date": fix_date.strftime("%d.%m.%Y"),
             "to_date": fix_date.strftime("%d.%m.%Y"),
@@ -327,7 +327,7 @@ class FixDepartments(object):
         :validity_date: The validity_date of the operation, moved engagements will
         be moved as of this date.
         """
-        too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
+        too_deep = self.settings.sd_import_too_deep
         mo_unit = self.helper.read_ou(unit_uuid)
         while mo_unit["org_unit_level"]["user_key"] in too_deep:
             mo_unit = mo_unit["parent"]

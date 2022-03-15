@@ -23,6 +23,7 @@ class Test_sync_job_id(TestCase):
             sd_monthly_hourly_divide=9000,
             sd_password="secret",
             sd_user="user",
+            sd_global_from_date="2022-01-09",
         )
         self.job_id_sync = JobIdSyncTest(settings)
 

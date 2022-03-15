@@ -19,6 +19,7 @@ from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
+from pydantic import UUID4
 from ra_utils.load_settings import load_settings
 
 from integrations.SD_Lon.models import JobFunction
@@ -32,6 +33,7 @@ class CommonSettings(BaseSettings):
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
     sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
+    sd_global_from_date: date
     sd_import_too_deep: List[str] = []
     sd_institution_identifier: str
     sd_password: SecretStr
@@ -77,7 +79,6 @@ def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
 class ImporterSettings(CommonSettings):
     municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
-    sd_global_from_date: date
     sd_import_run_db: str
     sd_importer_create_associations: bool = True
     sd_importer_create_email_addresses: bool = True
@@ -107,6 +108,7 @@ class ImporterSettings(CommonSettings):
 
 
 class ChangedAtSettings(CommonSettings):
+    sd_fix_departments_root: Optional[UUID4] = None
     sd_import_run_db: str
     sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_job_functions: List[str] = []

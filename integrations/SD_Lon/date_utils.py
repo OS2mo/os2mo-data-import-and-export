@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from itertools import chain
@@ -23,6 +24,10 @@ SD_INFINITY: str = "9999-12-31"
 DATE_REGEX_STR = "[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[0-1])"
 
 logger = logging.getLogger("sdImport")
+
+
+def date_to_datetime(d: date) -> datetime:
+    return datetime(d.year, d.month, d.day)
 
 
 def format_date(date: datetime) -> str:
