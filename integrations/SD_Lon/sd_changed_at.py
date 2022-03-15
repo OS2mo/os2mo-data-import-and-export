@@ -26,7 +26,6 @@ from more_itertools import last
 from more_itertools import one
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
 from ra_utils.load_settings import load_settings
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
@@ -61,8 +60,7 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
-
-# from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.date_utils import date_to_datetime
 
 
 LOG_LEVEL = logging.DEBUG
@@ -1423,8 +1421,6 @@ def cli():
 @click.option(
     "--from-date",
     type=click.DateTime(),
-    required=True,
-    default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date, only used if init is True",
 )
 def changed_at(init: bool, force: bool, from_date: datetime.datetime):
@@ -1438,6 +1434,8 @@ def changed_at(init: bool, force: bool, from_date: datetime.datetime):
     logger.info("Program started")
 
     if init:
+        if not from_date:
+            from_date = date_to_datetime(settings.sd_global_from_date)
         run_db_path = pathlib.Path(run_db)
 
         initialize_changed_at(from_date, run_db_path, force=True)
@@ -1474,8 +1472,6 @@ def changed_at(init: bool, force: bool, from_date: datetime.datetime):
 @click.option(
     "--from-date",
     type=click.DateTime(),
-    required=True,
-    default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
 )
 @click.option(
@@ -1485,6 +1481,8 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     """Import a single user into MO."""
 
     settings = get_changed_at_settings()
+    if not from_date:
+        from_date = date_to_datetime(settings.sd_global_from_date)
 
     sd_updater = ChangeAtSD(settings, from_date, None)
     sd_updater.update_changed_persons(cpr, dry_run=dry_run)
@@ -1495,8 +1493,6 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 @click.option(
     "--from-date",
     type=click.DateTime(),
-    required=True,
-    default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
 )
 @click.option(
@@ -1506,6 +1502,9 @@ def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
     setup_logging()
     settings = get_changed_at_settings()
+
+    if not from_date:
+        from_date = date_to_datetime(settings.sd_global_from_date)
 
     sd_updater = ChangeAtSD(settings, from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
