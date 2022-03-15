@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from datetime import date
 from datetime import datetime
 from datetime import timedelta
 
@@ -21,9 +22,14 @@ from integrations.SD_Lon.date_utils import to_midnight
 @given(st.dates())
 def test_date_to_datetime(d: date) -> None:
     dt = date_to_datetime(d)
+    assert isinstance(dt, datetime)
     assert d.year == dt.year
     assert d.month == dt.month
     assert d.day == dt.day
+    assert 0 == dt.hour
+    assert 0 == dt.minute
+    assert 0 == dt.second
+    assert 0 == dt.microsecond
 
 
 @st.composite
