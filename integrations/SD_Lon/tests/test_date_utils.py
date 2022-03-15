@@ -9,12 +9,21 @@ from more_itertools import pairwise
 from parameterized import parameterized
 
 from integrations.SD_Lon.date_utils import _get_employment_from_date
+from integrations.SD_Lon.date_utils import date_to_datetime
 from integrations.SD_Lon.date_utils import gen_cut_dates
 from integrations.SD_Lon.date_utils import gen_date_intervals
 from integrations.SD_Lon.date_utils import get_employment_dates
 from integrations.SD_Lon.date_utils import is_midnight
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.date_utils import to_midnight
+
+
+@given(st.dates())
+def test_date_to_datetime(d):
+    dt = date_to_datetime(d)
+    assert d.year == dt.year
+    assert d.month == dt.month
+    assert d.day == dt.day
 
 
 @st.composite
