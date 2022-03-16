@@ -7,7 +7,7 @@ from typing import Optional
 from typing import OrderedDict
 from typing import Tuple
 
-from more_itertools import one
+from more_itertools import only
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
@@ -96,7 +96,10 @@ def is_employment_id_and_no_salary_minimum_consistent(
         return True
 
     employment_id, eng_components = engagement_components(engagement)
-    profession = one(eng_components["professions"])
+    profession = only(eng_components["professions"])
+    if profession is None:
+        return True
+
     job_pos_id_str = profession.get("JobPositionIdentifier")
     assert job_pos_id_str, "JobPositionIdentifier not found in Profession"
 

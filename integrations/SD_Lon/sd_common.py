@@ -132,7 +132,7 @@ def sd_lookup(
     if settings is not None:
         institution_identifier = settings.sd_institution_identifier
         sd_user = settings.sd_user
-        sd_password = settings.sd_password
+        sd_password = settings.sd_password.get_secret_value()
     else:
         institution_identifier, sd_user, sd_password = sd_lookup_settings()
 
