@@ -86,7 +86,9 @@ class FixDepartments:
         """
         inst_id = self.settings.sd_institution_identifier
         params = {"UUIDIndicator": "true", "InstitutionIdentifier": inst_id}
-        institution_info = sd_lookup("GetInstitution20111201", params)
+        institution_info = sd_lookup(
+            "GetInstitution20111201", settings=self.settings, params=params
+        )
         institution = institution_info["Region"]["Institution"]
         institution_uuid = institution["InstitutionUUIDIdentifier"]
         return institution_uuid
@@ -223,7 +225,9 @@ class FixDepartments:
         if uuid is None and shortname is None:
             raise Exception("Provide either uuid or shortname")
 
-        department_info = sd_lookup("GetDepartment20111201", params)
+        department_info = sd_lookup(
+            "GetDepartment20111201", settings=self.settings, params=params
+        )
         department = department_info.get("Department")
         if department is None:
             raise NoCurrentValdityException()
@@ -300,7 +304,9 @@ class FixDepartments:
             effective_date = validity_date + datetime.timedelta(days=time_delta)
             params["EffectiveDate"] = (effective_date.strftime("%d.%m.%Y"),)
 
-            employments = sd_lookup("GetEmployment20111201", params)
+            employments = sd_lookup(
+                "GetEmployment20111201", settings=self.settings, params=params
+            )
             people = employments.get("Person", [])
             if not isinstance(people, list):
                 people = [people]
@@ -416,7 +422,9 @@ class FixDepartments:
             "EffectiveDate": validity_date.strftime("%d.%m.%Y"),
             "DepartmentUUIDIdentifier": unit_uuid,
         }
-        parent_response = sd_lookup("GetDepartmentParent20190701", params)
+        parent_response = sd_lookup(
+            "GetDepartmentParent20190701", settings=self.settings, params=params
+        )
         if "DepartmentParent" not in parent_response:
             msg = "No parent for {} found at validity: {}"
             logger.error(msg.format(unit_uuid, validity_date))
