@@ -10,6 +10,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.config import ChangedAtSettings
+from integrations.SD_Lon.config import get_changed_at_settings
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import sd_lookup as _sd_lookup
@@ -520,7 +521,8 @@ def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
     setup_logging()
 
-    unit_fixer = FixDepartments()
+    settings = get_changed_at_settings()
+    unit_fixer = FixDepartments(settings)
 
     today = datetime.datetime.today()
     # Use a future date to be sure that the unit exists in SD.
