@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.8 - 2022-03-17
+-------------------
+
+[#49291] Added missing settings to FixDepartments
+
 2.20.7 - 2022-03-17
 -------------------
 
