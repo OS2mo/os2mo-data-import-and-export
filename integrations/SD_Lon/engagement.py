@@ -99,8 +99,8 @@ def is_employment_id_and_no_salary_minimum_consistent(
     professions = eng_components["professions"]
     if not professions:
         return True
-    job_pos_ids = tuple(map(lambda p: p["JobPositionIdentifier"], professions))
-    assert all(job_pos_id == first(job_pos_ids) for job_pos_id in job_pos_ids)
+    job_pos_ids = tuple(map(itemgetter("JobPositionIdentifier"), professions))
+    assert all_equal(job_pos_ids)
 
     job_pos_id = int(first(job_pos_ids))
 
