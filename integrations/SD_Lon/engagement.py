@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from operator import itemgetter
 from typing import Any
 from typing import Dict
 from typing import List
@@ -7,7 +8,8 @@ from typing import Optional
 from typing import OrderedDict
 from typing import Tuple
 
-from more_itertools import only
+from more_itertools import all_equal
+from more_itertools import first
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
@@ -96,14 +98,13 @@ def is_employment_id_and_no_salary_minimum_consistent(
         return True
 
     employment_id, eng_components = engagement_components(engagement)
-    profession = only(eng_components["professions"])
-    if profession is None:
+    professions = eng_components["professions"]
+    if not professions:
         return True
+    job_pos_ids = tuple(map(itemgetter("JobPositionIdentifier"), professions))
+    assert all_equal(job_pos_ids)
 
-    job_pos_id_str = profession.get("JobPositionIdentifier")
-    assert job_pos_id_str, "JobPositionIdentifier not found in Profession"
-
-    job_pos_id = int(job_pos_id_str)
+    job_pos_id = int(first(job_pos_ids))
 
     if _is_external(employment_id):
         return job_pos_id >= no_salary_minimum
