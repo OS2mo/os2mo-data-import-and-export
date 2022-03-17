@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.7 - 2022-03-17
+-------------------
+
+[#49146] Fixed bug assuming only one profession present in SD employment
+
 2.20.6 - 2022-03-16
 -------------------
 
