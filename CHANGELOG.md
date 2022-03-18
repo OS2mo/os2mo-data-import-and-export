@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.9 - 2022-03-18
+-------------------
+
+[#49146] Fixed broken test-sd-connectivity script
+
 2.20.8 - 2022-03-17
 -------------------
 
