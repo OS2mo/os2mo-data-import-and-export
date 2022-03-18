@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+version: "3.4"
+services:
+  sd_changed_at:
+    build:
+      context: .
+    environment:
+      SD_GLOBAL_FROM_DATE: "2022-01-01"
+      SD_INSTITUTION_IDENTIFIER: MA
+      SD_PASSWORD: password1
+      SD_USER: SYMAGENTA
+      SD_JOB_FUNCTION: JobPositionIdentifier
+      SD_MONTHLY_HOURLY_DIVIDE: 9000
+      SD_IMPORT_RUN_DB: /app/rundb.sqlite3
+    command: "uvicorn sdlon.main:app --host 0.0.0.0 --reload"
+    ports:
+      - 8000:8000/tcp
+    volumes:
+      - ./:/app/

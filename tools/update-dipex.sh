@@ -20,6 +20,7 @@ export POETRY_VIRTUALENVS_IN_PROJECT=true
 $POETRYPATH install --no-interaction
 source .venv/bin/activate
 
-pip install ./os2mo_data_import --upgrade
-
 pip install --editable .
+
+cd integrations/SD_Lon/
+poetry install

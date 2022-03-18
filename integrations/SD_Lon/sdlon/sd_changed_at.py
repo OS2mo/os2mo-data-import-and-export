@@ -22,6 +22,12 @@ from uuid import uuid4
 import click
 import requests
 from fastapi.encoders import jsonable_encoder
+from integrations import cpr_mapper
+from integrations.ad_integration import ad_reader
+from integrations.calculate_primary.common import LOGGER_NAME
+from integrations.calculate_primary.common import NoPrimaryFound
+from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
+from integrations.rundb.db_overview import DBOverview
 from more_itertools import last
 from more_itertools import one
 from more_itertools import partition
@@ -31,37 +37,31 @@ from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
-from integrations import cpr_mapper
-from integrations.ad_integration import ad_reader
-from integrations.calculate_primary.common import LOGGER_NAME
-from integrations.calculate_primary.common import NoPrimaryFound
-from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
-from integrations.rundb.db_overview import DBOverview
-from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.config import ChangedAtSettings
-from integrations.SD_Lon.config import get_changed_at_settings
-from integrations.SD_Lon.date_utils import date_to_datetime
-from integrations.SD_Lon.date_utils import gen_date_intervals
-from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
-from integrations.SD_Lon.engagement import create_engagement
-from integrations.SD_Lon.engagement import engagement_components
-from integrations.SD_Lon.engagement import (
+from . import sd_payloads
+from .config import ChangedAtSettings
+from .config import get_changed_at_settings
+from .date_utils import date_to_datetime
+from .date_utils import gen_date_intervals
+from .date_utils import sd_to_mo_termination_date
+from .engagement import create_engagement
+from .engagement import engagement_components
+from .engagement import (
     is_employment_id_and_no_salary_minimum_consistent,
 )
-from integrations.SD_Lon.engagement import update_existing_engagement
-from integrations.SD_Lon.fix_departments import FixDepartments
-from integrations.SD_Lon.models import JobFunction
-from integrations.SD_Lon.models import SDBasePerson
-from integrations.SD_Lon.sd_common import calc_employment_id
-from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import ensure_list
-from integrations.SD_Lon.sd_common import mora_assert
-from integrations.SD_Lon.sd_common import primary_types
-from integrations.SD_Lon.sd_common import read_employment_at
-from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_common import skip_fictional_users
-from integrations.SD_Lon.skip import cpr_env_filter
-from integrations.SD_Lon.sync_job_id import JobIdSync
+from .engagement import update_existing_engagement
+from .fix_departments import FixDepartments
+from .models import JobFunction
+from .models import SDBasePerson
+from .sd_common import calc_employment_id
+from .sd_common import EmploymentStatus
+from .sd_common import ensure_list
+from .sd_common import mora_assert
+from .sd_common import primary_types
+from .sd_common import read_employment_at
+from .sd_common import sd_lookup
+from .sd_common import skip_fictional_users
+from .skip import cpr_env_filter
+from .sync_job_id import JobIdSync
 
 
 LOG_LEVEL = logging.DEBUG
@@ -195,10 +195,11 @@ class ChangeAtSD:
         return JobIdSync(settings)
 
     def _read_forced_uuids(self):
-        cpr_map = pathlib.Path.cwd() / "settings" / "cpr_uuid_map.csv"
+        cpr_map = pathlib.Path(self.settings.cpr_uuid_map_path)
         if not cpr_map.is_file():
-            logger.error("Did not find cpr mapping")
-            raise Exception("Did not find cpr mapping")
+            message = f"Did not find cpr mapping: {cpr_map}"
+            logger.error(message)
+            raise Exception(message)
 
         logger.info("Found cpr mapping")
         employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
@@ -1433,7 +1434,11 @@ def cli():
     type=click.DateTime(),
     help="Global import from-date, only used if init is True",
 )
-def changed_at(init: bool, force: bool, from_date: datetime.datetime):
+def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
+    changed_at(init, force, from_date)
+
+
+def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1459,7 +1464,7 @@ def changed_at(init: bool, force: bool, from_date: datetime.datetime):
         _local_db_insert((from_date, to_date, "Running since {}"))
 
         logger.info("Start ChangedAt module")
-        sd_updater = ChangeAtSD(settings, from_date, to_date)
+        sd_updater = ChangeAtSD(settings, from_date, to_date)  # type: ignore
 
         logger.info("Update changed persons")
         sd_updater.update_changed_persons()

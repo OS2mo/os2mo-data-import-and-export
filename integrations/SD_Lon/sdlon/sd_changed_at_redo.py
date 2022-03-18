@@ -4,13 +4,14 @@
 # værdi i den del af navnet, der IKKE var blevet opdateret.
 #
 # angiv uuider for de berørte på kommandolinien
-
 import datetime
 import sys
 
-from integrations.SD_Lon.sd_changed_at import SETTINGS
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_common import sd_lookup
+import click
+
+from .config import get_changed_at_settings
+from .sd_changed_at import ChangeAtSD
+from .sd_common import sd_lookup
 
 
 def read_person(cat, cpr):
@@ -31,9 +32,13 @@ def read_person(cat, cpr):
     return person
 
 
-def run(uuids):
-    SETTINGS["integrations.SD_Lon.use_ad_integration"] = False
-    cat = ChangeAtSD(from_date=datetime.date.today())
+@click.command()
+@click.option("--uuid", type=click.UUID, required=True, multiple=True)
+def cli(uuid):
+    uuids = uuid
+    settings = get_changed_at_settings()
+    settings.sd_use_ad_integration = False
+    cat = ChangeAtSD(settings, from_date=datetime.date.today())
     mh = cat.helper
     for uuid in uuids:
         mh = cat.helper
@@ -60,4 +65,4 @@ def run(uuids):
 
 
 if __name__ == "__main__":
-    run(sys.argv[1:])
+    cli()

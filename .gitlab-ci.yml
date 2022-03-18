@@ -121,8 +121,9 @@ Lint SDLoen Integration:
   extends: .lint-python
   script:
     - cd integrations/SD_Lon/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files tests/*.py *.py
+    - pip install mypy pre-commit types-click types-requests
+    # - pre-commit run --files tests/*.py sdlon/*.py
+    - python -m black --diff --check tests/*.py sdlon/*.py
 
 Lint RunDB Integration:
   extends: .lint-python
@@ -254,8 +255,19 @@ Test OPUS Helpers:
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - python integrations/SD_Lon/sd_cli.py --help
-    - pytest integrations/SD_Lon/tests/
+    - cd integrations/SD_Lon/
+    # Run CLIs
+    - python -m sdlon.fix_departments --help
+    - python -m sdlon.sd_changed_at --help
+    - python -m sdlon.sd_changed_at_redo --help
+    - python -m sdlon.sd_cli --help
+    - python -m sdlon.sd_fixup --help
+    - python -m sdlon.sd_importer --help
+    - python -m sdlon.sd_log_analyzer --help
+    - python -m sdlon.sync_job_id --help
+    - python -m sdlon.test_mo_against_sd --help
+    # Run tests
+    - pytest tests/
 
 Test RunDB Integration:
   extends: .test-python

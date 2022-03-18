@@ -10,18 +10,18 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import given
 from hypothesis import settings
+from os2mo_data_import import ImportHelper
 from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
 from .fixtures import get_organisation_fixture
-from integrations.SD_Lon.config import ImporterSettings
-from integrations.SD_Lon.sd_importer import SdImport
-from os2mo_data_import import ImportHelper
+from sdlon.config import ImporterSettings
+from sdlon.sd_importer import SdImport
 
 
 @pytest.fixture(autouse=True)
 def mock_json(monkeypatch):
-    monkeypatch.setattr("integrations.SD_Lon.config.load_settings", lambda: dict())
+    monkeypatch.setattr("sdlon.config.load_settings", lambda: dict())
 
 
 class SdImportTest(SdImport):
@@ -239,8 +239,8 @@ def test_create_employee(create_associations: bool):
     assert engagement.job_function_ref == "job_id_123"
 
 
-@patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-@patch("integrations.SD_Lon.sd_common._sd_request")
+@patch("sdlon.sd_common.sd_lookup_settings")
+@patch("sdlon.sd_common._sd_request")
 @patch("integrations.dawa_helper.dawa_lookup")
 @given(st.booleans())
 @settings(deadline=None)
@@ -399,7 +399,7 @@ def test_create_ou_tree(
         assert sub_department2_address.type_ref == "EmailUnit"
 
 
-@patch("integrations.SD_Lon.sd_importer.uuid.uuid4")
+@patch("sdlon.sd_importer.uuid.uuid4")
 def test_set_engagement_on_leave(mock_uuid4):
 
     # Arrange

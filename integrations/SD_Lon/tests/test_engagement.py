@@ -4,11 +4,11 @@ from copy import deepcopy
 from more_itertools import one
 from parameterized import parameterized
 
-from integrations.SD_Lon.engagement import _is_external
-from integrations.SD_Lon.engagement import (
+from .fixtures import get_read_employment_changed_fixture
+from sdlon.engagement import _is_external
+from sdlon.engagement import (
     is_employment_id_and_no_salary_minimum_consistent,
 )
-from integrations.SD_Lon.tests.fixtures import get_read_employment_changed_fixture
 
 
 class TestIsExternal(unittest.TestCase):

@@ -4,8 +4,8 @@ from uuid import UUID
 import click
 from pydantic import ValidationError
 
-from integrations.SD_Lon.config import get_changed_at_settings
-from integrations.SD_Lon.sd_common import sd_lookup
+from .config import get_changed_at_settings
+from .sd_common import sd_lookup
 
 
 LOG_LEVEL = logging.DEBUG

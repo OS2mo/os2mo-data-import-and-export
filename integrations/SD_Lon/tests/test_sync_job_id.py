@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from integrations.SD_Lon.config import ChangedAtSettings
-from integrations.SD_Lon.sync_job_id import JobIdSync
+from sdlon.config import ChangedAtSettings
+from sdlon.sync_job_id import JobIdSync
 
 
 class JobIdSyncTest(JobIdSync):

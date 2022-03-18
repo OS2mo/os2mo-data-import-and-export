@@ -13,7 +13,7 @@ from typing import Tuple
 from more_itertools import pairwise
 from more_itertools import tabulate
 
-from integrations.SD_Lon.sd_common import EmploymentStatus
+from .sd_common import EmploymentStatus
 
 # TODO: move constants elsewhere
 # TODO: set back to "infinity" when MO can handle this

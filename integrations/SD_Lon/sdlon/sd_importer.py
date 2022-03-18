@@ -13,24 +13,25 @@ from typing import Dict
 
 import click
 from anytree import Node
+from integrations import dawa_helper
+from integrations.ad_integration import ad_reader
+from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
-from integrations import dawa_helper
-from integrations.ad_integration import ad_reader
-from integrations.SD_Lon.config import get_importer_settings
-from integrations.SD_Lon.config import ImporterSettings
-from integrations.SD_Lon.date_utils import format_date
-from integrations.SD_Lon.date_utils import get_employment_dates
-from integrations.SD_Lon.models import JobFunction
-from integrations.SD_Lon.sd_common import calc_employment_id
-from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import ensure_list
-from integrations.SD_Lon.sd_common import generate_uuid
-from integrations.SD_Lon.sd_common import read_employment_at
-from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_common import skip_fictional_users
-from os2mo_data_import import ImportHelper
+from .config import get_importer_settings
+from .config import ImporterSettings
+from .date_utils import format_date
+from .date_utils import get_employment_dates
+from .models import JobFunction
+from .sd_common import calc_employment_id
+from .sd_common import EmploymentStatus
+from .sd_common import ensure_list
+from .sd_common import generate_uuid
+from .sd_common import read_employment_at
+from .sd_common import sd_lookup
+from .sd_common import skip_fictional_users
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"

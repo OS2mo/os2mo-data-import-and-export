@@ -8,8 +8,8 @@ from typing import Optional
 from typing import OrderedDict
 from typing import Tuple
 
-from integrations.SD_Lon.sd_common import ensure_list
-from integrations.SD_Lon.sd_common import read_employment_at
+from .sd_common import ensure_list
+from .sd_common import read_employment_at
 
 INTERNAL_EMPLOYEE_REGEX = re.compile("[0-9]+")
 

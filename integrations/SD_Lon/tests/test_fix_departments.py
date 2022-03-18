@@ -9,9 +9,9 @@ from uuid import uuid4
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 
-from ..config import ChangedAtSettings
-from ..fix_departments import FixDepartments
-from integrations.SD_Lon.tests.test_config import DEFAULT_CHANGED_AT_SETTINGS
+from .test_config import DEFAULT_CHANGED_AT_SETTINGS
+from sdlon.config import ChangedAtSettings
+from sdlon.fix_departments import FixDepartments
 
 
 def mock_sd_lookup(service_name, expected_params, response):
@@ -28,7 +28,7 @@ def mock_sd_lookup(service_name, expected_params, response):
     }
     _response = deepcopy(base_responses[service_name])
     _response.update(response)
-    sd_lookup_path = "integrations.SD_Lon.fix_departments.sd_lookup"
+    sd_lookup_path = "sdlon.fix_departments.sd_lookup"
     sd_lookup_mock = mock.patch(sd_lookup_path, return_value=_response)
     return sd_lookup_mock
 
@@ -49,7 +49,7 @@ class _TestableFixDepartments(FixDepartments):
             all_settings_dict.update(settings_dict)
         settings = ChangedAtSettings.parse_obj(all_settings_dict)
 
-        read_mo_org = "integrations.SD_Lon.fix_departments.MoraHelper.read_organisation"
+        read_mo_org = "sdlon.fix_departments.MoraHelper.read_organisation"
         with mock.patch(read_mo_org, return_value=cls.MO_ORG_ROOT):
             return cls(settings)
 

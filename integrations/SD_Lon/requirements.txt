@@ -1,6 +1,0 @@
-fastapi
-lxml
-more_itertools
-pandas
-ramodels == 2.1.3
-ra-utils
