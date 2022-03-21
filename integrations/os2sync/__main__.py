@@ -23,7 +23,7 @@ from integrations.os2sync import os2sync
 
 
 logger = None  # set in main()
-helper = MoraHelper(load_setting("mora.base")())
+helper = None
 
 
 def log_mox_config(settings):
@@ -194,4 +194,5 @@ def main(settings):
 
 if __name__ == "__main__":
     settings = config.settings
+    helper = MoraHelper(settings["mora_base"])
     main(settings)
