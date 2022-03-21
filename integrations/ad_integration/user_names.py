@@ -36,7 +36,9 @@ class UserNameGen:
         try:
             name = get_class_name()
             implementation_class = cls._lookup_class_by_name(name)
-        except FileNotFoundError:  # could not find "settings.json"
+        except (ValueError, FileNotFoundError):
+            # ValueError: "not in settings file and no default"
+            # FileNotFoundError: could not find "settings.json"
             logger.warning(
                 "could not read settings, defaulting to %r",
                 implementation_class,
