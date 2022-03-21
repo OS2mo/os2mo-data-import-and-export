@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseSettings
@@ -17,7 +17,7 @@ def _relpath(filename):
     return os.path.join(os.getcwd(), filename)
 
 
-def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
+def json_config_settings_source(settings: BaseSettings) -> dict[str, Any]:
     """
     Read config from settings.json.
 
@@ -70,11 +70,11 @@ class Settings(BaseSettings):
     ca_verify_os2sync: bool = True
     ca_verify_os2mo: bool = True
 
-    phone_scope_classes: List[UUID] = []
-    email_scope_classes: List[UUID] = []
-    ignored_unit_levels: List[UUID] = []
-    ignored_unit_types: List[UUID] = []
-    templates: Dict = {}
+    phone_scope_classes: list[UUID] = []
+    email_scope_classes: list[UUID] = []
+    ignored_unit_levels: list[UUID] = []
+    ignored_unit_types: list[UUID] = []
+    templates: dict = {}
 
 
 
