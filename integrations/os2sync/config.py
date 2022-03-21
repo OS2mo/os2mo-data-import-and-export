@@ -35,9 +35,8 @@ def json_config_settings_source(settings: BaseSettings) -> dict[str, Any]:
         )
     )
     
-    trim_len = len("os2sync.")
-    # Trim leading 'os2sync.' from keys and replace dots with underscore.
-    final_settings = {key[trim_len:].replace(".", "_"): val for key, val in os2sync_settings.items()}
+    # replace dots with underscore. eg: os2sync.ignored.unit_levels -> os2sync_ignored_unit_levels
+    final_settings = {key.replace(".", "_"): val for key, val in os2sync_settings.items()}
 
     #Add needed common settings
     final_settings.update(
@@ -56,30 +55,30 @@ class Settings(BaseSettings):
     mora_base: str = "http://localhost:5000"     #"mora.base" from settings.json + /service
     
     #os2sync:
-    top_unit_uuid: UUID
-    api_url: str = "http://localhost:8081"
-    
-    use_lc_db: bool = False
-    
-    log_level: int = logging.INFO
-    log_file: Path = _relpath("../os2sync.log")
-    hash_cache: Path = _relpath("../os2sync_hash_cache")
-    xfer_cpr: bool = False
-    
-    autowash: bool = False
-    ca_verify_os2sync: bool = True
-    ca_verify_os2mo: bool = True
+    os2sync_top_unit_uuid: UUID
+    os2sync_api_url: str = "http://localhost:8081"
 
-    phone_scope_classes: list[UUID] = []
-    email_scope_classes: list[UUID] = []
-    ignored_unit_levels: list[UUID] = []
-    ignored_unit_types: list[UUID] = []
-    templates: dict = {}
+    os2sync_use_lc_db: bool = False
+    
+    os2sync_log_level: int = logging.INFO
+    os2sync_log_file: Path = _relpath("../os2sync.log")
+    os2sync_hash_cache: Path = _relpath("../os2sync_hash_cache")
+    os2sync_xfer_cpr: bool = False
+    
+    os2sync_autowash: bool = False
+    os2sync_ca_verify_os2sync: bool = True
+    os2sync_ca_verify_os2mo: bool = True
+
+    os2sync_phone_scope_classes: list[UUID] = []
+    os2sync_email_scope_classes: list[UUID] = []
+    os2sync_ignored_unit_levels: list[UUID] = []
+    os2sync_ignored_unit_types: list[UUID] = []
+    os2sync_templates: dict = {}
 
 
 
     class Config:
-        env_prefix = "os2sync_"
+        
         env_file_encoding = "utf-8"
         extra = "ignore"
 
