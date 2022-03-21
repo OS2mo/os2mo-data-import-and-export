@@ -23,7 +23,7 @@ from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
-
+from ra_utils.headers import TokenSettings
 settings = config.settings
 logger = logging.getLogger(config.loggername)
 
