@@ -26,7 +26,7 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     try: 
         all_settings = load_settings()
     except FileNotFoundError:
-        print("No settingsfile found. Using environment variables")
+        #No settingsfile found. Using environment variables"
         return {}
     #Read os2sync specific settings
     os2sync_settings = dict(
@@ -34,17 +34,15 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
             apply(lambda key, value: key.startswith("os2sync")), all_settings.items()
         )
     )
-    # Trim leading 'os2sync.'
+    
     trim_len = len("os2sync.")
-    final_settings = {key[trim_len:]: val for key, val in os2sync_settings.items()}
-    deprecated_settings = ("ignored.unit_types", "ignored.unit_types")
-    for ds in deprecated_settings:
-        if ds in final_settings.keys():
-            raise ValueError(f"The setting {ds} has been changed, please change to {ds.replace('.', '_')}")
+    # Trim leading 'os2sync.' from keys and replace dots with underscore.
+    final_settings = {key[trim_len:].replace(".", "_"): val for key, val in os2sync_settings.items()}
+
     #Add needed common settings
     final_settings.update(
         {
-            "os2sync_municipality": all_settings.get("municipality.cvr"),
+            "municipality": all_settings.get("municipality.cvr"),
             "mora_base": all_settings.get("mora.base")
         }
     )
@@ -53,9 +51,8 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 
 
 class Settings(BaseSettings):
-
     #common:
-    os2sync_municipality: str   #Called "municipality.cvr" in settings.json
+    municipality: str   #Called "municipality.cvr" in settings.json
     mora_base: str = "http://localhost:5000"     #"mora.base" from settings.json + /service
     
     #os2sync:
@@ -82,6 +79,7 @@ class Settings(BaseSettings):
 
 
     class Config:
+        env_prefix = "os2sync_"
         env_file_encoding = "utf-8"
         extra = "ignore"
 
@@ -103,3 +101,6 @@ class Settings(BaseSettings):
 settings = Settings().dict()
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
 loggername = "os2sync"
+
+if __name__ == "__main__":
+    print(settings)

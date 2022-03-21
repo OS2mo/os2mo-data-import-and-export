@@ -28,7 +28,7 @@ if settings["api_url"] == "stub":
 session.verify = settings["ca_verify_os2sync"]
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
-    "CVR": settings["os2sync_municipality"]
+    "CVR": settings["municipality"]
 }
 
 
