@@ -29,6 +29,7 @@ from .ad_exceptions import EngagementDatesError
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_exceptions import ReplicationFailedException
+from .ad_exceptions import SamAccountNameNotUnique
 from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
 from .ad_template_engine import prepare_field_templates
@@ -881,6 +882,15 @@ class ADWriter(AD):
 
         all_names = mo_values["name"][0].split(" ") + [mo_values["name"][1]]
         sam_account_name = self.name_creator.create_username(all_names, dry_run=dry_run)
+
+        existing_sam = self.get_from_ad(user=sam_account_name)
+        existing_cpr = self.get_from_ad(cpr=mo_values["cpr"])
+        if existing_sam:
+            logger.error("SamAccount already in use: {}".format(sam_account_name))
+            raise SamAccountNameNotUnique(sam_account_name)
+        if existing_cpr:
+            logger.error("cpr already in use: {}".format(mo_values["cpr"]))
+            raise CprNotNotUnique(mo_values["cpr"])
 
         create_user_string = template_powershell(
             context={
