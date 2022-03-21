@@ -15,7 +15,7 @@ from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE, MoEmployeeMixi
 class TestPerson(unittest.TestCase, MoEmployeeMixin):
     @parameterized.expand(
         [
-            # mock CPR, xfer_cpr, key of expected CPR value, expected log level
+            # mock CPR, os2sync_xfer_cpr, key of expected CPR value, expected log level
             ("0101013333", True, "cpr_no", logging.DEBUG),
             (None, True, "cpr_no", logging.WARNING),
             ("0101013333", False, None, logging.DEBUG),
@@ -24,7 +24,7 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
     )
     def test_transfer_cpr(self, cpr, flag, expected_key, expected_log_level):
         mo_employee = self.mock_employee(cpr=cpr)
-        person = Person(mo_employee, settings={"xfer_cpr": flag})
+        person = Person(mo_employee, settings={"os2sync_xfer_cpr": flag})
         expected_cpr = mo_employee.get(expected_key)
         with self.assertLogs(_loggername, expected_log_level):
             self.assertDictEqual(
@@ -70,6 +70,6 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
 
     def _gen_settings(self, template):
         return {
-            "templates": {"person.name": template},
-            "xfer_cpr": True,  # required by `Person.to_json`
+            "os2sync_templates": {"person.name": template},
+            "os2sync_xfer_cpr": True,  # required by `Person.to_json`
         }

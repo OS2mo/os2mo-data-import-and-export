@@ -233,8 +233,8 @@ Test Calculate Primary:
 Test OS2Sync Integration:
   extends: .test-python
   script:
-    - export top_unit_uuid=9715f8b1-8493-4e5f-867a-bd3b6b6037c4
-    - export os2sync_municipality=1234
+    - export os2sync_top_unit_uuid=9715f8b1-8493-4e5f-867a-bd3b6b6037c4
+    - export municipality=1234
     - pytest integrations/os2sync/tests
 
 Test CPR Mapper:

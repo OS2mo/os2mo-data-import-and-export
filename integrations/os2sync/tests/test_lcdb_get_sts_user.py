@@ -72,7 +72,7 @@ class TestGetStsUser(unittest.TestCase):
         if template:
             # Run with template
             with patch.dict("integrations.os2sync.config.settings") as settings:
-                settings["templates"]["person.name"] = template
+                settings["os2sync_templates"]["person.name"] = template
                 sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, [])
         else:
             # Run without template
@@ -140,7 +140,7 @@ class TestGetStsUser(unittest.TestCase):
     ):
         mo_user_uuid = "name only"
         with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["templates"] = os2sync_templates or {}
+            settings["os2sync_templates"] = os2sync_templates or {}
             with self._patch("try_get_ad_user_key", given_ad_user_key):
                 sts_user = lcdb_os2mo.get_sts_user(self._session, mo_user_uuid, [])
 

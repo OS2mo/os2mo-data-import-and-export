@@ -140,7 +140,7 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
-        os2mo_get("{BASE}/ou/" + str(settings["top_unit_uuid"]) + "/details/kle")
+        os2mo_get("{BASE}/ou/" + str(settings["os2sync_top_unit_uuid"]) + "/details/kle")
         return True
     except requests.exceptions.HTTPError:
         return False
@@ -157,12 +157,12 @@ def addresses_to_user(user, addresses):
             phones.append(address)
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = choose_public_address(phones, settings["phone_scope_classes"])
+    phone = choose_public_address(phones, settings["os2sync_phone_scope_classes"])
     if phone:
         user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = choose_public_address(emails, settings["email_scope_classes"])
+    email = choose_public_address(emails, settings["os2sync_email_scope_classes"])
     if email:
         user["Email"] = email["name"]
 
@@ -309,7 +309,7 @@ def partition_kle(kle) -> (List[UUID], List[UUID]):
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
-    If the setting 'use_contact_for_tasks' is set KLEs wil be divided:
+    If the setting 'os2sync_use_contact_for_tasks' is set KLEs wil be divided:
 
     * Aspect "Udførende" goes into "Tasks"
     * Aspect "Ansvarlig" goes into "ContactForTasks"
@@ -321,7 +321,7 @@ def partition_kle(kle) -> (List[UUID], List[UUID]):
         Tuple(List, List)
     """
 
-    if settings.get("use_contact_for_tasks"):
+    if settings.get("os2sync_use_contact_for_tasks"):
         tasks = filter_kle("Udførende", kle)
         ContactForTasks = filter_kle("Ansvarlig", kle)
 
@@ -338,7 +338,7 @@ def partition_kle(kle) -> (List[UUID], List[UUID]):
 
 def kle_to_orgunit(org_unit: Dict, kle: Dict) -> Dict:
     """Mutates the dict "org_unit" to include KLE data"""
-    if settings["OS2MO_HAS_KLE"]:  # this is set by __main__
+    if settings["os2mo_has_kle"]:  # this is set by __main__
         tasks, contactfortasks = partition_kle(kle)
         if tasks:
             org_unit["Tasks"] = tasks
@@ -359,10 +359,10 @@ def is_ignored(unit, settings):
 
     return (
         unit.get("org_unit_level")
-        and UUID(unit["org_unit_level"]["uuid"]) in settings["ignored_unit_levels"]
+        and UUID(unit["org_unit_level"]["uuid"]) in settings["os2sync_ignored_unit_levels"]
     ) or (
         unit.get("org_unit_type")
-        and UUID(unit["org_unit_type"]["uuid"]) in settings["ignored_unit_types"]
+        and UUID(unit["org_unit_type"]["uuid"]) in settings["os2sync_ignored_unit_types"]
     )
 
 
@@ -373,13 +373,13 @@ def get_sts_orgunit(uuid):
         logger.info("Ignoring %r", base)
         return None
 
-    if not parent["uuid"] == str(settings["top_unit_uuid"]):
+    if not parent["uuid"] == str(settings["os2sync_top_unit_uuid"]):
         while parent.get("parent"):
-            if parent["uuid"] == str(settings["top_unit_uuid"]):
+            if parent["uuid"] == str(settings["os2sync_top_unit_uuid"]):
                 break
             parent = parent["parent"]
 
-    if not parent["uuid"] == str(settings["top_unit_uuid"]):
+    if not parent["uuid"] == str(settings["os2sync_top_unit_uuid"]):
         # not part of right tree
         return None
 

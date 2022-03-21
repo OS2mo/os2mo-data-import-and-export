@@ -131,8 +131,8 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
 
     def _run(self, response, ad_user_key=None, os2sync_templates=None):
         with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["xfer_cpr"] = True
-            settings["templates"] = os2sync_templates or {}
+            settings["os2sync_xfer_cpr"] = True
+            settings["os2sync_templates"] = os2sync_templates or {}
             with self._patch("os2mo_get", response):
                 with self._patch("try_get_ad_user_key", ad_user_key):
                     with self._patch("addresses_to_user", []):

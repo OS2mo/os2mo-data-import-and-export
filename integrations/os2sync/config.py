@@ -74,7 +74,8 @@ class Settings(BaseSettings):
     os2sync_ignored_unit_levels: list[UUID] = []
     os2sync_ignored_unit_types: list[UUID] = []
     os2sync_templates: dict = {}
-
+    
+    os2sync_use_contact_for_tasks: bool = False
 
 
     class Config:

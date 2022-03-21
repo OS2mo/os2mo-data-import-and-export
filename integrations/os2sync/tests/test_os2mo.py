@@ -25,7 +25,7 @@ class TestsMOAd(unittest.TestCase):
     def test_is_ignored(self):
 
         il1, il2, iu1, iu2 = [uuid4() for u in range(4)]
-        settings = {"ignored_unit_levels": [il1, il2], "ignored_unit_types": [iu1, iu2]}
+        settings = {"os2sync_ignored_unit_levels": [il1, il2], "os2sync_ignored_unit_types": [iu1, iu2]}
         unit = {
             "org_unit_level": {"uuid": str(uuid4())},
             "org_unit_type": {"uuid": str(uuid4())},
@@ -44,9 +44,9 @@ class TestsMOAd(unittest.TestCase):
 
     @parameterized.expand(
         [
-            ({"OS2MO_HAS_KLE": False}, ["2", "4", "6"], []),
-            ({"OS2MO_HAS_KLE": True}, ["2", "4", "6"], []),
-            ({"OS2MO_HAS_KLE": True, "use_contact_for_tasks": True}, ["2", "4"], ["6"]),
+            ({"os2mo_has_kle": False}, ["2", "4", "6"], []),
+            ({"os2mo_has_kle": True}, ["2", "4", "6"], []),
+            ({"os2mo_has_kle": True, "os2sync_use_contact_for_tasks": True}, ["2", "4"], ["6"]),
         ]
     )
     def test_kle_to_orgunit(
@@ -76,7 +76,7 @@ class TestsMOAd(unittest.TestCase):
             self.assertListEqual(expected_contactfortasks, contact_for_tasks)
             org_unit = {}
             kle_to_orgunit(org_unit, kles)
-            if testsettings.get("OS2MO_HAS_KLE"):
+            if testsettings.get("os2mo_has_kle"):
                 self.assertListEqual(expected_tasks, org_unit.get("Tasks"))
                 self.assertListEqual(
                     expected_contactfortasks, org_unit.get("ContactForTasks", [])

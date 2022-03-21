@@ -82,7 +82,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
-        elif settings["autowash"]:
+        elif settings["osync_autowash"]:
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(i)
 
@@ -150,20 +150,20 @@ def main(settings):
 
     logging.basicConfig(
         format=config.logformat,
-        level=int(settings["log_level"]),
-        filename=settings["log_file"]
+        level=int(settings["osync_log_level"]),
+        filename=settings["osync_log_file"]
     )
     logger = logging.getLogger(config.loggername)
-    logger.setLevel(settings["log_level"])
+    logger.setLevel(settings["osync_log_level"])
 
-    if settings["use_lc_db"]:
+    if settings["osync_use_lc_db"]:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    hash_cache_file = pathlib.Path(settings["hash_cache"])
+    hash_cache_file = pathlib.Path(settings["osync_hash_cache"])
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)

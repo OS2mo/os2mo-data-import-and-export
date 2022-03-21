@@ -287,7 +287,7 @@ class TestsMOAd(unittest.TestCase):
         {
             'mora_base': '',
             'os2mo_org_uuid': '',
-            'xfer_cpr': True,
+            'os2sync_xfer_cpr': True,
         },
     )
     @patch('integrations.os2sync.os2mo.os2mo_get', patched_session_get)
