@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.20.10 - 2022-03-21
+--------------------
+
+[#49338] Reintroduce retry logic in `MoraHelper._mo_lookup`
+
 2.20.9 - 2022-03-18
 -------------------
 
