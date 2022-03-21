@@ -24,6 +24,10 @@ from anytree import Node
 from more_itertools import one
 from more_itertools import only
 from ra_utils.headers import TokenSettings
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import wait_random_exponential
+from tenacity import stop_after_attempt
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
@@ -123,6 +127,14 @@ class MoraHelper:
             i += 1
         return path_dict
 
+    @retry(
+        retry=retry_if_exception_type(
+            (requests.exceptions.HTTPError, requests.exceptions.ConnectionError)
+        ),
+        wait=wait_random_exponential(multiplier=1, max=5),
+        stop=stop_after_attempt(5),
+        reraise=True,
+    )
     def _mo_lookup(
         self,
         uuid,
