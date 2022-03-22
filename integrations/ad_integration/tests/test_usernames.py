@@ -1,8 +1,106 @@
 import unittest
+from unittest import mock
 
-from ..user_names import _name_fixer
-from ..user_names import CreateUserNames
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
+from parameterized import parameterized
+
+from ..ad_exceptions import ImproperlyConfigured
+from ..user_names import UserNameGen
+from ..user_names import UserNameGenMethod2
+from ..user_names import UserNameGenPermutation
+from ..user_names import UserNameSet
+from ..user_names import UserNameSetCSVFile
+from ..user_names import UserNameSetInAD
+from .mocks import MockADParameterReader
 from .name_simulator import create_name
+
+
+class TestUserNameGen(unittest.TestCase):
+    _load_setting_path = "integrations.ad_integration.user_names.load_setting"
+
+    @parameterized.expand(
+        [
+            ("UserNameGenMethod2", UserNameGenMethod2),
+            ("UserNameGenUnknown", UserNameGenMethod2),
+            ("UserNameGenPermutation", UserNameGenPermutation),
+        ]
+    )
+    def test_override_implementation(self, name, expected_class):
+        """Test that `get_implementation` returns the expected implementation
+        configured by setting 'integrations.ad_writer.user_names.class'.
+        """
+        with mock.patch(self._load_setting_path, return_value=lambda: name):
+            impl = UserNameGen.get_implementation()
+            self.assertIsInstance(impl, expected_class)
+            self.assertEqual(len(impl._loaded_occupied_name_sets), 0)
+
+    def test_default_if_no_settings(self):
+        """Test that `get_implementation` returns the default implementation
+        if 'settings.json' could not be read.
+        """
+
+        def raise_filenotfound():
+            raise FileNotFoundError()
+
+        with mock.patch(self._load_setting_path, return_value=raise_filenotfound):
+            impl = UserNameGen.get_implementation()
+            self.assertIsInstance(impl, UserNameGenMethod2)
+            self.assertEqual(len(impl._loaded_occupied_name_sets), 0)
+
+    def test_load_occupied_names(self):
+        """Test that we can configure `UserNameGen` to load one or more
+        `UserNameSet` classes and add their individual sets of occupied names.
+        """
+        # Get `UserNameGen` implementation which loads occupied usernames from
+        # `UserNameSet` (= an empty implementation.)
+        impl = self._get_instance("UserNameSet")
+
+        # Assert that we loaded two username sets (from AD and from the
+        # `UserNameSet` specified in settings.)
+        self.assertEqual(len(impl._loaded_occupied_name_sets), 2)
+
+        # Assert that the first username set is the AD username set.
+        self.assertIsInstance(impl._loaded_occupied_name_sets[0], UserNameSetInAD)
+
+        # Assert that the second username set is the one we specified
+        # via settings, and is an empty set.
+        self.assertIsInstance(impl._loaded_occupied_name_sets[1], UserNameSet)
+        self.assertSetEqual(set(impl._loaded_occupied_name_sets[1]), set())
+
+        # Assert that the total set of occupied usernames is equal to
+        # the usernames "found" by our mock `ADParameterReader`.
+        self.assertSetEqual(
+            impl.occupied_names,
+            set(impl._loaded_occupied_name_sets[0]),
+        )
+
+    def test_load_occupied_names_invalid_name_raises(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self._get_instance("InvalidUserNameSetName")
+
+    def _get_instance(self, usernameset_class_name: str) -> "UserNameGen":
+        cls_names = [usernameset_class_name]
+        settings = {
+            f"{UserNameGen._setting_prefix}.extra_occupied_name_classes": cls_names
+        }
+        with self._patch_settings(settings):
+            # Use mock `ADParameterReader` in `UserNameSetInAD`
+            with mock.patch(
+                "integrations.ad_integration.user_names.ADParameterReader",
+                new=MockADParameterReader,
+            ):
+                impl = UserNameGen.get_implementation()
+                impl.load_occupied_names()
+                return impl
+
+    def _patch_settings(self, settings: dict):
+        return mock.patch(
+            self._load_setting_path,
+            new=lambda name, default=None: lambda: settings.get(name, default),
+        )
+
 
 # PIMJE is missing in specification documen
 pmj_first = [
@@ -566,14 +664,14 @@ ooha = [
 ]
 
 
-class TestUsernameCreation(unittest.TestCase):
+class TestUserNameGenMethod2(unittest.TestCase):
     def _test_person(self, name, reference, max_level):
-        name_creator = CreateUserNames(occupied_names=set())
+        name_creator = UserNameGenMethod2()
         success = True
         for level in range(0, max_level):
             for correct_user_name in reference[level]:
                 user_name = name_creator.create_username(name)
-                if not user_name[0] == correct_user_name:
+                if user_name != correct_user_name:
                     success = False
                     print("Got: {}, expected: {}".format(user_name, correct_user_name))
         return success
@@ -615,7 +713,7 @@ class TestUsernameCreation(unittest.TestCase):
         should happen after 89 attempts.
         """
         name = ["Karina", "Jensen"]
-        name_creator = CreateUserNames(occupied_names=set())
+        name_creator = UserNameGenMethod2()
         for i in range(1, 88):
             name_creator.create_username(name)
         with self.assertRaisesRegex(RuntimeError, "Failed to create user name"):
@@ -627,10 +725,10 @@ class TestUsernameCreation(unittest.TestCase):
         same person and never run into an answer of None.
         """
         name = ["Karina", "Jensen"]
-        name_creator = CreateUserNames(occupied_names=set())
+        name_creator = UserNameGenMethod2()
         for i in range(1, 100):
             user_name = name_creator.create_username(name, dry_run=True)
-        self.assertFalse(user_name[0] is None)
+        self.assertFalse(user_name is None)
 
     def test_multiple_names(self):
         """
@@ -638,7 +736,7 @@ class TestUsernameCreation(unittest.TestCase):
         bug that stops the program. Test succeeds if the code does not raise an
         exception.
         """
-        name_creator = CreateUserNames(occupied_names=set())
+        name_creator = UserNameGenMethod2()
         for i in range(0, 250):
             name = create_name()
             name_creator.create_username(name)
@@ -648,7 +746,101 @@ class TestUsernameCreation(unittest.TestCase):
         Test that the name fixer allows a-z and does not allow values outside this
         range.
         """
+        name_creator = UserNameGenMethod2()
         name = ["Anders", "abzæ-{øå", "Andersen"]
-        fixed_name = _name_fixer(name)
+        fixed_name = name_creator._name_fixer(name)
         expected_name = ["Anders", "abzaoa", "Andersen"]
         self.assertTrue(fixed_name == expected_name)
+
+
+CONSONANTS = st.characters(
+    whitelist_characters="bcdfghjklmnpqrstvwxz",
+    whitelist_categories=(),
+)
+
+
+class TestUserNameGenPermutation(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.instance = UserNameGenPermutation()
+
+    @settings(max_examples=1000, deadline=None)
+    @given(st.lists(st.text(min_size=1, alphabet=CONSONANTS), min_size=0))
+    def test_valid_input(self, name):
+        # If `name` has at least one item, each item being a string of at least
+        # 0 consonants, we should be able to create a username.
+        self.instance.create_username(name)
+
+    def test_suffix_and_permutation_index_increments(self):
+        name = ["B", "C", "D"]
+        expected_permutations = ("bcd", "bdc", "cbd", "cdb", "dbc", "dcb")
+        for expected_permutation in expected_permutations:
+            for expected_suffix in range(1, 10):
+                username = self.instance.create_username(name)
+                self.assertEqual(
+                    username,
+                    "%s%d" % (expected_permutation, expected_suffix),
+                )
+
+    def test_skips_names_already_taken(self):
+        name = ["Lille", "Claus", "Her"]
+        self.instance.add_occupied_names({"lch1", "lch4"})
+        for expected_username in ("lch2", "lch3", "lch5"):
+            username = self.instance.create_username(name)
+            self.assertEqual(username, expected_username)
+
+    @parameterized.expand(
+        [
+            # name, expected feed
+            (["Bac", "Cab"], ["B", "C", "c", "b"]),  # unpadded
+            (["Baa", "Caa"], ["B", "C", "x"]),  # padded with one 'x'
+        ]
+    )
+    def test_feed_is_padded(self, name, expected_feed):
+        self.assertEqual(self.instance._get_feed(name), expected_feed)
+
+    def test_raises_indexerror_when_feed_exhausted(self):
+        # If we keep generating usernames from a very small feed of only three
+        # consonants, we will run out of new usernames when we have generated
+        # (3! * 9) = (6 * 9) = 54 usernames from that particular feed.
+        for num in range(55):  # sequence from 0 to and including 54
+            try:
+                self.instance.create_username(["B", "C", "D"])
+            except IndexError:
+                self.assertEqual(num, 54)
+
+
+class TestUserNameSetCSVFile(unittest.TestCase):
+    csv_path = "some/fs/path"
+    csv_lines = [
+        "%s,foo" % UserNameSetCSVFile._column_name,
+        "abcd1234,",
+        "efgh5678",
+    ]
+
+    def test_can_read_csv(self):
+        instance = self._get_instance()
+        instance._mock_open.assert_called_once_with(
+            self.csv_path,
+            "r",
+            encoding=UserNameSetCSVFile._encoding,
+        )
+        self.assertEqual(instance._usernames, {"abcd1234", "efgh5678"})
+
+    def test_contains(self):
+        instance = self._get_instance()
+        self.assertIn("abcd1234", instance)
+        self.assertNotIn("abc123", instance)
+
+    def test_iter(self):
+        instance = self._get_instance()
+        self.assertSetEqual(instance._usernames, set(instance))
+
+    def _get_instance(self):
+        load_setting_path = "integrations.ad_integration.user_names.load_setting"
+        with mock.patch(load_setting_path, return_value=lambda: self.csv_path):
+            with mock.patch("io.open") as mock_open:
+                mock_open.return_value.__enter__.return_value = self.csv_lines
+                instance = UserNameSetCSVFile()
+                instance._mock_open = mock_open
+                return instance

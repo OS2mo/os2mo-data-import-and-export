@@ -1,3 +1,4 @@
+import copy
 from typing import Callable
 from typing import Dict
 from typing import Optional
@@ -316,15 +317,6 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
             {employee["uuid"]: expected_name},
         )
 
-    def test_skip_occupied_names_check(self):
-        """If `skip_occupied_names_check` is passed, don't call
-        `ADParameterReader.cache_all`.
-        """
-        reader = MockADParameterReader()
-        reader.cache_all = mock.Mock()
-        self._get_instance(reader=reader, skip_occupied_names_check=True)
-        reader.cache_all.assert_not_called()
-
     @parameterized.expand(
         [
             # Case 1: we look for the root unit and find it.
@@ -385,9 +377,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         mock_lora_cache_class=MockLoraCacheExtended,
         **kwargs,
     ):
-        settings = {
-            "integrations.ad.write.create_user_trees": [MO_ROOT_ORG_UNIT_UUID],
-        }
+        settings = copy.copy(BASE_SETTINGS)
 
         if create_filters:
             settings["integrations.ad.lifecycle.create_filters"] = create_filters
@@ -465,3 +455,30 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
     def _get_expected_skipped_entry(self, filtername):
         mo_user = self._prepare_static_person()
         return {filtername: {mo_user["uuid"]: " ".join(mo_user["name"])}}
+
+
+class TestableAdLifeCycle(ad_life_cycle.AdLifeCycle):
+    def _load_settings(self):
+        return BASE_SETTINGS
+
+    def _get_adreader(self):
+        return mock.MagicMock()
+
+    def _get_adwriter(self, **kwargs):
+        return mock.MagicMock(**kwargs)
+
+    def _update_lora_cache(self, dry_run: bool = True):
+        return mock.MagicMock(), mock.MagicMock()
+
+
+class TestOccupiedNamesCheckFlag(TestCase):
+    @parameterized.expand(
+        [
+            (True,),
+            (False,),
+        ]
+    )
+    def test_skip_occupied_names_check(self, value):
+        """If `skip_occupied_names_check` is passed, pass it to `ADWriter`"""
+        ad_life_cycle = TestableAdLifeCycle(skip_occupied_names_check=value)
+        self.assertEqual(ad_life_cycle.ad_writer.skip_occupied_names, value)

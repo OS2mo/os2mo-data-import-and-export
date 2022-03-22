@@ -1,112 +1,165 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-import random
+import csv
+import io
+import logging
+import string
 from operator import itemgetter
-from typing import Optional
+from typing import List
 
-import click
+from more_itertools import interleave_longest
+from more_itertools import nth_permutation
+from ra_utils.load_settings import load_setting
 
+from .ad_exceptions import ImproperlyConfigured
 from .ad_reader import ADParameterReader
 from .username_rules import method_2
 
 
-METHOD = "metode 2"
+logger = logging.getLogger(__name__)
 
-CHAR_REPLACEMENT = {
-    "â": "a",
-    "ä": "a",
-    "à": "a",
-    "å": "a",
-    "Ä": "a",
-    "Å": "a",
-    "æ": "a",
-    "Æ": "a",
-    "á": "a",
-    "Á": "a",
-    "Â": "a",
-    "À": "a",
-    "ã": "a",
-    "Ã": "a",
-    "é": "e",
-    "ê": "e",
-    "ë": "e",
-    "è": "e",
-    "É": "e",
-    "Ê": "e",
-    "Ë": "e",
-    "È": "e",
-    "ï": "i",
-    "î": "i",
-    "ì": "i",
-    "í": "i",
-    "Î": "i",
-    "Ï": "i",
-    "ô": "o",
-    "ö": "o",
-    "ò": "o",
-    "Ö": "o",
-    "ø": "o",
-    "Ø": "o",
-    "ó": "o",
-    "Ó": "o",
-    "Ô": "o",
-    "Ò": "o",
-    "õ": "o",
-    "Õ": "o",
-    "ü": "u",
-    "û": "u",
-    "ù": "u",
-    "Ü": "u",
-    "ú": "u",
-    "Ú": "u",
-    "Û": "u",
-    "Ù": "u",
-    "ÿ": "y",
-    "ý": "y",
-    "Ý": "y",
-    "Ç": "c",
-    "ç": "c",
-    "ñ": "n",
-    "Ñ": "n",
-}
+NameType = List[str]
 
 
-def _name_fixer(name):
-    for i in range(0, len(name)):
-        # Replace accoding to replacement list
-        for char, replacement in CHAR_REPLACEMENT.items():
-            name[i] = name[i].replace(char, replacement)
+class UserNameGen:
+    _setting_prefix = "integrations.ad_writer.user_names"
 
-        # Remove all remaining charecters outside a-z
-        for char in name[i].lower():
-            if ord(char) not in range(ord("a"), ord("z") + 1):
-                name[i] = name[i].replace(char, "")
-    return name
+    @classmethod
+    def get_implementation(cls) -> "UserNameGen":
+        """Returns an implementation of `UserNameGen`.
+
+        If you want to load occupied usernames from AD or elsewhere, you can
+        call `load_occupied_names` on the instance returned by this method.
+
+        By default, no occupied names are loaded on the instance returned by
+        this method. This can be used in the cases where we want to spare the
+        overhead of retrieving all AD usernames, for instance.
+        """
+        implementation_class = UserNameGenMethod2  # this is the default
+
+        get_class_name = load_setting(f"{cls._setting_prefix}.class")
+
+        try:
+            name = get_class_name()
+            implementation_class = cls._lookup_class_by_name(name)
+        except (ValueError, FileNotFoundError):
+            # ValueError: "not in settings file and no default"
+            # FileNotFoundError: could not find "settings.json"
+            logger.warning(
+                "could not read settings, defaulting to %r",
+                implementation_class,
+            )
+        except NameError:
+            logger.warning(
+                "could not find class %r, defaulting to %r",
+                name,
+                implementation_class,
+            )
+
+        instance = implementation_class()
+        return instance
+
+    @classmethod
+    def _lookup_class_by_name(cls, name):
+        if name and name in globals():
+            return globals()[name]
+        raise NameError(f"could not find class {name}")
+
+    def __init__(self):
+        self.occupied_names = set()
+        self._loaded_occupied_name_sets = []
+
+    def add_occupied_names(self, occupied_names: set) -> None:
+        self.occupied_names.update(set(occupied_names))
+        self._loaded_occupied_name_sets.append(occupied_names)
+
+    def create_username(self, name: NameType, dry_run=False) -> str:
+        raise NotImplementedError("must be implemented by subclass")
+
+    def load_occupied_names(self):
+        # Always load AD usernames when this method is called
+        self.add_occupied_names(UserNameSetInAD())
+
+        # Load any extra username sets specified in settings
+        setting_name = f"{self._setting_prefix}.extra_occupied_name_classes"
+        get_usernameset_class_names = load_setting(setting_name, default=[])
+        try:
+            usernameset_class_names = get_usernameset_class_names()
+        except FileNotFoundError:  # could not find "settings.json"
+            logger.info("could not read settings, not adding extra username sets")
+        else:
+            for name in usernameset_class_names:
+                try:
+                    cls = self._lookup_class_by_name(name)
+                except NameError:
+                    raise ImproperlyConfigured(
+                        f"{setting_name!r} refers to unknown class {name!r}"
+                    )
+                else:
+                    username_set = cls()
+                    self.add_occupied_names(username_set)
+                    logger.debug("added %r to set of occupied names", username_set)
 
 
-class CreateUserNames(object):
+class UserNameGenMethod2(UserNameGen):
     """
     An implementation of metode 2 in the AD MOX specification document
     (Bilag: Tildeling af brugernavne).
     """
 
-    def __init__(self, occupied_names: Optional[set] = None):
-        self.method = METHOD
-        self.set_occupied_names(occupied_names)
+    def __init__(self):
+        super().__init__()
         self.combinations = [
             method_2.FIRST,
             method_2.SECOND,
             method_2.THIRD,
             method_2.FOURTH,
-            method_2.FITFTH,
+            method_2.FIFTH,
             method_2.SIXTH,
         ]
+
+    def _name_fixer(self, name: NameType) -> NameType:
+        for i in range(0, len(name)):
+            # Replace according to replacement list
+            for char, replacement in method_2.CHAR_REPLACEMENT.items():
+                name[i] = name[i].replace(char, replacement)
+
+            # Remove all remaining characters outside a-z
+            for char in name[i].lower():
+                if ord(char) not in range(ord("a"), ord("z") + 1):
+                    name[i] = name[i].replace(char, "")
+
+        return name
+
+    def _readable_combi(self, combi):
+        readable_combi = []
+        max_position = -1
+        for i in range(0, len(combi)):
+            # First name
+            if combi[i] == "F":
+                position = 0
+            # First middle name
+            if combi[i] == "1":
+                position = 1
+            # Second middle name
+            if combi[i] == "2":
+                position = 2
+            # Third middle name
+            if combi[i] == "3":
+                position = 3
+            # Last name (independent of middle names)
+            if combi[i] == "L":
+                position = -1
+            if combi[i] == "X":
+                position = None
+            if position is not None and position > max_position:
+                max_position = position
+            readable_combi.append(position)
+        return (readable_combi, max_position)
 
     def _create_from_combi(self, name, combi):
         """
         Create a username from a name and a combination.
         """
-        (code, max_position) = method_2._readable_combi(combi)
+        (code, max_position) = self._readable_combi(combi)
 
         # Do not use codes that uses more names than the actual person has
         if max_position > len(name) - 2:
@@ -136,33 +189,7 @@ class CreateUserNames(object):
                 username += "X"
         return username
 
-    def set_occupied_names(self, occupied_names_in: Optional[set] = None) -> None:
-        occupied_names: set = occupied_names_in or set()
-        self.occupied_names = occupied_names
-
-    def populate_occupied_names(self, **kwargs):
-        """
-        Read all usernames from AD and add them to the list of reserved names.
-        :return: The amount of added users.
-        """
-        reader = ADParameterReader(**kwargs)
-        all_users = reader.read_it_all()
-        occupied_names = set(map(itemgetter("SamAccountName"), all_users))
-        self.set_occupied_names(occupied_names)
-        del reader
-        return len(occupied_names)
-
-    def disqualify_unwanted_names(self, banned_words_list):
-        """
-        Read a list of non-allowed usernames and add them to the list of
-        reserved names to avoid that they will be given to an actual user.
-        """
-        pass
-
-    def _metode_1(self, name: list, dry_run=False) -> tuple:
-        pass
-
-    def _metode_2(self, name: list, dry_run=False) -> tuple:
+    def create_username(self, name: NameType, dry_run: bool = False) -> str:
         """
         Create a new username in accodance with the rules specified in this file.
         The username will be the highest quality available and the value will be
@@ -173,17 +200,13 @@ class CreateUserNames(object):
         :param name: Name of the user given as a list with at least two elements.
         :param dry_run: If true the name will be returned, but will be added to
         the interal list of reserved names.
-        :return: A tuple with first element being the username and the second
-        element being a tuple describing the quality of the username, first
-        element is the prioritazion level (1-6) and second element being the actual
-        rule that ended up suceeding. Lower numbers means better usernames.
+        :return: New username generated.
         """
         final_user_name = ""
-        quality = (0, 0, 0)
-        name = _name_fixer(name)
+        name = self._name_fixer(name)
 
         for permutation_counter in range(2, 10):
-            for prioritation in range(0, 6):
+            for prioritation in range(0, len(self.combinations)):
                 if final_user_name != "":
                     break
                 i = 0
@@ -192,152 +215,94 @@ class CreateUserNames(object):
                     username = self._create_from_combi(name, combi)
                     if not username:
                         continue
-
                     indexed_username = username.replace("X", str(permutation_counter))
                     if indexed_username not in self.occupied_names:
                         if not dry_run:
                             self.occupied_names.add(indexed_username)
                         final_user_name = indexed_username
-                        quality = (prioritation + 1, i + 1, permutation_counter)
-                        return final_user_name, quality
+                        return final_user_name
 
         # If we get to here, we completely failed to make a username
         raise RuntimeError("Failed to create user name")
 
-    def _metode_3(self, name=[], dry_run=False) -> tuple:
-        """
-        Create a new random user name
-        :param name: Not used in this algorithm.
-        :param dry_run: Return a random valid name, but do not
-        mark it as used.
-        :return: A tuple with first element being the username, and second
-        element being the tuple (0,0)
-        """
-        username = ""
-        while username == "":
-            for _ in range(0, 6):
-                username += chr(random.randrange(97, 123))
-            if username in self.occupied_names:
-                username = ""
+
+class UserNameGenPermutation(UserNameGen):
+    def __init__(self):
+        super().__init__()
+        self.length = 3
+        self.allowed_chars = "".join(set(string.ascii_lowercase) - set("aeiouy"))
+
+    def create_username(self, name: NameType, dry_run: bool = False) -> str:
+        suffix = 1
+        permutation_index = 0
+
+        feed = self._get_feed(name)
+
+        while True:
+            letters = self._create_permutation(feed, permutation_index)
+            new_username = "%s%d" % (letters, suffix)
+            if new_username not in self.occupied_names:
+                # An unused username was found, add it to the list of
+                # occupied names and return.
+                self.occupied_names.add(new_username)
+                return new_username
             else:
-                if not dry_run:
-                    self.occupied_names.add(username)
-        return (username, (0, 0, 0))
+                # We are still looking for an available username.
+                # Bump the `suffix` variable until it reaches 10.
+                suffix += 1
+                if suffix > 9:
+                    # Reset the `suffix` back to 1, and go to the next
+                    # permutation.
+                    suffix = 1
+                    permutation_index += 1
 
-    def create_username(self, name: list, dry_run=False) -> tuple:
-        if self.method == "metode 2":
-            return self._metode_2(name, dry_run)
-        if self.method == "metode 3":
-            return self._metode_3(name, dry_run)
-        raise NotImplementedError("Unknown method")
+    def _get_feed(self, name: NameType):
+        name_cleaned = self._remove_unwanted_letters(name)
+        feed = list(interleave_longest(*name_cleaned))
 
-    def stats(self, names, size=None, find_quality=None):
-        if size is not None:
-            difficult_names = set()
-            quality_dist = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, "broken": 0}
-            for i in range(0, size):
-                name = names[i]
-                try:
-                    quality = self.create_username(name)
-                    quality_dist[quality[1][2]] += 1
-                except RuntimeError:
-                    difficult_names.add(str(name))
-                    quality_dist["broken"] += 1
-            # print(difficult_names)
-            print("Size: {}, qualiy: {}".format(size, quality_dist))
+        # If there are not enough consonants in `feed`, pad it using 'x' chars
+        feed_length = sum(len(item) for item in feed)
+        if feed_length < self.length:
+            feed.extend("x" * (self.length - feed_length))
 
-        if find_quality is not None:
-            user_count = 1
-            hits = 0
-            name = names[user_count]
-            user_name = self.create_username(name)
-            while hits < find_quality[1]:
-                if user_name[1][2] >= find_quality[0]:
-                    hits += 1
-                if user_name[1][0] == 0:
-                    hits = 100000000
-                name = names[user_count]
-                user_name = self.create_username(name)
-                print(
-                    "Count: {}, User name {}, hits: {}".format(
-                        user_count, user_name, hits
-                    )
-                )
-                user_count += 1
-            print(user_count)
-            print("------")
+        return feed
+
+    def _create_permutation(self, feed, index=0):
+        permutation = nth_permutation(feed, r=self.length, index=index)
+        username = "".join(permutation).lower()
+        return username
+
+    def _remove_unwanted_letters(self, name: NameType):
+        return [
+            "".join(char for char in name_part if char.lower() in self.allowed_chars)
+            for name_part in name
+        ]
 
 
-@click.command(help="User name creator")
-@click.option(
-    "--method",
-    required=True,
-    type=click.Choice(["2", "3"]),
-    help="User name method (2 or 3)",
-)
-@click.option("--name", required=True, help="Name of user")
-@click.option("-N", required=True, type=int, help="Number of user names to create")
-@click.option(
-    "--populate-occupied-names",
-    is_flag=True,
-    help="Populate occupied names from AD",
-)
-def cli(**args):
-    name_creator = CreateUserNames(occupied_names=set())
-    name_creator.method = "metode %s" % args["method"]
+class UserNameSet:
+    def __init__(self):
+        self._usernames = set()
 
-    if args["populate_occupied_names"]:
-        name_creator.populate_occupied_names()
+    def __contains__(self, username: str) -> bool:
+        return username in self._usernames
 
-    name = args["name"].split(" ")
-    for i in range(0, args["n"]):
-        print(name_creator.create_username(name))
+    def __iter__(self):
+        return iter(self._usernames)
 
 
-if __name__ == "__main__":
-    cli()
+class UserNameSetCSVFile(UserNameSet):
+    _encoding = "utf-8-sig"
+    _column_name = "Brugernavn"
 
-    # name_creator = CreateUserNames(occupied_names=set())
-    # name_creator.populate_occupied_names()
-    # name_creator._cli()
-    # name = ['Anders', 'Kristian', 'Jens', 'abzæ-{øå', 'Peter', 'Andersen']
-    # print(name_creator.create_username(name))
+    def __init__(self):
+        get_path = load_setting("integrations.ad_writer.user_names.disallowed.csv_path")
+        with io.open(get_path(), "r", encoding=self._encoding) as stream:
+            reader = csv.DictReader(stream)
+            self._usernames = set(row[self._column_name] for row in reader)
 
-    # import pickle
-    # from pathlib import Path
 
-    # names = []
-    # p = Path('.')
-    # name_files = p.glob('*.p')
-    # for name in name_files:
-    #     with open(str(name), 'rb') as f:
-    #         names = names + pickle.load(f)
-
-    # unrealistic_names = []
-    # for i in range(0, len(names)):
-    #     for name in names[i]:
-    #         if len(name) < 2:
-    #             unrealistic_names.append((names[i]))
-
-    # for bad_name in unrealistic_names:
-    #     names.remove(bad_name)
-
-    # for i in range(1, 50):
-    #     name_creator.occupied_names = set()
-    #     name_creator.stats(names, size=i*5000)
-
-    # print()
-    # print('3, 1')
-    # name_creator.stats(names, find_quality=(3, 1))
-
-    # from tests.name_simulator import create_name
-    # import time
-    # t = time.time()
-    # for i in range(19, 100):
-    #     print(time.time() - t)
-    #     name_list = []
-    #     for _ in range(0, 10000):
-    #         name = create_name()
-    #         name_list.append(name)
-    #     with open('name_list_{:04d}.p'.format(i), 'wb') as f:
-    #         pickle.dump(name_list, f, pickle.HIGHEST_PROTOCOL)
+class UserNameSetInAD(UserNameSet):
+    def __init__(self):
+        reader = ADParameterReader()
+        all_users = reader.read_it_all()
+        self._usernames = set(map(itemgetter("SamAccountName"), all_users))

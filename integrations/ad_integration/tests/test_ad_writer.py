@@ -13,8 +13,11 @@ from ..ad_exceptions import CprNotNotUnique
 from ..ad_exceptions import NoPrimaryEngagementException
 from ..ad_exceptions import SamAccountNameNotUnique
 from ..ad_template_engine import illegal_parameters
+from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
+from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
+from .mocks import MockADParameterReader
 from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
@@ -1011,3 +1014,59 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
         assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
         assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
+
+
+class TestInitNameCreator(TestCase):
+    """Test `ADWriter._init_name_creator`.
+
+    In this test, we instantiate the 'real' `ADWriter` rather than the
+    `ADWriterTestSubclass` used in `TestADWriter`. This is because we want to
+    test the behavior of the real `ADWriter._init_name_creator` method, rather
+    than the overridden method in `ADWriterTestSubclass`.
+    """
+
+    def test_init_name_creator_reads_ad_usernames(self):
+        """Calling `ADWriter` with the default args should automatically load
+        occupied usernames from AD.
+        """
+        ad_writer = self._prepare_adwriter()
+        # Assert that the single AD user mocked by `MockADParameterReader` is
+        # loaded as an occupied name.
+        self.assertGreater(len(ad_writer.name_creator.occupied_names), 0)
+        # Assert that we loaded the usernames from AD.
+        self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 1)
+        self.assertIsInstance(
+            ad_writer.name_creator._loaded_occupied_name_sets[0], UserNameSetInAD
+        )
+
+    def test_init_name_creator_skips_ad_usernames(self):
+        """Calling `ADWriter` with `skip_occupied_names=True` should skip
+        loading occupied usernames from AD as well as other sources of occupied
+        usernames.
+        """
+        ad_writer = self._prepare_adwriter(skip_occupied_names=True)
+        # Assert that no occupied usernames were loaded, and no username sets
+        # were instantiated.
+        self.assertSetEqual(ad_writer.name_creator.occupied_names, set())
+        self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
+
+    def _prepare_adwriter(self, **kwargs):
+        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
+        # a test.
+
+        all_settings = {"primary": {"method": "ntlm"}, "global": mock.MagicMock()}
+        path_prefix = "integrations.ad_integration"
+        with mock.patch(
+            f"{path_prefix}.ad_common.read_settings",
+            return_value=all_settings,
+        ):
+            with mock.patch(
+                f"{path_prefix}.ad_writer.ADWriter._create_session",
+                return_value=mock.MagicMock(),
+            ):
+                with mock.patch(f"{path_prefix}.ad_writer.MORESTSource"):
+                    with mock.patch(
+                        f"{path_prefix}.user_names.ADParameterReader",
+                        return_value=MockADParameterReader(),
+                    ):
+                        return ADWriter(**kwargs)
