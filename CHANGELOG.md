@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.21.1 - 2022-03-22
+-------------------
+
+[#49377] Fix None/NULL stillingsbetegnelse_titel
+
 2.21.0 - 2022-03-22
 -------------------
 
