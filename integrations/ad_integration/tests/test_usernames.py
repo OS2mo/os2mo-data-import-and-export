@@ -671,7 +671,7 @@ class TestUserNameGenMethod2(unittest.TestCase):
         for level in range(0, max_level):
             for correct_user_name in reference[level]:
                 user_name = name_creator.create_username(name)
-                if not user_name == correct_user_name:
+                if user_name != correct_user_name:
                     success = False
                     print("Got: {}, expected: {}".format(user_name, correct_user_name))
         return success

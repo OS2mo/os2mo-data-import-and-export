@@ -117,7 +117,10 @@ class UserNameGenMethod2(UserNameGen):
         for i in range(0, len(name)):
             # Replace accoding to replacement list
             for char, replacement in method_2.CHAR_REPLACEMENT.items():
-                name[i] = name[i].replace(char, replacement)
+    def _name_fixer(self, name):
+        # Replace accoding to replacement list
+        for char, replacement in method_2.CHAR_REPLACEMENT.items():
+            name = name.replace(char, replacement)
 
             # Remove all remaining charecters outside a-z
             for char in name[i].lower():
@@ -141,7 +144,7 @@ class UserNameGenMethod2(UserNameGen):
             # Third middle name
             if combi[i] == "3":
                 position = 3
-            # Last name (independant of middle names)
+            # Last name (independent of middle names)
             if combi[i] == "L":
                 position = -1
             if combi[i] == "X":
