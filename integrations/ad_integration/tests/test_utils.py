@@ -12,7 +12,7 @@ import requests
 from ..ad_sync import AdMoSync
 from ..ad_writer import ADWriter
 from ..read_ad_conf_settings import read_settings
-from ..user_names import CreateUserNames
+from ..user_names import UserNameGen
 from ..utils import AttrDict
 from ..utils import recursive_dict_update
 from .name_simulator import create_name
@@ -156,13 +156,12 @@ class ADWriterTestSubclass(ADWriter):
         if kwargs.get("mock_find_ad_user", True):
             self._find_ad_user = lambda ad_user, ad_dump=None: ad_values_func()
 
-    def _init_name_creator(self, occupied_names=None):
+    def _init_name_creator(self):
         """Mocked to pretend no names are occupied.
 
         This method would normally use ADReader to read usernames from AD.
         """
-        # Simply leave out the call to populate_occupied_names
-        self.name_creator = CreateUserNames(occupied_names)
+        self.name_creator = UserNameGen.get_implementation()
 
     def _create_session(self):
         """Mocked to return a fake-class which writes scripts to self.scripts.
@@ -258,9 +257,8 @@ class TestADMixin(object):
             if self.generate_dynamic_person:
                 default_person = self._prepare_dynamic_person()
             # Add computed fields
-            sam_account_name = CreateUserNames(occupied_names=set()).create_username(
-                list(default_person["name"])
-            )[0]
+            creator = UserNameGen.get_implementation()
+            sam_account_name = creator.create_username(list(default_person["name"]))
             default_person.update(
                 **{
                     "full_name": " ".join(default_person["name"]),
