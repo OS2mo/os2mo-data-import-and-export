@@ -354,7 +354,22 @@ def is_ignored(unit, settings):
         unit.get("org_unit_type")
         and UUID(unit["org_unit_type"]["uuid"]) in settings.os2sync_ignored_unit_types
     )
+def sort_it_systems(it):
+    
+    try:
+        name = it["itsystem"]["name"]
+        return ['FK-org uuid', 'FK-org uuid manuel'].index(name)
+    except:
+        return 999
 
+def get_org_unit_uuid(mo_uuid):
+    it = os2mo_get("{BASE}/ou/" + mo_uuid + "/details/it").json()
+    it = list(filter(lambda i: i["itsystem"]["name"] in ['FK-org uuid', 'FK-org uuid manuel'], it))
+    it.sort(key=sort_it_systems)
+
+    it = list(map(itemgetter("uuid"), it))
+    it.append(mo_uuid)
+    return first(it)
 
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
@@ -399,9 +414,10 @@ def get_sts_orgunit(uuid: str, settings):
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks
         )
-
+    
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
+    sts_org_unit["uuid"] = get_org_unit_uuid(uuid)
     return sts_org_unit
 
 
