@@ -18,8 +18,11 @@ from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
+from .mocks import MO_UUID
 from .mocks import MockADParameterReader
+from .mocks import MockMoraHelper
 from .mocks import MockMORESTSource
+from .mocks import MockMORESTSourcePreview
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
 from .test_utils import TestADWriterMixin
@@ -1015,7 +1018,59 @@ class TestADWriter(TestCase, TestADWriterMixin):
         assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
 
 
-class TestInitNameCreator(TestCase):
+class _TestRealADWriter(TestCase):
+    def _prepare_adwriter(self, **kwargs):
+        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
+        # a test.
+        all_settings = {
+            "primary": {
+                "method": "ntlm",
+                "cpr_separator": "",
+                "system_user": "system_user",
+                "password": "password",
+                "search_base": "search_base",
+                "cpr_field": "cpr_field",  # read by `ADWriter.get_from_ad`
+                "properties": [],  # read by `ADWriter._properties`
+            },
+            "primary_write": {
+                "cpr_field": "cpr_field",
+                "uuid_field": "uuid_field",
+                "org_field": "org_field",
+                "level2orgunit_field": "level2orgunit_field",
+                "level2orgunit_type": "level2orgunit_type",
+                "upn_end": "upn_end",
+                "mo_to_ad_fields": {},
+                "template_to_ad_fields": {},
+            },
+            "global": {"mora.base": "", "servers": ["server"]},
+        }
+        path_prefix = "integrations.ad_integration"
+        with mock.patch(
+            f"{path_prefix}.ad_common.read_settings",
+            return_value=all_settings,
+        ):
+            with mock.patch(
+                f"{path_prefix}.ad_writer.ADWriter._create_session",
+                return_value=mock.MagicMock(),
+            ):
+                with mock.patch(
+                    f"{path_prefix}.ad_writer.MORESTSource",
+                    return_value=MockMORESTSourcePreview(),
+                ):
+                    with mock.patch(
+                        f"{path_prefix}.user_names.ADParameterReader",
+                        return_value=MockADParameterReader(),
+                    ):
+                        with mock.patch(
+                            f"{path_prefix}.ad_writer.MoraHelper",
+                            return_value=MockMoraHelper(cpr=""),
+                        ):
+                            instance = ADWriter(**kwargs)
+                            instance.get_from_ad = lambda *args, **kwargs: {}
+                            return instance
+
+
+class TestInitNameCreator(_TestRealADWriter):
     """Test `ADWriter._init_name_creator`.
 
     In this test, we instantiate the 'real' `ADWriter` rather than the
@@ -1049,23 +1104,19 @@ class TestInitNameCreator(TestCase):
         self.assertSetEqual(ad_writer.name_creator.occupied_names, set())
         self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
 
-    def _prepare_adwriter(self, **kwargs):
-        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
-        # a test.
 
-        all_settings = {"primary": {"method": "ntlm"}, "global": mock.MagicMock()}
-        path_prefix = "integrations.ad_integration"
-        with mock.patch(
-            f"{path_prefix}.ad_common.read_settings",
-            return_value=all_settings,
-        ):
-            with mock.patch(
-                f"{path_prefix}.ad_writer.ADWriter._create_session",
-                return_value=mock.MagicMock(),
-            ):
-                with mock.patch(f"{path_prefix}.ad_writer.MORESTSource"):
-                    with mock.patch(
-                        f"{path_prefix}.user_names.ADParameterReader",
-                        return_value=MockADParameterReader(),
-                    ):
-                        return ADWriter(**kwargs)
+class TestPreview(_TestRealADWriter):
+    def test_preview_create_command(self):
+        ad_writer = self._prepare_adwriter()
+        create_cmds = ad_writer._preview_create_command(MO_UUID)
+        self.assertEqual(len(create_cmds), 2)
+        self.assertIn("New-ADUser", create_cmds[0])
+        self.assertIn("Set-ADUser -Manager", create_cmds[1])
+
+    def test_preview_sync_command(self):
+        ad_writer = self._prepare_adwriter()
+        sync_cmds = ad_writer._preview_sync_command(MO_UUID, "user_sam")
+        self.assertEqual(len(sync_cmds), 2)
+        self.assertIn("Get-ADUser", sync_cmds[0])
+        self.assertIn("Set-ADUser", sync_cmds[0])
+        self.assertEqual("", sync_cmds[1])

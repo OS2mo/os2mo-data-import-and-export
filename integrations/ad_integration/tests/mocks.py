@@ -65,6 +65,27 @@ class MockMORESTSource(MORESTSource):
         return [self.from_date], [self.to_date]
 
 
+class MockMORESTSourcePreview(MORESTSource):
+    def __init__(self):
+        self.helper = MockMoraHelper("cpr")
+
+    def find_primary_engagement(self, uuid):
+        return "employment-number", "title", "eng-org-unit", "eng-uuid"
+
+    def read_user(self, uuid):
+        mo_user = self.helper.read_user()
+        mo_user.update(
+            {
+                "givenname": "Tester",
+                "surname": "Testesen",
+            }
+        )
+        return mo_user
+
+    def get_engagement_dates(self, uuid):
+        return [None], [None]
+
+
 class MockLoraCache:
     # This implements enough of the real `LoraCache` to make
     # `ad_sync.AdMoSync._edit_engagement` happy.
@@ -241,3 +262,12 @@ class MockMoraHelper(MoraHelper):
 
     def read_all_users(self):
         return [self._mo_user]
+
+    def read_ou(self, uuid):
+        return {
+            "name": "org_unit_name",
+            "user_key": "org_unit_user_key",
+            "org_unit_type": {"uuid": "org_unit_type_uuid"},
+            "org_unit_level": {"uuid": "org_unit_level_uuid"},
+            "parent": None,
+        }
