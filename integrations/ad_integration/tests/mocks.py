@@ -271,3 +271,6 @@ class MockMoraHelper(MoraHelper):
             "org_unit_level": {"uuid": "org_unit_level_uuid"},
             "parent": None,
         }
+
+    def read_engagement_manager(self, engagement_uuid):
+        return {}
