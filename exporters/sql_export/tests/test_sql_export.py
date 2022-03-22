@@ -196,6 +196,15 @@ def _assert_db_session_add(
         assert getattr(model, name) == value
 
 
+def test_get_lora_class_returns_uuid_as_title_if_none():
+    sql_export = _TestableSqlExport()
+    sql_export.perform_export()
+    uuid = "00000000-0000-0000-0000-000000000000"
+    class_uuid, class_dict = sql_export._get_lora_class(uuid)
+    assert class_uuid == uuid
+    assert class_dict == {"title": uuid}
+
+
 def test_sql_export_writes_associations():
     # Arrange
     assoc_type_cls, assoc_type_facet = _mock_lora_class("assoc_type")

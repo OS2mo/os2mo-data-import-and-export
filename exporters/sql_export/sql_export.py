@@ -83,7 +83,7 @@ class SqlExport:
         return Session()
 
     def _get_lora_class(self, uuid: str) -> Tuple[str, dict]:
-        cls: dict = self.lc.classes.get(uuid) or {"title": None}
+        cls: dict = self.lc.classes.get(uuid) or {"title": uuid}
         return uuid, cls
 
     def perform_export(self, resolve_dar=True, use_pickle=None):
