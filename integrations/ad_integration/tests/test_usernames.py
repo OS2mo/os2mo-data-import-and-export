@@ -6,6 +6,7 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from parameterized import parameterized
 
+from ..ad_exceptions import ImproperlyConfigured
 from ..user_names import UserNameGen
 from ..user_names import UserNameGenMethod2
 from ..user_names import UserNameGenPermutation
@@ -52,11 +53,37 @@ class TestUserNameGen(unittest.TestCase):
         """Test that we can configure `UserNameGen` to load one or more
         `UserNameSet` classes and add their individual sets of occupied names.
         """
-        # Patch settings to use the empty base implementation `UserNameSet`
+        # Get `UserNameGen` implementation which loads occupied usernames from
+        # `UserNameSet` (= an empty implementation.)
+        impl = self._get_instance("UserNameSet")
+
+        # Assert that we loaded two username sets (from AD and from the
+        # `UserNameSet` specified in settings.)
+        self.assertEqual(len(impl._loaded_occupied_name_sets), 2)
+
+        # Assert that the first username set is the AD username set.
+        self.assertIsInstance(impl._loaded_occupied_name_sets[0], UserNameSetInAD)
+
+        # Assert that the second username set is the one we specified
+        # via settings, and is an empty set.
+        self.assertIsInstance(impl._loaded_occupied_name_sets[1], UserNameSet)
+        self.assertSetEqual(set(impl._loaded_occupied_name_sets[1]), set())
+
+        # Assert that the total set of occupied usernames is equal to
+        # the usernames "found" by our mock `ADParameterReader`.
+        self.assertSetEqual(
+            impl.occupied_names,
+            set(impl._loaded_occupied_name_sets[0]),
+        )
+
+    def test_load_occupied_names_invalid_name_raises(self):
+        with self.assertRaises(ImproperlyConfigured):
+            self._get_instance("InvalidUserNameSetName")
+
+    def _get_instance(self, usernameset_class_name: str) -> "UserNameGen":
+        cls_names = [usernameset_class_name]
         settings = {
-            f"{UserNameGen._setting_prefix}.extra_occupied_name_classes": [
-                "UserNameSet",
-            ],
+            f"{UserNameGen._setting_prefix}.extra_occupied_name_classes": cls_names
         }
         with self._patch_settings(settings):
             # Use mock `ADParameterReader` in `UserNameSetInAD`
@@ -66,27 +93,7 @@ class TestUserNameGen(unittest.TestCase):
             ):
                 impl = UserNameGen.get_implementation()
                 impl.load_occupied_names()
-
-                # Assert that we loaded two username sets (from AD and from the
-                # `UserNameSet` specified in settings.)
-                self.assertEqual(len(impl._loaded_occupied_name_sets), 2)
-
-                # Assert that the first username set is the AD username set.
-                self.assertIsInstance(
-                    impl._loaded_occupied_name_sets[0], UserNameSetInAD
-                )
-
-                # Assert that the second username set is the one we specified
-                # via settings, and is an empty set.
-                self.assertIsInstance(impl._loaded_occupied_name_sets[1], UserNameSet)
-                self.assertSetEqual(set(impl._loaded_occupied_name_sets[1]), set())
-
-                # Assert that the total set of occupied usernames is equal to
-                # the usernames "found" by our mock `ADParameterReader`.
-                self.assertSetEqual(
-                    impl.occupied_names,
-                    set(impl._loaded_occupied_name_sets[0]),
-                )
+                return impl
 
     def _patch_settings(self, settings: dict):
         return mock.patch(

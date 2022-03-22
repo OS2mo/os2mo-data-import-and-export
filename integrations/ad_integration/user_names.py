@@ -8,6 +8,7 @@ from more_itertools import interleave_longest
 from more_itertools import nth_permutation
 from ra_utils.load_settings import load_setting
 
+from .ad_exceptions import ImproperlyConfigured
 from .ad_reader import ADParameterReader
 from .username_rules import method_2
 
@@ -54,7 +55,7 @@ class UserNameGen:
         return instance
 
     @classmethod
-    def _lookup_class_by_name(self, name):
+    def _lookup_class_by_name(cls, name):
         if name and name in globals():
             return globals()[name]
         raise NameError(f"could not find class {name}")
@@ -75,10 +76,8 @@ class UserNameGen:
         self.add_occupied_names(UserNameSetInAD())
 
         # Load any extra username sets specified in settings
-        get_usernameset_class_names = load_setting(
-            f"{self._setting_prefix}.extra_occupied_name_classes",
-            default=[],
-        )
+        setting_name = f"{self._setting_prefix}.extra_occupied_name_classes"
+        get_usernameset_class_names = load_setting(setting_name, default=[])
         try:
             usernameset_class_names = get_usernameset_class_names()
         except FileNotFoundError:  # could not find "settings.json"
@@ -88,7 +87,9 @@ class UserNameGen:
                 try:
                     cls = self._lookup_class_by_name(name)
                 except NameError:
-                    logger.warning("could not find class %r", name)
+                    raise ImproperlyConfigured(
+                        f"{setting_name!r} refers to unknown class {name!r}"
+                    )
                 else:
                     username_set = cls()
                     self.add_occupied_names(username_set)
