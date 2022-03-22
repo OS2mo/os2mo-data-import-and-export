@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.21.0 - 2022-03-22
+-------------------
+
+[#47138] Rework AD username generation and exclusion code
+
 2.20.10 - 2022-03-21
 --------------------
 
