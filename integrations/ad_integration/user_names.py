@@ -3,6 +3,7 @@ import io
 import logging
 import string
 from operator import itemgetter
+from typing import List
 
 from more_itertools import interleave_longest
 from more_itertools import nth_permutation
@@ -14,6 +15,8 @@ from .username_rules import method_2
 
 
 logger = logging.getLogger(__name__)
+
+NameType = List[str]
 
 
 class UserNameGen:
@@ -68,7 +71,7 @@ class UserNameGen:
         self.occupied_names.update(set(occupied_names))
         self._loaded_occupied_name_sets.append(occupied_names)
 
-    def create_username(self, name: list, dry_run=False) -> str:
+    def create_username(self, name: NameType, dry_run=False) -> str:
         raise NotImplementedError("must be implemented by subclass")
 
     def load_occupied_names(self):
@@ -113,19 +116,17 @@ class UserNameGenMethod2(UserNameGen):
             method_2.SIXTH,
         ]
 
-    def _name_fixer(self, name):
+    def _name_fixer(self, name: NameType) -> NameType:
         for i in range(0, len(name)):
-            # Replace accoding to replacement list
+            # Replace according to replacement list
             for char, replacement in method_2.CHAR_REPLACEMENT.items():
-    def _name_fixer(self, name):
-        # Replace accoding to replacement list
-        for char, replacement in method_2.CHAR_REPLACEMENT.items():
-            name = name.replace(char, replacement)
+                name[i] = name[i].replace(char, replacement)
 
-            # Remove all remaining charecters outside a-z
+            # Remove all remaining characters outside a-z
             for char in name[i].lower():
                 if ord(char) not in range(ord("a"), ord("z") + 1):
                     name[i] = name[i].replace(char, "")
+
         return name
 
     def _readable_combi(self, combi):
@@ -188,7 +189,7 @@ class UserNameGenMethod2(UserNameGen):
                 username += "X"
         return username
 
-    def create_username(self, name: list, dry_run=False) -> str:
+    def create_username(self, name: NameType, dry_run: bool = False) -> str:
         """
         Create a new username in accodance with the rules specified in this file.
         The username will be the highest quality available and the value will be
@@ -231,7 +232,7 @@ class UserNameGenPermutation(UserNameGen):
         self.length = 3
         self.allowed_chars = "".join(set(string.ascii_lowercase) - set("aeiouy"))
 
-    def create_username(self, name: list, dry_run=False) -> str:
+    def create_username(self, name: NameType, dry_run: bool = False) -> str:
         suffix = 1
         permutation_index = 0
 
@@ -255,7 +256,7 @@ class UserNameGenPermutation(UserNameGen):
                     suffix = 1
                     permutation_index += 1
 
-    def _get_feed(self, name: list):
+    def _get_feed(self, name: NameType):
         name_cleaned = self._remove_unwanted_letters(name)
         feed = list(interleave_longest(*name_cleaned))
 
@@ -271,7 +272,7 @@ class UserNameGenPermutation(UserNameGen):
         username = "".join(permutation).lower()
         return username
 
-    def _remove_unwanted_letters(self, name: list):
+    def _remove_unwanted_letters(self, name: NameType):
         return [
             "".join(char for char in name_part if char.lower() in self.allowed_chars)
             for name_part in name
