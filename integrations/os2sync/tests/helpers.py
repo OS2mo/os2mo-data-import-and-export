@@ -11,6 +11,14 @@ with patch("integrations.os2sync.config.load_settings", return_value={}):
 
 NICKNAME_TEMPLATE = "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
 
+class MockOs2moGet:
+    """Class which allows patching to have a json() method"""
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def json(self):
+        return self.return_value
 
 class MoEmployeeMixin:
     def mock_employee(self, cpr="0101012222", nickname=False):

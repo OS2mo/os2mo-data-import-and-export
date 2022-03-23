@@ -203,7 +203,25 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_sts_user(uuid, settings):
+def sort_it_systems(it):
+    
+    try:
+        name = it["itsystem"]["name"]
+        return ['FK-org uuid', 'FK-org uuid manuel'].index(name)
+    except:
+        return 999
+
+
+def get_fk_org_uuid(type, mo_uuid):
+    it = os2mo_get(f"{{BASE}}/{type}/{mo_uuid}/details/it").json()
+    it = list(filter(lambda i: i["itsystem"]["name"] in ['FK-org uuid', 'FK-org uuid manuel'], it))
+    it.sort(key=sort_it_systems)
+
+    it = list(map(itemgetter("uuid"), it))
+    it.append(mo_uuid)
+    return first(it)
+
+def get_sts_user(uuid, allowed_unitids, settings = None):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
@@ -237,6 +255,8 @@ def get_sts_user(uuid, settings):
         sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
+
+    sts_user["uuid"] = get_fk_org_uuid("e", uuid)
     return sts_user
 
 
@@ -254,6 +274,7 @@ def manager_to_orgunit(unit_uuid: UUID) -> UUID:
 
 
 def itsystems_to_orgunit(orgunit, itsystems):
+    itsystems = filter(lambda i: i["itsystem"]["name"] not in ['FK-org uuid', 'FK-org uuid manuel'], itsystems)
     for i in itsystems:
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
@@ -354,22 +375,6 @@ def is_ignored(unit, settings):
         unit.get("org_unit_type")
         and UUID(unit["org_unit_type"]["uuid"]) in settings.os2sync_ignored_unit_types
     )
-def sort_it_systems(it):
-    
-    try:
-        name = it["itsystem"]["name"]
-        return ['FK-org uuid', 'FK-org uuid manuel'].index(name)
-    except:
-        return 999
-
-def get_org_unit_uuid(mo_uuid):
-    it = os2mo_get("{BASE}/ou/" + mo_uuid + "/details/it").json()
-    it = list(filter(lambda i: i["itsystem"]["name"] in ['FK-org uuid', 'FK-org uuid manuel'], it))
-    it.sort(key=sort_it_systems)
-
-    it = list(map(itemgetter("uuid"), it))
-    it.append(mo_uuid)
-    return first(it)
 
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
@@ -417,7 +422,7 @@ def get_sts_orgunit(uuid: str, settings):
     
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
-    sts_org_unit["uuid"] = get_org_unit_uuid(uuid)
+    sts_org_unit["uuid"] = get_fk_org_uuid("ou", uuid)
     return sts_org_unit
 
 
