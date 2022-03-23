@@ -1,12 +1,12 @@
-from helpers import dummy_settings
 import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+from helpers import dummy_settings
 from parameterized import parameterized
 
+from integrations.os2sync import config
 from integrations.os2sync.config import get_os2sync_settings
-from integrations.os2sync import config 
 from integrations.os2sync.os2mo import get_work_address
 from integrations.os2sync.os2mo import is_ignored
 from integrations.os2sync.os2mo import kle_to_orgunit
@@ -24,7 +24,6 @@ class MockOs2moGet:
 
 
 class TestsMOAd(unittest.TestCase):
-
     def test_is_ignored(self):
         settings = dummy_settings
         il1, il2, iu1, iu2 = [uuid4() for u in range(4)]
@@ -49,7 +48,11 @@ class TestsMOAd(unittest.TestCase):
     @parameterized.expand(
         [
             ({"os2mo_has_kle": True}, ["2", "4", "6"], []),
-            ({"os2mo_has_kle": True, "os2sync_use_contact_for_tasks": True}, ["2", "4"], ["6"]),
+            (
+                {"os2mo_has_kle": True, "os2sync_use_contact_for_tasks": True},
+                ["2", "4"],
+                ["6"],
+            ),
         ]
     )
     def test_kle_to_orgunit(
@@ -75,18 +78,23 @@ class TestsMOAd(unittest.TestCase):
         ]
         settings = dummy_settings
         settings.os2mo_has_kle = testsettings["os2mo_has_kle"]
-        settings.os2sync_use_contact_for_tasks = True if testsettings.get("os2sync_use_contact_for_tasks") else False
+        settings.os2sync_use_contact_for_tasks = (
+            True if testsettings.get("os2sync_use_contact_for_tasks") else False
+        )
 
-        tasks, contact_for_tasks = partition_kle(kles, settings.os2sync_use_contact_for_tasks)
+        tasks, contact_for_tasks = partition_kle(
+            kles, settings.os2sync_use_contact_for_tasks
+        )
         self.assertListEqual(expected_tasks, tasks)
         self.assertListEqual(expected_contactfortasks, contact_for_tasks)
         org_unit = {}
-        kle_to_orgunit(org_unit, kles, use_contact_for_tasks=settings.os2sync_use_contact_for_tasks)
+        kle_to_orgunit(
+            org_unit, kles, use_contact_for_tasks=settings.os2sync_use_contact_for_tasks
+        )
         self.assertListEqual(expected_tasks, org_unit.get("Tasks"))
         self.assertListEqual(
             expected_contactfortasks, org_unit.get("ContactForTasks", [])
         )
-
 
     @parameterized.expand(
         [

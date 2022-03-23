@@ -1,12 +1,15 @@
 import unittest
 from unittest.mock import patch
 
+from helpers import dummy_settings
 from parameterized import parameterized
 
-from integrations.os2sync import os2mo, config
+from integrations.os2sync import config
+from integrations.os2sync import os2mo
 from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
-from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE, MoEmployeeMixin
-from helpers import dummy_settings
+from integrations.os2sync.tests.helpers import MoEmployeeMixin
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
+
 
 class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
     maxDiff = None
@@ -48,7 +51,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         sts_user = self._run(
             mo_employee_response,
             ad_user_key=self._user_key,
-            os2sync_templates=os2sync_templates
+            os2sync_templates=os2sync_templates,
         )
         self.assertDictEqual(
             sts_user,
@@ -101,7 +104,6 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
                 "mock-ad-bvn",  # return value of `try_get_ad_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
-
         ]
     )
     def test_user_template_user_id(
@@ -138,6 +140,6 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
                 with self._patch("addresses_to_user", []):
                     with self._patch("engagements_to_user", []):
                         return os2mo_get_sts_user(self._uuid, [], settings=settings)
-    
+
     def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)

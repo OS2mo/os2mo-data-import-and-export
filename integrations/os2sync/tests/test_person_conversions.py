@@ -1,17 +1,16 @@
-from helpers import dummy_settings
 import logging
 import unittest
 
+from helpers import dummy_settings
 from parameterized import parameterized
 
 from integrations.os2sync import config
 from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.templates import (
-    FieldTemplateRenderError,
-    FieldTemplateSyntaxError,
-    Person,
-)
-from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE, MoEmployeeMixin
+from integrations.os2sync.templates import FieldTemplateRenderError
+from integrations.os2sync.templates import FieldTemplateSyntaxError
+from integrations.os2sync.templates import Person
+from integrations.os2sync.tests.helpers import MoEmployeeMixin
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
 
 class TestPerson(unittest.TestCase, MoEmployeeMixin):
@@ -75,5 +74,5 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
     def _gen_settings(self, template):
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        settings.os2sync_templates = {"person.name":template}
+        settings.os2sync_templates = {"person.name": template}
         return settings

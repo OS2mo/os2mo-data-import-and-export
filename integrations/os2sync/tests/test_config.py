@@ -1,8 +1,10 @@
-from integrations.os2sync.config import get_os2sync_settings
 from unittest.mock import patch
+from uuid import uuid4
+
 import pytest
 from pydantic import ValidationError
-from uuid import uuid4
+
+from integrations.os2sync.config import get_os2sync_settings
 
 env_municipality = "1234"
 env_uuid = uuid4()
@@ -10,13 +12,19 @@ file_municipality = "5678"
 file_uuid = uuid4()
 file_api_url = "http://defined.in/file"
 
+
 @pytest.fixture
 def mock_env(monkeypatch):
     monkeypatch.setenv("MUNICIPALITY", env_municipality)
     monkeypatch.setenv("OS2SYNC_TOP_UNIT_UUID", env_uuid)
 
-class TestConfig():
-    dummy_config = {"municipality.cvr": file_municipality, "os2sync_top_unit_uuid": file_uuid, "os2sync.api_url": file_api_url}
+
+class TestConfig:
+    dummy_config = {
+        "municipality.cvr": file_municipality,
+        "os2sync_top_unit_uuid": file_uuid,
+        "os2sync.api_url": file_api_url,
+    }
 
     def test_no_settings(self):
         with patch("integrations.os2sync.config.load_settings", return_value={}):
@@ -25,21 +33,28 @@ class TestConfig():
                 get_os2sync_settings()
 
     def test_minimal_settings_file(self):
-        with patch("integrations.os2sync.config.load_settings", return_value=self.dummy_config):
+        with patch(
+            "integrations.os2sync.config.load_settings", return_value=self.dummy_config
+        ):
             get_os2sync_settings.cache_clear()
             settings = get_os2sync_settings()
             assert settings.municipality == self.dummy_config["municipality.cvr"]
-            assert settings.os2sync_top_unit_uuid == self.dummy_config["os2sync_top_unit_uuid"]
+            assert (
+                settings.os2sync_top_unit_uuid
+                == self.dummy_config["os2sync_top_unit_uuid"]
+            )
 
     def test_minimal_settings_env(self, mock_env):
         with patch("integrations.os2sync.config.load_settings", return_value={}):
             get_os2sync_settings.cache_clear()
-            settings = get_os2sync_settings()                
+            settings = get_os2sync_settings()
             assert settings.municipality == env_municipality
             assert settings.os2sync_top_unit_uuid == env_uuid
 
     def test_env_overrides(self, mock_env):
-        with patch("integrations.os2sync.config.load_settings", return_value=self.dummy_config):
+        with patch(
+            "integrations.os2sync.config.load_settings", return_value=self.dummy_config
+        ):
             get_os2sync_settings.cache_clear()
             settings = get_os2sync_settings()
             # Exists in both env and file, using env
@@ -47,7 +62,7 @@ class TestConfig():
             assert settings.os2sync_top_unit_uuid == env_uuid
             # Exists only in file
             assert settings.os2sync_api_url == file_api_url
-    
+
     def test_full_config(self):
         conf = {
             "municipality.cvr": "test",
@@ -72,4 +87,3 @@ class TestConfig():
         with patch("integrations.os2sync.config.load_settings", return_value=conf):
             get_os2sync_settings.cache_clear()
             get_os2sync_settings()
-            
