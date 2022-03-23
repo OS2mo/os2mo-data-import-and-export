@@ -1,8 +1,10 @@
+from helpers import dummy_settings
 import logging
 import unittest
 
 from parameterized import parameterized
 
+from integrations.os2sync import config
 from integrations.os2sync.config import loggername as _loggername
 from integrations.os2sync.templates import (
     FieldTemplateRenderError,
@@ -24,7 +26,9 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
     )
     def test_transfer_cpr(self, cpr, flag, expected_key, expected_log_level):
         mo_employee = self.mock_employee(cpr=cpr)
-        person = Person(mo_employee, settings={"os2sync_xfer_cpr": flag})
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = flag
+        person = Person(mo_employee, settings=settings)
         expected_cpr = mo_employee.get(expected_key)
         with self.assertLogs(_loggername, expected_log_level):
             self.assertDictEqual(
@@ -69,7 +73,7 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
             person.to_json()
 
     def _gen_settings(self, template):
-        return {
-            "os2sync_templates": {"person.name": template},
-            "os2sync_xfer_cpr": True,  # required by `Person.to_json`
-        }
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = True
+        settings.os2sync_templates = {"person.name":template}
+        return settings

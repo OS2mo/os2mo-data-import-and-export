@@ -13,7 +13,7 @@ from jinja2 import Environment, StrictUndefined, Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.config import settings as _settings
+from integrations.os2sync.config import get_os2sync_settings
 
 logger = logging.getLogger(_loggername)
 
@@ -92,9 +92,9 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings or _settings
+        self.settings = settings or get_os2sync_settings()
         self.field_renderer = FieldRenderer(
-            self.settings.get("os2sync_templates", {})
+            self.settings.os2sync_templates
         )
 
     def to_json(self) -> Dict[str, Any]:
@@ -142,7 +142,7 @@ class Person(Entity):
     """Models a `Person` entity in the OS2Sync REST API"""
 
     def to_json(self) -> Dict[str, Any]:
-        if self.settings["os2sync_xfer_cpr"]:
+        if self.settings.os2sync_xfer_cpr:
             cpr = self.context.get("cpr_no")
             if not cpr:
                 logger.warning("no 'cpr_no' for user %r", self.context["uuid"])

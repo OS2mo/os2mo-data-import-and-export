@@ -3,10 +3,10 @@ from unittest.mock import patch
 
 from parameterized import parameterized
 
-from integrations.os2sync import os2mo
+from integrations.os2sync import os2mo, config
 from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE, MoEmployeeMixin
-
+from helpers import dummy_settings
 
 class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
     maxDiff = None
@@ -130,14 +130,14 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         )
 
     def _run(self, response, ad_user_key=None, os2sync_templates=None):
-        with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["os2sync_xfer_cpr"] = True
-            settings["os2sync_templates"] = os2sync_templates or {}
-            with self._patch("os2mo_get", response):
-                with self._patch("try_get_ad_user_key", ad_user_key):
-                    with self._patch("addresses_to_user", []):
-                        with self._patch("engagements_to_user", []):
-                            return os2mo_get_sts_user(self._uuid, [])
-
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = True
+        settings.os2sync_templates = os2sync_templates or {}
+        with self._patch("os2mo_get", response):
+            with self._patch("try_get_ad_user_key", ad_user_key):
+                with self._patch("addresses_to_user", []):
+                    with self._patch("engagements_to_user", []):
+                        return os2mo_get_sts_user(self._uuid, [], settings=settings)
+    
     def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)

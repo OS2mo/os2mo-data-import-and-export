@@ -14,26 +14,26 @@ import requests
 
 from integrations.os2sync import config
 
-settings = config.settings
+settings = config.get_os2sync_settings()
 logger = logging.getLogger(config.loggername)
 hash_cache = {}
 session = requests.Session()
 
 
-if settings["os2sync_api_url"] == "stub":
+if settings.os2sync_api_url == "stub":
     from integrations.os2sync import stub
     session = stub.Session()
 
 
-session.verify = settings["os2sync_ca_verify_os2sync"]
+session.verify = settings.os2sync_ca_verify_os2sync
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
-    "CVR": settings["municipality"]
+    "CVR": settings.municipality
 }
 
 
 def already_xferred(url, params, method):
-    if settings["os2sync_api_url"] == "stub":
+    if settings.os2sync_api_url == "stub":
         params_hash = params
     else:
         params_hash = hashlib.sha224(
@@ -49,7 +49,7 @@ def already_xferred(url, params, method):
 def os2sync_url(url):
     """format url like {BASE}/user
     """
-    url = url.format(BASE=settings["os2sync_api_url"])
+    url = url.format(BASE=settings.os2sync_api_url)
     return url
 
 

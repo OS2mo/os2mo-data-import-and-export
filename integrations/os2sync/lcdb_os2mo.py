@@ -21,12 +21,12 @@ from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
+from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 
-settings = config.settings
 logger = logging.getLogger(config.loggername)
 
 
@@ -96,9 +96,9 @@ def to_mo_employee(employee):
     )
 
 
-def get_sts_user(session, uuid, allowed_unitids):
+def get_sts_user(session, uuid, allowed_unitids, settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
-
+    settings = settings or get_os2sync_settings()
     user = User(
         dict(
             uuid=uuid,
@@ -122,7 +122,7 @@ def get_sts_user(session, uuid, allowed_unitids):
             "uuid": lc_address.uuid,  # not used currently
         }
         addresses.append(address)
-    os2mo.addresses_to_user(sts_user, addresses)
+    os2mo.addresses_to_user(sts_user, addresses, phone_scope_classes=settings.os2sync_phone_scope_classes, email_scope_classes=settings.os2sync_email_scope_classes)
 
     engagements = []
     for lc_engagement in (

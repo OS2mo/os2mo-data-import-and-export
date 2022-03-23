@@ -34,7 +34,7 @@ def log_mox_config(settings):
 
     logger.warning("-----------------------------------------")
     logger.warning("program configuration:")
-    for k, v in sorted(settings.items()):
+    for k, v in settings:
         logger.warning("    %s=%r", k, v)
 
 
@@ -82,7 +82,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
-        elif settings["osync_autowash"]:
+        elif settings.os2sync_autowash:
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(i)
 
@@ -150,20 +150,20 @@ def main(settings):
 
     logging.basicConfig(
         format=config.logformat,
-        level=int(settings["osync_log_level"]),
-        filename=settings["osync_log_file"]
+        level=settings.os2sync_log_level,
+        filename=settings.os2sync_log_file
     )
     logger = logging.getLogger(config.loggername)
-    logger.setLevel(settings["osync_log_level"])
+    logger.setLevel(settings.os2sync_log_level)
 
-    if settings["osync_use_lc_db"]:
+    if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    hash_cache_file = pathlib.Path(settings["osync_hash_cache"])
+    hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
@@ -176,10 +176,10 @@ def main(settings):
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
     
-    settings["os2mo_org_uuid"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
+    settings.os2mo_org_uuid = os2mo.os2mo_get("{BASE}/o/").json()[0][
             "uuid"
         ]
-    settings["os2mo_has_kle"] = os2mo.has_kle()
+    settings.os2mo_has_kle = os2mo.has_kle()
 
     orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
     sync_os2sync_users(settings, orgunit_uuids, counter, prev_date)
@@ -193,6 +193,6 @@ def main(settings):
 
 
 if __name__ == "__main__":
-    settings = config.settings
-    helper = MoraHelper(settings["mora_base"])
+    settings = config.get_os2sync_settings()
+    helper = MoraHelper(settings.mora_base)
     main(settings)

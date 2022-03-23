@@ -5,12 +5,14 @@ from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseSettings
+from pydantic import BaseSettings, AnyHttpUrl
 from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
 
 # flake8: noqa
 from ra_utils.load_settings import load_settings
+
+from functools import lru_cache
 
 
 def _relpath(filename):
@@ -39,12 +41,12 @@ def json_config_settings_source(settings: BaseSettings) -> dict[str, Any]:
     final_settings = {key.replace(".", "_"): val for key, val in os2sync_settings.items()}
 
     #Add needed common settings
-    final_settings.update(
-        {
-            "municipality": all_settings.get("municipality.cvr"),
-            "mora_base": all_settings.get("mora.base")
-        }
-    )
+    municipality = all_settings.get("municipality.cvr")
+    if municipality:
+        final_settings["municipality"] = municipality
+    mora_base = all_settings.get("mora.base")
+    if mora_base:
+        final_settings["mora_base"] = mora_base
 
     return final_settings
 
@@ -52,11 +54,11 @@ def json_config_settings_source(settings: BaseSettings) -> dict[str, Any]:
 class Settings(BaseSettings):
     #common:
     municipality: str   #Called "municipality.cvr" in settings.json
-    mora_base: str = "http://localhost:5000"     #"mora.base" from settings.json + /service
+    mora_base: AnyHttpUrl = "http://localhost:5000"     #"mora.base" from settings.json + /service
     
     #os2sync:
     os2sync_top_unit_uuid: UUID
-    os2sync_api_url: str = "http://localhost:8081"
+    os2sync_api_url: AnyHttpUrl = "http://localhost:8081"
 
     os2sync_use_lc_db: bool = False
     
@@ -76,13 +78,18 @@ class Settings(BaseSettings):
     os2sync_templates: dict = {}
     
     os2sync_use_contact_for_tasks: bool = False
+    os2sync_employee_engagement_address: list[str] = []
+
+    
+    os2sync_truncate: int = 200
+    #MO config - don't set:
+    os2mo_has_kle: bool = True
+    os2mo_org_uuid: Optional[UUID] = None
 
 
     class Config:
         
         env_file_encoding = "utf-8"
-        extra = "ignore"
-
         @classmethod
         def customise_sources(
             cls,
@@ -97,10 +104,12 @@ class Settings(BaseSettings):
                 file_secret_settings,
             )
 
+@lru_cache()
+def get_os2sync_settings(*args, **kwargs) -> Settings:
+    return Settings(*args, **kwargs)
 
-settings = Settings().dict()
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
 loggername = "os2sync"
 
 if __name__ == "__main__":
-    print(settings)
+    print(get_os2sync_settings())

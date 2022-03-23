@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 from unittest.mock import patch
 
 from integrations.os2sync.os2mo import config, get_sts_user, try_get_ad_user_key
+from helpers import dummy_settings
 
 uuid = '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'
 mo_employee_url_end = 'e/{}/'.format(uuid)
@@ -282,14 +283,7 @@ class TestsMOAd(unittest.TestCase):
         expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
-    @patch.dict(
-        config.settings,
-        {
-            'mora_base': '',
-            'os2mo_org_uuid': '',
-            'os2sync_xfer_cpr': True,
-        },
-    )
+    
     @patch('integrations.os2sync.os2mo.os2mo_get', patched_session_get)
     def test_mo_client_default(self):
         expected = {'Email': 'solveigk@kolding.dk',
@@ -297,4 +291,6 @@ class TestsMOAd(unittest.TestCase):
                     'Positions': [],
                     'UserId': 'SolveigK_AD_logon',
                     'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
-        self.assertEqual(expected, get_sts_user(uuid, []))
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = True
+        self.assertEqual(expected, get_sts_user(uuid, [], settings=settings))
