@@ -108,7 +108,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     def setUp(self):
         self.file1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
         self.file2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
-        self.expected_unit_count = 3
+        self.expected_unit_count = 4
         self.expected_employee_count = 3
         self.expected_terminations = 1
 
@@ -168,19 +168,20 @@ class Opus_diff_import_tester(unittest.TestCase):
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
-            diff.helper._mo_post.assert_called_with(
-                "details/create",
-                {
-                    "type": "address",
-                    "value": dawa_helper_mock(),
-                    "address_type": {
-                        "uuid": str(diff.morahelper_mock.ensure_class_in_facet())
+            if unit.get("street"):
+                diff.helper._mo_post.assert_called_with(
+                    "details/create",
+                    {
+                        "type": "address",
+                        "value": dawa_helper_mock(),
+                        "address_type": {
+                            "uuid": str(diff.morahelper_mock.ensure_class_in_facet())
+                        },
+                        "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
+                        "org_unit": {"uuid": str(calculated_uuid)},
+                        "visibility": None,
                     },
-                    "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
-                    "org_unit": {"uuid": str(calculated_uuid)},
-                    "visibility": None,
-                },
-            )
+                )
 
     @patch("integrations.dawa_helper.dawa_lookup")
     @given(datetimes())
