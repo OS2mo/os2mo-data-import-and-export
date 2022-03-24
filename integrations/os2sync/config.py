@@ -15,10 +15,6 @@ from ra_utils.load_settings import load_settings
 from functools import lru_cache
 
 
-def _relpath(filename):
-    return os.path.join(os.getcwd(), filename)
-
-
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     """
     Read config from settings.json.
@@ -63,8 +59,8 @@ class Settings(BaseSettings):
     os2sync_use_lc_db: bool = False
     
     os2sync_log_level: int = logging.INFO
-    os2sync_log_file: Path = _relpath("../os2sync.log")
-    os2sync_hash_cache: Path = _relpath("../os2sync_hash_cache")
+    os2sync_log_file: Path = "/opt/dipex"
+    os2sync_hash_cache: Path = "/opt/dipex"
     os2sync_xfer_cpr: bool = False
     
     os2sync_autowash: bool = False
