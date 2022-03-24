@@ -41,6 +41,7 @@ class TestConfig:
             settings.os2sync_top_unit_uuid
             == self.dummy_config["os2sync_top_unit_uuid"]
         )
+        assert settings.os2sync_api_url == self.dummy_config["os2sync.api_url"]
 
     @patch("integrations.os2sync.config.load_settings", return_value={})
     def test_minimal_settings_env(self, mock_settings_file, mock_env):
