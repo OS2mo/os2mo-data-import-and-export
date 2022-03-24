@@ -126,7 +126,7 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
         # medarbejdere er allerede omfattet af autowash
         # fordi de ikke får nogen 'Positions' hvis de ikke
         # har en ansættelse i en af allowed_unitids
-        sts_user = os2mo.get_sts_user(i, allowed_unitids)
+        sts_user = os2mo.get_sts_user(i, allowed_unitids, settings=settings)
 
         if not sts_user["Positions"]:
             counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
