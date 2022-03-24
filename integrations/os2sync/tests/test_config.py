@@ -2,6 +2,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from parameterized import parameterized
 from pydantic import ValidationError
 
 from integrations.os2sync.config import get_os2sync_settings
@@ -38,8 +39,7 @@ class TestConfig:
         settings = get_os2sync_settings()
         assert settings.municipality == self.dummy_config["municipality.cvr"]
         assert (
-            settings.os2sync_top_unit_uuid
-            == self.dummy_config["os2sync_top_unit_uuid"]
+            settings.os2sync_top_unit_uuid == self.dummy_config["os2sync_top_unit_uuid"]
         )
         assert settings.os2sync_api_url == self.dummy_config["os2sync.api_url"]
 
@@ -49,9 +49,9 @@ class TestConfig:
         settings = get_os2sync_settings()
         assert settings.municipality == env_municipality
         assert settings.os2sync_top_unit_uuid == env_uuid
-    
+
     @patch("integrations.os2sync.config.load_settings", return_value=dummy_config)
-    def test_env_overrides(self,mock_settings_file, mock_env):
+    def test_env_overrides(self, mock_settings_file, mock_env):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
         # Exists in both env and file, using env
@@ -59,7 +59,7 @@ class TestConfig:
         assert settings.os2sync_top_unit_uuid == env_uuid
         # Exists only in file
         assert settings.os2sync_api_url == file_api_url
-    
+
     def test_full_config(self):
         conf = {
             "municipality.cvr": "test",
@@ -82,5 +82,20 @@ class TestConfig:
             "os2sync.use_contact_for_tasks": False,
         }
         with patch("integrations.os2sync.config.load_settings", return_value=conf):
+            get_os2sync_settings.cache_clear()
+            get_os2sync_settings()
+
+    # Test that wrong value types raises a validation error
+    @parameterized.expand(
+        [
+            ({"os2sync.api_url": "Not a URL"},),
+            ({"mora.base": "Not a URL"},),
+            ({"os2sync.use_lc_db": "No"},),
+        ]
+    )
+    @patch("integrations.os2sync.config.load_settings", return_value=dummy_config)
+    def test_invalid_values(self, wrong_type_config, settings_mock):
+        settings_mock.return_value.update(wrong_type_config)
+        with pytest.raises(ValidationError):
             get_os2sync_settings.cache_clear()
             get_os2sync_settings()
