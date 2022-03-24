@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     os2sync_employee_engagement_address: List[str] = []
 
     
-    os2sync_truncate: int = 200
+    os2sync_truncate_length: int = 200
     #MO config - don't set:
     os2mo_has_kle: bool = True
     os2mo_org_uuid: Optional[UUID] = None

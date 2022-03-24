@@ -244,7 +244,7 @@ def get_sts_user(uuid, allowed_unitids, settings = None):
     work_address_names = settings.os2sync_employee_engagement_address
     if sts_user["Positions"] and work_address_names:
         sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
-    truncate_length = max(36, settings.os2sync_truncate)
+    truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
     return sts_user
 
@@ -412,7 +412,7 @@ def get_sts_orgunit(uuid, settings):
         )
 
     # show_all_details(uuid,"ou")
-    strip_truncate_and_warn(sts_org_unit, sts_org_unit)
+    strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
     return sts_org_unit
 
 
