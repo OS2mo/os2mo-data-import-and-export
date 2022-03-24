@@ -116,17 +116,12 @@ def strip_truncate_and_warn(d, root, length):
                 )
 
 
-def os2mo_url(url):
-    """format url like {BASE}/o/{ORG}/e"""
-    url = url.format(
-        BASE=f"{get_os2sync_settings().mora_base}/service", ORG=get_os2sync_settings().os2mo_org_uuid
-    )
-    return url
-
-
 @lru_cache
 def os2mo_get(url, **params):
-    url = os2mo_url(url)
+    #format url like {BASE}/service
+    mora_base = get_os2sync_settings().mora_base
+    
+    url = url.format(BASE=f"{mora_base}/service")
     try:
         session = get_mo_session()
         r = session.get(url, params=params)
@@ -138,14 +133,8 @@ def os2mo_get(url, **params):
 
 
 def has_kle():
-    #TODO: I think we have a config endpoint for this?
-    try:
-        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
-        os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
-        os2mo_get("{BASE}/ou/" + str(get_os2sync_settings().os2sync_top_unit_uuid) + "/details/kle")
-        return True
-    except requests.exceptions.HTTPError:
-        return False
+    os2mo_config = os2mo_get("{BASE}/configuration").json()
+    return os2mo_config["show_kle"]
 
 
 
@@ -250,9 +239,10 @@ def get_sts_user(uuid, allowed_unitids, settings = None):
 
 
 def org_unit_uuids(**kwargs):
+    org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou/", limit=999999, **kwargs).json()[
+        for ou in os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
             "items"
         ]
     ]
@@ -404,7 +394,7 @@ def get_sts_orgunit(uuid, settings):
             sts_org_unit["managerUuid"] = str(manager_uuid)
 
     # this is set by __main__
-    if settings.os2mo_has_kle:
+    if has_kle():
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),

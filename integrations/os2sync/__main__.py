@@ -176,10 +176,6 @@ def main(settings):
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
     
-    settings.os2mo_org_uuid = os2mo.os2mo_get("{BASE}/o/").json()[0][
-            "uuid"
-        ]
-    settings.os2mo_has_kle = os2mo.has_kle()
 
     orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
     sync_os2sync_users(settings, orgunit_uuids, counter, prev_date)

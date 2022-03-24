@@ -79,10 +79,6 @@ class Settings(BaseSettings):
 
     
     os2sync_truncate_length: int = 200
-    #MO config - don't set:
-    os2mo_has_kle: bool = True
-    os2mo_org_uuid: Optional[UUID] = None
-
 
     class Config:
         

@@ -75,7 +75,6 @@ class TestsMOAd(unittest.TestCase):
             },
         ]
         settings = dummy_settings
-        settings.os2mo_has_kle = testsettings["os2mo_has_kle"]
         settings.os2sync_use_contact_for_tasks = (
             True if testsettings.get("os2sync_use_contact_for_tasks") else False
         )
