@@ -77,7 +77,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
 
     allowed_unitids = []
     for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
-        sts_orgunit = os2mo.get_sts_orgunit(i)
+        sts_orgunit = os2mo.get_sts_orgunit(i, settings=settings)
         if sts_orgunit:
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
