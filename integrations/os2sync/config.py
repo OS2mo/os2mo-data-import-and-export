@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 from uuid import UUID
 
 from pydantic import BaseSettings, AnyHttpUrl
@@ -19,7 +19,7 @@ def _relpath(filename):
     return os.path.join(os.getcwd(), filename)
 
 
-def json_config_settings_source(settings: BaseSettings) -> dict[str, Any]:
+def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     """
     Read config from settings.json.
 
@@ -71,14 +71,14 @@ class Settings(BaseSettings):
     os2sync_ca_verify_os2sync: bool = True
     os2sync_ca_verify_os2mo: bool = True
 
-    os2sync_phone_scope_classes: list[UUID] = []
-    os2sync_email_scope_classes: list[UUID] = []
-    os2sync_ignored_unit_levels: list[UUID] = []
-    os2sync_ignored_unit_types: list[UUID] = []
-    os2sync_templates: dict = {}
+    os2sync_phone_scope_classes: List[UUID] = []
+    os2sync_email_scope_classes: List[UUID] = []
+    os2sync_ignored_unit_levels: List[UUID] = []
+    os2sync_ignored_unit_types: List[UUID] = []
+    os2sync_templates: Dict = {}
     
     os2sync_use_contact_for_tasks: bool = False
-    os2sync_employee_engagement_address: list[str] = []
+    os2sync_employee_engagement_address: List[str] = []
 
     
     os2sync_truncate: int = 200
