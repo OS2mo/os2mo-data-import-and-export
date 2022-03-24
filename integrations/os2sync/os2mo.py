@@ -398,7 +398,7 @@ def get_sts_orgunit(uuid, settings):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    if settings.sync_managers:
+    if settings.os2sync_sync_managers:
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
             sts_org_unit["managerUuid"] = str(manager_uuid)

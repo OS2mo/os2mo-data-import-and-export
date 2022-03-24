@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     os2sync_ignored_unit_types: List[UUID] = []
     os2sync_templates: Dict = {}
     
+    os2sync_sync_managers: bool = False
     os2sync_use_contact_for_tasks: bool = False
     os2sync_employee_engagement_address: List[str] = []
 

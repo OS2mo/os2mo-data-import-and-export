@@ -248,7 +248,7 @@ def get_sts_orgunit(session, uuid):
         addresses.append(address)
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
-    if settings.os2sync_sync_manages:
+    if settings.os2sync_sync_managers:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
         manager_uuid = only(lc_manager.bruger_uuid)
         sts_org_unit.update({'managerUuid': manager_uuid})
