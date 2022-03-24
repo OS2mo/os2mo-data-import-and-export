@@ -138,6 +138,7 @@ def os2mo_get(url, **params):
 
 
 def has_kle():
+    #TODO: I think we have a config endpoint for this?
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
@@ -213,7 +214,6 @@ def get_work_address(positions, work_address_names):
     return chosen_work_address.get("name")
 
 def get_sts_user(uuid, allowed_unitids, settings = None):
-    settings = settings or get_os2sync_settings()
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
@@ -368,7 +368,6 @@ def is_ignored(unit, settings):
 
 
 def get_sts_orgunit(uuid, settings):
-    settings = settings or get_os2sync_settings()
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):

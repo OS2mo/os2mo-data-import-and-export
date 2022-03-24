@@ -16,7 +16,7 @@ file_api_url = "http://defined.in/file"
 @pytest.fixture
 def mock_env(monkeypatch):
     monkeypatch.setenv("MUNICIPALITY", env_municipality)
-    monkeypatch.setenv("OS2SYNC_TOP_UNIT_UUID", env_uuid)
+    monkeypatch.setenv("OS2SYNC_TOP_UNIT_UUID", str(env_uuid))
 
 
 class TestConfig:

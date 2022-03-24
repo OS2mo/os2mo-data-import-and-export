@@ -98,7 +98,6 @@ def to_mo_employee(employee):
 
 def get_sts_user(session, uuid, allowed_unitids, settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
-    settings = settings or get_os2sync_settings()
     user = User(
         dict(
             uuid=uuid,
@@ -200,8 +199,8 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings["os2sync_ignored_unit_types"] or
-        unit.enhedsniveau_uuid in settings["os2sync_ignored_unit_levels"])
+        unit.enhedstype_uuid in settings.os2sync_ignored_unit_types or
+        unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels)
 
 
 def get_sts_orgunit(session, uuid):
@@ -217,8 +216,8 @@ def get_sts_orgunit(session, uuid):
         return None
 
     top_unit = get_top_unit(session, base)
-    if top_unit != settings["os2sync_top_unit_uuid"]:
-        # not part of right tree
+    if top_unit != settings.os2sync_top_unit_uuid:
+        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {top_unit_uuid=}")
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
@@ -249,7 +248,7 @@ def get_sts_orgunit(session, uuid):
         addresses.append(address)
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
-    if settings.get("sync_managers"):
+    if settings.os2sync_sync_manages:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
         manager_uuid = only(lc_manager.bruger_uuid)
         sts_org_unit.update({'managerUuid': manager_uuid})
