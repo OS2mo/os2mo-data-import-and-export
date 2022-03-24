@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.21.2 - 2022-03-24
+-------------------
+
+[#49339] Increase robustness of OS2phonebook export job
+
 2.21.1 - 2022-03-22
 -------------------
 
