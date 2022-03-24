@@ -1,5 +1,4 @@
 import unittest
-from unittest.mock import patch
 
 from helpers import dummy_settings
 from sqlalchemy.orm import sessionmaker
@@ -13,7 +12,6 @@ from exporters.sql_export.sql_table_defs import Engagement
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import Tilknytning
-from integrations.os2sync import config
 from integrations.os2sync.lcdb_os2mo import get_sts_user
 from integrations.os2sync.lcdb_os2mo import try_get_ad_user_key
 

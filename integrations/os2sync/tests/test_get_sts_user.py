@@ -4,7 +4,6 @@ from unittest.mock import patch
 from helpers import dummy_settings
 from parameterized import parameterized
 
-from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
 from integrations.os2sync.tests.helpers import MoEmployeeMixin
@@ -133,7 +132,14 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
 
     @patch.object(os2mo, "engagements_to_user", return_value=[])
     @patch.object(os2mo, "addresses_to_user", return_value=[])
-    def _run(self, response,  engagemnts_mock, address_mock, ad_user_key=None, os2sync_templates=None):
+    def _run(
+        self,
+        response,
+        engagemnts_mock,
+        address_mock,
+        ad_user_key=None,
+        os2sync_templates=None,
+    ):
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
         settings.os2sync_templates = os2sync_templates or {}

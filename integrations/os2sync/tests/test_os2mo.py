@@ -5,8 +5,6 @@ from uuid import uuid4
 from helpers import dummy_settings
 from parameterized import parameterized
 
-from integrations.os2sync import config
-from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync.os2mo import get_work_address
 from integrations.os2sync.os2mo import is_ignored
 from integrations.os2sync.os2mo import kle_to_orgunit

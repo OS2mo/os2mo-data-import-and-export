@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 from helpers import dummy_settings
 
-from integrations.os2sync.os2mo import config
 from integrations.os2sync.os2mo import get_sts_user
 from integrations.os2sync.os2mo import try_get_ad_user_key
 

@@ -6,7 +6,6 @@ from helpers import dummy_settings
 from parameterized import parameterized
 
 from exporters.sql_export.sql_table_defs import Bruger
-from integrations.os2sync import config
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 

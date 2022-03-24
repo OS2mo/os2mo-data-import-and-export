@@ -4,7 +4,6 @@ import unittest
 from helpers import dummy_settings
 from parameterized import parameterized
 
-from integrations.os2sync import config
 from integrations.os2sync.config import loggername as _loggername
 from integrations.os2sync.templates import FieldTemplateRenderError
 from integrations.os2sync.templates import FieldTemplateSyntaxError
