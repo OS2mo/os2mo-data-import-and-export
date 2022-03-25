@@ -83,7 +83,7 @@ class Entity:
     def __init__(
         self,
         context: Dict[str, Any],
-        settings: Optional[Dict[str, str]] = None,
+        settings: Dict[str, str],
     ):
         """Configure field renderer for this entity.
 
@@ -92,7 +92,7 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings or get_os2sync_settings()
+        self.settings = settings
         self.field_renderer = FieldRenderer(
             self.settings.os2sync_templates
         )
