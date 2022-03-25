@@ -307,7 +307,7 @@ class OpusDiffImport(object):
                 "uuid": address["uuid"],
             }
 
-        if unit["street"] and unit["zipCode"]:
+        if unit.get("street") and unit.get("zipCode"):
             try:
                 address_uuid = dawa_helper.dawa_lookup(unit["street"], unit["zipCode"])
             except:
