@@ -56,7 +56,7 @@ class test_opus_helpers(TestCase):
             (testfile1, [], set()),
             (testfile2, [], set()),
             (testfile1, ["1"], {"1", "2", "3"}),
-            (testfile2, ["1"], {"1", "2", "3", "4"}),
+            (testfile2, ["1"], {"1", "2", "3", "4", "5"}),
         ]
     )
     def test_all_filtered_ids_fiter_top_unit(self, file, filter_ids, expected):
