@@ -71,6 +71,13 @@
   <orgType>00002</orgType>
   <orgTypeTxt>TestCenter</orgTypeTxt>
  </orgUnit>
+  <orgUnit id="5" client="813" lastChanged="2022-03-22">
+  <startDate>2022-03-01</startDate>
+  <endDate>9999-12-31</endDate>
+  <parentOrgUnit>1</parentOrgUnit>
+  <shortName>Ny org.enhed</shortName>
+  <longName>Ny organisationsenhed</longName>
+ </orgUnit>
   <employee id="1000" client="813" lastChanged="2020-10-02">
   <entryDate/>
   <leaveDate/>
