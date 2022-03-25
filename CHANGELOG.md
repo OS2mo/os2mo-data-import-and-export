@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.21.3 - 2022-03-25
+-------------------
+
+[#49447] Fix a bug where opus_diff_import crashed when a unit had no address
+
 2.21.2 - 2022-03-24
 -------------------
 
