@@ -301,7 +301,7 @@ def partition_kle(kle, use_contact_for_tasks) -> (List[UUID], List[UUID]):
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
-    If the setting 'os2sync_use_contact_for_tasks' is set KLEs wil be divided:
+    If the setting 'os2sync_use_contact_for_tasks' is set KLEs will be divided:
 
     * Aspect "Udførende" goes into "Tasks"
     * Aspect "Ansvarlig" goes into "ContactForTasks"

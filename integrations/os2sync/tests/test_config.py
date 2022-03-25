@@ -83,7 +83,7 @@ class TestConfig:
         }
         with patch("integrations.os2sync.config.load_settings", return_value=conf):
             get_os2sync_settings.cache_clear()
-            get_os2sync_settings()
+            assert get_os2sync_settings()
 
     # Test that wrong value types raises a validation error
     @parameterized.expand(

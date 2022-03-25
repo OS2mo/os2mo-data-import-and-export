@@ -33,7 +33,7 @@ class FieldRenderer:
         """Prepare the field renderer, parsing all Jinja templates defined in
         `config`.
 
-        :param config: dictionary, usually `settings["os2sync_templates"]`
+        :param config: dictionary, usually `settings.os2sync_templates`
         """
 
         # Configure Jinja environment to raise exception on unknown variables
