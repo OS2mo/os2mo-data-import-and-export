@@ -1,53 +1,108 @@
 import json
 import logging
 import os
+from pathlib import Path
+from typing import Any, Optional, Dict, List
+from uuid import UUID
 
-from customer_settings import get_settings
-from customer_settings import PathDefaultMethod
+from pydantic import BaseSettings, AnyHttpUrl
+from ra_utils.apply import apply
+from ra_utils.headers import TokenSettings
 
 # flake8: noqa
+from ra_utils.load_settings import load_settings
 
-settingsfile = get_settings(PathDefaultMethod.raw)
-top_settings = json.loads(settingsfile.read_text())
-
-
-def _relpath(filename):
-    return os.path.join(os.getcwd(), filename)
+from functools import lru_cache
 
 
-settings = {
-    # Fields without defaults
-    "OS2MO_CA_BUNDLE": top_settings["os2sync.ca_verify_os2mo"],
-    "OS2MO_TOP_UNIT_UUID": top_settings["os2sync.top_unit_uuid"],
-    "OS2SYNC_CA_BUNDLE": top_settings["os2sync.ca_verify_os2sync"],
-    "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
-    # Fields with defaults
-    "MOX_LOG_LEVEL": top_settings.get("os2sync.log_level", logging.INFO),
-    "MOX_LOG_FILE": top_settings.get("os2sync.log_file", _relpath("os2sync.log")),
-    "OS2MO_SERVICE_URL": (
-        top_settings.get("mora.base", "http://localhost:5000") + "/service"
-    ),
-    "OS2MO_SAML_TOKEN": top_settings.get("crontab.SAML_TOKEN"),
-    "OS2MO_ORG_UUID": "",  # dont set - probed unless set
-    "OS2MO_HAS_KLE": "",  # dont set - probed only
-    "OS2SYNC_HASH_CACHE": top_settings.get(
-        "os2sync.hash_cache", _relpath("os2sync_hash_cache")
-    ),
-    "OS2SYNC_API_URL": top_settings.get("os2sync.api_url", "http://localhost:8081"),
-    "OS2SYNC_XFER_CPR": top_settings.get("os2sync.xfer_cpr", False),
-    "OS2SYNC_USE_LC_DB": top_settings.get("os2sync.use_lc_db", False),
-    "OS2SYNC_PHONE_SCOPE_CLASSES": top_settings.get("os2sync.phone_scope_classes", []),
-    "OS2SYNC_EMAIL_SCOPE_CLASSES": top_settings.get("os2sync.email_scope_classes", []),
-    "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels", []),
-    "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types", []),
-    "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
-    "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {}),
-    "use_contact_for_tasks": top_settings.get("os2sync.use_contact_for_tasks"),
-    "sync_managers": top_settings.get("os2sync.sync_managers"),
-    "os2sync.employee_engagement_address": top_settings.get(
-        "os2sync.employee_engagement_address", []
-    ),
-}
+def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
+    """
+    Read config from settings.json.
+
+    Reads all keys starting with 'os2sync.' and a few common settings into Settings.
+    """
+    try: 
+        all_settings = load_settings()
+    except FileNotFoundError:
+        #No settingsfile found. Using environment variables"
+        return {}
+    #Read os2sync specific settings
+    os2sync_settings = dict(
+        filter(
+            apply(lambda key, value: key.startswith("os2sync")), all_settings.items()
+        )
+    )
+    
+    # replace dots with underscore. eg: os2sync.ignored.unit_levels -> os2sync_ignored_unit_levels
+    final_settings = {key.replace(".", "_"): val for key, val in os2sync_settings.items()}
+
+    #Add needed common settings
+    municipality = all_settings.get("municipality.cvr")
+    if municipality:
+        final_settings["municipality"] = municipality
+    mora_base = all_settings.get("mora.base")
+    if mora_base:
+        final_settings["mora_base"] = mora_base
+
+    return final_settings
+
+
+class Settings(BaseSettings):
+    #common:
+    municipality: str   #Called "municipality.cvr" in settings.json
+    mora_base: AnyHttpUrl = "http://localhost:5000"     #"mora.base" from settings.json + /service
+    
+    #os2sync:
+    os2sync_top_unit_uuid: UUID
+    os2sync_api_url: AnyHttpUrl = "http://localhost:8081"
+
+    os2sync_use_lc_db: bool = False
+    
+    os2sync_log_level: int = logging.INFO
+    os2sync_log_file: Path = "/opt/dipex"
+    os2sync_hash_cache: Path = "/opt/dipex"
+    os2sync_xfer_cpr: bool = False
+    
+    os2sync_autowash: bool = False
+    os2sync_ca_verify_os2sync: bool = True
+    os2sync_ca_verify_os2mo: bool = True
+
+    os2sync_phone_scope_classes: List[UUID] = []
+    os2sync_email_scope_classes: List[UUID] = []
+    os2sync_ignored_unit_levels: List[UUID] = []
+    os2sync_ignored_unit_types: List[UUID] = []
+    os2sync_templates: Dict = {}
+    
+    os2sync_sync_managers: bool = False
+    os2sync_use_contact_for_tasks: bool = False
+    os2sync_employee_engagement_address: List[str] = []
+
+    
+    os2sync_truncate_length: int = 200
+
+    class Config:
+        
+        env_file_encoding = "utf-8"
+        @classmethod
+        def customise_sources(
+            cls,
+            init_settings,
+            env_settings,
+            file_secret_settings,
+        ):
+            return (
+                init_settings,
+                env_settings,
+                json_config_settings_source,
+                file_secret_settings,
+            )
+
+@lru_cache()
+def get_os2sync_settings(*args, **kwargs) -> Settings:
+    return Settings(*args, **kwargs)
 
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
 loggername = "os2sync"
+
+if __name__ == "__main__":
+    print(get_os2sync_settings())

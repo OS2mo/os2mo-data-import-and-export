@@ -229,11 +229,8 @@ Test Calculate Primary:
     - cd integrations/calculate_primary/
     - pytest tests/
 
-
 Test OS2Sync Integration:
   extends: .test-python
-  variables:
-    CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
     - pytest integrations/os2sync/tests
 

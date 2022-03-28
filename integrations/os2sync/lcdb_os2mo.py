@@ -21,12 +21,12 @@ from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
+from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 
-settings = config.settings
 logger = logging.getLogger(config.loggername)
 
 
@@ -96,9 +96,8 @@ def to_mo_employee(employee):
     )
 
 
-def get_sts_user(session, uuid, allowed_unitids):
+def get_sts_user(session, uuid, allowed_unitids, settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
-
     user = User(
         dict(
             uuid=uuid,
@@ -122,7 +121,7 @@ def get_sts_user(session, uuid, allowed_unitids):
             "uuid": lc_address.uuid,  # not used currently
         }
         addresses.append(address)
-    os2mo.addresses_to_user(sts_user, addresses)
+    os2mo.addresses_to_user(sts_user, addresses, phone_scope_classes=settings.os2sync_phone_scope_classes, email_scope_classes=settings.os2sync_email_scope_classes)
 
     engagements = []
     for lc_engagement in (
@@ -177,8 +176,8 @@ def is_ignored(unit, settings):
         >>> from unittest.mock import Mock
         >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
         >>> settings={
-        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
-        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        ... "ignored_unit_levels": ["10","2"],
+        ... "ignored_unit_types":['6','7']}
         >>> is_ignored(unit, settings)
         False
         >>> unit.enhedstype_uuid="6"
@@ -200,9 +199,8 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings["OS2SYNC_IGNORED_UNIT_TYPES"]
-        or unit.enhedsniveau_uuid in settings["OS2SYNC_IGNORED_UNIT_LEVELS"]
-    )
+        unit.enhedstype_uuid in settings.os2sync_ignored_unit_types or
+        unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels)
 
 
 def get_sts_orgunit(session, uuid):
@@ -218,8 +216,8 @@ def get_sts_orgunit(session, uuid):
         return None
 
     top_unit = get_top_unit(session, base)
-    if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
-        # not part of right tree
+    if top_unit != settings.os2sync_top_unit_uuid:
+        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {top_unit_uuid=}")
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
@@ -250,7 +248,7 @@ def get_sts_orgunit(session, uuid):
         addresses.append(address)
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
-    if settings.get("sync_managers"):
+    if settings.os2sync_sync_managers:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
         manager_uuid = only(lc_manager.bruger_uuid)
         sts_org_unit.update({'managerUuid': manager_uuid})

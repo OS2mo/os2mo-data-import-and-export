@@ -23,7 +23,7 @@ from integrations.os2sync import os2sync
 
 
 logger = None  # set in main()
-helper = MoraHelper(load_setting("mora.base")())
+helper = None
 
 
 def log_mox_config(settings):
@@ -31,14 +31,11 @@ def log_mox_config(settings):
     much configuration as possible logged at program start
     and end.
     """
-    secrets = ["OS2MO_SAML_TOKEN"]
+
     logger.warning("-----------------------------------------")
     logger.warning("program configuration:")
-    for k, v in sorted(settings.items()):
-        if k in secrets:
-            logger.warning("    %s=********", k)
-        else:
-            logger.warning("    %s=%r", k, v)
+    for k, v in settings:
+        logger.warning("    %s=%r", k, v)
 
 
 def log_mox_counters(counter):
@@ -80,12 +77,12 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
 
     allowed_unitids = []
     for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
-        sts_orgunit = os2mo.get_sts_orgunit(i)
+        sts_orgunit = os2mo.get_sts_orgunit(i, settings=settings)
         if sts_orgunit:
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
-        elif settings["OS2SYNC_AUTOWASH"]:
+        elif settings.os2sync_autowash:
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(i)
 
@@ -129,7 +126,7 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
         # medarbejdere er allerede omfattet af autowash
         # fordi de ikke får nogen 'Positions' hvis de ikke
         # har en ansættelse i en af allowed_unitids
-        sts_user = os2mo.get_sts_user(i, allowed_unitids)
+        sts_user = os2mo.get_sts_user(i, allowed_unitids, settings=settings)
 
         if not sts_user["Positions"]:
             counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
@@ -153,20 +150,20 @@ def main(settings):
 
     logging.basicConfig(
         format=config.logformat,
-        level=int(settings["MOX_LOG_LEVEL"]),
-        filename=settings["MOX_LOG_FILE"],
+        level=settings.os2sync_log_level,
+        filename=settings.os2sync_log_file
     )
     logger = logging.getLogger(config.loggername)
-    logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
+    logger.setLevel(settings.os2sync_log_level)
 
-    if settings["OS2SYNC_USE_LC_DB"]:
+    if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
+    hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
@@ -178,10 +175,7 @@ def main(settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
-
-    if not settings["OS2MO_ORG_UUID"]:
-        settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0]["uuid"]
-    settings["OS2MO_HAS_KLE"] = os2mo.has_kle()
+    
 
     orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
     sync_os2sync_users(settings, orgunit_uuids, counter, prev_date)
@@ -195,5 +189,6 @@ def main(settings):
 
 
 if __name__ == "__main__":
-    settings = config.settings
+    settings = config.get_os2sync_settings()
+    helper = MoraHelper(settings.mora_base)
     main(settings)

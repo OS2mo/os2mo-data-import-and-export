@@ -1,6 +1,7 @@
 import logging
 import unittest
 
+from helpers import dummy_settings
 from parameterized import parameterized
 
 from integrations.os2sync.config import loggername as _loggername
@@ -14,7 +15,7 @@ from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 class TestPerson(unittest.TestCase, MoEmployeeMixin):
     @parameterized.expand(
         [
-            # mock CPR, OS2SYNC_XFER_CPR, key of expected CPR value, expected log level
+            # mock CPR, os2sync_xfer_cpr, key of expected CPR value, expected log level
             ("0101013333", True, "cpr_no", logging.DEBUG),
             (None, True, "cpr_no", logging.WARNING),
             ("0101013333", False, None, logging.DEBUG),
@@ -23,7 +24,9 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
     )
     def test_transfer_cpr(self, cpr, flag, expected_key, expected_log_level):
         mo_employee = self.mock_employee(cpr=cpr)
-        person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": flag})
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = flag
+        person = Person(mo_employee, settings=settings)
         expected_cpr = mo_employee.get(expected_key)
         with self.assertLogs(_loggername, expected_log_level):
             self.assertDictEqual(
@@ -68,7 +71,7 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
             person.to_json()
 
     def _gen_settings(self, template):
-        return {
-            "OS2SYNC_TEMPLATES": {"person.name": template},
-            "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
-        }
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = True
+        settings.os2sync_templates = {"person.name": template}
+        return settings

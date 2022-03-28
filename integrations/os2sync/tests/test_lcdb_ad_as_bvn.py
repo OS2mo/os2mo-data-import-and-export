@@ -1,14 +1,19 @@
 import unittest
-from unittest.mock import patch
 
+from helpers import dummy_settings
 from sqlalchemy.orm import sessionmaker
 
 from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse, Base, Bruger, Engagement, \
-    ItForbindelse, ItSystem, Tilknytning
-from integrations.os2sync import config
-from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import ItForbindelse
+from exporters.sql_export.sql_table_defs import ItSystem
+from exporters.sql_export.sql_table_defs import Tilknytning
+from integrations.os2sync.lcdb_os2mo import get_sts_user
+from integrations.os2sync.lcdb_os2mo import try_get_ad_user_key
 
 
 class Tests_lc_db(unittest.TestCase):
@@ -28,17 +33,17 @@ class Tests_lc_db(unittest.TestCase):
             cpr="cpr1",
         )
         self.session.add(bruger)
-        it = ItSystem(navn=AD_it_system, uuid='ItSystem1')
+        it = ItSystem(navn=AD_it_system, uuid="ItSystem1")
         self.session.add(it)
-        it = ItSystem(navn='it_navn2', uuid='ItSystem2')
+        it = ItSystem(navn="it_navn2", uuid="ItSystem2")
         self.session.add(it)
         it = ItForbindelse(
             id=1,
-            uuid='if1',
-            it_system_uuid='ItSystem1',
-            bruger_uuid='b1',
-            enhed_uuid='e1',
-            brugernavn='AD-logon',
+            uuid="if1",
+            it_system_uuid="ItSystem1",
+            bruger_uuid="b1",
+            enhed_uuid="e1",
+            brugernavn="AD-logon",
             startdato="0",
             slutdato="1",
             primær_boolean=True,
@@ -46,11 +51,11 @@ class Tests_lc_db(unittest.TestCase):
         self.session.add(it)
         it = ItForbindelse(
             id=2,
-            uuid='if2',
-            it_system_uuid='ItSystem2',
-            bruger_uuid='b1',
-            enhed_uuid='e1',
-            brugernavn='if_bvn2',
+            uuid="if2",
+            it_system_uuid="ItSystem2",
+            bruger_uuid="b1",
+            enhed_uuid="e1",
+            brugernavn="if_bvn2",
             startdato="0",
             slutdato="1",
             primær_boolean=True,
@@ -143,18 +148,21 @@ class Tests_lc_db(unittest.TestCase):
         Base.metadata.drop_all(self.engine)
 
     def test_lcdb_get_ad(self):
-        expected = 'AD-logon'
-        self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
+        expected = "AD-logon"
+        self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid="b1"))
 
-    @patch.dict(config.settings, {'OS2SYNC_XFER_CPR': True})
     def test_lcdb_get_sts_user_default(self):
         self.setup_wide()
-        expected = {'Email': 'test@email.dk',
-                    'Person': {'Cpr': 'cpr1',
-                               'Name': 'fornavn efternavn'},
-                    'PhoneNumber': '12345678',
-                    'UserId': 'AD-logon',
-                    'Uuid': 'b1',
-                    'Positions': [],
-                    }
-        self.assertEqual(expected, get_sts_user(self.session, 'b1', []))
+        expected = {
+            "Email": "test@email.dk",
+            "Person": {"Cpr": "cpr1", "Name": "fornavn efternavn"},
+            "PhoneNumber": "12345678",
+            "UserId": "AD-logon",
+            "Uuid": "b1",
+            "Positions": [],
+        }
+        settings = dummy_settings
+        settings.os2sync_xfer_cpr = True
+        self.assertEqual(
+            expected, get_sts_user(self.session, "b1", [], settings=settings)
+        )
