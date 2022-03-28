@@ -1,5 +1,5 @@
-import logging
 import json
+import logging
 
 from integrations.os2sync.config import loggername
 

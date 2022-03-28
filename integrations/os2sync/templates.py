@@ -9,14 +9,11 @@ import logging
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from jinja2 import Environment
-from jinja2 import StrictUndefined
-from jinja2 import Template
+from jinja2 import Environment, StrictUndefined, Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.config import settings as _settings
-
+from integrations.os2sync.config import get_os2sync_settings
 
 logger = logging.getLogger(_loggername)
 
@@ -36,7 +33,7 @@ class FieldRenderer:
         """Prepare the field renderer, parsing all Jinja templates defined in
         `config`.
 
-        :param config: dictionary, usually `settings["OS2SYNC_TEMPLATES"]`
+        :param config: dictionary, usually `settings.os2sync_templates`
         """
 
         # Configure Jinja environment to raise exception on unknown variables
@@ -86,7 +83,7 @@ class Entity:
     def __init__(
         self,
         context: Dict[str, Any],
-        settings: Optional[Dict[str, str]] = None,
+        settings: Dict[str, str],
     ):
         """Configure field renderer for this entity.
 
@@ -95,9 +92,9 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings or _settings
+        self.settings = settings
         self.field_renderer = FieldRenderer(
-            self.settings.get("OS2SYNC_TEMPLATES", {})
+            self.settings.os2sync_templates
         )
 
     def to_json(self) -> Dict[str, Any]:
@@ -145,7 +142,7 @@ class Person(Entity):
     """Models a `Person` entity in the OS2Sync REST API"""
 
     def to_json(self) -> Dict[str, Any]:
-        if self.settings["OS2SYNC_XFER_CPR"]:
+        if self.settings.os2sync_xfer_cpr:
             cpr = self.context.get("cpr_no")
             if not cpr:
                 logger.warning("no 'cpr_no' for user %r", self.context["uuid"])

@@ -20,19 +20,19 @@ from more_itertools import one
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
+from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 from ra_utils.headers import TokenSettings
 
-settings = config.settings
 logger = logging.getLogger(config.loggername)
 
 
 @lru_cache
 def get_mo_session():
     session = requests.Session()
-    session.verify = settings.get("ca_verify_os2mo")
+    session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
     session.headers = {
         "User-Agent": "os2mo-data-import-and-export",
     }
@@ -41,7 +41,8 @@ def get_mo_session():
         session.headers.update(session_headers)
     return session
 
-TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
+
+
 
 # Actually recursive, but couple of levels here
 JSON_TYPE = Dict[str, Union[None, str, Dict[str, Union[None, str, Dict[str, Any]]]]]
@@ -98,10 +99,10 @@ class IT:
 
 # truncate and warn all strings in dictionary,
 # ensure not shortening uuids
-def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
+def strip_truncate_and_warn(d, root, length):
     for k, v in list(d.items()):
         if isinstance(v, dict):
-            strip_truncate_and_warn(v, root)
+            strip_truncate_and_warn(v, root, length)
         elif isinstance(v, str):
             v = d[k] = v.strip()
             if len(v) > length:
@@ -115,15 +116,12 @@ def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
                 )
 
 
-def os2mo_url(url):
-    """format url like {BASE}/o/{ORG}/e"""
-    url = url.format(BASE=settings["OS2MO_SERVICE_URL"], ORG=settings["OS2MO_ORG_UUID"])
-    return url
-
-
 @lru_cache
 def os2mo_get(url, **params):
-    url = os2mo_url(url)
+    #format url like {BASE}/service
+    mora_base = get_os2sync_settings().mora_base
+    
+    url = url.format(BASE=f"{mora_base}/service")
     try:
         session = get_mo_session()
         r = session.get(url, params=params)
@@ -135,17 +133,12 @@ def os2mo_get(url, **params):
 
 
 def has_kle():
-    try:
-        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
-        os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
-        os2mo_get("{BASE}/ou/" + settings["OS2MO_TOP_UNIT_UUID"] + "/details/kle")
-        return True
-    except requests.exceptions.HTTPError:
-        return False
+    os2mo_config = os2mo_get("{BASE}/configuration").json()
+    return os2mo_config["show_kle"]
 
 
 
-def addresses_to_user(user, addresses):
+def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes):
     # TODO: This looks like bucketing (more_itertools.bucket)
     emails, phones = [], []
     for address in addresses:
@@ -155,12 +148,12 @@ def addresses_to_user(user, addresses):
             phones.append(address)
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
+    phone = choose_public_address(phones, phone_scope_classes)
     if phone:
         user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = choose_public_address(emails, settings["OS2SYNC_EMAIL_SCOPE_CLASSES"])
+    email = choose_public_address(emails,email_scope_classes)
     if email:
         user["Email"] = email["name"]
 
@@ -209,9 +202,9 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_sts_user(uuid, allowed_unitids):
+def get_sts_user(uuid, allowed_unitids, settings = None):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
-
+    
     user = User(
         dict(
             uuid=uuid,
@@ -224,7 +217,7 @@ def get_sts_user(uuid, allowed_unitids):
     sts_user = user.to_json()
 
     addresses_to_user(
-        sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
+        sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json(), phone_scope_classes=settings.os2sync_phone_scope_classes, email_scope_classes=settings.os2sync_email_scope_classes
     )
     #use calculate_primary flag to get the is_primary boolean used in getting work-address
     engagements = os2mo_get(
@@ -237,18 +230,19 @@ def get_sts_user(uuid, allowed_unitids):
     )
 
     # Optionally find the work address of employees primary engagement.
-    work_address_names = settings.get("os2sync.employee_engagement_address")
+    work_address_names = settings.os2sync_employee_engagement_address
     if sts_user["Positions"] and work_address_names:
         sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
-
-    strip_truncate_and_warn(sts_user, sts_user)
+    truncate_length = max(36, settings.os2sync_truncate_length)
+    strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
     return sts_user
 
 
 def org_unit_uuids(**kwargs):
+    org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou/", limit=999999, **kwargs).json()[
+        for ou in os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
             "items"
         ]
     ]
@@ -303,11 +297,11 @@ def filter_kle(aspect: str, kle) -> List[UUID]:
     return list(sorted(task_uuids))
 
 
-def partition_kle(kle) -> (List[UUID], List[UUID]):
+def partition_kle(kle, use_contact_for_tasks) -> (List[UUID], List[UUID]):
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
-    If the setting 'use_contact_for_tasks' is set KLEs wil be divided:
+    If the setting 'os2sync_use_contact_for_tasks' is set KLEs will be divided:
 
     * Aspect "Udførende" goes into "Tasks"
     * Aspect "Ansvarlig" goes into "ContactForTasks"
@@ -319,7 +313,7 @@ def partition_kle(kle) -> (List[UUID], List[UUID]):
         Tuple(List, List)
     """
 
-    if settings.get("use_contact_for_tasks"):
+    if use_contact_for_tasks:
         tasks = filter_kle("Udførende", kle)
         ContactForTasks = filter_kle("Ansvarlig", kle)
 
@@ -334,14 +328,13 @@ def partition_kle(kle) -> (List[UUID], List[UUID]):
     return list(sorted(tasks)), []
 
 
-def kle_to_orgunit(org_unit: Dict, kle: Dict) -> Dict:
+def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks) -> Dict:
     """Mutates the dict "org_unit" to include KLE data"""
-    if settings["OS2MO_HAS_KLE"]:  # this is set by __main__
-        tasks, contactfortasks = partition_kle(kle)
-        if tasks:
-            org_unit["Tasks"] = tasks
-        if contactfortasks:
-            org_unit["ContactForTasks"] = contactfortasks
+    tasks, contactfortasks = partition_kle(kle, use_contact_for_tasks=use_contact_for_tasks)
+    if tasks:
+        org_unit["Tasks"] = tasks
+    if contactfortasks:
+        org_unit["ContactForTasks"] = contactfortasks
 
 
 def is_ignored(unit, settings):
@@ -357,28 +350,29 @@ def is_ignored(unit, settings):
 
     return (
         unit.get("org_unit_level")
-        and unit["org_unit_level"]["uuid"] in settings["OS2SYNC_IGNORED_UNIT_LEVELS"]
+        and UUID(unit["org_unit_level"]["uuid"]) in settings.os2sync_ignored_unit_levels
     ) or (
         unit.get("org_unit_type")
-        and unit["org_unit_type"]["uuid"] in settings["OS2SYNC_IGNORED_UNIT_TYPES"]
+        and UUID(unit["org_unit_type"]["uuid"]) in settings.os2sync_ignored_unit_types
     )
 
 
-def get_sts_orgunit(uuid):
+def get_sts_orgunit(uuid, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
         logger.info("Ignoring %r", base)
         return None
-
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    top_unit_uuid = str(settings.os2sync_top_unit_uuid)
+    if not parent["uuid"] == top_unit_uuid:
         while parent.get("parent"):
-            if parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+            if parent["uuid"] == top_unit_uuid:
                 break
             parent = parent["parent"]
 
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    if not parent["uuid"] == top_unit_uuid:
         # not part of right tree
+        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {top_unit_uuid=}")
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
@@ -394,20 +388,21 @@ def get_sts_orgunit(uuid):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    if settings.get("sync_managers"):
+    if settings.os2sync_sync_managers:
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
             sts_org_unit["managerUuid"] = str(manager_uuid)
 
     # this is set by __main__
-    if settings["OS2MO_HAS_KLE"]:
+    if has_kle():
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+            use_contact_for_tasks=settings.os2sync_use_contact_for_tasks
         )
 
     # show_all_details(uuid,"ou")
-    strip_truncate_and_warn(sts_org_unit, sts_org_unit)
+    strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
     return sts_org_unit
 
 
