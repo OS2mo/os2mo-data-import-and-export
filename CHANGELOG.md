@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.0 - 2022-03-28
+-------------------
+
+[#49219] Change os2sync to use Pydantic settings. This allows configuration either by a settings.json file or by environment variables.
+
 2.21.3 - 2022-03-25
 -------------------
 
