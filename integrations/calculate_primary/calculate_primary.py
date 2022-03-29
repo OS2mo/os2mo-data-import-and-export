@@ -92,4 +92,4 @@ def calculate_primary(
 
 
 if __name__ == "__main__":
-    calculate_primary()
+    calculate_primary()  # type: ignore

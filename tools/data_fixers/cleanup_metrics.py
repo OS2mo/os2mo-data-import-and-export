@@ -23,7 +23,7 @@ class MetricCleaner:
         return set(flatten(filtered_metrics))
 
     def delete_metric(self, metric: str) -> None:
-        """ Deletes the metric from pushgateway """
+        """Deletes the metric from pushgateway"""
         url = f"{self.baseurl}/job/{metric}"
         r = requests.delete(url)
         r.raise_for_status()
