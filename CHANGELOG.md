@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.2 - 2022-03-29
+-------------------
+
+[#49292] Release DIPEX to PYPI
+
 2.22.1 - 2022-03-29
 -------------------
 
