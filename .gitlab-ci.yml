@@ -36,10 +36,17 @@ include:
     file: '/gitlab-ci-templates/common/autopub.v1.yml'
   - project: 'labs/salt-automation'
     ref: 'master'
+    file: '/gitlab-ci-templates/common/docker-build-meta.v1.yml'
+  - project: 'labs/salt-automation'
+    ref: 'master'
     file: '/gitlab-ci-templates/common/docker-release.v1.yml'
   - project: "labs/salt-automation"
     ref: "master"
     file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
+  - project: "labs/salt-automation"
+    ref: "master"
+    file: "/gitlab-ci-templates/common/rules.v1.yml"
+
 
 # Only run pipeline when pushing a tag or a branch.
 # This is a workaround for a bug causing detached pipelines on MRs
@@ -178,21 +185,9 @@ Lint Tools:
 #############
 
 Build TestImage:
-  stage: build
-  needs: []
-  image:
-    # We use kaniko v0.16.0 as both v0.17.0, v0.17.1, v0.18.0 and v0.19.0 contains fatal bugs.
-    name: gcr.io/kaniko-project/executor:debug-v0.16.0
-    entrypoint: [""]
-  tags:
-    - docker
-  script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --cache
-      --context=$CI_PROJECT_DIR
-      --dockerfile=$CI_PROJECT_DIR/docker/Dockerfile
-      --destination=${IMAGE_SHA}
+  extends: .build-docker
+  variables:
+    DOCKERFILE: ${CI_PROJECT_DIR}/docker/Dockerfile
 
 # Test stage
 ############
@@ -319,7 +314,23 @@ Release to Prod:
   variables:
     ENDPOINT: os2mo/flux/dipex/update-prod
 
-Release to PyPI:
+.Release DIPEX to PyPI:
+  extends:
+    - .rules:semver-core
+  stage: release
+  needs: []
+  image: python:3.8-slim
+  variables:
+    POETRY_VERSION: "1.1.11"
+    POETRY_VIRTUALENVS_CREATE: "true"
+    POETRY_VIRTUALENVS_IN_PROJECT: "true"
+  script: poetry publish --build -u OS2mo -p $PYPI_PWD
+  before_script:
+    - pip install --no-cache-dir poetry==${POETRY_VERSION}
+
+Release OS2mo-data-import to PyPI:
+  extends:
+    - .rules:semver-core
   stage: release
   needs: []
   image: python:3.8-slim
@@ -332,7 +343,3 @@ Release to PyPI:
     - cd os2mo_data_import/
     - sed -i "s/version = .*/version = \"$CI_COMMIT_TAG\"/" pyproject.toml
     - pip install --no-cache-dir poetry==${POETRY_VERSION}
-  rules:
-    # Matches <version core> from SemVer 2.0.0 BNF grammar.
-    # Ex. 2.3.4, but not 2.3.4-rc
-    - if: $CI_COMMIT_TAG =~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
