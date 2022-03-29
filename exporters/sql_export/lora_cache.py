@@ -14,9 +14,10 @@ from typing import Optional
 from typing import Tuple
 
 import click
-import dateutil
 import lora_utils
 import requests
+from dateutil import parser
+from dateutil import tz
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -27,7 +28,7 @@ from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
-DEFAULT_TIMEZONE = dateutil.tz.gettz("Europe/Copenhagen")  # type: ignore
+DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
 
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
@@ -114,14 +115,14 @@ class LoraCache:
         ('2020-01-01', '2022-01-01')
         """
 
-        dt_from = dateutil.parser.isoparse(str(effect[0]))
+        dt_from = parser.isoparse(str(effect[0]))
         dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
         from_date = dt_from.date().isoformat()
 
         if effect[1].replace(tzinfo=None) == datetime.datetime.max:
             to_date = None
         else:
-            dt_to = dateutil.parser.isoparse(str(effect[1]))
+            dt_to = parser.isoparse(str(effect[1]))
             dt_to = dt_to.astimezone(DEFAULT_TIMEZONE)
             # MO considers end-dates inclusive, we need to subtract a day
             to_date = (dt_to.date() - datetime.timedelta(days=1)).isoformat()

@@ -8,6 +8,10 @@ readme = "README.rst"
 homepage = "https://magenta.dk/"
 repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
 keywords = ["DIPEX", "OS2mo-data-import-and-export"]
+packages = [
+    { include = "integrations/*.py" },
+    { include = "integrations/**/*.py" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -78,9 +82,10 @@ psycopg2-binary = "^2.9.3"
 PyYAML = "^6.0"
 wheel = "^0.37.1"
 jmespath = "^0.10.0"
-spsftp = {git = "https://github.com/magenta-aps/spsftp.git"}
-lora-utils = {git = "https://github.com/magenta-aps/lora-utils.git"}
-os2mo-data-import = {path = "os2mo_data_import"}
+spsftp = "^0.0.1"
+lora-utils = "^0.1.0"
+os2mo-data-import = "^2.22.1"
+python-dateutil = "^2.8.2"
 
 [tool.autopub]
 git-username = "MagentaBot"

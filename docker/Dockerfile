@@ -9,19 +9,15 @@ RUN apt-get -y install vim jq less screen
 ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
     PYTHONPATH=/app:/app/backend \
     POETRY_VERSION="1.1.8" \
-    POETRY_VIRTUALENVS_CREATE=false
-
-# Install requirements
-RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
-COPY poetry.lock pyproject.toml /code/
-WORKDIR /code
-COPY ./os2mo_data_import ./os2mo_data_import
-RUN poetry install --no-interaction
-
-ENV PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_CREATE=false \
+    PYTHONUNBUFFERED=1 \
     CUSTOMER_SETTINGS=/code/settings/settings.json \
     PYTHONPATH="${PYTHONPATH}:/code"
 
+# Install requirements
+RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
+WORKDIR /code
 COPY . .
+RUN poetry install --no-interaction
 
 CMD ["python", "./metacli.py"]
