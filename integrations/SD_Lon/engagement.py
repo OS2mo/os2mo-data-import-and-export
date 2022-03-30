@@ -8,9 +8,6 @@ from typing import Optional
 from typing import OrderedDict
 from typing import Tuple
 
-from more_itertools import all_equal
-from more_itertools import first
-
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
 
@@ -101,11 +98,15 @@ def is_employment_id_and_no_salary_minimum_consistent(
     professions = eng_components["professions"]
     if not professions:
         return True
-    job_pos_ids = tuple(map(itemgetter("JobPositionIdentifier"), professions))
-    assert all_equal(job_pos_ids)
 
-    job_pos_id = int(first(job_pos_ids))
+    job_pos_ids_strings = map(itemgetter("JobPositionIdentifier"), professions)
+    job_pos_ids = map(int, job_pos_ids_strings)
 
-    if _is_external(employment_id):
-        return job_pos_id >= no_salary_minimum
-    return job_pos_id < no_salary_minimum
+    def is_consistent(job_pos_id: int) -> bool:
+        if _is_external(employment_id):
+            return job_pos_id >= no_salary_minimum  # type: ignore
+        return job_pos_id < no_salary_minimum  # type: ignore
+
+    consistent = map(is_consistent, job_pos_ids)
+
+    return all(consistent)
