@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.3 - 2022-03-30
+-------------------
+
+[#49541] Adds AMG unit-type to list of MED-organization unit-types
+
 2.22.2 - 2022-03-29
 -------------------
 
