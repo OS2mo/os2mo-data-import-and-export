@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.4 - 2022-03-30
+-------------------
+
+[#49524] Handle multiple JobPositionIdentifers when doing no salary minimum consistency check
+
 2.22.3 - 2022-03-30
 -------------------
 
