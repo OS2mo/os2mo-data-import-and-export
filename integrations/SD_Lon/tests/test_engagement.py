@@ -1,7 +1,6 @@
 import unittest
 from copy import deepcopy
 
-import pytest
 from more_itertools import one
 from parameterized import parameterized
 
@@ -48,26 +47,23 @@ class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
             == expected
         )
 
-    def test_verify_job_pos_ids_identical(self):
-        # Arrange
-        engagement = one(get_read_employment_changed_fixture())["Employment"]
-
-        professions = 2 * [engagement.get("Profession")]
-        engagement.update({"Profession": professions})
-
-        # Assert
-        assert is_employment_id_and_no_salary_minimum_consistent(engagement, 9000)
-
-    def test_assertion_error_when_job_pos_ids_not_identical(self):
+    @parameterized.expand(
+        [
+            ("1001", True),
+            ("9001", False),
+        ]
+    )
+    def test_job_pos_ids_consistent_but_different(self, job_pos_id2, expected):
         # Arrange
         engagement = one(get_read_employment_changed_fixture())["Employment"]
 
         profession1 = deepcopy(engagement.get("Profession"))
-
         profession2 = deepcopy(engagement.get("Profession"))
-        profession2["JobPositionIdentifier"] = "1001"
+        profession2["JobPositionIdentifier"] = job_pos_id2
         engagement.update({"Profession": [profession1, profession2]})
 
         # Assert
-        with pytest.raises(AssertionError):
+        assert (
             is_employment_id_and_no_salary_minimum_consistent(engagement, 9000)
+            == expected
+        )
