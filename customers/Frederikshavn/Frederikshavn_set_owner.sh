@@ -21,7 +21,7 @@ TOTAL_CLASSES=$(echo $CLASSES | jq -r  .data.total)
 echo "Found ${TOTAL_CLASSES} org_unit_types"
 
 # For disse klasser skal ejerskabet være MED organisationen:
-LIST='"DirektørMED" "Pers.møde m/ MED" "LokalMED" "CenterMED" "HovedMED"'
+LIST='"DirektørMED" "Pers.møde m/ MED" "LokalMED" "CenterMED" "HovedMED" "AMG"'
 
 
 # Loop over klasserne
