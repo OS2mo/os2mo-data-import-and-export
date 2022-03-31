@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.23.0 - 2022-03-31
+-------------------
+
+[#49524] Optional exclude or include CPR list for SD-changed-at
+
 2.22.6 - 2022-03-31
 -------------------
 
