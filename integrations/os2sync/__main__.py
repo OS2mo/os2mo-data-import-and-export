@@ -20,7 +20,7 @@ from integrations.os2sync import config
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync import os2mo
 from integrations.os2sync import os2sync
-
+from functools import lru_cache
 
 logger = None  # set in main()
 helper = None
@@ -75,11 +75,9 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
 
     logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
 
-    allowed_unitids = []
     for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
         sts_orgunit = os2mo.get_sts_orgunit(i, settings=settings)
         if sts_orgunit:
-            allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
         elif settings.os2sync_autowash:
@@ -88,10 +86,10 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
 
     logger.info("sync_os2sync_orgunits done")
 
-    return set(allowed_unitids)
+    return
 
 
-def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
+def sync_os2sync_users(settings, counter, prev_date):
 
     logger.info("sync_os2sync_users starting")
 
@@ -126,7 +124,7 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
         # medarbejdere er allerede omfattet af autowash
         # fordi de ikke får nogen 'Positions' hvis de ikke
         # har en ansættelse i en af allowed_unitids
-        sts_user = os2mo.get_sts_user(i, allowed_unitids, settings=settings)
+        sts_user = os2mo.get_sts_user(i, settings=settings)
 
         if not sts_user["Positions"]:
             counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
@@ -177,8 +175,8 @@ def main(settings):
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
     
 
-    orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
-    sync_os2sync_users(settings, orgunit_uuids, counter, prev_date)
+    # sync_os2sync_orgunits(settings, counter, prev_date)
+    sync_os2sync_users(settings, counter, prev_date)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))

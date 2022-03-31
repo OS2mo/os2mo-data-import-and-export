@@ -689,15 +689,15 @@ class MoraHelper:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
 
-    def read_ou_root(self, org: str, root: Optional[str] = None):
+    def read_ou_root(self, root: Optional[UUID] = None):
         """Find all org units below an optional root node
-        :param org: The organisation to search in
         :param root: The UUID of an optional root node
         :return: A list of all org units bounded by the root node
         """
+        org = self.read_organisation()
         url = f"o/{org}/ou/"
         if root:
-            url +=f"?root={root}"
+            url +=f"?root={str(root)}"
         org_units = self._mo_lookup(None, url)["items"]
         return org_units
 

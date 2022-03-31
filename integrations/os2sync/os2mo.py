@@ -16,7 +16,7 @@ from operator import itemgetter
 import requests
 from more_itertools import first
 from more_itertools import one
-
+from os2mo_helpers.mora_helpers import MoraHelper
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -158,6 +158,13 @@ def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
         user["Email"] = email["name"]
 
 
+@lru_cache
+def get_allowed_org_units(mora_base, root_uuid):
+    helper = MoraHelper(mora_base)
+
+    ous = helper.read_ou_root(root_uuid)
+    return set(map(itemgetter("uuid"), ous))
+
 def engagements_to_user(user, engagements, allowed_unitids):
     for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
@@ -165,7 +172,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
-                    #Only used to find primary engamgements work-address
+                    #Only used to find primary engagements work-address
                     "is_primary": e["is_primary"],
                 }
             )
@@ -202,7 +209,7 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_sts_user(uuid, allowed_unitids, settings):
+def get_sts_user(uuid, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
@@ -223,10 +230,11 @@ def get_sts_user(uuid, allowed_unitids, settings):
     engagements = os2mo_get(
             "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
         ).json()
+    allowed_unitids = get_allowed_org_units(mora_base = settings.mora_base, root_uuid = settings.os2sync_top_unit_uuid)
     engagements_to_user(
         sts_user,
         engagements,
-        allowed_unitids,
+        allowed_unitids
     )
 
     # Optionally find the work address of employees primary engagement.
