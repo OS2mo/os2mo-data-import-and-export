@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.5 - 2022-03-31
+-------------------
+
+[#xxxxx] Fix missing settings in os2sync lcdb
+
 2.22.4 - 2022-03-30
 -------------------
 
