@@ -15,6 +15,7 @@ from typing import Type
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import conint
+from pydantic import constr
 from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
@@ -111,6 +112,14 @@ class ChangedAtSettings(CommonSettings):
     sd_fix_departments_root: Optional[UUID4] = None
     sd_import_run_db: str
     sd_no_salary_minimum_id: Optional[int] = None
+
+    # List of CRPs to either include OR exclude in the run
+    sd_cprs: List[constr(regex="^[0-9]{10}$")] = []  # type: ignore # noqa
+
+    # If true, the sd_cprs will be excluded and if false, only the
+    # CPRs in sd_cprs will be included in the run
+    sd_exclude_cprs_mode: bool = True
+
     sd_skip_job_functions: List[str] = []
     sd_terminate_engagement_with_to_only: bool = True
     sd_use_ad_integration: bool = True

@@ -246,17 +246,25 @@ def test_job_function_enums_allowed(job_function):
     )
 
 
-def test_changed_at_settings_allows_optional_fix_departments_root():
+@parameterized.expand(
+    [
+        ("sd_fix_departments_root", str(uuid4()), "not a UUID"),
+        ("sd_cprs", ["1234561234", "6543214321"], ["Not CPR"]),
+        ("sd_cprs", ["0000000000"], "Not list of CPRs"),
+        ("sd_exclude_cprs_mode", False, "Not a boolean"),
+    ]
+)
+def test_changed_at_settings(key, valid_value, invalid_value):
     settings = deepcopy(DEFAULT_CHANGED_AT_SETTINGS)
 
-    # sd_fix_departments_root is optional
+    # The setting is optional or has a default
     assert ChangedAtSettings.parse_obj(settings)
 
-    # ... and can be set to a UUID
-    settings.update({"sd_fix_departments_root": str(uuid4())})
+    # ... and can be set to a valid_value
+    settings.update({key: valid_value})
     assert ChangedAtSettings.parse_obj(settings)
 
-    # ... but not a non-UUID string
-    settings.update({"sd_fix_departments_root": "not a UUID"})
+    # ... but not an invalid_value
+    settings.update({key: invalid_value})
     with pytest.raises(ValidationError):
         ChangedAtSettings.parse_obj(settings)
