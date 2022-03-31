@@ -60,11 +60,13 @@ from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
+from integrations.SD_Lon.skip import cpr_env_filter
 from integrations.SD_Lon.sync_job_id import JobIdSync
 
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_integrations.log"
+DUMMY_CPR = "0000000000"
 
 logger = logging.getLogger("sdChangedAt")
 
@@ -434,7 +436,11 @@ class ChangeAtSD:
         logger.info(f"Number of changed persons: {len(all_sd_persons_changed)}")
         all_sd_persons_changed = tqdm(all_sd_persons_changed, desc="update persons")
         real_sd_persons_changed = filter(skip_fictional_users, all_sd_persons_changed)
-        sd_persons_changed = map(extract_cpr_and_name, real_sd_persons_changed)
+
+        # Filter employees based on the sd_cprs list
+        sd_cpr_filtered_persons = filter(cpr_env_filter, real_sd_persons_changed)
+
+        sd_persons_changed = map(extract_cpr_and_name, sd_cpr_filtered_persons)
 
         sd_persons_iter1, sd_persons_iter2 = tee(sd_persons_changed)
         mo_persons_iter = map(fetch_mo_person, sd_persons_iter2)
@@ -1297,6 +1303,10 @@ class ChangeAtSD:
 
         employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
+
+        # Filter employees based on the sd_cprs list
+        employments_changed = filter(cpr_env_filter, employments_changed)
+
         recalculate_users: Set[UUID] = set()
 
         for employment in employments_changed:
