@@ -203,7 +203,7 @@ def is_ignored(unit, settings):
         unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels)
 
 
-def get_sts_orgunit(session, uuid):
+def get_sts_orgunit(session, uuid, settings):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
     if is_ignored(base, settings):

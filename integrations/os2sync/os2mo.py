@@ -202,7 +202,7 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_sts_user(uuid, allowed_unitids, settings = None):
+def get_sts_user(uuid, allowed_unitids, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
