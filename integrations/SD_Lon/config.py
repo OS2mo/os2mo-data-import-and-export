@@ -12,7 +12,7 @@ from typing import List
 from typing import Optional
 from typing import Type
 
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, root_validator
 from pydantic import BaseSettings
 from pydantic import conint
 from pydantic import constr
@@ -110,7 +110,11 @@ class ImporterSettings(CommonSettings):
 
 class ChangedAtSettings(CommonSettings):
     sd_fix_departments_root: Optional[UUID4] = None
-    sd_import_run_db: str
+
+    # TODO: rename field
+    # Will be deprecated when SQLAlchemy is used for the RunDB
+    sd_import_run_db: Optional[str] = None
+
     sd_no_salary_minimum_id: Optional[int] = None
 
     # List of CRPs to either include OR exclude in the run
@@ -120,9 +124,36 @@ class ChangedAtSettings(CommonSettings):
     # CPRs in sd_cprs will be included in the run
     sd_exclude_cprs_mode: bool = True
 
+    sd_run_db_username: Optional[str] = None
+    sd_run_db_password: Optional[str] = None
+    sd_run_db_host: Optional[str] = None
+    sd_run_db_port: PositiveInt = 5432
+    sd_run_db_name: str = "rundb"
+
     sd_skip_job_functions: List[str] = []
     sd_terminate_engagement_with_to_only: bool = True
     sd_use_ad_integration: bool = True
+
+    @root_validator
+    def check_sqlite_and_managed_db_settings(
+        cls, values: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        if values["sd_import_run_db"] is None and values["sd_run_db_host"] is None:
+            raise ValueError("You must configure either SQLite or a managed DB")
+        if values["sd_import_run_db"] is not None and values["sd_run_db_host"] is not None:
+            raise ValueError("SQLite and managed DB cannot be used simultaneously")
+        if values["sd_run_db_host"] is not None:
+            mandatory_settings = ("sd_run_db_username", "sd_run_db_password")
+            missing_settings = tuple(
+                filter(lambda setting: values.get(setting) is None, mandatory_settings)
+            )
+
+            if missing_settings:
+                raise ValueError(
+                    "The following ENVs are missing: " + ", ".join(missing_settings)
+                )
+
+        return values
 
     class Config:
         extra = Extra.forbid
