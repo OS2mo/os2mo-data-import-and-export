@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.22.6 - 2022-03-31
+-------------------
+
+[#xxxxx] Fix mistake in variable from settings.
+
 2.22.5 - 2022-03-31
 -------------------
 
