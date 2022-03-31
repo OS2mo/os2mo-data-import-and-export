@@ -139,7 +139,7 @@ class ChangedAtSettings(CommonSettings):
         cls, values: Dict[str, Any]
     ) -> Dict[str, Any]:
         if values["sd_import_run_db"] is None and values["sd_run_db_host"] is None:
-            raise ValueError("You must configure either SQLite or a managed DB")
+            raise ValueError("You must configure either an SQLite or a managed DB")
         if values["sd_import_run_db"] is not None and values["sd_run_db_host"] is not None:
             raise ValueError("SQLite and managed DB cannot be used simultaneously")
         if values["sd_run_db_host"] is not None:

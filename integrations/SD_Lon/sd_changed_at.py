@@ -32,6 +32,7 @@ from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
 from integrations import cpr_mapper
+from integrations.SD_Lon.db import read_last_line
 from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
@@ -1392,15 +1393,15 @@ def initialize_changed_at(from_date, run_db, force=False):
 def get_from_date(run_db, force: bool = False) -> datetime.datetime:
     db_overview = DBOverview(run_db)
     # To date from last entries, becomes from_date for current entry
-    from_date, status = cast(
-        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
+    _, from_date, status = cast(
+        Tuple[str, datetime.datetime, str], read_last_line()
     )
     if "Running" in status:
         if force:
             db_overview.delete_last_row()
-            from_date, status = cast(
-                Tuple[datetime.datetime, str],
-                db_overview._read_last_line("to_date", "status"),
+            _, from_date, status = cast(
+                Tuple[str, datetime.datetime, str],
+                read_last_line()
             )
         else:
             logging.error("Previous ChangedAt run did not return!")
