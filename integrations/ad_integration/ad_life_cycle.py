@@ -430,6 +430,15 @@ def write_stats(stats: Dict[str, Any]) -> None:
     print(stats)
 
 
+def run_preview_command_for_uuid(sync: AdLifeCycle, mo_uuid: str):
+    commands = sync.ad_writer._preview_create_command(
+        mo_uuid, ad_dump=None, create_manager=False
+    )
+    for cmd in commands:
+        click.echo_via_pager(cmd)
+    return commands
+
+
 @click.command()
 @click.option(
     "--create-ad-accounts",
@@ -491,11 +500,7 @@ def ad_life_cycle(
     )
 
     if preview_command_for_uuid:
-        commands = sync.ad_writer._preview_create_command(
-            preview_command_for_uuid, ad_dump=None, create_manager=False
-        )
-        for cmd in commands:
-            click.echo_via_pager(cmd)
+        run_preview_command_for_uuid(sync, str(preview_command_for_uuid))
         return
 
     if not any([create_ad_accounts, disable_ad_accounts]):

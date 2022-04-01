@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from typing import Dict
+from typing import List
 from typing import Optional
 
 import click
@@ -121,6 +122,20 @@ def run_mo_to_ad_sync(
     return stats
 
 
+def run_preview_command_for_uuid(
+    reader: ADParameterReader,
+    writer: ADWriter,
+    mo_uuid: uuid.UUID,
+    sync_username: str = None,
+    sync_cpr: str = None,
+) -> List[str]:
+    ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
+    commands = writer._preview_sync_command(mo_uuid, sync_username, ad_dump=ad_dump)
+    for cmd in commands:
+        click.echo_via_pager(cmd)
+    return commands
+
+
 @click.command()
 @click.option(
     "--lora-speedup/--no-lora-speedup",
@@ -172,12 +187,13 @@ def main(
     )
 
     if preview_command_for_uuid and (sync_cpr or sync_username):
-        ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
-        commands = writer._preview_sync_command(
-            preview_command_for_uuid, sync_username, ad_dump=ad_dump
+        run_preview_command_for_uuid(
+            reader,
+            writer,
+            preview_command_for_uuid,
+            sync_cpr=sync_cpr,
+            sync_username=sync_username,
         )
-        for cmd in commands:
-            click.echo_via_pager(cmd)
         return
 
     run_mo_to_ad_sync(
