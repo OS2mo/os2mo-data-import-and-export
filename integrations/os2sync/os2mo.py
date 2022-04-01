@@ -160,9 +160,9 @@ def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
 
 @lru_cache
 def get_allowed_org_units(mora_base, root_uuid):
-    helper = MoraHelper(mora_base)
+    
+    url = f"o/{org}/ou/?root={str(root)}"
 
-    ous = helper.read_ou_root(root_uuid)
     return set(map(itemgetter("uuid"), ous))
 
 def engagements_to_user(user, engagements, allowed_unitids):
@@ -230,7 +230,7 @@ def get_sts_user(uuid, settings):
     engagements = os2mo_get(
             "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
         ).json()
-    allowed_unitids = get_allowed_org_units(mora_base = settings.mora_base, root_uuid = settings.os2sync_top_unit_uuid)
+    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
     engagements_to_user(
         sts_user,
         engagements,
@@ -246,14 +246,11 @@ def get_sts_user(uuid, settings):
     return sts_user
 
 
+@lru_cache()
 def org_unit_uuids(**kwargs):
     org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
-    return [
-        ou["uuid"]
-        for ou in os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
-            "items"
-        ]
-    ]
+    ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()["items"]
+    return set(map(itemgetter("uuid"), ous))
 
 
 def manager_to_orgunit(unit_uuid: UUID) -> UUID:

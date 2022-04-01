@@ -12,7 +12,6 @@ import pathlib
 from functools import partial
 from operator import itemgetter
 
-from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
@@ -23,7 +22,6 @@ from integrations.os2sync import os2sync
 from functools import lru_cache
 
 logger = None  # set in main()
-helper = None
 
 
 def log_mox_config(settings):
@@ -51,12 +49,12 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_orgunits getting " "all current organisational units from os2mo"
     )
-    os2mo_uuids_present = set(os2mo.org_unit_uuids())
+    os2mo_uuids_present = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
 
     logger.info(
         "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = set(os2mo.org_unit_uuids(at=prev_date))
+    os2mo_uuids_past = org_unit_uuids(root=settings.os2sync_top_unit_uuid, at=prev_date)
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
     counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
@@ -96,11 +94,11 @@ def sync_os2sync_users(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = helper.read_all_users(at=prev_date)
+    os2mo_uuids_past = os2mo_get("/e/", at=prev_date)["items"]
     os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
-    os2mo_uuids_present = helper.read_all_users()
+    os2mo_uuids_past = os2mo_get("/e/")["items"]
     os2mo_uuids_present = set(map(itemgetter("uuid"), os2mo_uuids_present))
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
@@ -188,5 +186,4 @@ def main(settings):
 
 if __name__ == "__main__":
     settings = config.get_os2sync_settings()
-    helper = MoraHelper(settings.mora_base)
     main(settings)
