@@ -260,7 +260,9 @@ def get_sts_orgunit(session, uuid, settings):
         mokles[lc_kle.uuid] = {
             "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
         }
-    os2mo.kle_to_orgunit(sts_org_unit, mokles.values())
-    os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit)
+    os2mo.kle_to_orgunit(sts_org_unit, mokles.values(), use_contact_for_tasks=settings.os2sync_use_contact_for_tasks)
+    truncate_length = max(36, settings.os2sync_truncate_length)
+
+    os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
     return sts_org_unit
