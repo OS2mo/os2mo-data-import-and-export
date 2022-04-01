@@ -376,9 +376,9 @@ def get_sts_orgunit(uuid, settings):
             parent = parent["parent"]
 
     if not parent["uuid"] == top_unit_uuid:
-        # not part of right tree
-        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {top_unit_uuid=}")
-        return None
+        msg = f"Unit with {uuid=} is not a unit below {top_unit_uuid=}. Check the setting os2sync_top_unit_uuid."
+        logger.error(msg)
+        raise ValueError(msg)
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
 
