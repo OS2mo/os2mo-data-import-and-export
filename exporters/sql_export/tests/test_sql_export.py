@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from more_itertools import one
+from parameterized import parameterized
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -182,9 +183,7 @@ def _join_dicts(*dicts: dict) -> ChainMap:
     return ChainMap(*dicts)
 
 
-def _assert_db_session_add(
-    session: MagicMock, cls: Base, **expected: Dict[str, Any]
-) -> None:
+def _assert_db_session_add(session: MagicMock, cls: Base, **expected: str) -> None:
     session_add_calls = [
         call
         for call in session.method_calls
@@ -205,7 +204,13 @@ def test_get_lora_class_returns_uuid_as_title_if_none():
     assert class_dict == {"title": uuid}
 
 
-def test_sql_export_writes_associations():
+@parameterized.expand(
+    [
+        (True,),
+        (False,),
+    ]
+)
+def test_sql_export_writes_associations(assoc_type_present: bool):
     # Arrange
     assoc_type_cls, assoc_type_facet = _mock_lora_class("assoc_type")
     job_function_cls, job_function_facet = _mock_lora_class("job_function")
@@ -223,7 +228,11 @@ def test_sql_export_writes_associations():
     }
     lc_data = {
         "facets": _join_dicts(assoc_type_facet, job_function_facet),
-        "classes": _join_dicts(assoc_type_cls, job_function_cls),
+        "classes": (
+            _join_dicts(assoc_type_cls, job_function_cls)
+            if assoc_type_present
+            else _join_dicts(job_function_cls)
+        ),
         "associations": {assoc_uuid: [assoc]},
     }
     sql_export = _TestableSqlExport(inject_lc=lc_data)
@@ -240,7 +249,11 @@ def test_sql_export_writes_associations():
         enhed_uuid=assoc["unit"],
         bvn=assoc["user_key"],
         tilknytningstype_uuid=_get_cls_uuid(assoc_type_cls),
-        tilknytningstype_titel=_get_cls_field(assoc_type_cls, "title"),
+        tilknytningstype_titel=(
+            _get_cls_field(assoc_type_cls, "title")
+            if assoc_type_present
+            else _get_cls_uuid(assoc_type_cls)
+        ),
         startdato=assoc["from_date"],
         slutdato=assoc["to_date"],
         stillingsbetegnelse_uuid=assoc["job_function"],

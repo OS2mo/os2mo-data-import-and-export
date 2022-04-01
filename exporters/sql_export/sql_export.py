@@ -381,19 +381,19 @@ class SqlExport:
             self.lc.associations.items(), desc="Export association", unit="association"
         ):
             for association_info in association_validity:
+                association_type_uuid, association_type_class = self._get_lora_class(
+                    association_info["association_type"]
+                )
                 job_function_uuid, job_function_class = self._get_lora_class(
                     association_info["job_function"]
                 )
-
                 sql_association = Tilknytning(
                     uuid=association,
                     bruger_uuid=association_info["user"],
                     enhed_uuid=association_info["unit"],
                     bvn=association_info["user_key"],
-                    tilknytningstype_uuid=association_info["association_type"],
-                    tilknytningstype_titel=self.lc.classes[
-                        association_info["association_type"]
-                    ]["title"],
+                    tilknytningstype_uuid=association_type_uuid,
+                    tilknytningstype_titel=association_type_class["title"],
                     startdato=association_info["from_date"],
                     slutdato=association_info["to_date"],
                     it_forbindelse_uuid=association_info["it_user"],
