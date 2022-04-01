@@ -4,6 +4,7 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from unittest.mock import patch
+from integrations.os2sync import os2mo
 
 from helpers import dummy_settings
 
@@ -371,7 +372,8 @@ class TestsMOAd(unittest.TestCase):
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
     @patch("integrations.os2sync.os2mo.os2mo_get", patched_session_get)
-    def test_mo_client_default(self):
+    @patch.object(os2mo, "org_unit_uuids", return_value={})
+    def test_mo_client_default(self, org_unit_uuids_mock):
         expected = {
             "Email": "solveigk@kolding.dk",
             "Person": {"Cpr": "0602602389", "Name": "Solveig Kuhlenhenke"},
