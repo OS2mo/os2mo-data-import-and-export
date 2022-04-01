@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.23.1 - 2022-04-01
+-------------------
+
+[#xxxxx] Fix comparison of UUID and string of UUID in loracache-os2sync
+
 2.23.0 - 2022-03-31
 -------------------
 
