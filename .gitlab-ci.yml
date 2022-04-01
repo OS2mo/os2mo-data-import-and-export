@@ -46,6 +46,7 @@ include:
   - project: "labs/salt-automation"
     ref: "master"
     file: "/gitlab-ci-templates/common/rules.v1.yml"
+  - local: "integrations/SD_Lon/.gitlab-ci.yml"
 
 
 # Only run pipeline when pushing a tag or a branch.
@@ -116,14 +117,6 @@ Lint Calculate Primary:
     - cd integrations/calculate_primary/
     - pip install mypy pre-commit types-requests
     - pre-commit run --files tests/*.py *.py
-
-Lint SDLoen Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/SD_Lon/
-    - pip install mypy pre-commit types-click types-requests
-    # - pre-commit run --files tests/*.py sdlon/*.py
-    - python -m black --diff --check tests/*.py sdlon/*.py
 
 Lint RunDB Integration:
   extends: .lint-python
@@ -251,23 +244,6 @@ Test OPUS Helpers:
   script:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py
-
-Test SDLoen Integration:
-  extends: .test-python
-  script:
-    - cd integrations/SD_Lon/
-    # Run CLIs
-    - python -m sdlon.fix_departments --help
-    - python -m sdlon.sd_changed_at --help
-    - python -m sdlon.sd_changed_at_redo --help
-    - python -m sdlon.sd_cli --help
-    - python -m sdlon.sd_fixup --help
-    - python -m sdlon.sd_importer --help
-    - python -m sdlon.sd_log_analyzer --help
-    - python -m sdlon.sync_job_id --help
-    - python -m sdlon.test_mo_against_sd --help
-    # Run tests
-    - pytest tests/
 
 Test RunDB Integration:
   extends: .test-python
