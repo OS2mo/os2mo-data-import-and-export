@@ -26,6 +26,7 @@ from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
+from uuid import UUID
 
 logger = logging.getLogger(config.loggername)
 
@@ -216,8 +217,8 @@ def get_sts_orgunit(session, uuid, settings):
         return None
 
     top_unit = get_top_unit(session, base)
-    if top_unit != settings.os2sync_top_unit_uuid:
-        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {settings.os2sync_top_unit_uuid=}")
+    if UUID(top_unit) != settings.os2sync_top_unit_uuid:
+        logger.debug(f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}")
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
@@ -259,7 +260,9 @@ def get_sts_orgunit(session, uuid, settings):
         mokles[lc_kle.uuid] = {
             "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
         }
-    os2mo.kle_to_orgunit(sts_org_unit, mokles.values())
-    os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit)
+    os2mo.kle_to_orgunit(sts_org_unit, mokles.values(), use_contact_for_tasks=settings.os2sync_use_contact_for_tasks)
+    truncate_length = max(36, settings.os2sync_truncate_length)
+
+    os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
     return sts_org_unit
