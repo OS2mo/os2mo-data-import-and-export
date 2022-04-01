@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.0 - 2022-04-01
+-------------------
+
+[#49292] Make SD integration independent of DIPEX
+
 2.23.1 - 2022-04-01
 -------------------
 
