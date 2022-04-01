@@ -218,7 +218,7 @@ def get_sts_orgunit(session, uuid, settings):
 
     top_unit = get_top_unit(session, base)
     if UUID(top_unit) != settings.os2sync_top_unit_uuid:
-        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {settings.os2sync_top_unit_uuid=}")
+        logger.debug(f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}")
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
