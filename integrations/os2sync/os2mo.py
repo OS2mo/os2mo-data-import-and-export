@@ -328,7 +328,7 @@ def partition_kle(kle, use_contact_for_tasks) -> (List[UUID], List[UUID]):
     return list(sorted(tasks)), []
 
 
-def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks) -> Dict:
+def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks):
     """Mutates the dict "org_unit" to include KLE data"""
     tasks, contactfortasks = partition_kle(kle, use_contact_for_tasks=use_contact_for_tasks)
     if tasks:
