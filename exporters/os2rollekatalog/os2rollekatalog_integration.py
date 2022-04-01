@@ -116,8 +116,9 @@ def get_org_units(
     ou_filter: bool,
     mapping_file_path: str,
 ) -> Dict[str, Dict[str, Any]]:
+    org = mh.read_organisation()
     search_root = mo_root_org_unit if ou_filter else None
-    org_units = mh.read_ou_root(search_root)
+    org_units = mh.read_ou_root(org, search_root)
 
     converted_org_units = {}
     for org_unit in org_units:
