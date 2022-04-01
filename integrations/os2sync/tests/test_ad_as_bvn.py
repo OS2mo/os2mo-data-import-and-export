@@ -381,4 +381,4 @@ class TestsMOAd(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        self.assertEqual(expected, get_sts_user(uuid, [], settings=settings))
+        self.assertEqual(expected, get_sts_user(uuid, settings=settings))

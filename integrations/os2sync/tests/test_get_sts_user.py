@@ -145,7 +145,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("os2mo_get", response):
             with self._patch("try_get_ad_user_key", ad_user_key):
-                return os2mo_get_sts_user(self._uuid, [], settings=settings)
+                return os2mo_get_sts_user(self._uuid, settings=settings)
 
     def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)
