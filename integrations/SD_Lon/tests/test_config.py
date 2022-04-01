@@ -10,11 +10,11 @@ from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
 
-from integrations.SD_Lon.config import ChangedAtSettings
-from integrations.SD_Lon.config import gen_json_file_settings_func
-from integrations.SD_Lon.config import get_changed_at_settings
-from integrations.SD_Lon.config import get_importer_settings
-from integrations.SD_Lon.config import ImporterSettings
+from sdlon.config import ChangedAtSettings
+from sdlon.config import gen_json_file_settings_func
+from sdlon.config import get_changed_at_settings
+from sdlon.config import get_importer_settings
+from sdlon.config import ImporterSettings
 
 importer_json_file_settings = gen_json_file_settings_func(ImporterSettings)
 
@@ -53,6 +53,8 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_skip_employment_types": [],
     "sd_terminate_engagement_with_to_only": True,
     "sd_use_ad_integration": True,
+    "cache_folder_path": "/opt/dipex/os2mo-data-import-and-export/tmp/",
+    "cpr_uuid_map_path": "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv",
 }
 
 DEFAULT_FILTERED_JSON_SETTINGS = {
@@ -83,9 +85,7 @@ DEFAULT_CHANGED_AT_SETTINGS = {
 @pytest.fixture
 def mock_env_and_json(monkeypatch):
     monkeypatch.setenv("SD_USER", "env_user")
-    monkeypatch.setattr(
-        "integrations.SD_Lon.config.load_settings", lambda: DEFAULT_MOCK_SETTINGS
-    )
+    monkeypatch.setattr("sdlon.config.load_settings", lambda: DEFAULT_MOCK_SETTINGS)
 
 
 @pytest.fixture
@@ -99,7 +99,7 @@ def mock_env(monkeypatch):
     monkeypatch.setenv("SD_GLOBAL_FROM_DATE", "2022-01-09")
 
 
-@patch("integrations.SD_Lon.config.load_settings")
+@patch("sdlon.config.load_settings")
 def test_json_file_settings(mock_load_settings):
     # Arrange
     mock_load_settings.return_value = DEFAULT_MOCK_SETTINGS
@@ -111,7 +111,7 @@ def test_json_file_settings(mock_load_settings):
     assert settings == DEFAULT_FILTERED_JSON_SETTINGS
 
 
-@patch("integrations.SD_Lon.config.load_settings")
+@patch("sdlon.config.load_settings")
 def test_json_file_settings_remove_unknown_settings(mock_load_settings):
     # Arrange
     mock_settings = deepcopy(DEFAULT_MOCK_SETTINGS)
@@ -125,7 +125,7 @@ def test_json_file_settings_remove_unknown_settings(mock_load_settings):
     assert settings == DEFAULT_FILTERED_JSON_SETTINGS
 
 
-@patch("integrations.SD_Lon.config.load_settings")
+@patch("sdlon.config.load_settings")
 def test_empty_dict_on_file_not_found_error(mock_load_settings):
     # Arrange
     mock_load_settings.side_effect = FileNotFoundError()
@@ -137,7 +137,7 @@ def test_empty_dict_on_file_not_found_error(mock_load_settings):
     assert json_settings == dict()
 
 
-@patch("integrations.SD_Lon.config.load_settings")
+@patch("sdlon.config.load_settings")
 def test_set_defaults(mock_load_settings):
     # Arrange
     mock_load_settings.return_value = DEFAULT_MOCK_SETTINGS
@@ -179,7 +179,7 @@ def test_env_settings_takes_precedence(mock_env_and_json):
 def test_pydantic_settings_set_correctly_when_json_settings_not_found(mock_env):
     # Act
     get_changed_at_settings.cache_clear()
-    with patch("integrations.SD_Lon.config.load_settings") as mock_load_settings:
+    with patch("sdlon.config.load_settings") as mock_load_settings:
         mock_load_settings.side_effect = FileNotFoundError()
         settings = get_changed_at_settings()
 
@@ -192,7 +192,7 @@ def test_pydantic_settings_set_correctly_when_json_settings_not_found(mock_env):
     assert settings.sd_import_run_db == "env_run_db"
 
 
-@patch("integrations.SD_Lon.config.load_settings")
+@patch("sdlon.config.load_settings")
 def test_override_default(mock_load_settings):
     # Arrange
     mock_settings = deepcopy(DEFAULT_MOCK_SETTINGS)

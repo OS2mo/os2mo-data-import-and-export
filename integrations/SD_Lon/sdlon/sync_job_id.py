@@ -4,11 +4,11 @@ import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.config import CommonSettings
-from integrations.SD_Lon.models import JobFunction
-from integrations.SD_Lon.sd_common import mora_assert
-from integrations.SD_Lon.sd_common import sd_lookup
+from .config import CommonSettings
+from .models import JobFunction
+from .sd_common import mora_assert
+from .sd_common import sd_lookup
+from .sd_payloads import edit_klasse_title
 
 
 LOG_LEVEL = logging.DEBUG
@@ -96,7 +96,7 @@ class JobIdSync:
         Change the title of an existing LoRa engagement type.
         """
         logger.info("Edit {} to {}".format(uuid, title))
-        payload = sd_payloads.edit_klasse_title(title)
+        payload = edit_klasse_title(title)
         response = requests.patch(
             url=self.settings.mox_base + "/klassifikation/klasse/" + uuid,
             json=payload,

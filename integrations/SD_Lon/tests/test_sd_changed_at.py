@@ -1,3 +1,4 @@
+import unittest
 import uuid
 from collections import OrderedDict
 from datetime import date
@@ -18,10 +19,9 @@ from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from integrations.SD_Lon.config import ImporterSettings
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_changed_at import get_from_date
-from test_case import DipexTestCase
+from sdlon.config import ImporterSettings
+from sdlon.sd_changed_at import ChangeAtSD
+from sdlon.sd_changed_at import get_from_date
 
 
 @given(test_from_date=st.datetimes())
@@ -121,9 +121,9 @@ def setup_sd_changed_at(updates=None, hours=24):
     return sd_updater
 
 
-class Test_sd_changed_at(DipexTestCase):
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_common._sd_request")
+class Test_sd_changed_at(unittest.TestCase):
+    @patch("sdlon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_common._sd_request")
     def test_get_sd_person(self, sd_request, sd_settings):
         """Test that read_person does the expected transformation."""
         sd_settings.return_value = ("", "", "")
@@ -189,8 +189,8 @@ class Test_sd_changed_at(DipexTestCase):
         )
 
     @given(status=st.sampled_from(["1", "S"]))
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_common._sd_request")
+    @patch("sdlon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_common._sd_request")
     def test_read_employment_changed(
         self,
         sd_request,
@@ -651,7 +651,7 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater._create_professions.assert_called_once()
 
     @given(job_position=st.integers(), no_salary_minimum=st.integers())
-    @patch("integrations.SD_Lon.sd_changed_at.sd_payloads", autospec=True)
+    @patch("sdlon.sd_changed_at.sd_payloads", autospec=True)
     def test_construct_object(self, sd_payloads_mock, job_position, no_salary_minimum):
         expected = no_salary_minimum is not None
         expected = expected and job_position < no_salary_minimum
@@ -818,8 +818,8 @@ class Test_sd_changed_at(DipexTestCase):
             ]
         )
 
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_common.sd_lookup")
+    @patch("sdlon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_common.sd_lookup")
     def test_edit_engagement_job_position_id_set_to_value_above_9000(
         self, mock_sd_lookup, mock_sd_lookup_settings
     ):
@@ -917,7 +917,7 @@ class Test_sd_changed_at(DipexTestCase):
             },
         )
 
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_common.sd_lookup_settings")
     def test_edit_engagement_profession_job_position_id_set_to_value_below_9000(
         self, mock_sd_lookup_settings
     ):
@@ -979,7 +979,7 @@ class Test_sd_changed_at(DipexTestCase):
             "12345", "person_uuid", "2021-12-19", None
         )
 
-    @patch("integrations.SD_Lon.sd_changed_at.update_existing_engagement")
+    @patch("sdlon.sd_changed_at.update_existing_engagement")
     def test_edit_engagement_handles_empty_professions_list(self, mock_update):
         """Handle an empty `professions` list in the engagement returned by SD"""
         # This is a regression test for #47799
@@ -1005,8 +1005,8 @@ class Test_sd_changed_at(DipexTestCase):
         from_date=st.datetimes(),
         to_date=st.datetimes() | st.none(),
     )
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    @patch("sdlon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_changed_at.sd_lookup")
     def test_timestamps_read_employment_changed(
         self,
         mock_sd_lookup,
@@ -1035,8 +1035,8 @@ class Test_sd_changed_at(DipexTestCase):
         from_date=st.datetimes(),
         to_date=st.datetimes() | st.none(),
     )
-    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    @patch("sdlon.sd_common.sd_lookup_settings")
+    @patch("sdlon.sd_changed_at.sd_lookup")
     def test_timestamps_get_sd_persons_changed(
         self,
         mock_sd_lookup,

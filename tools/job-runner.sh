@@ -168,7 +168,8 @@ imports_sd_changed_at(){
         ${DIPEXAR}/cpr_mo_ad_map.csv
         ${DIPEXAR}/settings/cpr_uuid_map.csv
     )
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py changed-at
+    cd integrations/SD_Lon/
+    poetry run python -m sdlon.sd_changed_at changed-at-cli
 }
 
 imports_opus_diff_import(){

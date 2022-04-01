@@ -8,13 +8,6 @@ from typing import Tuple
 
 import click
 import httpx
-from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.config import get_importer_settings
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import mora_assert
-from integrations.SD_Lon.sd_common import primary_types
-from integrations.SD_Lon.sd_common import sd_lookup
 from more_itertools import consume
 from more_itertools import flatten
 from more_itertools import one
@@ -25,6 +18,14 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
 from tqdm import tqdm
+
+from . import sd_payloads
+from .config import get_importer_settings
+from .sd_changed_at import ChangeAtSD
+from .sd_common import EmploymentStatus
+from .sd_common import mora_assert
+from .sd_common import primary_types
+from .sd_common import sd_lookup
 
 
 def fetch_user_employments(cpr: str) -> List:
@@ -43,7 +44,7 @@ def fetch_user_employments(cpr: str) -> List:
         "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
 
-    sd_employments_response = sd_lookup("GetEmployment20111201", params)
+    sd_employments_response = sd_lookup("GetEmployment20111201", None, params)
     if "Person" not in sd_employments_response:
         return []
 

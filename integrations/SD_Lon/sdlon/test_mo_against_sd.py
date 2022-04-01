@@ -7,9 +7,9 @@ import click
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import load_settings
-from integrations.SD_Lon.sd_common import sd_lookup
+from .sd_common import EmploymentStatus
+from .sd_common import load_settings
+from .sd_common import sd_lookup
 
 
 def progress_iterator(elements, outputter, mod=10):

@@ -18,7 +18,9 @@ import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
 
-from integrations.SD_Lon.config import CommonSettings
+from .config import CommonSettings
+from .config import get_common_settings
+
 
 logger = logging.getLogger("sdCommon")
 
@@ -71,13 +73,13 @@ def _sd_lookup_cache(func):
             return func(full_url, payload, auth)
 
         # We need a cache dir to exist before we can proceed
-        cache_dir = Path("tmp/")
+        cache_dir = Path(get_common_settings().cache_folder_path)
         if not cache_dir.is_dir():
             raise Exception("Folder for temporary files does not exist")
 
         # Create digest and find filename
         lookup_id = create_hex_digest(full_url, payload)
-        cache_file = Path("tmp/sd_" + lookup_id + ".p")
+        cache_file = cache_dir / ("sd_" + lookup_id + ".p")
 
         # If cache file was found, use it
         if cache_file.is_file():

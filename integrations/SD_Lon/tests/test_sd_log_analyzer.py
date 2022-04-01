@@ -6,15 +6,16 @@ from unittest.mock import patch
 from lxml import etree
 from parameterized import parameterized
 
-from integrations.SD_Lon.sd_log_analyzer import extract_log_file_lines
-from integrations.SD_Lon.sd_log_analyzer import get_all_sd_person_changes
-from integrations.SD_Lon.sd_log_analyzer import get_sd_person_changed
-from integrations.SD_Lon.sd_log_analyzer import get_sd_person_changed_at_date_responses
-from integrations.SD_Lon.sd_log_analyzer import get_sd_xml_responses
-from integrations.SD_Lon.sd_log_analyzer import get_tar_gz_archive_files
-from integrations.SD_Lon.sd_log_analyzer import IdType
-from integrations.SD_Lon.sd_log_analyzer import output_to_file
-from integrations.SD_Lon.sd_log_analyzer import SdPersonChange
+from sdlon.sd_log_analyzer import extract_log_file_lines
+from sdlon.sd_log_analyzer import get_all_sd_person_changes
+from sdlon.sd_log_analyzer import get_sd_person_changed
+from sdlon.sd_log_analyzer import get_sd_person_changed_at_date_responses
+from sdlon.sd_log_analyzer import get_sd_xml_responses
+from sdlon.sd_log_analyzer import get_tar_gz_archive_files
+from sdlon.sd_log_analyzer import IdType
+from sdlon.sd_log_analyzer import output_to_file
+from sdlon.sd_log_analyzer import SdPersonChange
+
 
 remove_blank_parser = etree.XMLParser(remove_blank_text=True)
 
@@ -75,11 +76,11 @@ class TestTarGzHelper:
 
         self.tar_gz_file1 = Path(self.FIXTURE_FOLDER.name).joinpath(Path("tar1.tar.gz"))
         with tarfile.open(str(self.tar_gz_file1), "w:gz") as tar:
-            tar.add("integrations/SD_Lon/tests/fixtures/tar_gz1/opt", arcname="opt")
+            tar.add("tests/fixtures/tar_gz1/opt", arcname="opt")
 
         self.tar_gz_file2 = Path(self.FIXTURE_FOLDER.name).joinpath(Path("tar2.tar.gz"))
         with tarfile.open(str(self.tar_gz_file2), "w:gz") as tar:
-            tar.add("integrations/SD_Lon/tests/fixtures/tar_gz2/opt", arcname="opt")
+            tar.add("tests/fixtures/tar_gz2/opt", arcname="opt")
 
     def teardown_class(self):
         self.FIXTURE_FOLDER.cleanup()
@@ -100,7 +101,7 @@ class TestGetTarGzArchiveFiles(TestTarGzHelper):
         assert "tar2.tar.gz" == tar_gz_files[1].name
 
     def test_returns_empty_list_when_no_tar_files_in_folder(self):
-        path = Path("integrations/SD_Lon/tests")
+        path = Path("")
         tar_gz_files = get_tar_gz_archive_files(path)
 
         assert [] == tar_gz_files

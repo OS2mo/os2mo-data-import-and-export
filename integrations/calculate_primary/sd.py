@@ -2,7 +2,7 @@ import datetime
 
 from integrations.calculate_primary.common import logger
 from integrations.calculate_primary.common import MOPrimaryEngagementUpdater
-from integrations.SD_Lon import sd_common
+from integrations.SD_Lon.sdlon import sd_common
 
 
 class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):

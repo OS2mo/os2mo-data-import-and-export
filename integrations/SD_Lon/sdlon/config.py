@@ -23,7 +23,7 @@ from pydantic import SecretStr
 from pydantic import UUID4
 from ra_utils.load_settings import load_settings
 
-from integrations.SD_Lon.models import JobFunction
+from .models import JobFunction
 
 
 class CommonSettings(BaseSettings):
@@ -33,6 +33,7 @@ class CommonSettings(BaseSettings):
 
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
+
     sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
     sd_global_from_date: date
     sd_import_too_deep: List[str] = []
@@ -41,6 +42,11 @@ class CommonSettings(BaseSettings):
     sd_user: str
     sd_job_function: JobFunction
     sd_monthly_hourly_divide: PositiveInt
+
+    cpr_uuid_map_path: str = (
+        "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv"
+    )
+    cache_folder_path: str = "/opt/dipex/os2mo-data-import-and-export/tmp/"
 
 
 def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
@@ -75,6 +81,25 @@ def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
         return json_settings
 
     return json_file_settings
+
+
+class SDCommonSettings(CommonSettings):
+    class Config:
+        extra = Extra.forbid
+
+        @classmethod
+        def customise_sources(
+            cls,
+            init_settings,
+            env_settings,
+            file_secret_settings,
+        ):
+            return (
+                init_settings,
+                env_settings,
+                gen_json_file_settings_func(SDCommonSettings),
+                file_secret_settings,
+            )
 
 
 class ImporterSettings(CommonSettings):
@@ -140,6 +165,11 @@ class ChangedAtSettings(CommonSettings):
                 gen_json_file_settings_func(ChangedAtSettings),
                 file_secret_settings,
             )
+
+
+@lru_cache()
+def get_common_settings(*args, **kwargs) -> SDCommonSettings:
+    return SDCommonSettings(*args, **kwargs)
 
 
 @lru_cache()

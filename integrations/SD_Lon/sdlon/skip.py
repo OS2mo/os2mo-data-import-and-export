@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from typing import OrderedDict
 
-from integrations.SD_Lon.config import get_changed_at_settings
+from .config import get_changed_at_settings
 
 logger = logging.getLogger("sdChangedAt")
 
