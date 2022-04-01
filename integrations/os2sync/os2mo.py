@@ -158,13 +158,6 @@ def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
         user["Email"] = email["name"]
 
 
-@lru_cache
-def get_allowed_org_units(mora_base, root_uuid):
-    
-    url = f"o/{org}/ou/?root={str(root)}"
-
-    return set(map(itemgetter("uuid"), ous))
-
 def engagements_to_user(user, engagements, allowed_unitids):
     for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
