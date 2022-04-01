@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.2 - 2022-04-01
+-------------------
+
+[#48316] LoraCache: handle associations without "association_type"
+
 2.24.1 - 2022-04-01
 -------------------
 
