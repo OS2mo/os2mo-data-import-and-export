@@ -657,9 +657,10 @@ class LoraCache:
                 user_key = attr["organisationfunktionegenskaber"][0][
                     "brugervendtnoegle"
                 ]
-                association_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+                association_type_uuid = get_rel_uuid_or_none(
+                    uuid, rel, "organisatoriskfunktionstype"
+                )
                 user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedebrugere")
-
                 it_user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedeitsystemer")
                 job_function_uuid = (
                     get_rel_uuid_or_none(uuid, rel, "tilknyttedefunktioner")
@@ -673,7 +674,7 @@ class LoraCache:
                         "user": user_uuid,
                         "unit": unit_uuid,
                         "user_key": user_key,
-                        "association_type": association_type,
+                        "association_type": association_type_uuid,
                         "it_user": it_user_uuid,
                         "job_function": job_function_uuid,
                         "from_date": from_date,
