@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.1 - 2022-04-01
+-------------------
+
+[#49253] Create SD Changed At image
+
 2.24.0 - 2022-04-01
 -------------------
 
