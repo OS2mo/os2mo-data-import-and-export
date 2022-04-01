@@ -131,7 +131,7 @@ class Tilknytning(Base):
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     tilknytningstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
-    tilknytningstype_titel = Column(String(250), nullable=False)
+    tilknytningstype_titel = Column(String(250))
     stillingsbetegnelse_uuid = Column(String(36))
     stillingsbetegnelse_titel = Column(String(250))
     it_forbindelse_uuid = Column(String(36))
