@@ -8,7 +8,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import pairwise
 from parameterized import parameterized
-
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
 from sdlon.date_utils import gen_cut_dates

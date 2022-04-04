@@ -14,14 +14,14 @@ from hypothesis import given
 from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
+from sdlon.config import ImporterSettings
+from sdlon.sd_changed_at import ChangeAtSD
+from sdlon.sd_changed_at import get_from_date
 
 from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from sdlon.config import ImporterSettings
-from sdlon.sd_changed_at import ChangeAtSD
-from sdlon.sd_changed_at import get_from_date
 
 
 @given(test_from_date=st.datetimes())
