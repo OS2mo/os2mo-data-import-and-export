@@ -164,12 +164,15 @@ imports_sd_fix_departments(){
 
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/integrations/SD_Lon/sd_changed_at.log"
+    )
     BACK_UP_AFTER_JOBS+=(
         ${DIPEXAR}/cpr_mo_ad_map.csv
         ${DIPEXAR}/settings/cpr_uuid_map.csv
     )
     cd integrations/SD_Lon/
-    poetry run python -m sdlon.sd_changed_at changed-at-cli
+    poetry run python -m sdlon.sd_changed_at changed-at-cli | tee sd_changed_at.log
 }
 
 imports_opus_diff_import(){
