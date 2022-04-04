@@ -36,6 +36,7 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_import_run_db": "run_db.sqlite",
     "sd_institution_identifier": "XYZ",
     "sd_job_function": "EmploymentName",
+    "sd_log_level": "DEBUG",
     "sd_no_salary_minimum_id": None,
     "sd_monthly_hourly_divide": 50000,
     "sd_user": "user",

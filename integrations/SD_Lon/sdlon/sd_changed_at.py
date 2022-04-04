@@ -22,7 +22,6 @@ from uuid import uuid4
 import click
 import requests
 from fastapi.encoders import jsonable_encoder
-from structlog import get_logger
 
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
@@ -38,6 +37,7 @@ from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
+from sdlon.sd_logging import get_logger
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
