@@ -217,7 +217,7 @@ def get_sts_orgunit(session, uuid, settings):
         return None
 
     top_unit = get_top_unit(session, base)
-    if UUID(top_unit) != settings.os2sync_top_unit_uuid:
+    if not top_unit or (UUID(top_unit) != settings.os2sync_top_unit_uuid):
         logger.debug(f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}")
         return None
 
