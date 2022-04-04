@@ -23,7 +23,7 @@ from pydantic import SecretStr
 from pydantic import UUID4
 from ra_utils.load_settings import load_settings
 
-from .models import JobFunction
+from .models import JobFunction, LogLevel
 
 
 class CommonSettings(BaseSettings):
@@ -38,6 +38,7 @@ class CommonSettings(BaseSettings):
     sd_global_from_date: date
     sd_import_too_deep: List[str] = []
     sd_institution_identifier: str
+    sd_log_level: LogLevel = LogLevel.debug
     sd_password: SecretStr
     sd_user: str
     sd_job_function: JobFunction

@@ -5,7 +5,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import datetime
-import logging
 import uuid
 from operator import itemgetter
 from typing import Any
@@ -13,6 +12,8 @@ from typing import Dict
 
 import click
 from anytree import Node
+from structlog import get_logger
+
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
@@ -33,10 +34,7 @@ from .sd_common import sd_lookup
 from .sd_common import skip_fictional_users
 
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_initial_import.log"
-
-logger = logging.getLogger("sdImport")
+logger = get_logger(__name__)
 
 
 class SdImport:
@@ -683,25 +681,7 @@ class SdImport:
 
 @click.group()
 def cli():
-    for name in logging.root.manager.loggerDict:
-        if name in (
-            "sdImport",
-            "sdCommon",
-            "AdReader",
-            "moImporterMoraTypes",
-            "moImporterMoxTypes",
-            "moImporterUtilities",
-            "moImporterHelpers",
-        ):
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
+    pass
 
 
 @cli.command()

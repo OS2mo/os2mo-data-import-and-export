@@ -17,12 +17,13 @@ from typing import Union
 import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
+from structlog import get_logger
 
 from .config import CommonSettings
 from .config import get_common_settings
 
 
-logger = logging.getLogger("sdCommon")
+logger = get_logger(__name__)
 
 
 @lru_cache(maxsize=None)

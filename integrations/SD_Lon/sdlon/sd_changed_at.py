@@ -22,9 +22,10 @@ from uuid import uuid4
 import click
 import requests
 from fastapi.encoders import jsonable_encoder
+from structlog import get_logger
+
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
-from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from integrations.rundb.db_overview import DBOverview
@@ -64,32 +65,9 @@ from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_integrations.log"
 DUMMY_CPR = "0000000000"
 
-logger = logging.getLogger("sdChangedAt")
-
-
-def setup_logging():
-    detail_logging = (
-        "sdCommon",
-        "sdChangedAt",
-        LOGGER_NAME,
-        "fixDepartments",
-        "sdSyncJobId",
-    )
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
+logger = get_logger(__name__)
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
@@ -1440,8 +1418,6 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
-    setup_logging()
-
     settings = get_changed_at_settings()
     run_db = settings.sd_import_run_db
 
@@ -1515,7 +1491,6 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 )
 def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
-    setup_logging()
     settings = get_changed_at_settings()
 
     if not from_date:

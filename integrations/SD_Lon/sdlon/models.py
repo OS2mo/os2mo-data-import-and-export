@@ -9,6 +9,14 @@ class JobFunction(str, Enum):
     employment_name = "EmploymentName"
 
 
+class LogLevel(str, Enum):
+    debug = "DEBUG"
+    info = "INFO"
+    warning = "WARNING"
+    error = "ERROR"
+    critical = "CRITICAL"
+
+
 class SDBasePerson(BaseModel):
     cpr: str
     given_name: Optional[str]

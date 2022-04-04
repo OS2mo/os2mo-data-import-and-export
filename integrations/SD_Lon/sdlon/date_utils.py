@@ -12,6 +12,7 @@ from typing import Tuple
 
 from more_itertools import pairwise
 from more_itertools import tabulate
+from structlog import get_logger
 
 from .sd_common import EmploymentStatus
 
@@ -23,7 +24,7 @@ MO_INFINITY = None
 SD_INFINITY: str = "9999-12-31"
 DATE_REGEX_STR = "[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[0-1])"
 
-logger = logging.getLogger("sdImport")
+logger = get_logger(__name__)
 
 
 def date_to_datetime(d: date) -> datetime:
