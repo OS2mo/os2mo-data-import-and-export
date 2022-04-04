@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.3 - 2022-04-04
+-------------------
+
+[#49602] Fix compare of parent uuids when there are no parent (an external organisation)
+
 2.24.2 - 2022-04-01
 -------------------
 
