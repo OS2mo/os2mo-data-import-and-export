@@ -1,6 +1,5 @@
 import datetime
 import json
-import logging
 from functools import partial
 from itertools import chain
 
@@ -8,6 +7,7 @@ import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from sdlon.sd_logging import get_logger
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -18,25 +18,7 @@ from .sd_common import sd_lookup as _sd_lookup
 
 sd_lookup = partial(_sd_lookup, use_cache=False)
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "fix_sd_departments.log"
-
-logger = logging.getLogger("fixDepartments")
-
-
-def setup_logging():
-    detail_logging = ("sdCommon", "fixDepartments")
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
+logger = get_logger(__name__)
 
 
 class FixDepartments:
@@ -520,8 +502,6 @@ class FixDepartments:
 )
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
-    setup_logging()
-
     settings = get_changed_at_settings()
     unit_fixer = FixDepartments(settings)
 

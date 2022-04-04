@@ -1,9 +1,8 @@
 from typing import Any
 from typing import OrderedDict
 
-from structlog import get_logger
-
 from .config import get_changed_at_settings
+from .sd_logging import get_logger
 
 logger = get_logger(__name__)
 

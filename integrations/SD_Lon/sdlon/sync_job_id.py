@@ -4,6 +4,7 @@ import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from sdlon.sd_logging import get_logger
 from .config import CommonSettings
 from .models import JobFunction
 from .sd_common import mora_assert
@@ -14,21 +15,7 @@ from .sd_payloads import edit_klasse_title
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "sync_job_id.log"
 
-logger = logging.getLogger("sdSyncJobId")
-
-
-def setup_logging():
-    for name in logging.root.manager.loggerDict:
-        if name in ("sdSyncJobId", "sdCommon", "mora-helper"):
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
+logger = get_logger(__name__)
 
 
 class JobIdSync:
@@ -235,8 +222,6 @@ class JobIdSync:
 )
 def sync_jobid(job_pos_id, title, sync_all):
     """Job Position Synchronize tool."""
-    setup_logging()
-
     if job_pos_id is None and sync_all is None:
         raise click.ClickException("Either job-pos-id or sync-all must be given")
     if job_pos_id and sync_all:

@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import logging
 import pickle
 import uuid
 from enum import Enum
@@ -17,11 +16,10 @@ from typing import Union
 import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
-from structlog import get_logger
 
 from .config import CommonSettings
 from .config import get_common_settings
-
+from .sd_logging import get_logger
 
 logger = get_logger(__name__)
 

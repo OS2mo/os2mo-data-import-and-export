@@ -12,7 +12,6 @@ from typing import Dict
 
 import click
 from anytree import Node
-from structlog import get_logger
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
@@ -20,6 +19,7 @@ from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
+from sdlon.sd_logging import get_logger
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date
