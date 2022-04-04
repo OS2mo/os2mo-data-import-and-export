@@ -23,4 +23,4 @@ source .venv/bin/activate
 pip install --editable .
 
 cd integrations/SD_Lon/
-poetry install
+$POETRYPATH install
