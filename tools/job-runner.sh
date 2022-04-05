@@ -7,6 +7,7 @@ export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
 export BACKUP_MAX_SECONDS_AGE=${BACKUP_MAX_SECONDS_AGE:=120}
 export VENV=${VENV:=${DIPEXAR}/.venv}
+export POETRYPATH=${POETRYPATH:=/home/$(whoami)/.local/bin/poetry}
 export IMPORTS_OK=false
 export EXPORTS_OK=false
 export REPORTS_OK=false
@@ -142,11 +143,13 @@ imports_test_ad_connectivity_writer(){
 }
 
 imports_test_sd_connectivity(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/test_sd_connectivity.log"
-    )
     echo running imports_test_sd_connectivity
-    ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/integrations/SD_Lon/test_sd_connectivity.log"
+    )
+    cd integrations/SD_Lon/
+    ${POETRYPATH} run python -m sdlon.test_sd_connectivity
+    cd ../..
 }
 
 imports_test_opus_connectivity(){
@@ -169,7 +172,8 @@ imports_sd_changed_at(){
         ${DIPEXAR}/settings/cpr_uuid_map.csv
     )
     cd integrations/SD_Lon/
-    poetry run python -m sdlon.sd_changed_at changed-at-cli
+    ${POETRYPATH} run python -m sdlon.sd_changed_at changed-at-cli
+    cd ../..
 }
 
 imports_opus_diff_import(){
