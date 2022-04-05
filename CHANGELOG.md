@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.5 - 2022-04-05
+-------------------
+
+[#49663] Fixed SD test connectivity job-runner bug
+
 2.24.4 - 2022-04-04
 -------------------
 
