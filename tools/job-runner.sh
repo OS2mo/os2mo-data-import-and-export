@@ -148,7 +148,7 @@ imports_test_sd_connectivity(){
         "${DIPEXAR}/integrations/SD_Lon/test_sd_connectivity.log"
     )
     cd integrations/SD_Lon/
-    ${POETRYPATH} run python -m sdlon.test_sd_connectivity check_connectivity
+    ${POETRYPATH} run python -m sdlon.test_sd_connectivity
     cd ../..
 }
 
