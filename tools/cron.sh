@@ -75,7 +75,7 @@ fi
 
 # Run script
 #-----------
-SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
+SCRIPT_OUTPUT=$(su --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
 
 
