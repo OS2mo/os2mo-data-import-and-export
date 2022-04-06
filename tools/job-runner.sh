@@ -149,7 +149,9 @@ imports_test_sd_connectivity(){
     )
     cd integrations/SD_Lon/
     ${POETRYPATH} run python -m sdlon.test_sd_connectivity
+    EXIT_CODE=$?
     cd ../..
+    return $EXIT_CODE
 }
 
 imports_test_opus_connectivity(){
@@ -173,7 +175,9 @@ imports_sd_changed_at(){
     )
     cd integrations/SD_Lon/
     ${POETRYPATH} run python -m sdlon.sd_changed_at changed-at-cli
+    EXIT_CODE=$?
     cd ../..
+    return $EXIT_CODE
 }
 
 imports_opus_diff_import(){
