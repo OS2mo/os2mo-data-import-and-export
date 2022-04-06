@@ -153,6 +153,13 @@ Lint AAK LOS Integration:
     - pip install mypy pre-commit types-python-dateutil
     - pre-commit run --files *.py
 
+Lint FK-org uuid-import:
+  extends: .lint-python
+  script:
+    - cd integrations/fkorg_it_systems/
+    - pip install mypy pre-commit types-python-dateutil
+    - pre-commit run --files *.py
+
 Lint Reports:
   extends: .lint-python
   script:
@@ -257,6 +264,11 @@ Test AAK LOS Integration:
     - cd integrations/aarhus
     - pip install -r ../requirements/test.txt
     - pytest tests/
+
+Test FK-org uuid-import:
+  extends: .test-python
+  script:
+    - pytest integrations/fkorg_it_systems/
 
 Test Reports:
   extends: .test-python
