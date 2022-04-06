@@ -25,7 +25,7 @@ class DryRunClient(ModelClient):
 
 
 async def check_it_system_value(
-    moclient: ModelClient, mo_uuid, fk_org_uuid
+    moclient: ModelClient, mo_uuid: str, fk_org_uuid: str
 ) -> Tuple[Optional[str], bool]:
     """Checks the fk_org it accounts of an org_unit
     Returns the (optional) uuid of the current fk_org_uuid it system account
