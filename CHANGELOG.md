@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.6 - 2022-04-06
+-------------------
+
+[#49633] Fix virtual environment issues
+
 2.24.5 - 2022-04-05
 -------------------
 
