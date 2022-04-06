@@ -1,5 +1,5 @@
 # Script to import a mapping of MO-uuids to FK-org uuids as it-accounts on org_units in OS2MO
-# eg: python3 integrations/fk-org\ it\ systems/import-org-units.py --dry-run customers/Silkeborg/Silkeborg_it.uuids
+# metacli import_fkorg_orgunits integrations/fk-org\ it\ systems/test_uuids.json --dry-run
 import json
 from datetime import datetime
 from typing import Optional
@@ -18,15 +18,17 @@ import constants
 
 class DryRunClient(ModelClient):
     async def upload(self, *args, **kwargs):
-        click.echo(args)
-        click.echo(kwargs)
+        click.echo(f"dry-run. Would create {len(args[0])} new accounts")
+
+    async def edit(self, *args, **kwargs):
+        click.echo(f"dry-run. Would edit {len(args[0])} accounts")
 
 
 async def check_it_system_value(
     moclient: ModelClient, mo_uuid, fk_org_uuid
 ) -> Tuple[Optional[str], bool]:
     """Checks the fk_org it accounts of an org_unit
-    Returns the (optional) uuid of the current fk_org_uuid it system account 
+    Returns the (optional) uuid of the current fk_org_uuid it system account
     and a boolean which tells whether or not the account should be changed or created.
     """
     current_it_accounts = await moclient.get(f"/service/ou/{mo_uuid}/details/it")
@@ -48,15 +50,15 @@ async def check_it_system_value(
 @click.argument("input-file")
 @click.option("--mora-base", default=load_setting("mora.base"), envvar="BASE_URL")
 @click.option(
-    "--client-id", default=load_setting("crontab.client_id"), envvar="CLIENT_ID"
+    "--client-id", default=load_setting("crontab.CLIENT_ID"), envvar="CLIENT_ID"
 )
 @click.option(
     "--client-secret",
-    default=load_setting("crontab.client_secret"),
+    default=load_setting("crontab.CLIENT_SECRET"),
     envvar="CLIENT_SECRET",
 )
 @click.option(
-    "--auth-server", default=load_setting("crontab.auth_server"), envvar="AUTH_SERVER"
+    "--auth-server", default=load_setting("crontab.AUTH_SERVER"), envvar="AUTH_SERVER"
 )
 @click.option("--dry-run", is_flag=True)
 @async_to_sync
