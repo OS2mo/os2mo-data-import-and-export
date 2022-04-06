@@ -1,7 +1,7 @@
-from integrations.fkorg_it_systems.import_fkorg_orgunits import check_it_system_value
 from ra_utils.async_to_sync import async_to_sync
 
 from constants import FK_org_uuid_it_system
+from integrations.fkorg_it_systems.import_fkorg_orgunits import check_it_system_value
 
 
 class MockResponse:
