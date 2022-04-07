@@ -355,7 +355,7 @@ def is_ignored(unit, settings):
     )
 
 
-def get_sts_orgunit(uuid, settings):
+def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
