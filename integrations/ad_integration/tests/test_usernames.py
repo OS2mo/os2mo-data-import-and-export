@@ -1,4 +1,5 @@
 import unittest
+from typing import Any
 from unittest import mock
 
 from hypothesis import given
@@ -854,7 +855,7 @@ class TestUserNameSetCSVFile(unittest.TestCase):
                 return instance
 
 
-Base = declarative_base()
+Base = declarative_base()  # type: Any
 
 
 class MockedDatabase(Base):
