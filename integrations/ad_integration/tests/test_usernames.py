@@ -1,4 +1,3 @@
-from mock_alchemy.mocking import UnifiedAlchemyMagicMock
 import unittest
 from unittest import mock
 
@@ -6,6 +5,12 @@ from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
 from parameterized import parameterized
+from sqlalchemy import Column
+from sqlalchemy import create_engine
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 from ..ad_exceptions import ImproperlyConfigured
 from ..user_names import UserNameGen
@@ -17,7 +22,6 @@ from ..user_names import UserNameSetInAD
 from ..user_names import UserNameSetInDatabase
 from .mocks import MockADParameterReader
 from .name_simulator import create_name
-from sqlalchemy import create_engine
 
 
 class TestUserNameGen(unittest.TestCase):
@@ -848,19 +852,17 @@ class TestUserNameSetCSVFile(unittest.TestCase):
                 instance._mock_open = mock_open
                 return instance
 
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.sql import table, column, select
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-
 
 Base = declarative_base()
+
+
 class MockedDatabase(Base):
-    __tablename__ = 'usernames'
+    __tablename__ = "usernames"
 
     uid = Column(Integer, primary_key=True)
     username = Column(String)
     other_random_info = Column(String, default="test")
+
 
 class TestUserNameSetDatabase(unittest.TestCase):
     def setUp(self):
@@ -875,19 +877,22 @@ class TestUserNameSetDatabase(unittest.TestCase):
         name3 = MockedDatabase(uid=3, username="Bob")
         self.session.add(name3)
         self.session.commit()
-    
+
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
     def test_load_from_database(self):
-        
-        with mock.patch.object(UserNameSetInDatabase, '_get_session', return_value=self.session) as sql_mock:
-            with mock.patch.object(UserNameSetInDatabase, '_get_settings', return_value=("", "usernames", "username")):
+
+        with mock.patch.object(
+            UserNameSetInDatabase, "_get_session", return_value=self.session
+        ) as sql_mock:
+            with mock.patch.object(
+                UserNameSetInDatabase,
+                "_get_settings",
+                return_value=("", "usernames", "username"),
+            ):
 
                 instance = UserNameSetInDatabase()
                 # assert instance._usernames
                 assert sql_mock.call_count == 1
                 assert instance._usernames == {"Alice", "Bob"}
-
-            
-
