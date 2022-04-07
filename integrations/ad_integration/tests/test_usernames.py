@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import session
 from sqlalchemy.orm import sessionmaker
 
 from ..ad_exceptions import ImproperlyConfigured
@@ -881,18 +882,23 @@ class TestUserNameSetDatabase(unittest.TestCase):
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
-    def test_load_from_database(self):
-
+    @mock.patch.object(
+        UserNameSetInDatabase,
+        "_get_settings",
+        return_value=("", "usernames", "username"),
+    )
+    def test_load_from_database(self, settings_mock):
         with mock.patch.object(
             UserNameSetInDatabase, "_get_session", return_value=self.session
         ) as sql_mock:
-            with mock.patch.object(
-                UserNameSetInDatabase,
-                "_get_settings",
-                return_value=("", "usernames", "username"),
-            ):
 
-                instance = UserNameSetInDatabase()
-                # assert instance._usernames
-                assert sql_mock.call_count == 1
-                assert instance._usernames == {"Alice", "Bob"}
+            instance = UserNameSetInDatabase()
+            # assert instance._usernames
+            assert sql_mock.call_count == 1
+            assert instance._usernames == {"Alice", "Bob"}
+
+    @mock.patch.object(UserNameSetInDatabase, "__init__", return_value=None)
+    def test_get_session(self, init_mock):
+        instance = UserNameSetInDatabase()
+        s = instance._get_session("sqlite://")
+        assert isinstance(s, session.Session)
