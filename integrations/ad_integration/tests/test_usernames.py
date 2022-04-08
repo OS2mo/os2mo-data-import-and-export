@@ -858,7 +858,7 @@ class TestUserNameSetCSVFile(unittest.TestCase):
 Base = declarative_base()  # type: Any
 
 
-class MockedDatabase(Base):
+class MockedUserNameTable(Base):
     __tablename__ = "usernames"
 
     uid = Column(Integer, primary_key=True)
@@ -866,17 +866,17 @@ class MockedDatabase(Base):
     other_random_info = Column(String, default="test")
 
 
-class TestUserNameSetDatabase(unittest.TestCase):
+class TestUserNameSetInDatabase(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine("sqlite://")
         self.session = sessionmaker(bind=self.engine, autoflush=False)()
 
         Base.metadata.create_all(self.engine)
-        name1 = MockedDatabase(uid=1, username="Alice")
+        name1 = MockedUserNameTable(uid=1, username="Alice")
         self.session.add(name1)
-        name2 = MockedDatabase(uid=2, username="Bob")
+        name2 = MockedUserNameTable(uid=2, username="Bob")
         self.session.add(name2)
-        name3 = MockedDatabase(uid=3, username="Bob")
+        name3 = MockedUserNameTable(uid=3, username="Bob")
         self.session.add(name3)
         self.session.commit()
 
@@ -894,7 +894,6 @@ class TestUserNameSetDatabase(unittest.TestCase):
         ) as sql_mock:
 
             instance = UserNameSetInDatabase()
-            # assert instance._usernames
             assert sql_mock.call_count == 1
             assert instance._usernames == {"Alice", "Bob"}
 
