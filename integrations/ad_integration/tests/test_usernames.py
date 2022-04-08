@@ -822,7 +822,7 @@ class TestUserNameGenPermutation(unittest.TestCase):
 class TestUserNameSetCSVFile(unittest.TestCase):
     csv_path = "some/fs/path"
     csv_lines = [
-        "%s,uid" % UserNameSetCSVFile._column_name,
+        "%s,foo" % UserNameSetCSVFile._column_name,
         "abcd1234,",
         "efgh5678",
     ]
