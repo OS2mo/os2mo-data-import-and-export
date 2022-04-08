@@ -4,15 +4,19 @@ import logging
 import string
 from operator import itemgetter
 from typing import List
+from typing import Tuple
 
 from more_itertools import interleave_longest
 from more_itertools import nth_permutation
 from ra_utils.load_settings import load_setting
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.sql import column
+from sqlalchemy.sql import table
 
 from .ad_exceptions import ImproperlyConfigured
 from .ad_reader import ADParameterReader
 from .username_rules import method_2
-
 
 logger = logging.getLogger(__name__)
 
@@ -306,3 +310,29 @@ class UserNameSetInAD(UserNameSet):
         reader = ADParameterReader()
         all_users = reader.read_it_all()
         self._usernames = set(map(itemgetter("SamAccountName"), all_users))
+
+
+class UserNameSetInDatabase(UserNameSet):
+    def __init__(self):
+        connection_string, table_name, column_name = self._get_settings()
+        session = self._get_session(connection_string)
+        t = table(table_name, column(column_name))
+        res = session.query(t).distinct()
+        # Extract the usernames from returned list of tuples like [('Alice',), ('Bob',)]
+        self._usernames = set(map(itemgetter(0), res))
+
+    def _get_settings(self) -> Tuple[str, str, str]:
+        get_table_name = load_setting(
+            "integrations.ad_writer.user_names.disallowed.sql_table_name"
+        )
+        get_column_name = load_setting(
+            "integrations.ad_writer.user_names.disallowed.sql_column_name"
+        )
+        get_connection_string = load_setting(
+            "integrations.ad_writer.user_names.disallowed.sql_connection_string"
+        )
+        return get_connection_string(), get_table_name(), get_column_name()
+
+    def _get_session(self, connection_string):
+        engine = create_engine(connection_string)
+        return sessionmaker(bind=engine, autoflush=False)()
