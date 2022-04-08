@@ -212,7 +212,7 @@ def get_fk_org_uuid(it_accounts: Dict , mo_uuid: str, uuid_from_it_systems: List
     it.append(mo_uuid)
     return first(it)
 
-def get_sts_user(uuid, allowed_unitids, settings = None):
+def get_sts_user(uuid, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
