@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.27.0 - 2022-04-08
+-------------------
+
+[#49218] Enable os2sync to use values from it-systems listed in settings as uuids in fk-org.
+
 2.26.0 - 2022-04-08
 -------------------
 
