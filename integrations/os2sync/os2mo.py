@@ -17,7 +17,6 @@ from operator import itemgetter
 import requests
 from more_itertools import first
 from more_itertools import one
-from os2mo_helpers.mora_helpers import MoraHelper
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -203,6 +202,16 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
+def get_fk_org_uuid(it_accounts: Dict , mo_uuid: str, uuid_from_it_systems: List[str]) -> str:
+    """Find FK-org uuid from it-accounts based on the given list of it-system names."""
+    it = list(filter(lambda i: i["itsystem"]["name"] in uuid_from_it_systems, it_accounts))
+    # Sort the relevant it-systems based on their position in the given list
+    it.sort(key=lambda name: uuid_from_it_systems.index(name["itsystem"]["name"]))
+    it = list(map(itemgetter("uuid"), it))
+    # Append mo_uuid to return it if no matches were found in it-accounts
+    it.append(mo_uuid)
+    return first(it)
+
 def get_sts_user(uuid, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
@@ -237,6 +246,10 @@ def get_sts_user(uuid, settings):
         sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
+
+    if settings.os2sync_uuid_from_it_systems:
+        it = os2mo_get(f"{{BASE}}/e/{mo_uuid}/details/it").json()
+        sts_user["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
     return sts_user
 
 
@@ -253,7 +266,8 @@ def manager_to_orgunit(unit_uuid: UUID) -> UUID:
         return UUID(one(manager)["person"]["uuid"])
 
 
-def itsystems_to_orgunit(orgunit, itsystems):
+def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
+    itsystems = filter(lambda i: i["itsystem"]["name"] not in uuid_from_it_systems, itsystems)
     for i in itsystems:
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
@@ -355,7 +369,6 @@ def is_ignored(unit, settings):
         and UUID(unit["org_unit_type"]["uuid"]) in settings.os2sync_ignored_unit_types
     )
 
-
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
@@ -380,7 +393,8 @@ def get_sts_orgunit(uuid: str, settings):
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
 
     itsystems_to_orgunit(
-        sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/it").json()
+        sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/it").json(),
+        uuid_from_it_systems=settings.os2sync_uuid_from_it_systems
     )
     addresses_to_orgunit(
         sts_org_unit,
@@ -399,9 +413,13 @@ def get_sts_orgunit(uuid: str, settings):
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks
         )
-
+    
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
+    
+    if settings.os2sync_uuid_from_it_systems:
+        it = os2mo_get(f"{{BASE}}/ou/{mo_uuid}/details/it").json()
+        sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
     return sts_org_unit
 
 

@@ -9,16 +9,7 @@ from integrations.os2sync.os2mo import get_work_address
 from integrations.os2sync.os2mo import is_ignored
 from integrations.os2sync.os2mo import kle_to_orgunit
 from integrations.os2sync.os2mo import partition_kle
-
-
-class MockOs2moGet:
-    """Class which allows patching to have a json() method"""
-
-    def __init__(self, return_value):
-        self.return_value = return_value
-
-    def json(self):
-        return self.return_value
+from integrations.os2sync.tests.helpers import MockOs2moGet
 
 
 class TestsMOAd(unittest.TestCase):
