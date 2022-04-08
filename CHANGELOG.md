@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.26.0 - 2022-04-08
+-------------------
+
+[#41274] AD_writer username disallowed list can now be read from a database.
+
 2.25.0 - 2022-04-08
 -------------------
 
