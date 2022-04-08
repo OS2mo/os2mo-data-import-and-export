@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.25.0 - 2022-04-08
+-------------------
+
+[#49383] Adds OS2sync CLI to update single org_units or employees to FK-org.
+
 2.24.8 - 2022-04-08
 -------------------
 
