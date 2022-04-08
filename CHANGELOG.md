@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.28.0 - 2022-04-08
+-------------------
+
+[#49668] Introduce misc feature flags
+
 2.27.0 - 2022-04-08
 -------------------
 
