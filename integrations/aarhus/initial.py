@@ -1,142 +1,24 @@
+from dataclasses import dataclass
+from typing import Any
+from typing import Dict
+from typing import List
+
 import config
-import mox_helpers.payloads as mox_payloads
 import uuids
+from initial_classes import Class
+from initial_classes import CLASSES
+from mox_helpers import payloads as mox_payloads
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 
 from os2mo_data_import import ImportHelper  # type: ignore
 from os2mo_data_import.mox_data_types import Itsystem
 
-CLASSES = [
-    (
-        "Postadresse",
-        "org_unit_address_type",
-        "DAR",
-        "AddressMailUnit",
-        uuids.UNIT_POSTADDR,
-    ),
-    ("LOS ID", "org_unit_address_type", "TEXT", "LOSID", uuids.UNIT_LOS),
-    ("CVR nummer", "org_unit_address_type", "TEXT", "CVRUnit", uuids.UNIT_CVR),
-    ("EAN nummer", "org_unit_address_type", "EAN", "EANUnit", uuids.UNIT_EAN),
-    (
-        "P-nummer",
-        "org_unit_address_type",
-        "PNUMBER",
-        "PNumber",
-        uuids.UNIT_PNR,
-    ),
-    ("SE-nummer", "org_unit_address_type", "TEXT", "SENumber", uuids.UNIT_SENR),
-    (
-        "IntDebitor-Nr",
-        "org_unit_address_type",
-        "TEXT",
-        "intdebit",
-        uuids.UNIT_DEBITORNR,
-    ),
-    ("WWW", "org_unit_address_type", "WWW", "UnitWeb", uuids.UNIT_WWW),
-    (
-        "Ekspeditionstid",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitHours",
-        uuids.UNIT_HOURS,
-    ),
-    (
-        "Telefontid",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitPhoneHours",
-        uuids.UNIT_PHONEHOURS,
-    ),
-    (
-        "Telefon",
-        "org_unit_address_type",
-        "PHONE",
-        "UnitPhone",
-        uuids.UNIT_PHONE,
-    ),
-    ("Fax", "org_unit_address_type", "PHONE", "UnitFax", uuids.UNIT_FAX),
-    ("Email", "org_unit_address_type", "EMAIL", "UnitEmail", uuids.UNIT_EMAIL),
-    (
-        "Magkort",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitMagID",
-        uuids.UNIT_MAG_ID,
-    ),
-    (
-        "Alternativt navn",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitNameAlt",
-        uuids.UNIT_NAME_ALT,
-    ),
-    (
-        "Phone",
-        "employee_address_type",
-        "PHONE",
-        "PhoneEmployee",
-        uuids.PERSON_PHONE,
-    ),
-    (
-        "Email",
-        "employee_address_type",
-        "EMAIL",
-        "EmailEmployee",
-        uuids.PERSON_EMAIL,
-    ),
-    (
-        "Lokale",
-        "employee_address_type",
-        "TEXT",
-        "RoomEmployee",
-        uuids.PERSON_ROOM,
-    ),
-    ("Primær", "primary_type", "100000", "primary", uuids.PRIMARY),
-    ("Ikke-primær", "primary_type", "0", "not_primary", uuids.NOT_PRIMARY),
-    (
-        "Linjeorganisation",
-        "org_unit_hierarchy",
-        "TEXT",
-        "linjeorg",
-        uuids.LINJE_ORG_HIERARCHY,
-    ),
-    (
-        "Sikkerhedsorganisation",
-        "org_unit_hierarchy",
-        "TEXT",
-        "sikkerhedsorg",
-        uuids.SIKKERHEDS_ORG_HIERARCHY,
-    ),
-    (
-        "Rolletype",
-        "role_type",
-        "TEXT",
-        "role_type",
-        "964c31a2-6267-4388-bff5-42d6f3c5f708",
-    ),
-    (
-        "Tilknytningsrolle",
-        "association_type",
-        "TEXT",
-        "association_type",
-        "ec534b86-3d9b-42d8-bff0-afc4f81719af",
-    ),
-    (
-        "Orlovstype",
-        "leave_type",
-        "TEXT",
-        "leave_type",
-        "d2892fa6-bc56-4c14-bd24-74ae0c71fa3a",
-    ),
-    (
-        "Alternativ stillingsbetegnelse",
-        "employee_address_type",
-        "TEXT",
-        "AltJobTitle",
-        uuids.PERSON_JOB_TITLE_ALT,
-    ),
-]
+
+@dataclass
+class ClassImportResult:
+    source: Class
+    lora_payload: Dict[str, Any]
 
 
 async def perform_initial_setup():
@@ -178,20 +60,21 @@ async def import_remaining_classes():
     """
     settings = config.get_config()
     mox_helper = await create_mox_helper(settings.mox_base)
+    result: List[ClassImportResult] = []
 
-    for clazz in CLASSES:
-        titel, facet, scope, bvn, uuid = clazz
-
-        facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet)
-
-        klasse = mox_payloads.lora_klasse(
-            bvn=bvn,
-            title=titel,
+    for cls in CLASSES:
+        facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=cls.facet)
+        lora_payload = mox_payloads.lora_klasse(
+            bvn=cls.bvn,
+            title=cls.titel,
             facet_uuid=str(facet_uuid),
             org_uuid=str(uuids.ORG_UUID),
-            scope=scope,
+            scope=cls.scope,
         )
-        await mox_helper.insert_klassifikation_klasse(klasse, str(uuid))
+        await mox_helper.insert_klassifikation_klasse(lora_payload, str(cls.uuid))
+        result.append(ClassImportResult(cls, lora_payload))
+
+    return result
 
 
 async def import_it():
