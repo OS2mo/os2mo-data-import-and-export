@@ -132,11 +132,13 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
 
     @patch.object(os2mo, "engagements_to_user", return_value=[])
     @patch.object(os2mo, "addresses_to_user", return_value=[])
+    @patch.object(os2mo, "org_unit_uuids", return_value={})
     def _run(
         self,
         response,
-        engagemnts_mock,
+        engagents_mock,
         address_mock,
+        org_unit_uuids_mock,
         ad_user_key=None,
         os2sync_templates=None,
     ):
@@ -145,7 +147,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("os2mo_get", response):
             with self._patch("try_get_ad_user_key", ad_user_key):
-                return os2mo_get_sts_user(self._uuid, [], settings=settings)
+                return os2mo_get_sts_user(self._uuid, settings=settings)
 
     def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)

@@ -11,12 +11,13 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import Union
+from typing import Set
 from uuid import UUID
 from operator import itemgetter
 import requests
 from more_itertools import first
 from more_itertools import one
-
+from os2mo_helpers.mora_helpers import MoraHelper
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -165,7 +166,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
-                    #Only used to find primary engamgements work-address
+                    # Only used to find primary engagements work-address
                     "is_primary": e["is_primary"],
                 }
             )
@@ -202,7 +203,7 @@ def get_work_address(positions, work_address_names):
     chosen_work_address= first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_sts_user(uuid, allowed_unitids, settings):
+def get_sts_user(uuid, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     
     user = User(
@@ -223,10 +224,11 @@ def get_sts_user(uuid, allowed_unitids, settings):
     engagements = os2mo_get(
             "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
         ).json()
+    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
     engagements_to_user(
         sts_user,
         engagements,
-        allowed_unitids,
+        allowed_unitids
     )
 
     # Optionally find the work address of employees primary engagement.
@@ -238,14 +240,11 @@ def get_sts_user(uuid, allowed_unitids, settings):
     return sts_user
 
 
-def org_unit_uuids(**kwargs):
+@lru_cache()
+def org_unit_uuids(**kwargs) -> Set[str]:
     org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
-    return [
-        ou["uuid"]
-        for ou in os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
-            "items"
-        ]
-    ]
+    ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()["items"]
+    return set(map(itemgetter("uuid"), ous))
 
 
 def manager_to_orgunit(unit_uuid: UUID) -> UUID:
@@ -357,7 +356,7 @@ def is_ignored(unit, settings):
     )
 
 
-def get_sts_orgunit(uuid, settings):
+def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
@@ -371,9 +370,9 @@ def get_sts_orgunit(uuid, settings):
             parent = parent["parent"]
 
     if not parent["uuid"] == top_unit_uuid:
-        # not part of right tree
-        logger.debug(f"ignoring unit {uuid=}, as it is not a unit bellow {top_unit_uuid=}")
-        return None
+        msg = f"Unit with {uuid=} is not a unit below {top_unit_uuid=}. Check the setting os2sync_top_unit_uuid."
+        logger.error(msg)
+        raise ValueError(msg)
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
 
