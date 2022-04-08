@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.7 - 2022-04-08
+-------------------
+
+[#48316] `SqlExport._add_associations`: handle missing class for "association_type"
+
 2.24.6 - 2022-04-06
 -------------------
 
