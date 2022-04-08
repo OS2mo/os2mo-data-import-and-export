@@ -32,7 +32,6 @@ from more_itertools import last
 from more_itertools import one
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
@@ -112,7 +111,9 @@ class ChangeAtSD:
             logger.info("Read settings. Do not update job_functions")
             self.use_jpi = False
 
-        self.employee_forced_uuids = self._read_forced_uuids()
+        self.employee_forced_uuids = (
+            self._read_forced_uuids() if self.settings.sd_read_forced_uuids else dict()
+        )
         self.department_fixer = self._get_fix_departments()
         self.helper = self._get_mora_helper(self.settings.mora_base)
         self.job_sync = self._get_job_sync(self.settings)
@@ -137,7 +138,11 @@ class ChangeAtSD:
             print(e)
             exit()
 
-        self.updater = self._get_primary_engagement_updater()
+        self.updater = (
+            self._get_primary_engagement_updater()
+            if self.settings.sd_update_primary_engagement
+            else None
+        )
         self.from_date = from_date
         self.to_date = to_date
 
@@ -1333,6 +1338,9 @@ class ChangeAtSD:
                     logger.error("Unable to find person in MO, SD error: " + str(exp))
                     continue
 
+            if not mo_person:
+                logger.warning("MO person not set!!")
+                continue
             person_uuid = mo_person["uuid"]
 
             self._refresh_mo_engagements(person_uuid)
@@ -1343,8 +1351,10 @@ class ChangeAtSD:
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
 
-        logger.info("Beginning recalculation of all users...")
+        if self.updater is None:
+            return
 
+        logger.info("Beginning recalculation of all users...")
         for user_uuid in recalculate_users:
             if dry_run:
                 print("Dry-run: recalculate_user", user_uuid)
@@ -1356,10 +1366,9 @@ class ChangeAtSD:
                 logger.warning("Could not find primary for: {}".format(user_uuid))
 
 
-def _local_db_insert(insert_tuple):
-    settings = load_settings()
+def _local_db_insert(path_to_run_db, insert_tuple):
     conn = sqlite3.connect(
-        settings["integrations.SD_Lon.import.run_db"],
+        path_to_run_db,
         detect_types=sqlite3.PARSE_DECLTYPES,
     )
     c = conn.cursor()
@@ -1378,8 +1387,10 @@ def initialize_changed_at(from_date, run_db, force=False):
     if not run_db.is_file():
         raise Exception("RunDB not created, use 'db_overview.py' to create it")
 
-    _local_db_insert((from_date, from_date, "Running since {}"))
     settings = get_changed_at_settings()
+    _local_db_insert(
+        settings.sd_import_run_db, (from_date, from_date, "Running since {}")
+    )
 
     logger.info("Start initial ChangedAt")
     sd_updater = ChangeAtSD(settings, from_date)
@@ -1387,7 +1398,9 @@ def initialize_changed_at(from_date, run_db, force=False):
     sd_updater.update_all_employments()
     logger.info("Ended initial ChangedAt")
 
-    _local_db_insert((from_date, from_date, "Initial import: {}"))
+    _local_db_insert(
+        settings.sd_import_run_db, (from_date, from_date, "Initial import: {}")
+    )
 
 
 def get_from_date(run_db, force: bool = False) -> datetime.datetime:
@@ -1461,7 +1474,9 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
     dates = gen_date_intervals(from_date, to_date)
     for from_date, to_date in dates:
         logger.info("Importing {} to {}".format(from_date, to_date))
-        _local_db_insert((from_date, to_date, "Running since {}"))
+        _local_db_insert(
+            settings.sd_import_run_db, (from_date, to_date, "Running since {}")
+        )
 
         logger.info("Start ChangedAt module")
         sd_updater = ChangeAtSD(settings, from_date, to_date)  # type: ignore
@@ -1472,7 +1487,9 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
         logger.info("Update all employments")
         sd_updater.update_all_employments()
 
-        _local_db_insert((from_date, to_date, "Update finished: {}"))
+        _local_db_insert(
+            settings.sd_import_run_db, (from_date, to_date, "Update finished: {}")
+        )
 
         logger.info("Program stopped.")
 

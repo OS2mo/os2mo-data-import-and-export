@@ -19,7 +19,7 @@ from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from sdlon.config import ImporterSettings
+from sdlon.config import ChangedAtSettings
 from sdlon.sd_changed_at import ChangeAtSD
 from sdlon.sd_changed_at import get_from_date
 
@@ -92,8 +92,6 @@ class ChangeAtSDTest(ChangeAtSD):
 def setup_sd_changed_at(updates=None, hours=24):
     # TODO: remove integrations.SD_Lon.terminate_engagement_with_to_only
     settings_dict = {
-        "municipality_code": 100,
-        "municipality_name": "Pladderballe Kommune",
         "sd_global_from_date": "1970-01-01",
         "sd_import_run_db": "run_db.sqlite",
         "sd_institution_identifier": "XY",
@@ -109,7 +107,7 @@ def setup_sd_changed_at(updates=None, hours=24):
     if updates:
         settings_dict.update(updates)
 
-    settings = ImporterSettings.parse_obj(settings_dict)
+    settings = ChangedAtSettings.parse_obj(settings_dict)
 
     today = date.today()
     start_date = today
@@ -1059,3 +1057,13 @@ class Test_sd_changed_at(unittest.TestCase):
         if to_date:
             self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
             self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
+
+
+def test_read_forced_uuid_use_empty_dict():
+    sd_updater = setup_sd_changed_at({"sd_read_forced_uuids": False})
+    assert sd_updater.employee_forced_uuids == dict()
+
+
+def test_updater_field_is_none_when_primary_engagement_calc_disabled():
+    sd_updater = setup_sd_changed_at({"sd_update_primary_engagement": False})
+    assert sd_updater.updater is None

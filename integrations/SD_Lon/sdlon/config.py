@@ -36,6 +36,7 @@ class CommonSettings(BaseSettings):
 
     sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
     sd_global_from_date: date
+    sd_import_run_db: str
     sd_import_too_deep: List[str] = []
     sd_institution_identifier: str
     sd_password: SecretStr
@@ -105,7 +106,6 @@ class SDCommonSettings(CommonSettings):
 class ImporterSettings(CommonSettings):
     municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
-    sd_import_run_db: str
     sd_importer_create_associations: bool = True
     sd_importer_create_email_addresses: bool = True
     sd_importer_employment_date_as_engagement_start_date: bool = False
@@ -135,7 +135,6 @@ class ImporterSettings(CommonSettings):
 
 class ChangedAtSettings(CommonSettings):
     sd_fix_departments_root: Optional[UUID4] = None
-    sd_import_run_db: str
     sd_no_salary_minimum_id: Optional[int] = None
 
     # List of CRPs to either include OR exclude in the run
@@ -145,8 +144,10 @@ class ChangedAtSettings(CommonSettings):
     # CPRs in sd_cprs will be included in the run
     sd_exclude_cprs_mode: bool = True
 
+    sd_read_forced_uuids: bool = True
     sd_skip_job_functions: List[str] = []
     sd_terminate_engagement_with_to_only: bool = True
+    sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
 
     class Config:
