@@ -165,7 +165,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
-                    #Only used to find primary engagements work-address
+                    # Only used to find primary engagements work-address
                     "is_primary": e["is_primary"],
                 }
             )
@@ -240,7 +240,7 @@ def get_sts_user(uuid, settings):
 
 
 @lru_cache()
-def org_unit_uuids(**kwargs):
+def org_unit_uuids(**kwargs) -> Set[str]:
     org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()["items"]
     return set(map(itemgetter("uuid"), ous))
