@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.24.8 - 2022-04-08
+-------------------
+
+[#49594] AAK LOS import: use correct BVN for "non-primary" class
+
 2.24.7 - 2022-04-08
 -------------------
 
