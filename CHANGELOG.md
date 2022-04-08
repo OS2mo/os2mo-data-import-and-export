@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.28.1 - 2022-04-08
+-------------------
+
+[#xxxxx] Os2sync - Fix call to os2mo_get
+
 2.28.0 - 2022-04-08
 -------------------
 
