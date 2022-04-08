@@ -282,9 +282,17 @@ herefter er programet klar til at lave brugernavne.
     name = ['Olê', 'Østergård', 'Høst', 'Ærøe']
     print(name_creator.create_username(name))
 
-Brugernavne konstrureres efter en forholdsvis specifik algoritme som fremgår af
-koden.
+For at undgå at genbruge brugernavne læses alle eksisterende brugernavne fra AD. Derudover
+er det muligt at tilføje lister af brugernavne man ikke vil have oprettet, fx. fordi tidligere brugere 
+har anvendt det navn. Listen kan hentes fra en csv fil eller fra en database ved at tilføje variable til settings.json.
 
+For at læse fra en csv fil sættes stien til filen i `integrations.ad_writer.user_names.disallowed.csv_path`.
+
+For at læse fra en database sættes følgende settings:
+* "integrations.ad_writer.user_names.disallowed.sql_connection_string" - https://docs.sqlalchemy.org/en/14/core/engines.html
+* "integrations.ad_writer.user_names.disallowed.sql_table_name"
+* "integrations.ad_writer.user_names.disallowed.sql_column_name"
+  
 
 Synkronisering
 --------------
