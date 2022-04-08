@@ -3,6 +3,7 @@
 # Names of IT systems:
 AD_it_system = "Active Directory"
 Opus_it_system = "Opus"
+AD_objectguid_it_system = "AD ObjectGuid"
 FK_org_uuid_it_system = "FK-org uuid"
 
 # BVN's of Employee Address types:

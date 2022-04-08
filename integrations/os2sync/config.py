@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     os2sync_sync_managers: bool = False
     os2sync_use_contact_for_tasks: bool = False
     os2sync_employee_engagement_address: List[str] = []
+    os2sync_uuid_from_it_systems: List[str] = []
 
     
     os2sync_truncate_length: int = 200

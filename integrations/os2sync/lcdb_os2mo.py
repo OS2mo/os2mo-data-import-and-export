@@ -138,7 +138,10 @@ def get_sts_user(session, uuid, allowed_unitids, settings):
         )
 
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
-
+    if settings.os2sync_uuid_from_it_systems:
+        it_connections = session.query(ItForbindelse).filter(ItForbindelse.bruger_uuid == uuid).all()
+        it = [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in it_connections]
+        sts_user["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
     return sts_user
 
 
@@ -231,7 +234,8 @@ def get_sts_orgunit(session, uuid, settings):
     )
     os2mo.itsystems_to_orgunit(
         sts_org_unit,
-        [{"itsystem": {"uuid": itf.it_system_uuid}} for itf in itconnections],
+        [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in itconnections],
+        uuid_from_it_systems = settings.uuid_from_it_systems
     )
 
     addresses = []
@@ -265,4 +269,8 @@ def get_sts_orgunit(session, uuid, settings):
 
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
+    if settings.os2sync_uuid_from_it_systems:
+        it_connections = session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
+        it = [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in it_connections]
+        sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
     return sts_org_unit
