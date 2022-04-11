@@ -4,16 +4,19 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+from typing import Dict
+from typing import Optional
 from uuid import UUID
 
-from jinja2 import Environment, StrictUndefined, Template
+from jinja2 import Environment
+from jinja2 import StrictUndefined
+from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.config import get_os2sync_settings
+from integrations.os2sync.config import Settings
 
 logger = logging.getLogger(_loggername)
 
@@ -54,7 +57,9 @@ class FieldRenderer:
             key: _load_template(key, source) for key, source in config.items()
         }
 
-    def render(self, key: str, context: Dict[str, Any], fallback: Any = None) -> str:
+    def render(
+        self, key: str, context: Dict[str, Any], fallback: Any = None
+    ) -> Optional[Any]:
         """Render a field template given by `key` using `context`.
 
         :param key: config key specifying the template to render
@@ -72,8 +77,7 @@ class FieldRenderer:
             return template.render(**context)
         except Exception as e:
             raise FieldTemplateRenderError(
-                "could not render template %r (context=%r)" %
-                (key, context)
+                "could not render template %r (context=%r)" % (key, context)
             ) from e
 
 
@@ -83,7 +87,7 @@ class Entity:
     def __init__(
         self,
         context: Dict[str, Any],
-        settings: Dict[str, str],
+        settings: Settings,
     ):
         """Configure field renderer for this entity.
 
@@ -93,9 +97,7 @@ class Entity:
 
         self.context = context
         self.settings = settings
-        self.field_renderer = FieldRenderer(
-            self.settings.os2sync_templates
-        )
+        self.field_renderer = FieldRenderer(self.settings.os2sync_templates)
 
     def to_json(self) -> Dict[str, Any]:
         """Return a dictionary suitable for inclusion in a JSON payload."""
@@ -109,7 +111,7 @@ class User(Entity):
     def __init__(
         self,
         context: Dict[str, Any],
-        settings: Optional[Dict[str, str]] = None,
+        settings: Settings = None,
     ):
         super().__init__(context, settings=settings)
         assert isinstance(context["uuid"], (UUID, str))
@@ -125,7 +127,9 @@ class User(Entity):
             # Otherwise, use the "person.user_id" template if available,
             # falling back to the MO user UUID if not.
             user_id = self.field_renderer.render(
-                "person.user_id", self.context, fallback=self.context["uuid"],
+                "person.user_id",
+                self.context,
+                fallback=self.context["uuid"],
             )
 
         person = self.context["person"]
@@ -154,7 +158,9 @@ class Person(Entity):
 
         return {
             "Name": self.field_renderer.render(
-                "person.name", self.context, fallback=self.context["name"],
+                "person.name",
+                self.context,
+                fallback=self.context["name"],
             ),
             "Cpr": cpr,
         }

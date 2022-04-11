@@ -5,10 +5,10 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 import hashlib
 import json
 import logging
+from typing import Dict
 
 import requests
 
@@ -16,20 +16,19 @@ from integrations.os2sync import config
 
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(config.loggername)
-hash_cache = {}
+hash_cache: Dict = {}
 session = requests.Session()
 
 
 if settings.os2sync_api_url == "stub":
     from integrations.os2sync import stub
+
     session = stub.Session()
 
 
 session.verify = settings.os2sync_ca_verify_os2sync
-session.headers = {
-    "User-Agent": "os2mo-data-import-and-export",
-    "CVR": settings.municipality
-}
+session.headers["User-Agent"] = "os2mo-data-import-and-export"
+session.headers["CVR"] = settings.municipality
 
 
 def already_xferred(url, params, method):
@@ -47,8 +46,7 @@ def already_xferred(url, params, method):
 
 
 def os2sync_url(url):
-    """format url like {BASE}/user
-    """
+    """format url like {BASE}/user"""
     url = url.format(BASE=settings.os2sync_api_url)
     return url
 
