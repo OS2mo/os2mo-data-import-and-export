@@ -94,11 +94,12 @@ def sync_os2sync_users(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = os2mo.os2mo_get("/e/", at=prev_date)["items"]
+    org_uuid = os2mo.organization_uuid()
+    os2mo_uuids_past = os2mo.os2mo_get(f"{{BASE}}/o/{org_uuid}/e/", at=prev_date).json()["items"]
     os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
-    os2mo_uuids_past = os2mo.os2mo_get("/e/")["items"]
+    os2mo_uuids_present = os2mo.os2mo_get(f"{{BASE}}/o/{org_uuid}/e/").json()["items"]
     os2mo_uuids_present = set(map(itemgetter("uuid"), os2mo_uuids_present))
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
