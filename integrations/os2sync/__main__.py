@@ -12,14 +12,12 @@ import pathlib
 from functools import partial
 from operator import itemgetter
 
-from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from integrations.os2sync import config
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync import os2mo
 from integrations.os2sync import os2sync
-from functools import lru_cache
 
 logger = None  # set in main()
 
@@ -49,12 +47,14 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_orgunits getting " "all current organisational units from os2mo"
     )
-    os2mo_uuids_present = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    os2mo_uuids_present = os2mo.org_unit_uuids(root=settings.os2sync_top_unit_uuid)
 
     logger.info(
         "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = org_unit_uuids(root=settings.os2sync_top_unit_uuid, at=prev_date)
+    os2mo_uuids_past = os2mo.org_unit_uuids(
+        root=settings.os2sync_top_unit_uuid, at=prev_date
+    )
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
     counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
@@ -95,7 +95,9 @@ def sync_os2sync_users(settings, counter, prev_date):
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
     org_uuid = os2mo.organization_uuid()
-    os2mo_uuids_past = os2mo.os2mo_get(f"{{BASE}}/o/{org_uuid}/e/", at=prev_date).json()["items"]
+    os2mo_uuids_past = os2mo.os2mo_get(
+        f"{{BASE}}/o/{org_uuid}/e/", at=prev_date
+    ).json()["items"]
     os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
@@ -148,7 +150,7 @@ def main(settings):
     logging.basicConfig(
         format=config.logformat,
         level=settings.os2sync_log_level,
-        filename=settings.os2sync_log_file
+        filename=settings.os2sync_log_file,
     )
     logger = logging.getLogger(config.loggername)
     logger.setLevel(settings.os2sync_log_level)
@@ -172,9 +174,8 @@ def main(settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
-    
 
-    # sync_os2sync_orgunits(settings, counter, prev_date)
+    sync_os2sync_orgunits(settings, counter, prev_date)
     sync_os2sync_users(settings, counter, prev_date)
 
     if hash_cache_file:

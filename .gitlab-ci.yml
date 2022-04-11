@@ -132,6 +132,14 @@ Lint Rollekatalog Exporter:
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files *.py
 
+Lint os2sync Exporter:
+  extends: .lint-python
+  script:
+    - cd integrations/os2sync
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files *.py test/*.py
+
+
 Lint CPR UUID Exporter:
   extends: .lint-python
   script:

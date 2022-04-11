@@ -4,10 +4,10 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from unittest.mock import patch
-from integrations.os2sync import os2mo
 
 from helpers import dummy_settings
 
+from integrations.os2sync import os2mo
 from integrations.os2sync.os2mo import get_sts_user
 from integrations.os2sync.os2mo import try_get_ad_user_key
 
