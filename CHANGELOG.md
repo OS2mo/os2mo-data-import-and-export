@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.28.2 - 2022-04-11
+-------------------
+
+[#xxxxx] Fix call to OS2MO that was broken when moving away from morahelpers.
+
 2.28.1 - 2022-04-08
 -------------------
 
