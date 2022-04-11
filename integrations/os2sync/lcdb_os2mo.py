@@ -5,7 +5,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
+from typing import Dict
 from typing import Optional
+from uuid import UUID
 
 from more_itertools import flatten
 from more_itertools import only
@@ -21,12 +23,10 @@ from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
-from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
-from uuid import UUID
 
 logger = logging.getLogger(config.loggername)
 
@@ -63,7 +63,7 @@ def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
     ad_system_user_names = list(flatten(ad_system_user_names))
 
     if len(ad_system_user_names) != 1:
-        return
+        return None
     return ad_system_user_names[0]
 
 
@@ -122,7 +122,12 @@ def get_sts_user(session, uuid, allowed_unitids, settings):
             "uuid": lc_address.uuid,  # not used currently
         }
         addresses.append(address)
-    os2mo.addresses_to_user(sts_user, addresses, phone_scope_classes=settings.os2sync_phone_scope_classes, email_scope_classes=settings.os2sync_email_scope_classes)
+    os2mo.addresses_to_user(
+        sts_user,
+        addresses,
+        phone_scope_classes=settings.os2sync_phone_scope_classes,
+        email_scope_classes=settings.os2sync_email_scope_classes,
+    )
 
     engagements = []
     for lc_engagement in (
@@ -139,13 +144,20 @@ def get_sts_user(session, uuid, allowed_unitids, settings):
 
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
     if settings.os2sync_uuid_from_it_systems:
-        it_connections = session.query(ItForbindelse).filter(ItForbindelse.bruger_uuid == uuid).all()
-        it = [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in it_connections]
-        sts_user["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
+        it_connections = (
+            session.query(ItForbindelse).filter(ItForbindelse.bruger_uuid == uuid).all()
+        )
+        it = [
+            {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
+            for itf in it_connections
+        ]
+        sts_user["Uuid"] = os2mo.get_fk_org_uuid(
+            it, uuid, settings.os2sync_uuid_from_it_systems
+        )
     return sts_user
 
 
-top_per_unit = {}
+top_per_unit: Dict[str, Dict] = {}
 
 
 def get_top_unit(session, lc_enhed):
@@ -203,8 +215,9 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings.os2sync_ignored_unit_types or
-        unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels)
+        unit.enhedstype_uuid in settings.os2sync_ignored_unit_types
+        or unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels
+    )
 
 
 def get_sts_orgunit(session, uuid, settings):
@@ -221,7 +234,9 @@ def get_sts_orgunit(session, uuid, settings):
 
     top_unit = get_top_unit(session, base)
     if not top_unit or (UUID(top_unit) != settings.os2sync_top_unit_uuid):
-        logger.debug(f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}")
+        logger.debug(
+            f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}"
+        )
         return None
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
@@ -234,8 +249,11 @@ def get_sts_orgunit(session, uuid, settings):
     )
     os2mo.itsystems_to_orgunit(
         sts_org_unit,
-        [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in itconnections],
-        uuid_from_it_systems = settings.uuid_from_it_systems
+        [
+            {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
+            for itf in itconnections
+        ],
+        uuid_from_it_systems=settings.uuid_from_it_systems,
     )
 
     addresses = []
@@ -256,7 +274,7 @@ def get_sts_orgunit(session, uuid, settings):
     if settings.os2sync_sync_managers:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
         manager_uuid = only(lc_manager.bruger_uuid)
-        sts_org_unit.update({'managerUuid': manager_uuid})
+        sts_org_unit.update({"managerUuid": manager_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
@@ -264,13 +282,24 @@ def get_sts_orgunit(session, uuid, settings):
         mokles[lc_kle.uuid] = {
             "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
         }
-    os2mo.kle_to_orgunit(sts_org_unit, mokles.values(), use_contact_for_tasks=settings.os2sync_use_contact_for_tasks)
+    os2mo.kle_to_orgunit(
+        sts_org_unit,
+        mokles.values(),
+        use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
+    )
     truncate_length = max(36, settings.os2sync_truncate_length)
 
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
     if settings.os2sync_uuid_from_it_systems:
-        it_connections = session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
-        it = [{"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}} for itf in it_connections]
-        sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
+        it_connections = (
+            session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
+        )
+        it = [
+            {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
+            for itf in it_connections
+        ]
+        sts_org_unit["Uuid"] = os2mo.get_fk_org_uuid(
+            it, uuid, settings.os2sync_uuid_from_it_systems
+        )
     return sts_org_unit

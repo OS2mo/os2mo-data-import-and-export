@@ -6,25 +6,25 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
 from functools import lru_cache
-from typing import Any
+from operator import itemgetter
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Union
 from typing import Set
+from typing import Tuple
 from uuid import UUID
-from operator import itemgetter
+
 import requests
 from more_itertools import first
 from more_itertools import one
+from ra_utils.headers import TokenSettings
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
-from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync import config
+from integrations.os2sync.config import get_os2sync_settings
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
-from ra_utils.headers import TokenSettings
 
 logger = logging.getLogger(config.loggername)
 
@@ -42,19 +42,13 @@ def get_mo_session():
     return session
 
 
-
-
-# Actually recursive, but couple of levels here
-JSON_TYPE = Dict[str, Union[None, str, Dict[str, Union[None, str, Dict[str, Any]]]]]
-
-
 class IT:
     def __init__(self, system_name: str, user_key: str):
         self.system_name = system_name
         self.user_key = user_key
 
     @classmethod
-    def from_mo_json(cls, response: List[JSON_TYPE]):
+    def from_mo_json(cls, response: List):
         """
         Designed to parse the response from MO when requesting a users it-systems
         Concretely, expects a list of this style of object:
@@ -118,9 +112,9 @@ def strip_truncate_and_warn(d, root, length):
 
 @lru_cache
 def os2mo_get(url, **params):
-    #format url like {BASE}/service
+    # format url like {BASE}/service
     mora_base = get_os2sync_settings().mora_base
-    
+
     url = url.format(BASE=f"{mora_base}/service")
     try:
         session = get_mo_session()
@@ -135,7 +129,6 @@ def os2mo_get(url, **params):
 def has_kle():
     os2mo_config = os2mo_get("{BASE}/configuration").json()
     return os2mo_config["show_kle"]
-
 
 
 def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes):
@@ -153,7 +146,7 @@ def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
         user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = choose_public_address(emails,email_scope_classes)
+    email = choose_public_address(emails, email_scope_classes)
     if email:
         user["Email"] = email["name"]
 
@@ -181,30 +174,48 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 
     # if no ad OR multiple
     if len(ad_systems) != 1:
-        return
+        return None
     return ad_systems[0].user_key
 
-def get_work_address(positions, work_address_names):
-    #find the primary engagement and lookup the addresses for that unit
+
+def get_work_address(positions, work_address_names) -> Optional[str]:
+    # find the primary engagement and lookup the addresses for that unit
     primary = filter(lambda e: e["is_primary"], positions)
     try:
         primary_eng = one(primary)
     except ValueError:
-        logger.error("Could not get unique primary engagement, using first found position")
+        logger.error(
+            "Could not get unique primary engagement, using first found position"
+        )
         primary_eng = first(positions)
 
     org_addresses = os2mo_get(
         "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
     ).json()
-    #filter and sort based on settings and use the first match if any
-    work_address = filter(lambda addr: addr["address_type"]["name"] in work_address_names , org_addresses)
-    work_address = sorted(work_address, key=lambda a: work_address_names.index(a["address_type"]["name"]))
-    chosen_work_address= first(work_address, default={})
+    # filter and sort based on settings and use the first match if any
+    work_address: List[Dict] = list(
+        filter(
+            lambda addr: addr["address_type"]["name"] in work_address_names,
+            org_addresses,
+        )
+    )
+    work_address = list(
+        sorted(
+            work_address,
+            key=lambda a: work_address_names.index(a["address_type"]["name"]),
+        )
+    )
+    chosen_work_address: Dict = first(work_address, default={})
     return chosen_work_address.get("name")
 
-def get_fk_org_uuid(it_accounts: Dict , mo_uuid: str, uuid_from_it_systems: List[str]) -> str:
+
+def get_fk_org_uuid(
+    it_accounts: Dict, mo_uuid: str, uuid_from_it_systems: List[str]
+) -> str:
     """Find FK-org uuid from it-accounts based on the given list of it-system names."""
-    it = list(filter(lambda i: i["itsystem"]["name"] in uuid_from_it_systems, it_accounts))
+    it = list(
+        filter(lambda i: i["itsystem"]["name"] in uuid_from_it_systems, it_accounts)
+    )
     # Sort the relevant it-systems based on their position in the given list
     it.sort(key=lambda name: uuid_from_it_systems.index(name["itsystem"]["name"]))
     it = list(map(itemgetter("uuid"), it))
@@ -212,9 +223,10 @@ def get_fk_org_uuid(it_accounts: Dict , mo_uuid: str, uuid_from_it_systems: List
     it.append(mo_uuid)
     return first(it)
 
+
 def get_sts_user(uuid, settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
-    
+
     user = User(
         dict(
             uuid=uuid,
@@ -227,29 +239,32 @@ def get_sts_user(uuid, settings):
     sts_user = user.to_json()
 
     addresses_to_user(
-        sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json(), phone_scope_classes=settings.os2sync_phone_scope_classes, email_scope_classes=settings.os2sync_email_scope_classes
-    )
-    #use calculate_primary flag to get the is_primary boolean used in getting work-address
-    engagements = os2mo_get(
-            "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
-        ).json()
-    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
-    engagements_to_user(
         sts_user,
-        engagements,
-        allowed_unitids
+        os2mo_get("{BASE}/e/" + uuid + "/details/address").json(),
+        phone_scope_classes=settings.os2sync_phone_scope_classes,
+        email_scope_classes=settings.os2sync_email_scope_classes,
     )
+    # use calculate_primary flag to get the is_primary boolean used in getting work-address
+    engagements = os2mo_get(
+        "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
+    ).json()
+    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    engagements_to_user(sts_user, engagements, allowed_unitids)
 
     # Optionally find the work address of employees primary engagement.
     work_address_names = settings.os2sync_employee_engagement_address
     if sts_user["Positions"] and work_address_names:
-        sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
+        sts_user["Location"] = get_work_address(
+            sts_user["Positions"], work_address_names
+        )
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
 
     if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/e/{mo_uuid}/details/it").json()
-        sts_user["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
+        it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
+        sts_user["Uuid"] = get_fk_org_uuid(
+            it, uuid, settings.os2sync_uuid_from_it_systems
+        )
     return sts_user
 
 
@@ -257,21 +272,27 @@ def get_sts_user(uuid, settings):
 def organization_uuid() -> str:
     return one(os2mo_get("{BASE}/o/").json())["uuid"]
 
+
 @lru_cache()
 def org_unit_uuids(**kwargs) -> Set[str]:
     org_uuid = organization_uuid()
-    ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()["items"]
+    ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
+        "items"
+    ]
     return set(map(itemgetter("uuid"), ous))
 
 
-def manager_to_orgunit(unit_uuid: UUID) -> UUID:
-    manager = os2mo_get("{BASE}/ou/" + str(unit_uuid) + "/details/manager").json()
-    if manager:
-        return UUID(one(manager)["person"]["uuid"])
+def manager_to_orgunit(unit_uuid: str) -> Optional[str]:
+    manager = os2mo_get("{BASE}/ou/" + unit_uuid + "/details/manager").json()
+    if not manager:
+        return None
+    return one(manager)["person"]["uuid"]
 
 
 def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
-    itsystems = filter(lambda i: i["itsystem"]["name"] not in uuid_from_it_systems, itsystems)
+    itsystems = filter(
+        lambda i: i["itsystem"]["name"] not in uuid_from_it_systems, itsystems
+    )
     for i in itsystems:
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
@@ -301,7 +322,7 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["DtrId"] = a["name"]
 
 
-def filter_kle(aspect: str, kle) -> List[UUID]:
+def filter_kle(aspect: str, kle) -> List[str]:
     """Filters kle by aspect name
 
     KLE aspects can be "Udførende", "Ansvarlig" or "Indsigt"
@@ -314,7 +335,7 @@ def filter_kle(aspect: str, kle) -> List[UUID]:
     return list(sorted(task_uuids))
 
 
-def partition_kle(kle, use_contact_for_tasks) -> (List[UUID], List[UUID]):
+def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
@@ -336,18 +357,20 @@ def partition_kle(kle, use_contact_for_tasks) -> (List[UUID], List[UUID]):
 
         return tasks, ContactForTasks
 
-    tasks = set()
+    tasks_set = set()
 
     for k in kle:
         uuid = k["kle_number"]["uuid"]
-        tasks.add(uuid)
+        tasks_set.add(uuid)
 
-    return list(sorted(tasks)), []
+    return list(sorted(tasks_set)), []
 
 
 def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks):
     """Mutates the dict "org_unit" to include KLE data"""
-    tasks, contactfortasks = partition_kle(kle, use_contact_for_tasks=use_contact_for_tasks)
+    tasks, contactfortasks = partition_kle(
+        kle, use_contact_for_tasks=use_contact_for_tasks
+    )
     if tasks:
         org_unit["Tasks"] = tasks
     if contactfortasks:
@@ -373,6 +396,7 @@ def is_ignored(unit, settings):
         and UUID(unit["org_unit_type"]["uuid"]) in settings.os2sync_ignored_unit_types
     )
 
+
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
@@ -397,8 +421,9 @@ def get_sts_orgunit(uuid: str, settings):
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
 
     itsystems_to_orgunit(
-        sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/it").json(),
-        uuid_from_it_systems=settings.os2sync_uuid_from_it_systems
+        sts_org_unit,
+        os2mo_get("{BASE}/ou/" + uuid + "/details/it").json(),
+        uuid_from_it_systems=settings.os2sync_uuid_from_it_systems,
     )
     addresses_to_orgunit(
         sts_org_unit,
@@ -408,22 +433,26 @@ def get_sts_orgunit(uuid: str, settings):
     if settings.os2sync_sync_managers:
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
-            sts_org_unit["managerUuid"] = str(manager_uuid)
+            sts_org_unit["managerUuid"] = manager_uuid
 
     # this is set by __main__
     if has_kle():
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
-            use_contact_for_tasks=settings.os2sync_use_contact_for_tasks
+            use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
         )
-    
+
     # show_all_details(uuid,"ou")
-    strip_truncate_and_warn(sts_org_unit, sts_org_unit, settings.os2sync_truncate_length)
-    
+    strip_truncate_and_warn(
+        sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
+    )
+
     if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/ou/{mo_uuid}/details/it").json()
-        sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, settings.os2sync_uuid_from_it_systems)
+        it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
+        sts_org_unit["Uuid"] = get_fk_org_uuid(
+            it, uuid, settings.os2sync_uuid_from_it_systems
+        )
     return sts_org_unit
 
 

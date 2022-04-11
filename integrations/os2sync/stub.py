@@ -7,7 +7,6 @@ logger = logging.getLogger(loggername)
 
 
 class Session:
-
     def raise_for_status(self):
         pass
 
