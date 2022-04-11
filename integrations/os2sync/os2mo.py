@@ -254,8 +254,12 @@ def get_sts_user(uuid, settings):
 
 
 @lru_cache()
+def organization_uuid() -> str:
+    return one(os2mo_get("{BASE}/o/").json())["uuid"]
+
+@lru_cache()
 def org_unit_uuids(**kwargs) -> Set[str]:
-    org_uuid = one(os2mo_get("{BASE}/o/").json())["uuid"]
+    org_uuid = organization_uuid()
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()["items"]
     return set(map(itemgetter("uuid"), ous))
 
