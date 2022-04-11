@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.28.3 - 2022-04-11
+-------------------
+
+[#49741] Lint os2sync with precommit
+
 2.28.2 - 2022-04-11
 -------------------
 
