@@ -17,7 +17,9 @@ include:
 
 variables:
   SD_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sd-changed-at
+  SD_INIT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sd-changed-at-init
   SD_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-sd-changed-at:${CI_COMMIT_SHA}
+  SD_INIT_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-sd-changed-at-init:${CI_COMMIT_SHA}
 
 
 # Lint
@@ -41,6 +43,12 @@ Build SD image:
     DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile
     CI_IMAGE: ${SD_IMAGE_SHA}
 
+Build SD-init image:
+  extends: .build-docker
+  variables:
+    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/
+    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/Dockerfile
+    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
 
 # Test
 ######
@@ -80,3 +88,15 @@ Release SD release image:
   variables:
     CI_IMAGE: ${SD_IMAGE_SHA}
     RELEASE_IMAGE: ${SD_RELEASE_REGISTRY_IMAGE}
+
+Release SD_INIT master image:
+  extends: .release-master
+  variables:
+    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
+    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
+
+Release SD_INIT release image:
+  extends: .release-version
+  variables:
+    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
+    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
