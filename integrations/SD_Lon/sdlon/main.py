@@ -1,3 +1,6 @@
+import asyncio
+from functools import partial
+
 from fastapi import FastAPI
 
 from .sd_changed_at import changed_at
@@ -12,6 +15,7 @@ async def index() -> dict[str, str]:
 
 
 @app.get("/trigger")
-def trigger() -> dict[str, str]:
-    changed_at(False, False)
-    return {"status": "OK"}
+async def trigger(force: bool = False) -> dict[str, str]:
+    loop = asyncio.get_running_loop()
+    loop.call_soon(partial(changed_at, False, force))
+    return {"triggered": "OK"}
