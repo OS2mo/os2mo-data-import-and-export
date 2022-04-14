@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.28.4 - 2022-04-14
+-------------------
+
+[#49668] Add force flag to SDChangedAt. Return early.
+
 2.28.3 - 2022-04-11
 -------------------
 
