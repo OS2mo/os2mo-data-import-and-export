@@ -120,7 +120,6 @@ def clear_session_cache(retry_state):
     get_mo_session.cache_clear()
 
 
-@lru_cache
 @retry(
     retry_error_callback=clear_session_cache,
     retry=retry_if_exception_type(HTTPError),
