@@ -120,6 +120,7 @@ def clear_session_cache(retry_state):
     get_mo_session.cache_clear()
 
 
+@lru_cache
 @retry(
     retry_error_callback=clear_session_cache,
     retry=retry_if_exception_type(HTTPError),
@@ -132,14 +133,11 @@ def os2mo_get(url, **params):
     mora_base = get_os2sync_settings().mora_base
 
     url = url.format(BASE=f"{mora_base}/service")
-    try:
-        session = get_mo_session()
-        r = session.get(url, params=params)
-        r.raise_for_status()
-        return r
-    except Exception:
-        logger.exception(url)
-        raise
+    session = get_mo_session()
+    r = session.get(url, params=params)
+    r.raise_for_status()
+    return r
+
 
 
 def has_kle():
