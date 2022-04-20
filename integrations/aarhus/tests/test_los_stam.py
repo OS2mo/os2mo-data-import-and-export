@@ -1,11 +1,17 @@
+import uuid
 from datetime import datetime
+from unittest import mock
 
 import los_files
 import los_stam
+import uuids
 from hypothesis import given
+from mox_helpers.mox_helper import ElementNotFound
 from pydantic import Field
 
 from .helpers import HelperMixin
+from .helpers import mock_config
+from .helpers import mock_create_mox_helper
 from .strategies import csv_buf_from_model
 
 
@@ -15,6 +21,22 @@ class MockStamCSV(los_stam.StamCSV):
     @staticmethod
     def get_filename() -> str:
         return "mock-filename.csv"
+
+    @staticmethod
+    def get_facet_bvn() -> str:
+        return "mock_facet_bvn"
+
+    @property
+    def bvn(self) -> str:
+        return "bvn"
+
+    @property
+    def title(self) -> str:
+        return "title"
+
+    @property
+    def class_uuid(self) -> uuid.UUID:
+        return uuid.uuid4()
 
 
 class TestStamImporterLoadCSVIfNewer(HelperMixin):
@@ -51,6 +73,68 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
             result = self._run_load_csv_if_newer()
             assert result is None
 
+    def test_create_classes_from_csv(self):
+        # Pretend we are adding exactly one LoRa class based on a single-item CSV file
+        rows = [MockStamCSV()]
+
+        with mock_config():
+            with mock_create_mox_helper(los_stam) as mh:
+                mox_helper = mh.return_value
+                self._run_until_complete(
+                    los_stam.StamImporter._create_classes_from_csv(MockStamCSV, rows)
+                )
+                # Assert that we add one class in the facet
+                mox_helper.insert_klassifikation_klasse.assert_called_once()
+
+    def test_get_or_create_facet_existing_facet(self):
+        with mock_config():
+            with mock_create_mox_helper(los_stam) as mh:
+                expected_facet_uuid = uuid.uuid4()
+                mox_helper = mh.return_value
+
+                # Pretend that we find the facet UUID in LoRa (= it already exists)
+                mox_helper.read_element_klassifikation_facet.return_value = (
+                    expected_facet_uuid
+                )
+
+                result = self._run_until_complete(
+                    los_stam.StamImporter._get_or_create_facet(MockStamCSV, mox_helper)
+                )
+
+                # Assert that we retrieve the facet UUID in LoRa by looking up the BVN
+                mox_helper.read_element_klassifikation_facet.assert_called_once_with(
+                    bvn=MockStamCSV.get_facet_bvn()
+                )
+                # Assert that we got the facet UUID that we mocked
+                assert result == expected_facet_uuid
+
+    def test_get_or_create_facet_new_facet(self):
+        with mock_config():
+            with mock_create_mox_helper(los_stam) as mh:
+                mox_helper = mh.return_value
+                expected_facet_uuid = uuids.uuid_gen(MockStamCSV.get_facet_bvn())
+
+                # Pretend that looking up the facet by its BVN will fail
+                mox_helper.read_element_klassifikation_facet.side_effect = (
+                    ElementNotFound
+                )
+
+                result = self._run_until_complete(
+                    los_stam.StamImporter._get_or_create_facet(MockStamCSV, mox_helper)
+                )
+
+                # Assert that we look for the facet UUID in LoRa by looking up the BVN
+                mox_helper.read_element_klassifikation_facet.assert_called_once_with(
+                    bvn=MockStamCSV.get_facet_bvn()
+                )
+                # Assert that we added a new facet to LoRa
+                mox_helper.insert_klassifikation_facet.assert_called_once_with(
+                    mock.ANY,
+                    expected_facet_uuid,
+                )
+                # Assert that we got the facet UUID that we constructed ourselves
+                assert result == expected_facet_uuid
+
     def _run_load_csv_if_newer(self):
         return los_stam.StamImporter._load_csv_if_newer(
             MockStamCSV, self._datetime_last_imported
@@ -79,6 +163,12 @@ class TestParseStillingsbetegnelseCSV:
     @given(csv_buf_from_model(model=los_stam.Stillingsbetegnelse))
     def test_parse_raises_nothing(self, csv_buf):
         los_files.parse_csv(csv_buf.readlines(), los_stam.Stillingsbetegnelse)
+
+
+class TestParseBVNStillingsbetegnelseCSV:
+    @given(csv_buf_from_model(model=los_stam.BVNStillingsbetegnelse))
+    def test_parse_raises_nothing(self, csv_buf):
+        los_files.parse_csv(csv_buf.readlines(), los_stam.BVNStillingsbetegnelse)
 
 
 class TestParseLederansvarCSV:

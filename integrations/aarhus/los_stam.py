@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Any
 from typing import List
 from typing import Optional
 from typing import Type
@@ -11,8 +12,10 @@ import mox_helpers.payloads as mox_payloads
 import pydantic
 import uuids
 from mox_helpers.mox_helper import create_mox_helper
+from mox_helpers.mox_helper import ElementNotFound
 from pydantic import Field
 
+from os2mo_data_import.mox_data_types import Facet
 from os2mo_data_import.mox_data_types import Itsystem
 
 
@@ -109,6 +112,31 @@ class Stillingsbetegnelse(StamCSV):
     @staticmethod
     def get_facet_bvn() -> str:
         return "engagement_job_function"
+
+    @property
+    def bvn(self) -> str:
+        return self.job_function
+
+    @property
+    def title(self) -> str:
+        return self.job_function
+
+    @property
+    def class_uuid(self) -> uuid.UUID:
+        return self.job_function_uuid
+
+
+class BVNStillingsbetegnelse(StamCSV):
+    job_function_uuid: uuid.UUID = Field(alias="BVNStillingBetUUID")
+    job_function: str = Field(alias="BVNStillingsbetegnelse")
+
+    @staticmethod
+    def get_filename() -> str:
+        return "STAM_UUID_BVN_Stillingsbetegnelse.csv"
+
+    @staticmethod
+    def get_facet_bvn() -> str:
+        return "engagement_job_function_bvn"
 
     @property
     def bvn(self) -> str:
@@ -232,6 +260,7 @@ StamCSVType = Union[
     Type[Enhedstype],
     Type[ITSystem],
     Type[Stillingsbetegnelse],
+    Type[BVNStillingsbetegnelse],
     Type[Lederansvar],
     Type[Lederniveau],
     Type[Ledertype],
@@ -292,6 +321,15 @@ class StamImporter:
         return await cls._create_classes_from_csv(Stillingsbetegnelse, rows)
 
     @classmethod
+    async def handle_bvn_stillingsbetegnelse(cls, last_import: datetime):
+        """
+        Process the external 'BVNStillingsbetegnelse' file and create objects if file is
+        newer than last import.
+        """
+        rows = cls._load_csv_if_newer(BVNStillingsbetegnelse, last_import)
+        return await cls._create_classes_from_csv(BVNStillingsbetegnelse, rows)
+
+    @classmethod
     async def handle_lederansvar(cls, last_import: datetime):
         """
         Process the external 'Lederansvar' file and create objects if file is
@@ -350,10 +388,12 @@ class StamImporter:
     ) -> None:
         if rows is None:
             return
+
         settings = config.get_config()
         mox_helper = await create_mox_helper(settings.mox_base)
-        facet_bvn = csv_class.get_facet_bvn()
-        facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet_bvn)
+
+        facet_uuid = await cls._get_or_create_facet(csv_class, mox_helper)
+
         for row in rows:
             klasse = mox_payloads.lora_klasse(
                 bvn=row.bvn,
@@ -363,6 +403,31 @@ class StamImporter:
                 scope="TEXT",
             )
             await mox_helper.insert_klassifikation_klasse(klasse, str(row.class_uuid))
+
+    @classmethod
+    async def _get_or_create_facet(cls, csv_class: StamCSVType, mox_helper: Any) -> str:
+        facet_bvn = csv_class.get_facet_bvn()
+
+        try:
+            # Get facet by its BVN
+            facet_uuid = await mox_helper.read_element_klassifikation_facet(
+                bvn=facet_bvn
+            )
+        except ElementNotFound:
+            # Facet does not yet exist, create it based on the BVN
+            print("LoRa facet %r not found, creating ..." % facet_bvn)
+            facet_uuid = uuids.uuid_gen(facet_bvn)
+            org_uuid = (await mox_helper.read_all_organisation_organisation())[0]
+            kls_uuid = (await mox_helper.read_all_klassifikation_klassifikation())[0]
+            facet = Facet(
+                user_key=facet_bvn,
+                uuid=facet_uuid,
+                organisation_uuid=org_uuid,
+                klassifikation_uuid=kls_uuid,
+            )
+            await mox_helper.insert_klassifikation_facet(facet.build(), facet_uuid)
+
+        return facet_uuid
 
     async def run(self, last_import: datetime):
         """
@@ -376,6 +441,7 @@ class StamImporter:
         await self.handle_enhedstype(last_import)
         await self.handle_itsystem(last_import)
         await self.handle_stillingsbetegnelse(last_import)
+        await self.handle_bvn_stillingsbetegnelse(last_import)
         await self.handle_lederansvar(last_import)
         await self.handle_lederniveau(last_import)
         await self.handle_ledertype(last_import)

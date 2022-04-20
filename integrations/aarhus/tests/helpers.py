@@ -1,4 +1,5 @@
 import asyncio
+from types import ModuleType
 from typing import Optional
 from typing import Tuple
 from unittest import mock
@@ -85,7 +86,7 @@ def mock_config(**kwargs):
     return mock.patch.object(config, "get_config", return_value=instance)
 
 
-def mock_create_mox_helper():
-    return mock.patch.object(
-        initial, "create_mox_helper", return_value=mock.AsyncMock()
-    )
+def mock_create_mox_helper(module: ModuleType = initial):
+    mock_mox_helper = mock.AsyncMock()
+    mock_mox_helper.return_value = mock.AsyncMock()
+    return mock.patch.object(module, "create_mox_helper", return_value=mock_mox_helper)
