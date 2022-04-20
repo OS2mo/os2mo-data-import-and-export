@@ -126,6 +126,7 @@ def clear_session_cache(retry_state):
     retry=retry_if_exception_type(HTTPError),
     wait=wait_exponential(multiplier=1, min=4, max=10),
     stop=stop_after_delay(10),
+    reraise=True
 )
 def os2mo_get(url, **params):
     # format url like {BASE}/service
