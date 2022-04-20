@@ -18,6 +18,11 @@ import requests
 from more_itertools import first
 from more_itertools import one
 from ra_utils.headers import TokenSettings
+from requests import HTTPError
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_delay
+from tenacity import wait_exponential
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -110,7 +115,18 @@ def strip_truncate_and_warn(d, root, length):
                 )
 
 
+def clear_session_cache(retry_state):
+    """If a call to OS2MO fails clear the cache of the session and retry"""
+    get_mo_session.cache_clear()
+
+
 @lru_cache
+@retry(
+    retry_error_callback=clear_session_cache,
+    retry=retry_if_exception_type(HTTPError),
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_delay(10),
+)
 def os2mo_get(url, **params):
     # format url like {BASE}/service
     mora_base = get_os2sync_settings().mora_base
