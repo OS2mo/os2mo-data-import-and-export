@@ -27,6 +27,8 @@ uvicorn = "^0.17.6"
 pytest = "6.2.5"
 dipex = "^2.22.2"
 click = "^8.1.0"
+prometheus-fastapi-instrumentator = "^5.7.1"
+prometheus-client = "^0.14.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
