@@ -106,7 +106,7 @@ def os2mo_get(url, **params):
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
     ) as session:
-        session.timeout = 60
+        session.timeout = None
         r = session.get(url, params=params)
         r.raise_for_status()
     return r
