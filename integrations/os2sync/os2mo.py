@@ -126,7 +126,7 @@ def clear_session_cache(retry_state):
     retry=retry_if_exception_type(HTTPError),
     wait=wait_exponential(multiplier=1, min=4, max=10),
     stop=stop_after_delay(10),
-    reraise=True
+    reraise=True,
 )
 def os2mo_get(url, **params):
     # format url like {BASE}/service
@@ -137,7 +137,6 @@ def os2mo_get(url, **params):
     r = session.get(url, params=params)
     r.raise_for_status()
     return r
-
 
 
 def has_kle():
