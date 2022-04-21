@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.29.1 - 2022-04-21
+-------------------
+
+[#49772] OS2sync: Regenerate keycloak token by not lru_cache'ing session object.
+
 2.29.0 - 2022-04-21
 -------------------
 
