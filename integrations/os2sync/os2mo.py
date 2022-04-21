@@ -122,7 +122,7 @@ def clear_session_cache(retry_state):
 
 @lru_cache
 @retry(
-    retry_error_callback=clear_session_cache,
+    after=clear_session_cache,
     retry=retry_if_exception_type(HTTPError),
     wait=wait_exponential(multiplier=1, min=4, max=10),
     stop=stop_after_delay(10),
