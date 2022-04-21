@@ -29,7 +29,6 @@ from integrations.os2sync.templates import User
 logger = logging.getLogger(config.loggername)
 
 
-@lru_cache
 def get_mo_session():
     session = requests.Session()
     session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
