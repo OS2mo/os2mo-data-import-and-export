@@ -5,6 +5,7 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Optional
 from uuid import UUID
 
 from pydantic import AnyHttpUrl
@@ -53,6 +54,11 @@ class Settings(BaseSettings):
     mora_base: AnyHttpUrl = cast(
         AnyHttpUrl, "http://localhost:5000"
     )  # "mora.base" from settings.json + /service
+    # auth:
+    auth_server: Optional[AnyHttpUrl] = cast(AnyHttpUrl, "http://localhost:8081/auth")
+    client_id: Optional[str] = "dipex"
+    client_secret: Optional[str]
+    auth_realm: Optional[str] = "mo"
 
     # os2sync:
     os2sync_top_unit_uuid: UUID

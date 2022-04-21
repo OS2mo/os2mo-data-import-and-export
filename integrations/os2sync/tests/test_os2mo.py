@@ -3,13 +3,10 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from parameterized import parameterized
-from requests import HTTPError
-from tenacity import wait_none
 
 from integrations.os2sync.os2mo import get_work_address
 from integrations.os2sync.os2mo import is_ignored
 from integrations.os2sync.os2mo import kle_to_orgunit
-from integrations.os2sync.os2mo import os2mo_get
 from integrations.os2sync.os2mo import partition_kle
 from integrations.os2sync.tests.helpers import dummy_settings
 from integrations.os2sync.tests.helpers import MockOs2moGet
@@ -110,21 +107,3 @@ class TestsMOAd(unittest.TestCase):
 
             work_address = get_work_address(positions, work_address_names)
             self.assertEqual(work_address, expected)
-
-    @patch("integrations.os2sync.os2mo.get_mo_session")
-    @patch(
-        "integrations.os2sync.config.get_os2sync_settings", return_value=dummy_settings
-    )
-    def test_os2mo_get(self, config_mock, session_mock):
-        os2mo_get("{BASE}/dummy")
-        session_mock.assert_called_once_with()
-
-    @patch("integrations.os2sync.os2mo.get_mo_session")
-    @patch(
-        "integrations.os2sync.config.get_os2sync_settings", return_value=dummy_settings
-    )
-    def test_retry_os2mo_get(self, config_mock, session_mock):
-        session_mock.side_effect = [HTTPError(401), session_mock]
-        os2mo_get.retry.wait = wait_none()
-        os2mo_get("{BASE}/dummy")
-        assert session_mock.call_count == 2

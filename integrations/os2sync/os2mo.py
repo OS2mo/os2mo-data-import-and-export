@@ -14,15 +14,9 @@ from typing import Set
 from typing import Tuple
 from uuid import UUID
 
-import requests
 from more_itertools import first
 from more_itertools import one
-from ra_utils.headers import TokenSettings
-from requests import HTTPError
-from tenacity import retry
-from tenacity import retry_if_exception_type
-from tenacity import stop_after_delay
-from tenacity import wait_exponential
+from raclients.auth import AuthenticatedHTTPXClient
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -32,19 +26,6 @@ from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 
 logger = logging.getLogger(config.loggername)
-
-
-@lru_cache
-def get_mo_session():
-    session = requests.Session()
-    session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
-    session.headers = {
-        "User-Agent": "os2mo-data-import-and-export",
-    }
-    session_headers = TokenSettings().get_headers()
-    if session_headers:
-        session.headers.update(session_headers)
-    return session
 
 
 class IT:
@@ -115,25 +96,16 @@ def strip_truncate_and_warn(d, root, length):
                 )
 
 
-def clear_session_cache(retry_state):
-    """If a call to OS2MO fails clear the cache of the session and retry"""
-    get_mo_session.cache_clear()
-
-
 @lru_cache
-@retry(
-    after=clear_session_cache,
-    retry=retry_if_exception_type(HTTPError),
-    wait=wait_exponential(multiplier=1, min=4, max=10),
-    stop=stop_after_delay(10),
-    reraise=True,
-)
 def os2mo_get(url, **params):
-    # format url like {BASE}/service
-    mora_base = get_os2sync_settings().mora_base
-
-    url = url.format(BASE=f"{mora_base}/service")
-    session = get_mo_session()
+    settings = get_os2sync_settings()
+    url = url.format(BASE=f"{settings.mora_base}/service")
+    session = AuthenticatedHTTPXClient(
+        auth_server=settings.auth_server,
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        auth_realm=settings.auth_realm,
+    )
     r = session.get(url, params=params)
     r.raise_for_status()
     return r
