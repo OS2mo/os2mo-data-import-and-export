@@ -26,14 +26,6 @@ from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 
 logger = logging.getLogger(config.loggername)
-settings = get_os2sync_settings()
-session = AuthenticatedHTTPXClient(
-    auth_server=settings.auth_server,
-    client_id=settings.client_id,
-    client_secret=settings.client_secret,
-    auth_realm=settings.auth_realm,
-)
-session.timeout = 60
 
 
 class IT:
@@ -104,10 +96,24 @@ def strip_truncate_and_warn(d, root, length):
                 )
 
 
+def get_mo_session(settings=None):
+    settings = settings or get_os2sync_settings()
+
+    session = AuthenticatedHTTPXClient(
+        auth_server=settings.auth_server,
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        auth_realm=settings.auth_realm,
+    )
+    session.timeout = 60
+    return session
+
+
 @lru_cache
 def os2mo_get(url, **params):
     settings = get_os2sync_settings()
     url = url.format(BASE=f"{settings.mora_base}/service")
+    session = get_mo_session(settings)
     r = session.get(url, params=params)
     r.raise_for_status()
     return r
@@ -259,6 +265,7 @@ def get_sts_user(uuid, settings):
 
 @lru_cache()
 def organization_uuid(mora_base) -> str:
+    session = get_mo_session()
     return one(session.get(f"{mora_base}/service/o/").json())["uuid"]
 
 
@@ -267,6 +274,7 @@ def org_unit_uuids(mora_base, **kwargs) -> Set[str]:
     org_uuid = str(organization_uuid(mora_base))
     params = {"limit": 999999}
     params.update(**kwargs)
+    session = get_mo_session()
     r = session.get(f"{mora_base}/service/o/{org_uuid}/ou/", params=params)
     r.raise_for_status()
     ous = r.json()["items"]
