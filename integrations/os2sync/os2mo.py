@@ -100,14 +100,14 @@ def strip_truncate_and_warn(d, root, length):
 def os2mo_get(url, **params):
     settings = get_os2sync_settings()
     url = url.format(BASE=f"{settings.mora_base}/service")
-    session = AuthenticatedHTTPXClient(
+    with AuthenticatedHTTPXClient(
         auth_server=settings.auth_server,
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
-    )
-    r = session.get(url, params=params)
-    r.raise_for_status()
+    ) as session:
+        r = session.get(url, params=params)
+        r.raise_for_status()
     return r
 
 
