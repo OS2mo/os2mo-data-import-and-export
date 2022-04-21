@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.29.0 - 2022-04-21
+-------------------
+
+[#49885] Export SDChangedAt state
+
 2.28.4 - 2022-04-14
 -------------------
 
