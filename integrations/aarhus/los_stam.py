@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import datetime
 from typing import Any
@@ -269,31 +270,53 @@ StamCSVType = Union[
 
 
 class StamImporter:
-    @classmethod
-    async def handle_engagementstype(cls, last_import: datetime):
+    """Import all classes and IT systems from CSV files.
+    Imports based on predetermined UUIDs, so these functions should be idempotent.
+    Only imports if file has been modified after `last_import`.
+    """
+
+    def __init__(self, last_import: datetime):
+        super().__init__()
+        self.last_import = last_import
+
+    async def run(self):
+        print("Starting STAM import")
+        tasks = [
+            self.handle_engagementstype(),
+            self.handle_enhedstype(),
+            self.handle_itsystem(),
+            self.handle_stillingsbetegnelse(),
+            self.handle_bvn_stillingsbetegnelse(),
+            self.handle_lederansvar(),
+            self.handle_lederniveau(),
+            self.handle_ledertype(),
+            self.handle_tilknytningsrolle(),
+        ]
+        await asyncio.gather(*tasks)
+        print("STAM import done")
+
+    async def handle_engagementstype(self):
         """
         Process the external 'engagement type' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Engagementstype, last_import)
-        return await cls._create_classes_from_csv(Engagementstype, rows)
+        rows = self._load_csv_if_newer(Engagementstype)
+        return await self._create_classes_from_csv(Engagementstype, rows)
 
-    @classmethod
-    async def handle_enhedstype(cls, last_import: datetime):
+    async def handle_enhedstype(self):
         """
         Process the external 'unit type' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Enhedstype, last_import)
-        return await cls._create_classes_from_csv(Enhedstype, rows)
+        rows = self._load_csv_if_newer(Enhedstype)
+        return await self._create_classes_from_csv(Enhedstype, rows)
 
-    @classmethod
-    async def handle_itsystem(cls, last_import: datetime):
+    async def handle_itsystem(self):
         """
         Process the external 'it system' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(ITSystem, last_import)
+        rows = self._load_csv_if_newer(ITSystem)
         if rows is None:
             return
 
@@ -311,63 +334,56 @@ class StamImporter:
                 str(row.it_system_uuid),  # type: ignore
             )
 
-    @classmethod
-    async def handle_stillingsbetegnelse(cls, last_import: datetime):
+    async def handle_stillingsbetegnelse(self):
         """
         Process the external 'job_function' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Stillingsbetegnelse, last_import)
-        return await cls._create_classes_from_csv(Stillingsbetegnelse, rows)
+        rows = self._load_csv_if_newer(Stillingsbetegnelse)
+        return await self._create_classes_from_csv(Stillingsbetegnelse, rows)
 
-    @classmethod
-    async def handle_bvn_stillingsbetegnelse(cls, last_import: datetime):
+    async def handle_bvn_stillingsbetegnelse(self):
         """
         Process the external 'BVNStillingsbetegnelse' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(BVNStillingsbetegnelse, last_import)
-        return await cls._create_classes_from_csv(BVNStillingsbetegnelse, rows)
+        rows = self._load_csv_if_newer(BVNStillingsbetegnelse)
+        return await self._create_classes_from_csv(BVNStillingsbetegnelse, rows)
 
-    @classmethod
-    async def handle_lederansvar(cls, last_import: datetime):
+    async def handle_lederansvar(self):
         """
         Process the external 'Lederansvar' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Lederansvar, last_import)
-        return await cls._create_classes_from_csv(Lederansvar, rows)
+        rows = self._load_csv_if_newer(Lederansvar)
+        return await self._create_classes_from_csv(Lederansvar, rows)
 
-    @classmethod
-    async def handle_lederniveau(cls, last_import: datetime):
+    async def handle_lederniveau(self):
         """
         Process the external 'Lederniveau' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Lederniveau, last_import)
-        return await cls._create_classes_from_csv(Lederniveau, rows)
+        rows = self._load_csv_if_newer(Lederniveau)
+        return await self._create_classes_from_csv(Lederniveau, rows)
 
-    @classmethod
-    async def handle_ledertype(cls, last_import: datetime):
+    async def handle_ledertype(self):
         """
         Process the external 'Ledertype' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Ledertype, last_import)
-        return await cls._create_classes_from_csv(Ledertype, rows)
+        rows = self._load_csv_if_newer(Ledertype)
+        return await self._create_classes_from_csv(Ledertype, rows)
 
-    @classmethod
-    async def handle_tilknytningsrolle(cls, last_import: datetime):
+    async def handle_tilknytningsrolle(self):
         """
         Process the external 'Tilknytningsrolle' file and create objects if file is
         newer than last import.
         """
-        rows = cls._load_csv_if_newer(Tilknytningsrolle, last_import)
-        return await cls._create_classes_from_csv(Tilknytningsrolle, rows)
+        rows = self._load_csv_if_newer(Tilknytningsrolle)
+        return await self._create_classes_from_csv(Tilknytningsrolle, rows)
 
-    @classmethod
     def _load_csv_if_newer(
-        cls, csv_class: StamCSVType, last_import: datetime
+        self, csv_class: StamCSVType
     ) -> Union[List[StamCSVType], None]:
         filename = csv_class.get_filename()
         fileset = los_files.get_fileset_implementation()
@@ -378,13 +394,12 @@ class StamImporter:
             # found.
             return None
         else:
-            if modified_datetime <= last_import:
+            if modified_datetime <= self.last_import:
                 return None
             return los_files.read_csv(filename, csv_class)
 
-    @classmethod
     async def _create_classes_from_csv(
-        cls, csv_class: StamCSVType, rows: Optional[List[StamCSVType]] = None
+        self, csv_class: StamCSVType, rows: Optional[List[StamCSVType]] = None
     ) -> None:
         if rows is None:
             return
@@ -392,7 +407,7 @@ class StamImporter:
         settings = config.get_config()
         mox_helper = await create_mox_helper(settings.mox_base)
 
-        facet_uuid = await cls._get_or_create_facet(csv_class, mox_helper)
+        facet_uuid = await self._get_or_create_facet(csv_class, mox_helper)
 
         for row in rows:
             klasse = mox_payloads.lora_klasse(
@@ -404,8 +419,8 @@ class StamImporter:
             )
             await mox_helper.insert_klassifikation_klasse(klasse, str(row.class_uuid))
 
-    @classmethod
-    async def _get_or_create_facet(cls, csv_class: StamCSVType, mox_helper: Any) -> str:
+    @staticmethod
+    async def _get_or_create_facet(csv_class: StamCSVType, mox_helper: Any) -> str:
         facet_bvn = csv_class.get_facet_bvn()
 
         try:
@@ -415,7 +430,7 @@ class StamImporter:
             )
         except ElementNotFound:
             # Facet does not yet exist, create it based on the BVN
-            print("LoRa facet %r not found, creating ..." % facet_bvn)
+            print(f"LoRa facet {facet_bvn!r} not found, creating ...")
             facet_uuid = uuids.uuid_gen(facet_bvn)
             org_uuid = (await mox_helper.read_all_organisation_organisation())[0]
             kls_uuid = (await mox_helper.read_all_klassifikation_klassifikation())[0]
@@ -428,22 +443,3 @@ class StamImporter:
             await mox_helper.insert_klassifikation_facet(facet.build(), facet_uuid)
 
         return facet_uuid
-
-    async def run(self, last_import: datetime):
-        """
-        Import all klasser and itsystems from files
-        Imports based on predetermined UUIDs, so these functions should be idempotent
-
-        Only imports if file has been modified after last_import
-        """
-        print("Starting STAM import")
-        await self.handle_engagementstype(last_import)
-        await self.handle_enhedstype(last_import)
-        await self.handle_itsystem(last_import)
-        await self.handle_stillingsbetegnelse(last_import)
-        await self.handle_bvn_stillingsbetegnelse(last_import)
-        await self.handle_lederansvar(last_import)
-        await self.handle_lederniveau(last_import)
-        await self.handle_ledertype(last_import)
-        await self.handle_tilknytningsrolle(last_import)
-        print("STAM import done")

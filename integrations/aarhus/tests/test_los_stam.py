@@ -78,10 +78,11 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         rows = [MockStamCSV()]
 
         with mock_config():
+            instance = los_stam.StamImporter(self._datetime_last_imported)
             with mock_create_mox_helper(los_stam) as mh:
                 mox_helper = mh.return_value
                 self._run_until_complete(
-                    los_stam.StamImporter._create_classes_from_csv(MockStamCSV, rows)
+                    instance._create_classes_from_csv(MockStamCSV, rows)
                 )
                 # Assert that we add one class in the facet
                 mox_helper.insert_klassifikation_klasse.assert_called_once()
@@ -136,9 +137,8 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 assert result == expected_facet_uuid
 
     def _run_load_csv_if_newer(self):
-        return los_stam.StamImporter._load_csv_if_newer(
-            MockStamCSV, self._datetime_last_imported
-        )
+        instance = los_stam.StamImporter(self._datetime_last_imported)
+        return instance._load_csv_if_newer(MockStamCSV)
 
 
 class TestParseEngagementstypeCSV:
