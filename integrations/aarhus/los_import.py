@@ -47,7 +47,7 @@ def run_los_import(settings, last_import):
     loop.run_until_complete(initial_import)
 
     # Import STAM
-    stam_import = asyncio.ensure_future(StamImporter().run(last_import))
+    stam_import = asyncio.ensure_future(StamImporter(last_import).run())
     loop.run_until_complete(stam_import)
 
     # Import Org
