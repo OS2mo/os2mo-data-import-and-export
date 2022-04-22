@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.29.4 - 2022-04-22
+-------------------
+
+[#49734] New uuids for Silkeborg FK-org
+
 2.29.3 - 2022-04-22
 -------------------
 
