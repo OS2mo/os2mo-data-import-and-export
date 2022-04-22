@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from helpers import dummy_settings
 from sqlalchemy.orm import sessionmaker
@@ -151,7 +152,8 @@ class Tests_lc_db(unittest.TestCase):
         expected = "AD-logon"
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid="b1"))
 
-    def test_lcdb_get_sts_user_default(self):
+    @patch("integrations.os2sync.os2mo.org_unit_uuids", return_value={})
+    def test_lcdb_get_sts_user_default(self, allowed_unitids_mock):
         self.setup_wide()
         expected = {
             "Email": "test@email.dk",
@@ -163,6 +165,4 @@ class Tests_lc_db(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        self.assertEqual(
-            expected, get_sts_user(self.session, "b1", [], settings=settings)
-        )
+        self.assertEqual(expected, get_sts_user(self.session, "b1", settings=settings))
