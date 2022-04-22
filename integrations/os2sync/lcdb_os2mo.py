@@ -196,10 +196,11 @@ def is_ignored(unit, settings: config.Settings):
     Returns:
         Boolean
     """
-
+    unittype_uuid = UUID(unit.enhedstype_uuid) if unit.enhedstype_uuid else None
+    unitlevel_uuid = UUID(unit.enhedsniveau_uuid) if unit.enhedsniveau_uuid else None
     return (
-        UUID(unit.enhedstype_uuid) in settings.os2sync_ignored_unit_types
-        or UUID(unit.enhedsniveau_uuid) in settings.os2sync_ignored_unit_levels
+        unittype_uuid in settings.os2sync_ignored_unit_types
+        or unitlevel_uuid in settings.os2sync_ignored_unit_levels
     )
 
 
