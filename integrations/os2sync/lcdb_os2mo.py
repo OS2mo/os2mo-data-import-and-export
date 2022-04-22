@@ -188,24 +188,6 @@ def get_top_unit(session, lc_enhed):
 def is_ignored(unit, settings):
     """Determine if unit should be left out of transfer
 
-    Example:
-        >>> from unittest.mock import Mock
-        >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
-        >>> settings={
-        ... "ignored_unit_levels": ["10","2"],
-        ... "ignored_unit_types":['6','7']}
-        >>> is_ignored(unit, settings)
-        False
-        >>> unit.enhedstype_uuid="6"
-        >>> is_ignored(unit, settings)
-        True
-        >>> unit.enhedstype_uuid="2"
-        >>> is_ignored(unit, settings)
-        False
-        >>> unit.enhedsniveau_uuid="2"
-        >>> is_ignored(unit, settings)
-        True
-
     Args:
         unit: The organization unit to enrich with kle information.
         settings: a dictionary
@@ -215,8 +197,8 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings.os2sync_ignored_unit_types
-        or unit.enhedsniveau_uuid in settings.os2sync_ignored_unit_levels
+        UUID(unit.enhedstype_uuid) in settings.os2sync_ignored_unit_types
+        or UUID(unit.enhedsniveau_uuid) in settings.os2sync_ignored_unit_levels
     )
 
 
