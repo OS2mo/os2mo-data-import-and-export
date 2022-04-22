@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.29.2 - 2022-04-22
+-------------------
+
+[#49891] OS2Sync: fix bug where uuids where compared to strings.
+
 2.29.1 - 2022-04-21
 -------------------
 
