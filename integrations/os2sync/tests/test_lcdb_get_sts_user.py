@@ -69,19 +69,18 @@ class TestGetStsUser(unittest.TestCase):
             ),
         ]
     )
-    def test_person_template_nickname(self, template, uuid, expected_name):
+    @patch("integrations.os2sync.os2mo.org_unit_uuids", return_value={})
+    def test_person_template_nickname(
+        self, template, uuid, expected_name, allowed_unitids_mock
+    ):
         settings = dummy_settings
         if template:
             # Run with template
             settings.os2sync_templates["person.name"] = template
-            sts_user = lcdb_os2mo.get_sts_user(
-                self._session, uuid, [], settings=settings
-            )
+            sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, settings=settings)
         else:
             # Run without template
-            sts_user = lcdb_os2mo.get_sts_user(
-                self._session, uuid, [], settings=settings
-            )
+            sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, settings=settings)
 
         self.assertDictEqual(
             sts_user,
@@ -136,18 +135,20 @@ class TestGetStsUser(unittest.TestCase):
             ),
         ]
     )
+    @patch("integrations.os2sync.os2mo.org_unit_uuids", return_value={})
     def test_user_template_user_id(
         self,
         os2sync_templates,
         given_ad_user_key,
         expected_user_id,
+        allowed_unitids_mock,
     ):
         mo_user_uuid = "name only"
         settings = dummy_settings
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("try_get_ad_user_key", given_ad_user_key):
             sts_user = lcdb_os2mo.get_sts_user(
-                self._session, mo_user_uuid, [], settings=dummy_settings
+                self._session, mo_user_uuid, settings=dummy_settings
             )
 
         self.assertDictEqual(
