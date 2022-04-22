@@ -97,7 +97,7 @@ def to_mo_employee(employee):
     )
 
 
-def get_sts_user(session, uuid, allowed_unitids, settings):
+def get_sts_user(session, uuid, allowed_unitids, settings: config.Settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     user = User(
         dict(
@@ -185,7 +185,7 @@ def get_top_unit(session, lc_enhed):
     return top_unit
 
 
-def is_ignored(unit, settings):
+def is_ignored(unit, settings: config.Settings):
     """Determine if unit should be left out of transfer
 
     Args:
@@ -202,7 +202,7 @@ def is_ignored(unit, settings):
     )
 
 
-def get_sts_orgunit(session, uuid, settings):
+def get_sts_orgunit(session, uuid, settings: config.Settings):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
     if is_ignored(base, settings):
@@ -235,7 +235,7 @@ def get_sts_orgunit(session, uuid, settings):
             {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
             for itf in itconnections
         ],
-        uuid_from_it_systems=settings.uuid_from_it_systems,
+        uuid_from_it_systems=settings.os2sync_uuid_from_it_systems,
     )
 
     addresses = []
