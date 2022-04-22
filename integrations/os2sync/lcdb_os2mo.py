@@ -97,7 +97,7 @@ def to_mo_employee(employee):
     )
 
 
-def get_sts_user(session, uuid, allowed_unitids, settings: config.Settings):
+def get_sts_user(session, uuid, settings: config.Settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     user = User(
         dict(
@@ -141,6 +141,7 @@ def get_sts_user(session, uuid, allowed_unitids, settings: config.Settings):
                 "is_primary": lc_engagement.primær_boolean,
             }
         )
+    allowed_unitids = os2mo.org_unit_uuids(root=settings.os2sync_top_unit_uuid)
 
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
     if settings.os2sync_uuid_from_it_systems:
