@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.29.5 - 2022-04-25
+-------------------
+
+[#49891] OS2Sync: fix issue with units without org_unit_level or org_unit_type.
+
 2.29.4 - 2022-04-22
 -------------------
 
