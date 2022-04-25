@@ -81,11 +81,27 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
             instance = los_stam.StamImporter(self._datetime_last_imported)
             with mock_create_mox_helper(los_stam) as mh:
                 mox_helper = mh.return_value
+                mox_helper.read_element_klassifikation_facet.return_value = uuid.uuid4()
                 self._run_until_complete(
                     instance._create_classes_from_csv(MockStamCSV, rows)
                 )
                 # Assert that we add one class in the facet
                 mox_helper.insert_klassifikation_klasse.assert_called_once()
+
+                # Assert that we convert the facet UUID to string, and we use the right
+                # facet UUID.
+                (
+                    payload,
+                    class_uuid,
+                ) = mox_helper.insert_klassifikation_klasse.call_args.args
+                expected_facet_uuid = str(
+                    mox_helper.read_element_klassifikation_facet.return_value
+                )
+                actual_facet_uuid = payload["relationer"]["facet"][0]["uuid"]
+                assert expected_facet_uuid == actual_facet_uuid
+
+                # Assert that we convert the class UUID to string
+                assert isinstance(class_uuid, str)
 
     def test_get_or_create_facet_existing_facet(self):
         with mock_config():

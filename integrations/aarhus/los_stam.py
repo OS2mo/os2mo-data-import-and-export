@@ -413,7 +413,7 @@ class StamImporter:
             klasse = mox_payloads.lora_klasse(
                 bvn=row.bvn,
                 title=row.title,
-                facet_uuid=facet_uuid,
+                facet_uuid=str(facet_uuid),
                 org_uuid=str(uuids.ORG_UUID),
                 scope="TEXT",
             )
