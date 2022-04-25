@@ -30,3 +30,10 @@ def test_lcdb_is_ignored():
     # Used unit_level:
     unit.enhedsniveau_uuid = str(used_level_uuid)
     assert not is_ignored(unit, settings)
+
+    # No unit_level:
+    unit.enhedsniveau_uuid = None
+    assert not is_ignored(unit, settings)
+    # No unit_type:
+    unit.enhedstype_uuid = None
+    assert not is_ignored(unit, settings)
