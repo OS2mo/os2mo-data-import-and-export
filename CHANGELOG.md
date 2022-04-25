@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.30.0 - 2022-04-25
+-------------------
+
+[#49936] Script for moving org unit
+
 2.29.5 - 2022-04-25
 -------------------
 
