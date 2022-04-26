@@ -204,6 +204,7 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(
             tuple(data[0]),
             (
+                "UUID",
                 "Navn",
                 "CPR",
                 "AD-Email",
@@ -217,6 +218,7 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(
             tuple(data[1]),
             (
+                "b1",
                 "fornavn efternavn",
                 "cpr1",
                 "AD-email@email.dk",
@@ -231,6 +233,7 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(
             tuple(data[2]),
             (
+                "b2",
                 "fornavn2 efternavn2",
                 "cpr2",
                 None,
