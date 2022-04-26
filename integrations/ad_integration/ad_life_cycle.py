@@ -87,9 +87,7 @@ class AdLifeCycle:
         ]
 
     def _get_adreader(self):
-        reader = ADParameterReader()
-        reader.cache_all(print_progress=True)
-        return reader
+        return ADParameterReader()
 
     def _get_adwriter(self, **kwargs):
         return ADWriter(**kwargs)
@@ -271,6 +269,8 @@ class AdLifeCycle:
             )
 
             return lazy_employee
+
+        self.ad_reader.cache_all(print_progress=True)
 
         filters: List[FilterFunction] = in_filters or []
 
