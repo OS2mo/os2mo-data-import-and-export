@@ -87,7 +87,9 @@ class AdLifeCycle:
         ]
 
     def _get_adreader(self):
-        return ADParameterReader()
+        reader = ADParameterReader()
+        reader.cache_all(print_progress=True)
+        return reader
 
     def _get_adwriter(self, **kwargs):
         return ADWriter(**kwargs)
@@ -203,7 +205,7 @@ class AdLifeCycle:
         def enrich_with_ad_user(mo_employee: dict) -> Tuple[Dict, Dict]:
             """Enrich mo_employee with AD employee dictionary."""
             cpr = mo_employee["cpr"]
-            ad_object = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+            ad_object = self.ad_reader.results.get(cpr)
             return mo_employee, ad_object
 
         @lru_cache(maxsize=0)
@@ -269,8 +271,6 @@ class AdLifeCycle:
             )
 
             return lazy_employee
-
-        self.ad_reader.cache_all(print_progress=True)
 
         filters: List[FilterFunction] = in_filters or []
 
