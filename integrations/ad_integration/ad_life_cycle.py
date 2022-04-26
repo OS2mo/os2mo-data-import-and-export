@@ -87,7 +87,9 @@ class AdLifeCycle:
         ]
 
     def _get_adreader(self):
-        return ADParameterReader()
+        ADPR = ADParameterReader()
+        ADPR.cache_all(print_progress=True)
+        return ADPR
 
     def _get_adwriter(self, **kwargs):
         return ADWriter(**kwargs)
