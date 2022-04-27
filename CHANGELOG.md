@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.0 - 2022-04-27
+-------------------
+
+[#49340] Add UUID to Ansatte report
+
 2.31.0 - 2022-04-27
 -------------------
 
