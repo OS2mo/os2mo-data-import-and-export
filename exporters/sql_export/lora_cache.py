@@ -1341,7 +1341,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 
     # Full history does not calculate derived data, we must
     # fetch both kinds.
-    lc = LoraCache(resolve_dar=False, full_history=False)
+    lc = LoraCache(resolve_dar=True, full_history=False)
     lc.populate_cache(skip_associations=True)
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
@@ -1349,7 +1349,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     # Todo, in principle it should be possible to run with skip_past True
     # This is now fixed in a different branch, remember to update when
     # merged.
-    lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
+    lc_historic = LoraCache(resolve_dar=True, full_history=True, skip_past=False)
     lc_historic.populate_cache(skip_associations=True)
     # Here we should de-activate read-only mode
     return lc, lc_historic
