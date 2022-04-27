@@ -588,7 +588,7 @@ class ADWriter(AD):
             except CprNotNotUnique:
                 logger.info("multiple managers found by cpr lookup")
             else:
-                return self._get_sam_for_ad_user(manager_ad_user)
+                return self._get_sam_from_ad_values(manager_ad_user)
             return None
 
         # NOTE: Underscore fields should not be read
@@ -779,7 +779,7 @@ class ADWriter(AD):
         except CprNotFoundInADException:
             ad_values = {}
         else:
-            user_sam = self._get_sam_for_ad_user(ad_values)
+            user_sam = self._get_sam_from_ad_values(ad_values)
 
         sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
 
@@ -797,7 +797,7 @@ class ADWriter(AD):
 
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
-        user_sam = self._get_sam_for_ad_user(ad_user)
+        user_sam = self._get_sam_from_ad_values(ad_user)
 
         # TODO: Why is this not generated along with all other info in mo_values?
         mo_values["name_sam"] = "{} - {}".format(mo_values["full_name"], user_sam)
@@ -856,7 +856,7 @@ class ADWriter(AD):
             return (False, "No active engagments")
 
         ad_values = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
-        user_sam = self._get_sam_for_ad_user(ad_values)
+        user_sam = self._get_sam_from_ad_values(ad_values)
 
         if ad_dump is None:
             # TODO: We could also add the compare logic here,
