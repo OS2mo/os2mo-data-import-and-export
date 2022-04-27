@@ -6,6 +6,13 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.1 - 2022-04-27
+-------------------
+
+[#49928] AD_life_cycle: 
+* Cache all AD users to correctly compare to MO. 
+* Resolve DAR when using loracache
+
 2.32.0 - 2022-04-27
 -------------------
 
