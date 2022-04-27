@@ -64,13 +64,12 @@ from .sync_job_id import JobIdSync
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_integrations.log"
 DUMMY_CPR = "0000000000"
 
 logger = logging.getLogger("sdChangedAt")
 
 
-def setup_logging():
+def setup_logging(log_file: pathlib.Path):
     detail_logging = (
         "sdCommon",
         "sdChangedAt",
@@ -87,7 +86,7 @@ def setup_logging():
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        filename=str(log_file),
     )
 
 
@@ -1453,9 +1452,9 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
-    setup_logging()
-
     settings = get_changed_at_settings()
+    setup_logging(settings.sd_log_file)
+
     run_db = settings.sd_import_run_db
 
     logger.info("***************")
@@ -1532,8 +1531,8 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 )
 def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
-    setup_logging()
     settings = get_changed_at_settings()
+    setup_logging(settings.sd_log_file)
 
     if not from_date:
         from_date = date_to_datetime(settings.sd_global_from_date)

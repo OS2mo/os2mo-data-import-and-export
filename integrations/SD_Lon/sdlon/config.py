@@ -21,6 +21,7 @@ from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
 from pydantic import UUID4
+from pydantic.types import Path
 from ra_utils.load_settings import load_settings
 
 from .models import JobFunction
@@ -149,6 +150,7 @@ class ChangedAtSettings(CommonSettings):
     sd_terminate_engagement_with_to_only: bool = True
     sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
+    sd_log_file: Path = Path("mo_integrations.log")
 
     class Config:
         extra = Extra.forbid
