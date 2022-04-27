@@ -205,7 +205,7 @@ class AdLifeCycle:
         def enrich_with_ad_user(mo_employee: dict) -> Tuple[Dict, Dict]:
             """Enrich mo_employee with AD employee dictionary."""
             cpr = mo_employee["cpr"]
-            ad_object = self.ad_reader.results.get(cpr)
+            ad_object = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             return mo_employee, ad_object
 
         @lru_cache(maxsize=0)
