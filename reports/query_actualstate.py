@@ -190,6 +190,7 @@ def list_employees(session, org_name: str) -> list:
     )
     query = (
         session.query(
+            Bruger.uuid,
             Bruger.fornavn + " " + Bruger.efternavn,
             Bruger.cpr,
             Emails.c.værdi,
@@ -211,6 +212,7 @@ def list_employees(session, org_name: str) -> list:
     data_df = pd.DataFrame(
         data,
         columns=[
+            "UUID",
             "Navn",
             "CPR",
             "AD-Email",
