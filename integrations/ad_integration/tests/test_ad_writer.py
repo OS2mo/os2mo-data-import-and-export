@@ -19,10 +19,8 @@ from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
 from .mocks import MO_UUID
-from .mocks import MockADParameterReader
-from .mocks import MockMoraHelper
+from .mocks import MockADWriterContext
 from .mocks import MockMORESTSource
-from .mocks import MockMORESTSourcePreview
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
 from .test_utils import TestADWriterMixin
@@ -1020,54 +1018,10 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
 class _TestRealADWriter(TestCase):
     def _prepare_adwriter(self, **kwargs):
-        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
-        # a test.
-        all_settings = {
-            "primary": {
-                "method": "ntlm",
-                "cpr_separator": "",
-                "system_user": "system_user",
-                "password": "password",
-                "search_base": "search_base",
-                "cpr_field": "cpr_field",  # read by `ADWriter.get_from_ad`
-                "properties": [],  # read by `ADWriter._properties`
-            },
-            "primary_write": {
-                "cpr_field": "cpr_field",
-                "uuid_field": "uuid_field",
-                "org_field": "org_field",
-                "level2orgunit_field": "level2orgunit_field",
-                "level2orgunit_type": "level2orgunit_type",
-                "upn_end": "upn_end",
-                "mo_to_ad_fields": {},
-                "template_to_ad_fields": {},
-            },
-            "global": {"mora.base": "", "servers": ["server"]},
-        }
-        path_prefix = "integrations.ad_integration"
-        with mock.patch(
-            f"{path_prefix}.ad_common.read_settings",
-            return_value=all_settings,
-        ):
-            with mock.patch(
-                f"{path_prefix}.ad_writer.ADWriter._create_session",
-                return_value=mock.MagicMock(),
-            ):
-                with mock.patch(
-                    f"{path_prefix}.ad_writer.MORESTSource",
-                    return_value=MockMORESTSourcePreview(),
-                ):
-                    with mock.patch(
-                        f"{path_prefix}.user_names.ADParameterReader",
-                        return_value=MockADParameterReader(),
-                    ):
-                        with mock.patch(
-                            f"{path_prefix}.ad_writer.MoraHelper",
-                            return_value=MockMoraHelper(cpr=""),
-                        ):
-                            instance = ADWriter(**kwargs)
-                            instance.get_from_ad = lambda *args, **kwargs: {}
-                            return instance
+        with MockADWriterContext():
+            instance = ADWriter(**kwargs)
+            instance.get_from_ad = lambda *args, **kwargs: {}
+            return instance
 
 
 class TestInitNameCreator(_TestRealADWriter):

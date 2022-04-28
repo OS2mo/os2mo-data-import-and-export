@@ -1,4 +1,7 @@
+from contextlib import ExitStack
+from unittest.mock import MagicMock
 from unittest.mock import Mock
+from unittest.mock import patch
 from uuid import uuid4
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -274,3 +277,59 @@ class MockMoraHelper(MoraHelper):
 
     def read_engagement_manager(self, engagement_uuid):
         return {}
+
+
+class MockADWriterContext(ExitStack):
+    """Mock enough of `ADWriter` dependencies to allow it to instantiate in a test.
+    Usage:
+    >>> with MockADWriterContext():
+    >>>     ad_writer = ADWriter(...)
+    >>>     ad_writer.some_method(...)
+    """
+
+    all_settings = {
+        "primary": {
+            "method": "ntlm",
+            "cpr_separator": "",
+            "system_user": "system_user",
+            "password": "password",
+            "search_base": "search_base",
+            "cpr_field": "cpr_field",  # read by `ADWriter.get_from_ad`
+            "properties": [],  # read by `ADWriter._properties`
+        },
+        "primary_write": {
+            "cpr_field": "cpr_field",
+            "uuid_field": "uuid_field",
+            "org_field": "org_field",
+            "level2orgunit_field": "level2orgunit_field",
+            "level2orgunit_type": "level2orgunit_type",
+            "upn_end": "upn_end",
+            "mo_to_ad_fields": {},
+            "template_to_ad_fields": {},
+        },
+        "global": {"mora.base": "", "servers": ["server"]},
+    }
+
+    def __enter__(self):
+        super().__enter__()
+        for ctx in self._context_managers:
+            self.enter_context(ctx)
+        return self
+
+    @property
+    def _context_managers(self):
+        prefix = "integrations.ad_integration"
+        yield patch(f"{prefix}.ad_common.read_settings", return_value=self.all_settings)
+        yield patch(
+            f"{prefix}.ad_writer.ADWriter._create_session", return_value=MagicMock()
+        )
+        yield patch(
+            f"{prefix}.ad_writer.MORESTSource", return_value=MockMORESTSourcePreview()
+        )
+        yield patch(
+            f"{prefix}.user_names.ADParameterReader",
+            return_value=MockADParameterReader(),
+        )
+        yield patch(
+            f"{prefix}.ad_writer.MoraHelper", return_value=MockMoraHelper(cpr="")
+        )
