@@ -1107,7 +1107,15 @@ class TestPreview(_TestRealADWriter):
 
 
 class TestSyncCompare(_TestRealADWriter):
-    def test_cf_converts_ad_list(self):
+    def test_compare_fields_converts_ad_list(self):
+        """Some AD fields contain one-element lists, rather than the usual strings,
+        numbers or UUIDs.
+
+        In such cases, we "unpack" the single-element list before comparing it to the
+        corresponding MO value - otherwise the comparison will not work as expected.
+
+        See: #47148
+        """
         # Arrange
         mo_value = "mo_value"
         ad_list_element = "ad_list_element"

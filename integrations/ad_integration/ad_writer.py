@@ -759,6 +759,10 @@ class ADWriter(AD):
             logger.debug(msg.format(ad_field))
             value = "None"
 
+        # Some AD fields contain one-element lists, rather than the usual strings,
+        # numbers or UUIDs.
+        # In such cases, we "unpack" the single-element list before comparing it to the
+        # corresponding MO value - otherwise the comparison will not work as expected.
         if isinstance(ad_field_value, list) and len(ad_field_value) == 1:
             ad_field_value = ad_field_value[0]
 
