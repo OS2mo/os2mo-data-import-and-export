@@ -68,10 +68,10 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
                 uuid4(),  # MO user UUID
                 sync_cpr="cpr",
             )
-            self.assertEqual(mock_echo.call_count, 2)
-            self.assertEqual(len(commands), 2)
-            self.assertIsInstance(commands[0], str)
-            self.assertIsInstance(commands[1], str)
+            self.assertEqual(mock_echo.call_count, 3)
+            self.assertEqual(len(commands), 3)
+            for cmd in commands:
+                self.assertIsInstance(cmd, str)
 
     def _run(self, mo_uuid_field="ObjectGUID", **kwargs):
         return run_mo_to_ad_sync(

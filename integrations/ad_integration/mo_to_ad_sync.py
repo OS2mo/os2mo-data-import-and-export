@@ -2,8 +2,8 @@ import json
 import logging
 import uuid
 from typing import Dict
-from typing import List
 from typing import Optional
+from typing import Tuple
 
 import click
 from ra_utils.load_settings import load_settings
@@ -128,12 +128,15 @@ def run_preview_command_for_uuid(
     mo_uuid: uuid.UUID,
     sync_username: str = None,
     sync_cpr: str = None,
-) -> List[str]:
+) -> Tuple[str]:
     ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
-    commands = writer._preview_sync_command(mo_uuid, sync_username, ad_dump=ad_dump)
-    for cmd in commands:
-        click.echo_via_pager(cmd)
-    return commands
+    sync_cmd, rename_cmd, rename_cmd_target = writer._preview_sync_command(
+        mo_uuid, sync_username, ad_dump=ad_dump
+    )
+    click.echo_via_pager(sync_cmd)
+    click.echo_via_pager(rename_cmd)
+    click.echo_via_pager(f"Rename targets AD user: {rename_cmd_target!r}")
+    return sync_cmd, rename_cmd, rename_cmd_target  # type: ignore
 
 
 @click.command()

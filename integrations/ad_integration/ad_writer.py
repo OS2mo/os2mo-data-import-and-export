@@ -782,18 +782,29 @@ class ADWriter(AD):
             user_sam = self._get_sam_from_ad_values(ad_values)
 
         sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
+        rename_cmd = ""
+        rename_cmd_target = ""
 
         try:
             mismatch = self._sync_compare(mo_values, ad_dump)
         except CprNotFoundInADException:
-            rename_cmd = self._get_rename_ad_user_command(user_sam, "not the new name")
+            # We might be running against an AD where we have not yet written any actual
+            # users. In that case, we will not find the user by CPR. But we still want
+            # to see the rename command that would be issued.
+            logger.info("Previewing 'rename' command for nonexistent AD user")
+            rename_cmd = self._get_rename_ad_user_command(user_sam, "<new name>")
+            rename_cmd_target = "<nonexistent AD user>"
         else:
+            # We found an actual AD user by CPR
             if "name" in mismatch:
+                # A rename command is necessary, as the new username differs from the
+                # current username in AD.
+                logger.info("Previewing 'rename' command for existing AD user")
                 new_name = mismatch["name"][1]
                 rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
-                return sync_cmd, rename_cmd
+                rename_cmd_target = mismatch["name"][0]  # = previous username
 
-        return sync_cmd, ""
+        return sync_cmd, rename_cmd, rename_cmd_target
 
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)

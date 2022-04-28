@@ -1069,8 +1069,14 @@ class TestPreview(_TestRealADWriter):
 
     def test_preview_sync_command(self):
         ad_writer = self._prepare_adwriter()
-        sync_cmds = ad_writer._preview_sync_command(MO_UUID, "user_sam")
-        self.assertEqual(len(sync_cmds), 2)
-        self.assertIn("Get-ADUser", sync_cmds[0])
-        self.assertIn("Set-ADUser", sync_cmds[0])
-        self.assertEqual("", sync_cmds[1])
+        sync_cmd, rename_cmd, rename_cmd_target = ad_writer._preview_sync_command(
+            MO_UUID, "user_sam"
+        )
+        # Examine 'sync_cmd'
+        self.assertIn("Get-ADUser", sync_cmd)
+        self.assertIn("Set-ADUser", sync_cmd)
+        # Examine 'rename_cmd'
+        self.assertIn("Get-ADUser", rename_cmd)
+        self.assertIn("Rename-ADobject", rename_cmd)
+        self.assertIn('-NewName "<new name>"', rename_cmd)
+        self.assertEqual("<nonexistent AD user>", rename_cmd_target)
