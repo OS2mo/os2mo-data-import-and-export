@@ -749,7 +749,7 @@ class ADWriter(AD):
         ps_script = self._build_user_credential() + rename_user_string + server_string
         return ps_script
 
-    def _cf(self, ad_field, value, ad_user):
+    def _compare_fields(self, ad_field, value, ad_user):
         logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
         ad_field_value = ad_user.get(ad_field)
@@ -877,7 +877,7 @@ class ADWriter(AD):
         )
         mismatch = {}
         for ad_field, rendered_value in fields.items():
-            mismatch.update(self._cf(ad_field, rendered_value, ad_user))
+            mismatch.update(self._compare_fields(ad_field, rendered_value, ad_user))
 
         if mo_values.get("manager_cpr"):
             manager_ad_user = self._find_ad_user(
