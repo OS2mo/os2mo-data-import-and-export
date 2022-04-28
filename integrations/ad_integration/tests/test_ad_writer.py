@@ -1135,7 +1135,7 @@ class TestSyncCompare(_TestRealADWriter):
         ad_user = {"ad_field_name": [ad_list_element]}
         ad_writer = self._prepare_adwriter()
         # Act
-        mismatch = ad_writer._cf("ad_field_name", mo_value, ad_user)
+        mismatch = ad_writer._compare_fields("ad_field_name", mo_value, ad_user)
         # Assert
         self.assertIn("ad_field_name", mismatch)
         self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))
