@@ -7,10 +7,8 @@ from ..read_ad_conf_settings import read_settings
 
 def get_minimum_valid_settings(*extra_properties):
     properties = ["uuid_field", "org_unit_field"]
-    if extra_properties:
-        for extra in extra_properties:
-            if extra:
-                properties.append(extra)
+    for extra in filter(None, extra_properties):
+        properties.append(extra)
 
     return {
         "integrations.ad": [
