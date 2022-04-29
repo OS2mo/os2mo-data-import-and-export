@@ -151,6 +151,12 @@ def _read_primary_write_information(top_settings):
         "integrations.ad_writer.template_to_ad_fields", {}
     )
 
+    # Overrides the "-Path" argument to "New-ADUser", if set
+    if "integrations.ad_writer.new_ad_user_path" in top_settings:
+        conf["new_ad_user_path"] = top_settings[
+            "integrations.ad_writer.new_ad_user_path"
+        ]
+
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = conf["mo_to_ad_fields"]
     template_to_ad_fields = conf["template_to_ad_fields"]

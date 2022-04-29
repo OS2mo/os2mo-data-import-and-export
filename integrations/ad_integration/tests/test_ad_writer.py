@@ -1036,6 +1036,50 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Assert the command does not try to set "fooBar"="None"
         self.assertNotIn('"fooBar"="None"', ps_script)
 
+    @parameterized.expand(
+        [
+            # Case 1: test that the old "search_base" setting is used if the
+            # new setting "new_ad_user_path" is not provided.
+            (
+                {
+                    "integrations.ad": [
+                        {
+                            "search_base": "custom_search_path",
+                            # We need to provide these to make
+                            # `_read_global_settings` pass.
+                            "system_user": "system_user",
+                            "password": "password",
+                            # We need to provide this to make
+                            # `_read_primary_ad_settings` pass.
+                            "cpr_field": "cpr_field",
+                        }
+                    ]
+                },
+                "custom_search_path",
+            ),
+            # Case 2: test that the new "new_ad_user_path" settings is used, if
+            # it is provided.
+            (
+                {"integrations.ad_writer.new_ad_user_path": "custom_ad_path"},
+                "custom_ad_path",
+            ),
+        ]
+    )
+    def test_new_ad_user_path_setting_is_used(self, settings, expected_path_argument):
+        self._setup_adwriter(early_transform_settings=dict_modifier(settings))
+
+        # Test `_get_new_ad_user_path_argument`
+        path_argument = self.ad_writer._get_new_ad_user_path_argument()
+        self.assertRegex(path_argument, f' -Path "{expected_path_argument}"')
+
+        # Test `_get_create_user_command` - the `ps_script` must end with a
+        # "-Path" argument matching our expected path argument.
+        mock_mo_user = mock.MagicMock()
+        ps_script = self.ad_writer._get_create_user_command(
+            mock_mo_user, "sam_account_name"
+        )
+        self.assertRegex(ps_script, f'.* -Path "{expected_path_argument}"$')
+
 
 class _TestRealADWriter(TestCase):
     def _prepare_adwriter(self, **kwargs):
