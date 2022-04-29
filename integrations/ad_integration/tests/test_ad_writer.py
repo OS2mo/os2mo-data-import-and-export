@@ -1,5 +1,4 @@
 import copy
-import unittest
 from unittest import mock
 from unittest import TestCase
 
@@ -862,7 +861,6 @@ class TestADWriter(TestCase, TestADWriterMixin):
         with self.assertRaises(UndefinedError):
             self.ad_writer.sync_user(mo_uuid="mo-uuid", sync_manager=False)
 
-    @unittest.expectedFailure
     def test_fullnames_are_empty_when_constituants_are_empty(self):
         self._setup_adwriter()
         uuid = "some_uuid_here"
