@@ -154,14 +154,16 @@ def _read_primary_write_information(top_settings):
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = conf["mo_to_ad_fields"]
     template_to_ad_fields = conf["template_to_ad_fields"]
+    other_ad_field_names = [conf["org_field"], conf["uuid_field"]]
+    if conf.get("level2orgunit_field"):
+        other_ad_field_names.append(conf["level2orgunit_field"])
     ad_field_names = (
         list(mo_to_ad_fields.values())
         + list(template_to_ad_fields.keys())
-        + [conf["org_field"], conf["level2orgunit_field"], conf["uuid_field"]]
+        + other_ad_field_names
     )
     # Conflicts are case-insensitive
-    ad_field_names = list(map(lambda ad_field: ad_field.lower(), ad_field_names))
-    counter = collections.Counter(ad_field_names)
+    counter = collections.Counter(map(str.lower, ad_field_names))
     dupes = sorted(set(name for name, count in counter.items() if count > 1))
     if dupes:
         msg = "Duplicated AD field names in settings: %r"
@@ -170,9 +172,12 @@ def _read_primary_write_information(top_settings):
 
     # Check that all settings we write to are in properties for all ADs
     for ad_settings in top_settings["integrations.ad"]:
-        properties = ad_settings.get("properties")
+        properties = set(map(str.lower, ad_settings.get("properties", [])))
         missing_properties = list(
-            filter(lambda ad_field: ad_field not in properties, ad_field_names)
+            filter(
+                lambda ad_field: ad_field != "" and ad_field.lower() not in properties,
+                ad_field_names,
+            )
         )
         if missing_properties:
             msg = "Missing AD field names in properties: %r"

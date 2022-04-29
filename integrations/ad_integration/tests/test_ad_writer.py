@@ -1015,6 +1015,27 @@ class TestADWriter(TestCase, TestADWriterMixin):
         assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
         assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
 
+    def test_other_attributes_skip_empty(self):
+        # Configure template which tries to write `mo_values['foobar']` to the
+        # 'fooBar' AD field.
+        self._setup_adwriter(
+            early_transform_settings=self._add_to_template_to_ad_fields(
+                "fooBar",
+                "{{ mo_values['foobar'] }}",
+            ),
+        )
+
+        # Build `mo_values` containing an *empty* 'foobar' key
+        mo_values = self._prepare_mo_values(
+            mo_values_transformer=mo_modifier({"foobar": None})
+        )
+
+        # Render "New-ADUser" command using `mo_values`
+        ps_script = self.ad_writer._get_create_user_command(mo_values, "sam")
+
+        # Assert the command does not try to set "fooBar"="None"
+        self.assertNotIn('"fooBar"="None"', ps_script)
+
 
 class _TestRealADWriter(TestCase):
     def _prepare_adwriter(self, **kwargs):
@@ -1057,6 +1078,28 @@ class TestInitNameCreator(_TestRealADWriter):
         # were instantiated.
         self.assertSetEqual(ad_writer.name_creator.occupied_names, set())
         self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
+
+
+class TestSyncCompare(_TestRealADWriter):
+    def test_compare_fields_converts_ad_list(self):
+        """Some AD fields contain one-element lists, rather than the usual strings,
+        numbers or UUIDs.
+
+        In such cases, we "unpack" the single-element list before comparing it to the
+        corresponding MO value - otherwise the comparison will not work as expected.
+
+        See: #47148
+        """
+        # Arrange
+        mo_value = "mo_value"
+        ad_list_element = "ad_list_element"
+        ad_user = {"ad_field_name": [ad_list_element]}
+        ad_writer = self._prepare_adwriter()
+        # Act
+        mismatch = ad_writer._compare_fields("ad_field_name", mo_value, ad_user)
+        # Assert
+        self.assertIn("ad_field_name", mismatch)
+        self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))
 
 
 class TestPreview(_TestRealADWriter):

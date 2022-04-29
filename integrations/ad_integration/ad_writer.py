@@ -14,7 +14,10 @@ from operator import itemgetter
 import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from jinja2 import Template
+from jinja2 import Environment
+from jinja2 import StrictUndefined
+from jinja2 import Undefined
+from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
@@ -341,7 +344,6 @@ class MORESTSource(MODataSource):
         itsystems = self.helper.get_e_itsystems(uuid)
 
         def to_lora_itsystem(it_system):
-            print(it_system)
             return it_system["itsystem"]["uuid"], {
                 "uuid": it_system["uuid"],
                 "user": it_system["person"]["uuid"],
@@ -378,6 +380,8 @@ class ADWriter(AD):
         )
 
         self._init_name_creator()
+
+        self._environment = self._get_jinja_environment()
 
     def _init_name_creator(self):
         self.name_creator = UserNameGen.get_implementation()
@@ -688,6 +692,10 @@ class ADWriter(AD):
                 "read_manager": LazyEvalDerived(
                     lambda _manager_uuid: bool(_manager_uuid)
                 ),
+                # Employee addresses
+                "employee_addresses": LazyEvalDerived(
+                    lambda uuid: self.helper.get_e_addresses(uuid)
+                ),
                 # IT systems
                 "it_systems": LazyEvalDerived(
                     lambda uuid: self.datasource.get_it_systems(uuid)
@@ -724,6 +732,9 @@ class ADWriter(AD):
 
     def _get_rename_ad_user_command(self, user_sam, new_name):
         # Todo: This code is a duplicate of code found elsewhere
+        # Todo: This code is buggy - it uses a "stringified tuple" as the new
+        # AD username. E.g. the AD user is renamed to
+        # `"(\"Firstname\", \"Lastname\")"`.
         rename_user_template = ad_templates.rename_user_template
         rename_user_string = rename_user_template.format(
             user_sam=user_sam,
@@ -738,21 +749,49 @@ class ADWriter(AD):
         ps_script = self._build_user_credential() + rename_user_string + server_string
         return ps_script
 
-    def _cf(self, ad_field, value, ad):
+    def _compare_fields(self, ad_field, value, ad_user):
         logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
+        ad_field_value = ad_user.get(ad_field)
+
         if value is None:
             msg = "Value for {} is None-type replace to string None"
             logger.debug(msg.format(ad_field))
             value = "None"
-        if ad.get(ad_field) != value:
-            msg = "{}: AD value: {}, does not match MO value: {}"
-            logger.info(msg.format(ad_field, ad.get(ad_field), value))
-            mismatch = {ad_field: (ad.get(ad_field), value)}
+
+        # Some AD fields contain one-element lists, rather than the usual strings,
+        # numbers or UUIDs.
+        # In such cases, we "unpack" the single-element list before comparing it to the
+        # corresponding MO value - otherwise the comparison will not work as expected.
+        if isinstance(ad_field_value, list) and len(ad_field_value) == 1:
+            ad_field_value = ad_field_value[0]
+
+        if ad_field_value != value:
+            msg = "%r: AD value %r does not match MO value %r"
+            logger.info(msg, ad_field, ad_field_value, value)
+            mismatch = {ad_field: (ad_field_value, value)}
+
         return mismatch
 
+    def _get_jinja_environment(self):
+        def first_address_of_type(value, address_type_uuid):
+            return first(
+                (
+                    addr["value"]
+                    for addr in value
+                    if addr["address_type"]["uuid"] == address_type_uuid
+                ),
+                None,
+            )
+
+        environment = Environment(undefined=StrictUndefined)
+        environment.filters["first_address_of_type"] = first_address_of_type
+        return environment
+
     def _render_field_template(self, context, template):
-        return Template(template.strip('"')).render(**context)
+        env = self._environment.overlay(undefined=Undefined)
+        template = env.from_string(template.strip('"'))
+        return template.render(**context)
 
     def _preview_create_command(self, mo_uuid, ad_dump=None, create_manager=True):
         mo_values = self.read_ad_information_from_mo(
@@ -842,7 +881,7 @@ class ADWriter(AD):
         )
         mismatch = {}
         for ad_field, rendered_value in fields.items():
-            mismatch.update(self._cf(ad_field, rendered_value, ad_user))
+            mismatch.update(self._compare_fields(ad_field, rendered_value, ad_user))
 
         if mo_values.get("manager_cpr"):
             manager_ad_user = self._find_ad_user(
@@ -980,6 +1019,7 @@ class ADWriter(AD):
                 "sync_timestamp": str(datetime.now()),
             },
             settings=self.all_settings,
+            environment=self._environment,
         )
         create_user_string = self.remove_redundant(create_user_string)
 
