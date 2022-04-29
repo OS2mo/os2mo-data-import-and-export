@@ -1017,7 +1017,6 @@ class TestADWriter(TestCase, TestADWriterMixin):
         assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
         assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
 
-    @unittest.expectedFailure
     def test_other_attributes_skip_empty(self):
         # Configure template which tries to write `mo_values['foobar']` to the
         # 'fooBar' AD field.
@@ -1083,6 +1082,28 @@ class TestInitNameCreator(_TestRealADWriter):
         self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
 
 
+class TestSyncCompare(_TestRealADWriter):
+    def test_compare_fields_converts_ad_list(self):
+        """Some AD fields contain one-element lists, rather than the usual strings,
+        numbers or UUIDs.
+
+        In such cases, we "unpack" the single-element list before comparing it to the
+        corresponding MO value - otherwise the comparison will not work as expected.
+
+        See: #47148
+        """
+        # Arrange
+        mo_value = "mo_value"
+        ad_list_element = "ad_list_element"
+        ad_user = {"ad_field_name": [ad_list_element]}
+        ad_writer = self._prepare_adwriter()
+        # Act
+        mismatch = ad_writer._compare_fields("ad_field_name", mo_value, ad_user)
+        # Assert
+        self.assertIn("ad_field_name", mismatch)
+        self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))
+
+
 class TestPreview(_TestRealADWriter):
     def test_preview_create_command(self):
         ad_writer = self._prepare_adwriter()
@@ -1104,25 +1125,3 @@ class TestPreview(_TestRealADWriter):
         self.assertIn("Rename-ADobject", rename_cmd)
         self.assertIn('-NewName "<new name>"', rename_cmd)
         self.assertEqual("<nonexistent AD user>", rename_cmd_target)
-
-
-class TestSyncCompare(_TestRealADWriter):
-    def test_compare_fields_converts_ad_list(self):
-        """Some AD fields contain one-element lists, rather than the usual strings,
-        numbers or UUIDs.
-
-        In such cases, we "unpack" the single-element list before comparing it to the
-        corresponding MO value - otherwise the comparison will not work as expected.
-
-        See: #47148
-        """
-        # Arrange
-        mo_value = "mo_value"
-        ad_list_element = "ad_list_element"
-        ad_user = {"ad_field_name": [ad_list_element]}
-        ad_writer = self._prepare_adwriter()
-        # Act
-        mismatch = ad_writer._compare_fields("ad_field_name", mo_value, ad_user)
-        # Assert
-        self.assertIn("ad_field_name", mismatch)
-        self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))
