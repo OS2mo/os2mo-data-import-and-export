@@ -72,5 +72,5 @@ def test_missing_properties(tup):
     settings["integrations.ad_writer.template_to_ad_fields"] = {ad_key: "c"}
     with pytest.raises(ValueError) as excinfo:
         read_settings(settings)
-    expected = "Missing AD field names in properties: [%r]" % ad_key.lower()
+    expected = "Missing AD field names in properties: [%r]" % ad_key
     assert expected in str(excinfo.value)
