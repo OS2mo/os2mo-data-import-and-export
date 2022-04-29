@@ -952,6 +952,7 @@ class ADWriter(AD):
                 "sync_timestamp": str(datetime.now()),
             },
             settings=self.all_settings,
+            environment=self._environment,
         )
         edit_user_string = self.remove_redundant(edit_user_string)
 

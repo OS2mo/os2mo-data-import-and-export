@@ -1,3 +1,4 @@
+import copy
 from contextlib import ExitStack
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -278,6 +279,14 @@ class MockMoraHelper(MoraHelper):
     def read_engagement_manager(self, engagement_uuid):
         return {}
 
+    def get_e_addresses(self, e_uuid, scope=None):
+        return [
+            {
+                "value": "address-value",
+                "address_type": {"uuid": "address-type-uuid"},
+            }
+        ]
+
 
 class MockADWriterContext(ExitStack):
     """Mock enough of `ADWriter` dependencies to allow it to instantiate in a test.
@@ -310,6 +319,13 @@ class MockADWriterContext(ExitStack):
         "global": {"mora.base": "", "servers": ["server"]},
     }
 
+    def __init__(self, **kwargs):
+        super().__init__()
+        settings = copy.deepcopy(self.all_settings)
+        template_to_ad_fields = kwargs.get("template_to_ad_fields", {})
+        settings["primary_write"]["template_to_ad_fields"].update(template_to_ad_fields)
+        self._settings = settings
+
     def __enter__(self):
         super().__enter__()
         for ctx in self._context_managers:
@@ -319,7 +335,7 @@ class MockADWriterContext(ExitStack):
     @property
     def _context_managers(self):
         prefix = "integrations.ad_integration"
-        yield patch(f"{prefix}.ad_common.read_settings", return_value=self.all_settings)
+        yield patch(f"{prefix}.ad_common.read_settings", return_value=self._settings)
         yield patch(
             f"{prefix}.ad_writer.ADWriter._create_session", return_value=MagicMock()
         )
