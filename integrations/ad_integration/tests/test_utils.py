@@ -344,7 +344,7 @@ class TestADMixin(object):
             "Name": person["full_name"],
             "ObjectClass": "user",
             "SamAccountName": person["sam_account_name"],
-            "GivenName": person["name"][-1:],
+            "GivenName": person["name"][-1],
             "UserPrincipalName": "_".join(person["full_name"]).lower() + "@magenta.dk",
             "extensionAttribute1": person["cpr"],
             "AddedProperties": [],
