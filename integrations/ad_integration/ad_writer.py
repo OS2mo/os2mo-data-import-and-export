@@ -588,7 +588,7 @@ class ADWriter(AD):
             except CprNotNotUnique:
                 logger.info("multiple managers found by cpr lookup")
             else:
-                return self._get_sam_for_ad_user(manager_ad_user)
+                return self._get_sam_from_ad_values(manager_ad_user)
             return None
 
         # NOTE: Underscore fields should not be read
@@ -702,14 +702,27 @@ class ADWriter(AD):
         :param user_sam: SamAccountName for the employee.
         :param manager_sam: SamAccountName for the manager.
         """
-        format_rules = {"user_sam": user_sam, "manager_sam": manager_sam}
-        ps_script = self._build_ps(ad_templates.add_manager_template, format_rules)
-
+        ps_script = self._get_add_manager_command(user_sam, manager_sam)
         response = self._run_ps_script(ps_script)
         return response is {}
 
+    def _get_add_manager_command(self, user_sam, manager_sam):
+        format_rules = {"user_sam": user_sam, "manager_sam": manager_sam}
+        ps_script = self._build_ps(ad_templates.add_manager_template, format_rules)
+        return ps_script
+
     def _rename_ad_user(self, user_sam, new_name):
         logger.info("Rename user: %s", user_sam)
+        ps_script = self._get_rename_ad_user_command(user_sam, new_name)
+        logger.debug("Rename user, ps_script: {}".format(ps_script))
+        response = self._run_ps_script(ps_script)
+        logger.debug("Response from sync: {}".format(response))
+        logger.debug("Wait for replication")
+        # Todo: In principle we should ask all DCs, bu this will happen
+        # very rarely, performance is not of great importance
+        time.sleep(10)
+
+    def _get_rename_ad_user_command(self, user_sam, new_name):
         # Todo: This code is a duplicate of code found elsewhere
         rename_user_template = ad_templates.rename_user_template
         rename_user_string = rename_user_template.format(
@@ -723,13 +736,7 @@ class ADWriter(AD):
                 random.choice(self.all_settings["global"]["servers"])
             )
         ps_script = self._build_user_credential() + rename_user_string + server_string
-        logger.debug("Rename user, ps_script: {}".format(ps_script))
-        response = self._run_ps_script(ps_script)
-        logger.debug("Response from sync: {}".format(response))
-        logger.debug("Wait for replication")
-        # Todo: In principle we should ask all DCs, bu this will happen
-        # very rarely, performance is not of great importance
-        time.sleep(10)
+        return ps_script
 
     def _cf(self, ad_field, value, ad):
         logger.info("Check AD field: {}".format(ad_field))
@@ -747,9 +754,61 @@ class ADWriter(AD):
     def _render_field_template(self, context, template):
         return Template(template.strip('"')).render(**context)
 
+    def _preview_create_command(self, mo_uuid, ad_dump=None, create_manager=True):
+        mo_values = self.read_ad_information_from_mo(
+            mo_uuid,
+            ad_dump=ad_dump,
+            read_manager=create_manager,
+        )
+        sam_account_name = self._get_create_user_sam_account_name(
+            mo_values, dry_run=True
+        )
+        create_cmd = self._get_create_user_command(mo_values, sam_account_name)
+        add_manager_cmd = self._get_add_manager_command(
+            sam_account_name, mo_values["manager_sam"]
+        )
+        return create_cmd, add_manager_cmd
+
+    def _preview_sync_command(self, mo_uuid, user_sam, ad_dump=None, sync_manager=True):
+        mo_values = self.read_ad_information_from_mo(
+            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager
+        )
+
+        try:
+            ad_values = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
+        except CprNotFoundInADException:
+            ad_values = {}
+        else:
+            user_sam = self._get_sam_from_ad_values(ad_values)
+
+        sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
+        rename_cmd = ""
+        rename_cmd_target = ""
+
+        try:
+            mismatch = self._sync_compare(mo_values, ad_dump)
+        except CprNotFoundInADException:
+            # We might be running against an AD where we have not yet written any actual
+            # users. In that case, we will not find the user by CPR. But we still want
+            # to see the rename command that would be issued.
+            logger.info("Previewing 'rename' command for nonexistent AD user")
+            rename_cmd = self._get_rename_ad_user_command(user_sam, "<new name>")
+            rename_cmd_target = "<nonexistent AD user>"
+        else:
+            # We found an actual AD user by CPR
+            if "name" in mismatch:
+                # A rename command is necessary, as the new username differs from the
+                # current username in AD.
+                logger.info("Previewing 'rename' command for existing AD user")
+                new_name = mismatch["name"][1]
+                rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
+                rename_cmd_target = mismatch["name"][0]  # = previous username
+
+        return sync_cmd, rename_cmd, rename_cmd_target
+
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
-        user_sam = self._get_sam_for_ad_user(ad_user)
+        user_sam = self._get_sam_from_ad_values(ad_user)
 
         # TODO: Why is this not generated along with all other info in mo_values?
         mo_values["name_sam"] = "{} - {}".format(mo_values["full_name"], user_sam)
@@ -807,8 +866,8 @@ class ADWriter(AD):
         if mo_values is None:
             return (False, "No active engagments")
 
-        ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
-        user_sam = self._get_sam_for_ad_user(ad_user)
+        ad_values = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
+        user_sam = self._get_sam_from_ad_values(ad_values)
 
         if ad_dump is None:
             # TODO: We could also add the compare logic here,
@@ -830,10 +889,25 @@ class ADWriter(AD):
 
         logger.info("Sync compare: {}".format(mismatch))
 
+        ps_script = self._get_sync_user_command(ad_values, mo_values, user_sam)
+        logger.debug("Sync user, ps_script: {}".format(ps_script))
+
+        response = self._run_ps_script(ps_script)
+        logger.debug("Response from sync: {}".format(response))
+
+        if sync_manager and "manager" in mismatch:
+            logger.info("Add manager")
+            self.add_manager_to_user(
+                user_sam=user_sam, manager_sam=mo_values["manager_sam"]
+            )
+
+        return (True, "Sync completed", mo_values["read_manager"])
+
+    def _get_sync_user_command(self, ad_values, mo_values, user_sam):
         edit_user_string = template_powershell(
             cmd="Set-ADUser",
             context={
-                "ad_values": ad_user,
+                "ad_values": ad_values,
                 "mo_values": mo_values,
                 "user_sam": user_sam,
                 "sync_timestamp": str(datetime.now()),
@@ -849,18 +923,7 @@ class ADWriter(AD):
             )
 
         ps_script = self._build_user_credential() + edit_user_string + server_string
-        logger.debug("Sync user, ps_script: {}".format(ps_script))
-
-        response = self._run_ps_script(ps_script)
-        logger.debug("Response from sync: {}".format(response))
-
-        if sync_manager and "manager" in mismatch:
-            logger.info("Add manager")
-            self.add_manager_to_user(
-                user_sam=user_sam, manager_sam=mo_values["manager_sam"]
-            )
-
-        return (True, "Sync completed", mo_values["read_manager"])
+        return ps_script
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
         """
@@ -872,26 +935,43 @@ class ADWriter(AD):
         expected to be able to be created in AD and the expected SamAccountName.
         :return: The generated SamAccountName for the new user
         """
-        # TODO: Implement dry_run
-
-        bp = self._ps_boiler_plate()
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
         if mo_values is None:
             logger.error("Trying to create user with no engagements")
             raise NoPrimaryEngagementException
 
+        sam_account_name = self._get_create_user_sam_account_name(
+            mo_values, dry_run=dry_run
+        )
+
+        self._check_if_ad_user_exists(sam_account_name, mo_values["cpr"])
+
+        ps_script = self._get_create_user_command(mo_values, sam_account_name)
+
+        response = self._run_ps_script(ps_script)
+        if not response == {}:
+            msg = "Create user failed, message: {}".format(response)
+            logger.error(msg)
+            return (False, msg)
+
+        if create_manager:
+            self._wait_for_replication(sam_account_name)
+            msg = "Add {} as manager for {}".format(
+                mo_values["manager_sam"], sam_account_name
+            )
+            print(msg)
+            logger.info(msg)
+            self.add_manager_to_user(
+                user_sam=sam_account_name, manager_sam=mo_values["manager_sam"]
+            )
+
+        return (True, sam_account_name)
+
+    def _get_create_user_sam_account_name(self, mo_values, dry_run=False):
         all_names = mo_values["name"][0].split(" ") + [mo_values["name"][1]]
-        sam_account_name = self.name_creator.create_username(all_names, dry_run=dry_run)
+        return self.name_creator.create_username(all_names, dry_run=dry_run)
 
-        existing_sam = self.get_from_ad(user=sam_account_name)
-        existing_cpr = self.get_from_ad(cpr=mo_values["cpr"])
-        if existing_sam:
-            logger.error("SamAccount already in use: {}".format(sam_account_name))
-            raise SamAccountNameNotUnique(sam_account_name)
-        if existing_cpr:
-            logger.error("cpr already in use: {}".format(mo_values["cpr"]))
-            raise CprNotNotUnique(mo_values["cpr"])
-
+    def _get_create_user_command(self, mo_values, sam_account_name):
         create_user_string = template_powershell(
             context={
                 "ad_values": {},
@@ -914,32 +994,20 @@ class ADWriter(AD):
             self._build_user_credential()
             + create_user_string
             + server_string
-            + bp["path"]
+            + self._ps_boiler_plate()["path"]
         )
 
-        response = self._run_ps_script(ps_script)
-        if not response == {}:
-            msg = "Create user failed, message: {}".format(response)
-            logger.error(msg)
-            return (False, msg)
+        return ps_script
 
-        if create_manager:
-            self._wait_for_replication(sam_account_name)
-            print(
-                "Add {} as manager for {}".format(
-                    mo_values["manager_sam"], sam_account_name
-                )
-            )
-            logger.info(
-                "Add {} as manager for {}".format(
-                    mo_values["manager_sam"], sam_account_name
-                )
-            )
-            self.add_manager_to_user(
-                user_sam=sam_account_name, manager_sam=mo_values["manager_sam"]
-            )
-
-        return (True, sam_account_name)
+    def _check_if_ad_user_exists(self, sam_account_name, cpr):
+        existing_sam = self.get_from_ad(user=sam_account_name)
+        existing_cpr = self.get_from_ad(cpr=cpr)
+        if existing_sam:
+            logger.error("SamAccount already in use: {}".format(sam_account_name))
+            raise SamAccountNameNotUnique(sam_account_name)
+        if existing_cpr:
+            logger.error("cpr already in use: {}".format(cpr))
+            raise CprNotNotUnique(cpr)
 
     def add_ad_to_user_it_systems(self, username):
         # TODO: We need a function to write the SamAccount to the user's

@@ -367,6 +367,15 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         result = instance._find_user_unit_tree(({"uuid": uuid4()}, {}))
         self.assertEqual(result, expected_result)
 
+    def test_preview_command_for_uuid(self):
+        with mock.patch("click.echo_via_pager") as mock_echo:
+            instance = self._get_instance()
+            commands = ad_life_cycle.run_preview_command_for_uuid(instance, "mo_uuid")
+            self.assertEqual(mock_echo.call_count, 2)
+            self.assertEqual(len(commands), 2)
+            self.assertIsInstance(commands[0], str)
+            self.assertIsInstance(commands[1], str)
+
     def _get_instance(
         self,
         reader=None,
@@ -457,7 +466,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         return {filtername: {mo_user["uuid"]: " ".join(mo_user["name"])}}
 
 
-class TestableAdLifeCycle(ad_life_cycle.AdLifeCycle):
+class _TestableAdLifeCycle(ad_life_cycle.AdLifeCycle):
     def _load_settings(self):
         return BASE_SETTINGS
 
@@ -480,5 +489,5 @@ class TestOccupiedNamesCheckFlag(TestCase):
     )
     def test_skip_occupied_names_check(self, value):
         """If `skip_occupied_names_check` is passed, pass it to `ADWriter`"""
-        ad_life_cycle = TestableAdLifeCycle(skip_occupied_names_check=value)
-        self.assertEqual(ad_life_cycle.ad_writer.skip_occupied_names, value)
+        instance = _TestableAdLifeCycle(skip_occupied_names_check=value)
+        self.assertEqual(instance.ad_writer.skip_occupied_names, value)

@@ -1,4 +1,5 @@
 import logging
+import uuid
 from functools import lru_cache
 from functools import partial
 from functools import wraps
@@ -429,6 +430,15 @@ def write_stats(stats: Dict[str, Any]) -> None:
     print(stats)
 
 
+def run_preview_command_for_uuid(sync: AdLifeCycle, mo_uuid: str):
+    commands = sync.ad_writer._preview_create_command(
+        mo_uuid, ad_dump=None, create_manager=False
+    )
+    for cmd in commands:
+        click.echo_via_pager(cmd)
+    return commands
+
+
 @click.command()
 @click.option(
     "--create-ad-accounts",
@@ -459,12 +469,18 @@ def write_stats(stats: Dict[str, Any]) -> None:
     help="Skip reading all current user names from AD. Only for testing!",
     type=click.BOOL,
 )
+@click.option(
+    "--preview-command-for-uuid",
+    help="Given a MO user UUID, preview the PowerShell command to be run",
+    type=click.STRING,
+)
 def ad_life_cycle(
     create_ad_accounts: bool,
     disable_ad_accounts: bool,
     dry_run: bool,
     read_from_cache: bool,
     skip_occupied_names_check: bool,
+    preview_command_for_uuid: Optional[uuid.UUID],
 ) -> None:
     """Create or disable users."""
     logger.debug(
@@ -478,15 +494,19 @@ def ad_life_cycle(
         )
     )
 
-    if not any([create_ad_accounts, disable_ad_accounts]):
-        raise click.ClickException(
-            "Either create_ad_accounts or disable_ad_accounts must be given!"
-        )
-
     sync = AdLifeCycle(
         read_from_cache=read_from_cache,
         skip_occupied_names_check=skip_occupied_names_check,
     )
+
+    if preview_command_for_uuid:
+        run_preview_command_for_uuid(sync, str(preview_command_for_uuid))
+        return
+
+    if not any([create_ad_accounts, disable_ad_accounts]):
+        raise click.ClickException(
+            "Either create_ad_accounts or disable_ad_accounts must be given!"
+        )
 
     if create_ad_accounts:
         stats = sync.create_ad_accounts(dry_run)
