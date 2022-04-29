@@ -1,7 +1,9 @@
 from unittest import mock
 from unittest import TestCase
+from uuid import uuid4
 
 from ..mo_to_ad_sync import run_mo_to_ad_sync
+from ..mo_to_ad_sync import run_preview_command_for_uuid
 from .mocks import MockADParameterReader
 from .test_utils import dict_modifier
 from .test_utils import TestADWriterMixin
@@ -57,6 +59,19 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
                 num_successful=0,
                 num_critical_error=1,
             )
+
+    def test_preview_command_for_uuid(self, *args):
+        with mock.patch("click.echo_via_pager") as mock_echo:
+            commands = run_preview_command_for_uuid(
+                self._mock_reader,
+                self.ad_writer,
+                uuid4(),  # MO user UUID
+                sync_cpr="cpr",
+            )
+            self.assertEqual(mock_echo.call_count, 3)
+            self.assertEqual(len(commands), 3)
+            for cmd in commands:
+                self.assertIsInstance(cmd, str)
 
     def _run(self, mo_uuid_field="ObjectGUID", **kwargs):
         return run_mo_to_ad_sync(

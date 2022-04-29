@@ -5,6 +5,7 @@ from unittest import TestCase
 from freezegun import freeze_time
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
+from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 from ra_utils.lazy_dict import LazyDict
 
@@ -17,7 +18,8 @@ from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
-from .mocks import MockADParameterReader
+from .mocks import MO_UUID
+from .mocks import MockADWriterContext
 from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
@@ -864,7 +866,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         uuid = "some_uuid_here"
 
         def get_mo_values(firstname, surname, nickname_firstname, nickname_surname):
-            self.user = {
+            user = {
                 "uuid": "some_uuid_here",
                 "navn": "some_name some_lastname",
                 "efternavn": surname,
@@ -874,15 +876,13 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 "kaldenavn_efternavn": nickname_surname,
                 "cpr": "some_cpr",
             }
-            self.lc = AttrDict(
+            mock_lora_cache = AttrDict(
                 {
-                    "users": {
-                        self.user["uuid"]: [self.user],
-                    },
+                    "users": {user["uuid"]: [user]},
                     "engagements": {
                         "engagement_uuid": [
                             {
-                                "user": self.user["uuid"],
+                                "user": user["uuid"],
                                 "primary_boolean": True,
                                 "user_key": "some_userkey",
                                 "job_function": "job_function_title_uuid",
@@ -923,12 +923,12 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     },
                 }
             )
-            self.lc_historic = self.lc
-            self.ad_writer.lc = self.lc
-            self.ad_writer.lc_historic = self.lc_historic
+            self.ad_writer.helper = mock.MagicMock(spec=MoraHelper)
+            self.ad_writer.lc = mock_lora_cache
+            self.ad_writer.lc_historic = mock_lora_cache
             self.ad_writer.datasource = LoraCacheSource(
-                self.lc,
-                self.lc_historic,
+                mock_lora_cache,  # lc
+                mock_lora_cache,  # lc_historic
                 MockMORESTSource(from_date=None, to_date=None),
             )
             mo_values = self.ad_writer._read_ad_information_from_mo(uuid)
@@ -1016,7 +1016,15 @@ class TestADWriter(TestCase, TestADWriterMixin):
         assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
 
 
-class TestInitNameCreator(TestCase):
+class _TestRealADWriter(TestCase):
+    def _prepare_adwriter(self, **kwargs):
+        with MockADWriterContext():
+            instance = ADWriter(**kwargs)
+            instance.get_from_ad = lambda *args, **kwargs: {}
+            return instance
+
+
+class TestInitNameCreator(_TestRealADWriter):
     """Test `ADWriter._init_name_creator`.
 
     In this test, we instantiate the 'real' `ADWriter` rather than the
@@ -1050,23 +1058,25 @@ class TestInitNameCreator(TestCase):
         self.assertSetEqual(ad_writer.name_creator.occupied_names, set())
         self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
 
-    def _prepare_adwriter(self, **kwargs):
-        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
-        # a test.
 
-        all_settings = {"primary": {"method": "ntlm"}, "global": mock.MagicMock()}
-        path_prefix = "integrations.ad_integration"
-        with mock.patch(
-            f"{path_prefix}.ad_common.read_settings",
-            return_value=all_settings,
-        ):
-            with mock.patch(
-                f"{path_prefix}.ad_writer.ADWriter._create_session",
-                return_value=mock.MagicMock(),
-            ):
-                with mock.patch(f"{path_prefix}.ad_writer.MORESTSource"):
-                    with mock.patch(
-                        f"{path_prefix}.user_names.ADParameterReader",
-                        return_value=MockADParameterReader(),
-                    ):
-                        return ADWriter(**kwargs)
+class TestPreview(_TestRealADWriter):
+    def test_preview_create_command(self):
+        ad_writer = self._prepare_adwriter()
+        create_cmds = ad_writer._preview_create_command(MO_UUID)
+        self.assertEqual(len(create_cmds), 2)
+        self.assertIn("New-ADUser", create_cmds[0])
+        self.assertIn("Set-ADUser -Manager", create_cmds[1])
+
+    def test_preview_sync_command(self):
+        ad_writer = self._prepare_adwriter()
+        sync_cmd, rename_cmd, rename_cmd_target = ad_writer._preview_sync_command(
+            MO_UUID, "user_sam"
+        )
+        # Examine 'sync_cmd'
+        self.assertIn("Get-ADUser", sync_cmd)
+        self.assertIn("Set-ADUser", sync_cmd)
+        # Examine 'rename_cmd'
+        self.assertIn("Get-ADUser", rename_cmd)
+        self.assertIn("Rename-ADobject", rename_cmd)
+        self.assertIn('-NewName "<new name>"', rename_cmd)
+        self.assertEqual("<nonexistent AD user>", rename_cmd_target)

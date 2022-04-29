@@ -1,7 +1,9 @@
 import json
 import logging
+import uuid
 from typing import Dict
 from typing import Optional
+from typing import Tuple
 
 import click
 from ra_utils.load_settings import load_settings
@@ -120,6 +122,23 @@ def run_mo_to_ad_sync(
     return stats
 
 
+def run_preview_command_for_uuid(
+    reader: ADParameterReader,
+    writer: ADWriter,
+    mo_uuid: uuid.UUID,
+    sync_username: str = None,
+    sync_cpr: str = None,
+) -> Tuple[str]:
+    ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
+    sync_cmd, rename_cmd, rename_cmd_target = writer._preview_sync_command(
+        mo_uuid, sync_username, ad_dump=ad_dump
+    )
+    click.echo_via_pager(sync_cmd)
+    click.echo_via_pager(rename_cmd)
+    click.echo_via_pager(f"Rename targets AD user: {rename_cmd_target!r}")
+    return sync_cmd, rename_cmd, rename_cmd_target  # type: ignore
+
+
 @click.command()
 @click.option(
     "--lora-speedup/--no-lora-speedup",
@@ -143,12 +162,18 @@ def run_mo_to_ad_sync(
     type=click.STRING,
 )
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
+@click.option(
+    "--preview-command-for-uuid",
+    help="Given a MO user UUID, preview the PowerShell command(s) to run",
+    type=click.STRING,
+)
 def main(
     lora_speedup: bool,
     mo_uuid_field: str,
     sync_cpr: Optional[str],
     sync_username: Optional[str],
     ignore_occupied_names: bool,
+    preview_command_for_uuid: Optional[uuid.UUID],
 ):
     start_logging(LOG_FILE)
 
@@ -163,6 +188,16 @@ def main(
         # TODO: We should support on-demand name generation without pre-seed.
         skip_occupied_names=ignore_occupied_names,
     )
+
+    if preview_command_for_uuid and (sync_cpr or sync_username):
+        run_preview_command_for_uuid(
+            reader,
+            writer,
+            preview_command_for_uuid,
+            sync_cpr=sync_cpr,
+            sync_username=sync_username,
+        )
+        return
 
     run_mo_to_ad_sync(
         reader,

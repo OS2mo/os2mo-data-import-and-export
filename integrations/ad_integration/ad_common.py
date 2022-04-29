@@ -305,8 +305,9 @@ class AD:
         properties = properties[:-1] + " "  # Remove trailing comma, add space
         return properties
 
-    def _get_sam_for_ad_user(self, ad_user: ADUser) -> str:
-        return ad_user["SamAccountName"]
+    def _get_sam_from_ad_values(self, ad_values: ADUser) -> str:
+        # `ad_values` contains a dict with data on *one* AD user
+        return ad_values["SamAccountName"]
 
     def _find_ad_user(
         self, cpr: str, ad_dump: Optional[List[Dict[str, str]]] = None
