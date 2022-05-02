@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.3 - 2022-05-02
+-------------------
+
+[#49971] Bugfix: handle multiple email addresses per employee in `MORESTSource.get_email_address`.
+
 2.32.2 - 2022-05-02
 -------------------
 
