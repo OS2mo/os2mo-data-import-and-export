@@ -289,7 +289,7 @@ class MORESTSource(MODataSource):
         return mo_user
 
     def get_email_address(self, uuid):
-        mail_dict = self.helper.get_e_address(uuid, scope="EMAIL")
+        mail_dict = first(self.helper.get_e_addresses(uuid, scope="EMAIL"))
         return dict_subset(mail_dict, ["uuid", "value"])
 
     def find_primary_engagement(self, uuid):
