@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.2 - 2022-05-02
+-------------------
+
+[#49971] AD Write: fix use of `first_address_of_type` Jinja filter in `_get_sync_user_command`
+
 2.32.1 - 2022-04-27
 -------------------
 
