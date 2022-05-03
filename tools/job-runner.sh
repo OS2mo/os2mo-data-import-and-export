@@ -356,6 +356,14 @@ exports_ad_life_cycle(){
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
+exports_ad_life_cycle_disable_accounts(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/AD_life_cycle.log"
+    )
+    echo "running exports_ad_life_cycle_disable_accounts"
+    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
+}
+
 exports_mo_to_ad_sync(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/mo_to_ad_sync.log"
@@ -662,6 +670,10 @@ exports(){
 
     if [ "${RUN_EXPORTS_AD_LIFE_CYCLE}" == "true" ]; then
         run-job exports_ad_life_cycle || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_AD_LIFE_CYCLE_DISABLE_ACCOUNTS}" == "true" ]; then
+        run-job exports_ad_life_cycle_disable_accounts || return 2
     fi
 
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
