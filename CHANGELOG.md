@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.5 - 2022-05-03
+-------------------
+
+[#49971] Add `exports_ad_life_cycle_disable_accounts` to `job-runner.sh` so it can be run from `cron.sh`.
+
 2.32.4 - 2022-05-03
 -------------------
 
