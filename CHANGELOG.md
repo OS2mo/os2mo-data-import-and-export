@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.4 - 2022-05-03
+-------------------
+
+[#49999] Fixes kle import/export scripts that are outdated because of changes to MO configuration and FastAPI trailing slashes.
+
 2.32.3 - 2022-05-02
 -------------------
 
