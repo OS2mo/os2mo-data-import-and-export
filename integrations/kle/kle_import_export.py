@@ -96,7 +96,7 @@ class KLEAnnotationIntegration(ABC):
     def get_all_org_units_from_mo(self) -> list:
         """Get a list of all units from OS2mo"""
         logger.info("Fetching all org units from OS2mo")
-        url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
+        url = "{}/service/o/{}/ou/".format(self.mora_base, self.org_uuid)
         r = self.mora_session.get(url)
         r.raise_for_status()
         units = r.json()["items"]
