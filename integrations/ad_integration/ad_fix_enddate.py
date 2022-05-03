@@ -1,11 +1,12 @@
 from datetime import datetime
-
+from more_itertools import first
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting, load_settings
 from raclients.graph.client import GraphQLClient
 from tqdm import tqdm
 from gql import gql
+from operator import itemgetter
 import httpx
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
@@ -147,20 +148,8 @@ def cli(enddate_field, uuid_field, dry_run):
 
     print("All done")
 
-# def read_mo_enddates(session):
-   
-
-def cli2():
-    settings = load_settings()
-    url=settings["mora.base"]
-    client_id=settings["crontab.CLIENT_ID"]
-    client_secret=settings["crontab.CLIENT_SECRET"]
-    auth_server=settings["crontab.AUTH_SERVER"]
-    auth_realm = "mo"
-    #works:
-    r = httpx.post(f"{url}/graphql", json={"query": "query MyQuery {\n employees(to_date: \"2022-04-29\", from_date: null) {\n objects {\n cpr_no\n uuid\n engagements {\n validity {\n to\n }\n }\n }\n }\n}\n"}, timeout=60)
-    #no works:
-    with GraphQLClient(url=f"{url}/graphql", client_id = client_id, client_secret = client_secret, auth_realm=auth_realm, auth_server=auth_server, sync=True ) as session:
+def read_mo_enddates(url, client_id, client_secret, auth_server, auth_realm):
+    with GraphQLClient(url=f"{url}/graphql", client_id = client_id, client_secret = client_secret, auth_realm=auth_realm, auth_server=auth_server, sync=True, httpx_client_kwargs={"timeout":None} ) as session:
         query = gql("""query MyQuery {
             employees(to_date: "2022-04-29", from_date: null) {
                 objects {
@@ -175,8 +164,27 @@ def cli2():
             }
             }
         """)
-        session.execute(query)
+        r = session.execute(query)
+        return list(map(first, map(itemgetter('objects'), r['employees'])))
 
+def get_none_or_max(l):
+    print(l)
+
+def get_latest_enddate(mo_data):
+    mo_obj = list(map(itemgetter('objects'), mo_enddates))
+    list(map(get_none_or_max, mo_obj))
+
+def cli2():
+    settings = load_settings()
+    url=settings["mora.base"]
+    client_id=settings["crontab.CLIENT_ID"]
+    client_secret=settings["crontab.CLIENT_SECRET"]
+    auth_server=settings["crontab.AUTH_SERVER"]
+    auth_realm = "mo"
+    
+    
+    mo_enddates = read_mo_enddates(url=url, client_id=client_id, client_secret=client_secret, auth_server=auth_server, auth_realm=auth_realm)
+    get_latest_enddate(mo_enddates)    
     # reader = ADParameterReader()
     
     # cpr_field = reader.all_settings["primary"]["cpr_field"]
