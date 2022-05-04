@@ -1,7 +1,10 @@
 import pytest
+from glom import glom
+from glom.core import PathAccessError
 from hypothesis import given
 from hypothesis import strategies as st
 
+from ..read_ad_conf_settings import injected_settings
 from ..read_ad_conf_settings import read_settings
 
 
@@ -74,3 +77,51 @@ def test_missing_properties(tup):
         read_settings(settings)
     expected = "Missing AD field names in properties: [%r]" % ad_key
     assert expected in str(excinfo.value)
+
+    def test_injected_settings(self):
+        title = "Stilling"
+        old_settings = {
+            "global": {
+                "mora.base": "http://localhost:5000",
+                "password": "pwd",
+                "servers": [],
+                "system_user": "os2mo",
+                "winrm_host": "AD",
+            },
+            "primary": {
+                "cpr_field": "EmployeeID",
+                "method": "ntlm",
+                "password": "pwd",
+                "properties": [
+                    "givenName",
+                    "surname",
+                    "distinguishedName",
+                    "EmployeeID",
+                    "title",
+                ],
+                "system_user": "os2mo",
+            },
+            "primary_write": {
+                "cpr_field": "EmployeeID",
+                "mo_to_ad_fields": {
+                    "end_date": "info",
+                    "unit_postal_code": "postalCode",
+                },
+                "org_field": "Department",
+                "template_to_ad_fields": {"description": "{{" " sync_timestamp " "}}"},
+            },
+        }
+        new_settings = {
+            "ad_lifecycle_injected_settings": {
+                "primary_write.mo_to_ad_fields.Title": title
+            }
+        }
+        with pytest.raises(PathAccessError):
+            assert (
+                glom(old_settings, "primary_write.template_to_ad_fields.Title") != title
+            )
+        settings = injected_settings(
+            "ad_lifecycle_injected_settings", old_settings, new_settings
+        )
+
+        assert glom(settings, "primary_write.mo_to_ad_fields.Title") == title
