@@ -19,7 +19,6 @@ from ra_utils.jinja_filter import create_filters
 from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
 from ra_utils.lazy_dict import LazyEvalBare
-from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_exceptions import NoActiveEngagementsException
@@ -67,14 +66,13 @@ class AdLifeCycle:
                 lc=self.lc,
                 lc_historic=self.lc_historic,
                 skip_occupied_names=skip_occupied_names_check,
-                all_settings=injected_settings("ad_lifecycle_injected_settings"),
             )
         print("Done with AD Writer init: {}".format(t()))
 
         logger.debug("__init__() done")
 
     def _load_settings(self):
-        return load_settings()
+        return injected_settings("ad_lifecycle_injected_settings")
 
     def _load_jinja_filters(self, source: str) -> List[Callable]:
         seeded_create_filters = partial(

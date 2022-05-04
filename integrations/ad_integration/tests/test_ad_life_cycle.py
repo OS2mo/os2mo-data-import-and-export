@@ -401,8 +401,8 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         )
 
         load_settings_mock = mock.patch.object(
-            ad_life_cycle,
-            "load_settings",
+            ad_life_cycle.AdLifeCycle,
+            "_load_settings",
             return_value=settings,
         )
 
