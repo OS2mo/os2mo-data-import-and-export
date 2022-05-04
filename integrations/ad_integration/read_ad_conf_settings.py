@@ -219,10 +219,8 @@ def injected_settings(
     ad_settings = ad_settings or read_settings()
     normal_settings = normal_settings or load_settings()
     inject = normal_settings.get(settings_key, {})
-    if inject:
-        for path, value in inject.items():
-
-            assign(ad_settings, path, value)
+    for path, value in inject.items():
+        assign(ad_settings, path, value)
     return ad_settings
 
 
