@@ -58,9 +58,7 @@ def try_get_ad_user_key(
     ad_system_user_names = (
         session.query(ItForbindelse.brugernavn)
         .join(ItSystem, ItForbindelse.it_system_uuid == ItSystem.uuid)
-        .filter(
-            ItSystem.navn == user_key_it_system_name, ItForbindelse.bruger_uuid == uuid
-        )
+        .filter(ItSystem.navn == "Active Directory", ItForbindelse.bruger_uuid == uuid)
         .all()
     )
     ad_system_user_names = list(flatten(ad_system_user_names))
