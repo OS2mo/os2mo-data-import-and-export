@@ -21,7 +21,7 @@ from ra_utils.headers import TokenSettings
 
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
-from integrations.os2sync.config import get_os2sync_settings
+from integrations.os2sync.config import get_os2sync_settings, Settings
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
 
@@ -179,9 +179,9 @@ def try_get_ad_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
     )
 
     # if no ad OR multiple
-    if len(ad_systems) != 1:
+    if len(accounts) != 1:
         return None
-    return ad_systems[0].user_key
+    return accounts[0].user_key
 
 
 def get_work_address(positions, work_address_names) -> Optional[str]:
@@ -230,7 +230,7 @@ def get_fk_org_uuid(
     return first(it)
 
 
-def get_sts_user(uuid, settings):
+def get_sts_user(uuid, settings: ):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     user = User(
