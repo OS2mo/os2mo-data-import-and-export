@@ -1084,13 +1084,15 @@ Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De
 Bemærk at stien her ikke svarer til stien i settings.json, men i den dictionary som AD læser ud af settings.   
 Fx.
     
-    .. code-block:: json
-      {
-        "ad_lifecycle_injected_settings": {
-          "primary_write.mo_to_ad_fields.Title": "title", 
-          "TEST": "test"}
+.. code-block:: json
+  
+  {
+      "ad_lifecycle_injected_settings": {
+          "primary_write.mo_to_ad_fields.Title": "title"
+          }
         }
 
+Dette vil tilføje "title" til settings svarende til settings["primary_write"]["mo_to_ad_fields"]["Title"] = "title".
 Man kan se resultatet af at tilføre de ekstra settings ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
 
 
