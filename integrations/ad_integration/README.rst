@@ -1078,11 +1078,8 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
 Det er værd at bemærke at brugerne som laves med ad_life_cycle som udgangspunkt *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
 kan tilførsel vha. ``mo_to_ad_sync`` programmet.
-Hvis der er behov for at tilføje informationen til brugerne umidelbart efter oprettelsen - altså som en del af ``ad_life_cycle`` - 
-kan det gøres ved at sætte feature-flaget ``AD_LIFE_CYCLE_SYNC: true``. Det kan gøres direkte som en miljøvariabel, eller indirekte
-i ``settings.json`` som ``"crontab.AD_LIFE_CYCLE_SYNC":true`` idét job-runneren oversætter det til en miljøvariabel.
 
-Desuden kan settings overskrives hvis der skal gælde andre regler under oprettelsen af nye brugere end der ellers gør under synkroniseringen. 
+Settings kan overskrives hvis der skal gælde andre regler under oprettelsen af nye brugere end der ellers gør under synkroniseringen. 
 Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De skal skrives som en dictionary med formen "sti.til.setting": "værdi".
 Bemærk at stien her ikke svarer til stien i settings.json, men i den dictionary som AD læser ud af settings.   
 Fx.
@@ -1094,7 +1091,7 @@ Fx.
           "TEST": "test"}
         }
 
-Man kan se resultatet af at skyde de settings ind ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
+Man kan se resultatet af at tilføre de ekstra settings ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
 
 
 execute_ad_script.py
