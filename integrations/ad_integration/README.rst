@@ -1078,6 +1078,9 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
 Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
 kan tilførsel vha. ``ad_sync`` programmet.
+Hvis der er behov for at tilføje informationen til brugerne umidelbart efter oprettelsen - altså som en del af ``ad_life_cycle`` - 
+kan det gøres ved at sætte feature-flaget ``AD_LIFE_CYCLE_SYNC: true``. Det kan gøres direkte som en miljøvariabel, eller indirekte
+i ``settings.json`` som ``"crontab.AD_LIFE_CYCLE_SYNC":true`` idét job-runneren oversætter det til en miljøvariabel.
 
 
 execute_ad_script.py
