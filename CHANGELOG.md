@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.33.0 - 2022-05-05
+-------------------
+
+[#46511] AD Life Cycle: Add feature to add/overwrite part of AD settings when running ad_life_cycle.py
+
 2.32.6 - 2022-05-05
 -------------------
 
