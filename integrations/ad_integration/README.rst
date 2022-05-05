@@ -1083,7 +1083,8 @@ kan det gøres ved at sætte feature-flaget ``AD_LIFE_CYCLE_SYNC: true``. Det ka
 i ``settings.json`` som ``"crontab.AD_LIFE_CYCLE_SYNC":true`` idét job-runneren oversætter det til en miljøvariabel.
 
 Desuden kan settings overskrives hvis der skal gælde andre regler under oprettelsen af nye brugere end der ellers gør under synkroniseringen. 
-Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De skal skrives som en dictionary med formen "sti.til.setting": "værdi" 
+Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De skal skrives som en dictionary med formen "sti.til.setting": "værdi".
+Bemærk at stien her ikke svarer til stien i settings.json, men i den dictionary som AD læser ud af settings.   
 Fx.
     
     .. code-block:: json
@@ -1093,6 +1094,7 @@ Fx.
           "TEST": "test"}
         }
 
+Man kan se resultatet af at skyde de settings ind ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
 
 
 execute_ad_script.py
