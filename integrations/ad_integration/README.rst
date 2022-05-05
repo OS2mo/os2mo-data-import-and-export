@@ -1075,9 +1075,24 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
    dem som har den givne stillingsbetegnelse.
 
 
-Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
+Det er værd at bemærke at brugerne som laves med ad_life_cycle som udgangspunkt *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
-kan tilførsel vha. ``ad_sync`` programmet.
+kan tilførsel vha. ``mo_to_ad_sync`` programmet.
+Hvis der er behov for at tilføje informationen til brugerne umidelbart efter oprettelsen - altså som en del af ``ad_life_cycle`` - 
+kan det gøres ved at sætte feature-flaget ``AD_LIFE_CYCLE_SYNC: true``. Det kan gøres direkte som en miljøvariabel, eller indirekte
+i ``settings.json`` som ``"crontab.AD_LIFE_CYCLE_SYNC":true`` idét job-runneren oversætter det til en miljøvariabel.
+
+Desuden kan settings overskrives hvis der skal gælde andre regler under oprettelsen af nye brugere end der ellers gør under synkroniseringen. 
+Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De skal skrives som en dictionary med formen "sti.til.setting": "værdi" 
+Fx.
+    
+    .. code-block:: json
+      {
+        "ad_lifecycle_injected_settings": {
+          "primary_write.mo_to_ad_fields.Title": "title", 
+          "TEST": "test"}
+        }
+
 
 
 execute_ad_script.py
