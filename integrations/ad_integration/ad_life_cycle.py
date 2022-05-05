@@ -345,9 +345,7 @@ class AdLifeCycle:
 
         return self.stats
 
-    def create_ad_accounts(
-        self, dry_run: bool = False, with_mo_details: bool = False
-    ) -> Dict[str, Any]:
+    def create_ad_accounts(self, dry_run: bool = False) -> Dict[str, Any]:
         """Iterate over all users and create missing AD accounts."""
 
         @self.log_skipped("filter_user_already_in_ad")
@@ -410,8 +408,6 @@ class AdLifeCycle:
                     status, message = self.ad_writer.create_user(
                         employee["uuid"], create_manager=False
                     )
-                    if with_mo_details:
-                        self.ad_writer.sync_user(employee["uuid"])
                 if status:
                     logger.debug("New username: {}".format(message))
                     self.stats["created_users"] += 1
@@ -480,12 +476,6 @@ def run_preview_command_for_uuid(sync: AdLifeCycle, mo_uuid: str):
     help="Given a MO user UUID, preview the PowerShell command to be run",
     type=click.STRING,
 )
-@click.option(
-    "--with-mo-details",
-    help="Write OS2MO details to new AD users",
-    is_flag=True,
-    envvar="AD_LIFE_CYCLE_SYNC",
-)
 def ad_life_cycle(
     create_ad_accounts: bool,
     disable_ad_accounts: bool,
@@ -493,7 +483,6 @@ def ad_life_cycle(
     read_from_cache: bool,
     skip_occupied_names_check: bool,
     preview_command_for_uuid: Optional[uuid.UUID],
-    with_mo_details: bool,
 ) -> None:
     """Create or disable users."""
     logger.debug(
@@ -503,7 +492,6 @@ def ad_life_cycle(
                 "disable_ad_accounts": disable_ad_accounts,
                 "dry_run": dry_run,
                 "read_from_cache": read_from_cache,
-                "with_mo_details": with_mo_details,
             }
         )
     )
@@ -523,7 +511,7 @@ def ad_life_cycle(
         )
 
     if create_ad_accounts:
-        stats = sync.create_ad_accounts(dry_run, with_mo_details)
+        stats = sync.create_ad_accounts(dry_run)
         write_stats(stats)
 
     if disable_ad_accounts:
