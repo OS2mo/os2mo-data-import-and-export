@@ -401,8 +401,13 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         )
 
         load_settings_mock = mock.patch.object(
-            ad_life_cycle.AdLifeCycle,
-            "_load_settings",
+            ad_life_cycle,
+            "load_settings",
+            return_value=settings,
+        )
+        read_settings_mock = mock.patch.object(
+            ad_life_cycle,
+            "injected_settings",
             return_value=settings,
         )
 
@@ -425,15 +430,16 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         )
 
         with load_settings_mock:
-            with lora_cache_mock:
-                with reader_mock:
-                    with writer_mock:
-                        instance = ad_life_cycle.AdLifeCycle(**kwargs)
-                        # Replace `users_with_engagements` dict attr with our
-                        # mocked version.
-                        if users_with_engagements is not None:
-                            instance.users_with_engagements = {}
-                        return instance
+            with read_settings_mock:
+                with lora_cache_mock:
+                    with reader_mock:
+                        with writer_mock:
+                            instance = ad_life_cycle.AdLifeCycle(**kwargs)
+                            # Replace `users_with_engagements` dict attr with our
+                            # mocked version.
+                            if users_with_engagements is not None:
+                                instance.users_with_engagements = {}
+                            return instance
 
     def _assert_stats_equal(self, actual_stats, **expected_stats):
         _keys = {
@@ -487,7 +493,11 @@ class TestOccupiedNamesCheckFlag(TestCase):
             (False,),
         ]
     )
-    def test_skip_occupied_names_check(self, value):
+    @mock.patch.object(
+        ad_life_cycle,
+        "injected_settings",
+    )
+    def test_skip_occupied_names_check(self, value, injected_settings_mock):
         """If `skip_occupied_names_check` is passed, pass it to `ADWriter`"""
         instance = _TestableAdLifeCycle(skip_occupied_names_check=value)
         self.assertEqual(instance.ad_writer.skip_occupied_names, value)
