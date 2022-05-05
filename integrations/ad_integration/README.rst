@@ -1075,9 +1075,25 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
    dem som har den givne stillingsbetegnelse.
 
 
-Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
+Det er værd at bemærke at brugerne som laves med ad_life_cycle som udgangspunkt *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
-kan tilførsel vha. ``ad_sync`` programmet.
+kan tilførsel vha. ``mo_to_ad_sync`` programmet.
+
+Settings kan overskrives hvis der skal gælde andre regler under oprettelsen af nye brugere end der ellers gør under synkroniseringen. 
+Dette gøres ved at sætte felterne ind i ``ad_lifecycle_injected_settings``. De skal skrives som en dictionary med formen "sti.til.setting": "værdi".
+Bemærk at stien her ikke svarer til stien i settings.json, men i den dictionary som AD læser ud af settings.   
+Fx.
+    
+.. code-block:: json
+  
+  {
+      "ad_lifecycle_injected_settings": {
+          "primary_write.mo_to_ad_fields.Title": "title"
+          }
+        }
+
+Dette vil tilføje "title" til settings svarende til settings["primary_write"]["mo_to_ad_fields"]["Title"] = "title".
+Man kan se resultatet af at tilføre de ekstra settings ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
 
 
 execute_ad_script.py
