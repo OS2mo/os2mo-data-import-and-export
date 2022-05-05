@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.32.6 - 2022-05-05
+-------------------
+
+[#50123] OS2sync export: paginate calls to read all user uuids from MO to avoid crash when reading many employees.
+
 2.32.5 - 2022-05-03
 -------------------
 
