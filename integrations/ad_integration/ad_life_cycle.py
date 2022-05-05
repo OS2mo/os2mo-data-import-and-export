@@ -507,9 +507,6 @@ def ad_life_cycle(
             }
         )
     )
-    import pdb
-
-    pdb.set_trace()
 
     sync = AdLifeCycle(
         read_from_cache=read_from_cache,
