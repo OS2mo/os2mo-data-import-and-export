@@ -11,6 +11,7 @@ import logging
 import pathlib
 from functools import partial
 from operator import itemgetter
+from typing import Set
 
 from tqdm import tqdm
 
@@ -87,6 +88,28 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     return
 
 
+def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
+    """Return a set of all employee uuids in MO.
+
+    :param limit: Size of pagination groups. Set to 0 to skip pagination and fetch all users in one request.
+    :return: set of uuids of all employees.
+    """
+
+    start = 0
+    total = 1
+    all_employee_uuids = set()
+    while start < total:
+        employee_list = os2mo.os2mo_get(
+            f"{{BASE}}/o/{org_uuid}/e/?limit={limit}&start={start}"
+        ).json()
+
+        batch = set(map(itemgetter("uuid"), employee_list["items"]))
+        all_employee_uuids.update(batch)
+        start = employee_list["offset"] + limit
+        total = employee_list["total"]
+    return all_employee_uuids
+
+
 def sync_os2sync_users(settings, counter, prev_date):
 
     logger.info("sync_os2sync_users starting")
@@ -95,27 +118,11 @@ def sync_os2sync_users(settings, counter, prev_date):
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
     org_uuid = os2mo.organization_uuid()
-    os2mo_uuids_past = os2mo.os2mo_get(
-        f"{{BASE}}/o/{org_uuid}/e/", at=prev_date
-    ).json()["items"]
-    os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
-    os2mo_uuids_present = os2mo.os2mo_get(f"{{BASE}}/o/{org_uuid}/e/").json()["items"]
-    os2mo_uuids_present = set(map(itemgetter("uuid"), os2mo_uuids_present))
+    os2mo_uuids_present = read_all_user_uuids(org_uuid)
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
-    counter["Medarbejdere tidligere"] = len(os2mo_uuids_past)
-
-    logger.info("sync_os2sync_users deleting " "os2mo-deleted users in os2sync")
-
-    if len(os2mo_uuids_present):
-        terminated_users = set(os2mo_uuids_past - os2mo_uuids_present)
-        for uuid in tqdm(
-            terminated_users, desc="Deleting terminated users", unit="user"
-        ):
-            counter["Medarbejdere slettes i OS2Sync (del)"] += 1
-            os2sync.delete_user(uuid)
 
     # insert/overwrite all users from os2mo
     # maybe delete if user has no more positions
