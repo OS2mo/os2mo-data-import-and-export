@@ -27,6 +27,7 @@ from .ad_exceptions import NoPrimaryEngagementException
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
+from .read_ad_conf_settings import injected_settings
 from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("CreateAdUsers")
@@ -66,6 +67,7 @@ class AdLifeCycle:
                 lc=self.lc,
                 lc_historic=self.lc_historic,
                 skip_occupied_names=skip_occupied_names_check,
+                all_settings=injected_settings("ad_lifecycle_injected_settings"),
             )
         print("Done with AD Writer init: {}".format(t()))
 

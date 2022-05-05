@@ -1,7 +1,12 @@
 import collections
 import logging
+from typing import Dict
+from typing import Optional
 
+import click
+from glom import assign
 from ra_utils.load_settings import load_settings
+
 
 logger = logging.getLogger("AdReader")
 
@@ -206,5 +211,29 @@ def read_settings(top_settings=None, index=0):
     return settings
 
 
+def injected_settings(
+    settings_key: str,
+    ad_settings: Optional[Dict] = None,
+    normal_settings: Optional[Dict] = None,
+) -> Dict:
+    ad_settings = ad_settings or read_settings()
+    normal_settings = normal_settings or load_settings()
+    inject = normal_settings.get(settings_key, {})
+    for path, value in inject.items():
+        assign(ad_settings, path, value)
+    return ad_settings
+
+
+@click.command()
+@click.option("--inject", is_flag=True, help="inject AD_life_cycle settings")
+def show_ad_settings(inject):
+    settings = (
+        injected_settings("ad_lifecycle_injected_settings")
+        if inject
+        else read_settings()
+    )
+    click.echo(settings)
+
+
 if __name__ == "__main__":
-    read_settings()
+    show_ad_settings()
