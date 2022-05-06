@@ -2,9 +2,10 @@ from uuid import uuid4
 
 from parameterized import parameterized
 
-from constants import AD_objectguid_it_system
-from constants import FK_org_uuid_it_system
 from integrations.os2sync.os2mo import get_fk_org_uuid
+
+FK_org_uuid_it_system = "FK-org uuid"
+AD_objectguid_it_system = "AD ObjectGuid"
 
 
 class TestUUIDFromITSystem:

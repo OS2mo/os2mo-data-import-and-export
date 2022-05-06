@@ -13,7 +13,6 @@ from more_itertools import flatten
 from more_itertools import only
 from sqlalchemy.orm import sessionmaker
 
-from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_table_defs import Bruger
@@ -53,7 +52,7 @@ scope_to_scope = {
 }
 
 
-def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
+def try_get_ad_user_key(session, uuid: str, AD_it_system: str) -> Optional[str]:
     ad_system_user_names = (
         session.query(ItForbindelse.brugernavn)
         .join(ItSystem, ItForbindelse.it_system_uuid == ItSystem.uuid)
@@ -102,7 +101,9 @@ def get_sts_user(session, uuid, settings: config.Settings):
     user = User(
         dict(
             uuid=uuid,
-            candidate_user_id=try_get_ad_user_key(session, uuid),
+            candidate_user_id=try_get_ad_user_key(
+                session, uuid, AD_it_system=settings.AD_it_system
+            ),
             person=Person(to_mo_employee(employee), settings=settings),
         ),
         settings=settings,
