@@ -4,8 +4,9 @@ from parameterized import parameterized
 
 from integrations.os2sync.os2mo import get_fk_org_uuid
 
-FK_org_uuid_it_system = "FK-org uuid"
-AD_objectguid_it_system = "AD ObjectGuid"
+
+FK_ORG_UUID_IT_SYSTEM = "FK-org uuid"
+AD_OBJECTGUID_IT_SYSTEM = "AD ObjectGuid"
 
 
 class TestUUIDFromITSystem:
@@ -22,76 +23,76 @@ class TestUUIDFromITSystem:
             # With no list in settings, choose mo_uuid whatever it-accounts exist
             (
                 [],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}}],
+                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
                 mo_uuid,
             ),
             (
                 [],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}}],
+                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 mo_uuid,
             ),
             (
                 [],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}},
+                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
+                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
                 ],
                 mo_uuid,
             ),
             # With one it-system in settings we use the uuid from that it-system or from MO if there are no it-account in that it-system.
             # No it-accounts - use mo_uuid
-            ([FK_org_uuid_it_system], [], mo_uuid),
+            ([FK_ORG_UUID_IT_SYSTEM], [], mo_uuid),
             # There is an it-account, it is in settings - chose the value from that
             (
-                [FK_org_uuid_it_system],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}}],
+                [FK_ORG_UUID_IT_SYSTEM],
+                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
                 fk_org_uuid,
             ),
             # There is an it-account, it is not in settings - chose mo_uuid.
             (
-                [FK_org_uuid_it_system],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}}],
+                [FK_ORG_UUID_IT_SYSTEM],
+                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 mo_uuid,
             ),
             # There are two it-accounts - chose the value from the correct one.
             (
-                [FK_org_uuid_it_system],
+                [FK_ORG_UUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}},
+                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
+                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
                 ],
                 fk_org_uuid,
             ),
             # With two it-systems in settings we use the uuid from the first, if it exists, then second, else from MO.
             # There are no it-accounts, use mo_uuid
-            ([FK_org_uuid_it_system, AD_objectguid_it_system], [], mo_uuid),
+            ([FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM], [], mo_uuid),
             # There is one account, it is in settings, use the uuid from that.
             (
-                [FK_org_uuid_it_system, AD_objectguid_it_system],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}}],
+                [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
+                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
                 fk_org_uuid,
             ),
             # There is one account, it is in settings, but second in the list, use the uuid from that it account.
             (
-                [FK_org_uuid_it_system, AD_objectguid_it_system],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}}],
+                [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
+                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 ad_uuid,
             ),
             # There are two it-accounts, both it-systems are in settings, use the value from the first in the settings list.
             (
-                [FK_org_uuid_it_system, AD_objectguid_it_system],
+                [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}},
+                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
+                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
                 ],
                 fk_org_uuid,
             ),
             # Same as above, but with settings list reversed to test we use the value from the first in the settings list.
             (
-                [AD_objectguid_it_system, FK_org_uuid_it_system],
+                [AD_OBJECTGUID_IT_SYSTEM, FK_ORG_UUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_objectguid_it_system}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_org_uuid_it_system}},
+                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
+                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
                 ],
                 ad_uuid,
             ),

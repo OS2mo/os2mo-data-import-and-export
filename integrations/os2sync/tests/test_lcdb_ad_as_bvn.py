@@ -15,7 +15,7 @@ from exporters.sql_export.sql_table_defs import Tilknytning
 from integrations.os2sync.lcdb_os2mo import get_sts_user
 from integrations.os2sync.lcdb_os2mo import try_get_ad_user_key
 
-AD_it_system = "Active Directory"
+AD_IT_SYSTEM = "Active Directory"
 
 
 class Tests_lc_db(unittest.TestCase):
@@ -35,7 +35,7 @@ class Tests_lc_db(unittest.TestCase):
             cpr="cpr1",
         )
         self.session.add(bruger)
-        it = ItSystem(navn=AD_it_system, uuid="ItSystem1")
+        it = ItSystem(navn=AD_IT_SYSTEM, uuid="ItSystem1")
         self.session.add(it)
         it = ItSystem(navn="it_navn2", uuid="ItSystem2")
         self.session.add(it)
@@ -154,7 +154,7 @@ class Tests_lc_db(unittest.TestCase):
         self.assertEqual(
             expected,
             try_get_ad_user_key(
-                session=self.session, uuid="b1", user_key_it_system_name=AD_it_system
+                session=self.session, uuid="b1", user_key_it_system_name=AD_IT_SYSTEM
             ),
         )
 
