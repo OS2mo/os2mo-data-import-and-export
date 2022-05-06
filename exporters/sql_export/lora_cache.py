@@ -10,7 +10,9 @@ from collections import defaultdict
 from itertools import starmap
 from operator import itemgetter
 from pathlib import Path
+from typing import Dict
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from uuid import UUID
 
@@ -62,7 +64,6 @@ class LoraCache:
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
-        self.dar_client = DARClient()
 
     def _load_settings(self):
         return load_settings()
@@ -1104,21 +1105,25 @@ class LoraCache:
             self.units[unit][0]["manager_uuid"] = manager_uuid
             self.units[unit][0]["acting_manager_uuid"] = acting_manager_uuid
 
+    def _read_from_dar(self, uuids: Set[UUID]) -> Tuple[Dict, Set[UUID]]:
+        with DARClient() as dc:
+            return dc.fetch(uuids)
+
     def _cache_dar(self):
         # Initialize cache for entries we cannot lookup
-        dar_uuids = set(self.dar_map.keys())
+        dar_uuids = missing = set(self.dar_map.keys())
         dar_cache = dict(
             map(lambda dar_uuid: (UUID(dar_uuid), {"betegnelse": None}), dar_uuids)
         )
-
-        with self.dar_client as dc:
-            dar_hits, missing = dc.fetch(dar_uuids)
-        dar_cache.update(dar_hits)
+        if self.resolve_dar:
+            dar_hits, missing = self._read_from_dar(dar_uuids)
+            dar_cache.update(dar_hits)
+            logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
+            for dar_uuid, uuid_list in self.dar_map.items():
+                for uuid in uuid_list:
+                    for address in self.addresses[uuid]:
+                        address["value"] = dar_cache[UUID(dar_uuid)].get("betegnelse")
         logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
-        for dar_uuid, uuid_list in self.dar_map.items():
-            for uuid in uuid_list:
-                for address in self.addresses[uuid]:
-                    address["value"] = dar_cache[UUID(dar_uuid)].get("betegnelse")
         return dar_cache
 
     def populate_cache(self, dry_run=None, skip_associations=False):

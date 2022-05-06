@@ -55,26 +55,25 @@ class TestResolveDar(unittest.TestCase):
     @given(booleans(), lists(uuids()))
     def test_cache_dar(self, resolve_dar, dar_uuids):
         """With filled dar_map, resolve does matter."""
-        lc = LoraCacheTest(resolve_dar)
+        lc = LoraCacheTest(resolve_dar=resolve_dar)
         self.assertEqual(lc.resolve_dar, resolve_dar)
         self.assertEqual(lc.dar_map, {})
         lc.addresses = {}
 
         # Prepare dar_map with provided dar_uuids
         num_uuids = len(dar_uuids)
-        dar_uuids = list(map(str, dar_uuids))
+        dar_uuids = set(map(str, dar_uuids))
         for dar_uuid in dar_uuids:
             lc.dar_map[dar_uuid] = []
 
         # Fire the call and check log output
-        with patch.object(lc, "dar_client") as sync_dar:
-            with patch.object(sync_dar, "fetch", return_value=1) as sync_dar_fetch:
-                with self._caplog.at_level(logging.INFO):
-                    dar_cache = lc._cache_dar()
-                    expected_log_message = (
-                        f"Total dar: {num_uuids}, no-hit: {num_uuids}"
-                    )
-                    assert self.get_last_log() == expected_log_message
+        with patch.object(
+            lc, "_read_from_dar", return_value=({}, dar_uuids)
+        ) as sync_dar_fetch:
+            with self._caplog.at_level(logging.INFO):
+                dar_cache = lc._cache_dar()
+                expected_log_message = f"Total dar: {num_uuids}, no-hit: {num_uuids}"
+                assert self.get_last_log() == expected_log_message
 
         # Ensure that sync_dar_fetch is only called when resolve_dar is True
         if resolve_dar:
