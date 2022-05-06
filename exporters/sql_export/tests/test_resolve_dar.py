@@ -1,7 +1,7 @@
 import logging
 import unittest
-from unittest.mock import call
 from unittest.mock import patch
+from uuid import UUID
 
 import pytest
 from hypothesis import given
@@ -52,19 +52,9 @@ class TestResolveDar(unittest.TestCase):
             self.assertEqual(self.get_last_log(), "Total dar: 0, no-hit: 0")
         self.assertEqual(dar_cache, {})
 
-    @patch("exporters.sql_export.lora_cache.dar_helper.sync_dar_fetch")
     @given(booleans(), lists(uuids()))
-    def test_cache_dar(self, sync_dar_fetch, resolve_dar, dar_uuids):
+    def test_cache_dar(self, resolve_dar, dar_uuids):
         """With filled dar_map, resolve does matter."""
-        sync_dar_fetch.reset_mock()
-
-        def noop_sync_dar_fetch(dar_uuids, addrtype="adresser"):
-            """Mock sync_dar_fetch to be noop."""
-            return {}, dar_uuids
-
-        sync_dar_fetch.side_effect = noop_sync_dar_fetch
-
-        # Setup LoraCache Object
         lc = LoraCacheTest(resolve_dar)
         self.assertEqual(lc.resolve_dar, resolve_dar)
         self.assertEqual(lc.dar_map, {})
@@ -77,22 +67,22 @@ class TestResolveDar(unittest.TestCase):
             lc.dar_map[dar_uuid] = []
 
         # Fire the call and check log output
-        with self._caplog.at_level(logging.INFO):
-            dar_cache = lc._cache_dar()
-            expected_log_message = f"Total dar: {num_uuids}, no-hit: {num_uuids}"
-            self.assertEqual(self.get_last_log(), expected_log_message)
+        with patch.object(lc, "dar_client") as sync_dar:
+            with patch.object(sync_dar, "fetch", return_value=1) as sync_dar_fetch:
+                with self._caplog.at_level(logging.INFO):
+                    dar_cache = lc._cache_dar()
+                    expected_log_message = (
+                        f"Total dar: {num_uuids}, no-hit: {num_uuids}"
+                    )
+                    assert self.get_last_log() == expected_log_message
 
         # Ensure that sync_dar_fetch is only called when resolve_dar is True
         if resolve_dar:
-            calls = [
-                call(lc.dar_map.keys()),
-                call(dar_uuids, addrtype="adgangsadresser"),
-            ]
-            sync_dar_fetch.assert_has_calls(calls)
+            sync_dar_fetch.assert_called_once_with(dar_uuids)
         else:
             sync_dar_fetch.assert_not_called()
 
         # Check that all our betegnelser has been set
         for dar_uuid in dar_uuids:
-            self.assertIn(dar_uuid, dar_cache)
-            self.assertEqual(dar_cache[dar_uuid], {"betegnelse": None})
+            self.assertIn(UUID(dar_uuid), dar_cache)
+            self.assertEqual(dar_cache[UUID(dar_uuid)], {"betegnelse": None})

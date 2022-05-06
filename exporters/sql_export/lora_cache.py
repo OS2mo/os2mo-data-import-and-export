@@ -62,6 +62,7 @@ class LoraCache:
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+        self.dar_client = DARClient()
 
     def _load_settings(self):
         return load_settings()
@@ -1106,11 +1107,14 @@ class LoraCache:
     def _cache_dar(self):
         # Initialize cache for entries we cannot lookup
         dar_uuids = set(self.dar_map.keys())
-        darclient = DARClient()
-        with darclient:
-            dar_cache, missing = darclient.fetch(dar_uuids)
+        dar_cache = dict(
+            map(lambda dar_uuid: (UUID(dar_uuid), {"betegnelse": None}), dar_uuids)
+        )
 
-        logger.info(f"Total dar: {len(dar_cache)}, no-hit: {len(missing)}")
+        with self.dar_client as dc:
+            dar_hits, missing = dc.fetch(dar_uuids)
+        dar_cache.update(dar_hits)
+        logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
         for dar_uuid, uuid_list in self.dar_map.items():
             for uuid in uuid_list:
                 for address in self.addresses[uuid]:
