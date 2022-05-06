@@ -81,8 +81,8 @@ class Settings(BaseSettings):
     os2sync_uuid_from_it_systems: List[str] = []
 
     os2sync_truncate_length: int = 200
-    AD_it_system: str = "Active Directory"
-    FK_org_uuid_it_system: str = "FK-org uuid"
+
+    os2sync_user_key_it_system_name: str = "Active Directory"
 
     class Config:
 

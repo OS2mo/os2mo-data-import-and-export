@@ -369,7 +369,10 @@ class TestsMOAd(unittest.TestCase):
     @patch("integrations.os2sync.os2mo.os2mo_get", patched_session_get)
     def test_get_ad_user_key(self):
         expected = "SolveigK_AD_logon"
-        self.assertEqual(expected, try_get_ad_user_key(uuid))
+        self.assertEqual(
+            expected,
+            try_get_ad_user_key(uuid, user_key_it_system_name="Active Directory"),
+        )
 
     @patch("integrations.os2sync.os2mo.os2mo_get", patched_session_get)
     @patch.object(os2mo, "org_unit_uuids", return_value={})

@@ -154,7 +154,7 @@ class Tests_lc_db(unittest.TestCase):
         self.assertEqual(
             expected,
             try_get_ad_user_key(
-                session=self.session, uuid="b1", AD_it_system=AD_it_system
+                session=self.session, uuid="b1", user_key_it_system_name=AD_it_system
             ),
         )
 

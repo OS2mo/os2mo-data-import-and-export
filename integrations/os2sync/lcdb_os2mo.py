@@ -52,11 +52,15 @@ scope_to_scope = {
 }
 
 
-def try_get_ad_user_key(session, uuid: str, AD_it_system: str) -> Optional[str]:
+def try_get_ad_user_key(
+    session, uuid: str, user_key_it_system_name: str
+) -> Optional[str]:
     ad_system_user_names = (
         session.query(ItForbindelse.brugernavn)
         .join(ItSystem, ItForbindelse.it_system_uuid == ItSystem.uuid)
-        .filter(ItSystem.navn == AD_it_system, ItForbindelse.bruger_uuid == uuid)
+        .filter(
+            ItSystem.navn == user_key_it_system_name, ItForbindelse.bruger_uuid == uuid
+        )
         .all()
     )
     ad_system_user_names = list(flatten(ad_system_user_names))
@@ -102,7 +106,9 @@ def get_sts_user(session, uuid, settings: config.Settings):
         dict(
             uuid=uuid,
             candidate_user_id=try_get_ad_user_key(
-                session, uuid, AD_it_system=settings.AD_it_system
+                session,
+                uuid,
+                user_key_it_system_name=settings.os2sync_user_key_it_system_name,
             ),
             person=Person(to_mo_employee(employee), settings=settings),
         ),
