@@ -9,7 +9,6 @@ import click
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 
-from constants import lc_for_jobs_actual_db_name
 from exporters.sql_export.sql_export import SqlExport
 
 LOG_LEVEL = logging.DEBUG
@@ -21,7 +20,7 @@ logger = logging.getLogger("lc-for-jobs")
 def get_engine(dbpath=None):
     if dbpath is None:
         settings = load_settings()
-        dbpath = settings.get("lc-for-jobs.actual_db_name", lc_for_jobs_actual_db_name)
+        dbpath = settings.get("lc-for-jobs.actual_db_name", "ActualState")
 
     dbpath = str(dbpath)
     if dbpath != ":memory:":
