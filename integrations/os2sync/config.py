@@ -82,6 +82,8 @@ class Settings(BaseSettings):
 
     os2sync_truncate_length: int = 200
 
+    os2sync_user_key_it_system_name: str = "Active Directory"
+
     class Config:
 
         env_file_encoding = "utf-8"

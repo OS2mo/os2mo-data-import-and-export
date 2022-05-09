@@ -19,7 +19,6 @@ from more_itertools import first
 from more_itertools import one
 from ra_utils.headers import TokenSettings
 
-from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.config import get_os2sync_settings
@@ -163,13 +162,15 @@ def engagements_to_user(user, engagements, allowed_unitids):
             )
 
 
-def try_get_ad_user_key(uuid: str) -> Optional[str]:
+def try_get_ad_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
     """
     fetches all it-systems related to a user and return the ad-user_key if exists
     """
     it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
     it_systems = IT.from_mo_json(it_response)
-    ad_systems = list(filter(lambda x: x.system_name == AD_it_system, it_systems))
+    ad_systems = list(
+        filter(lambda x: x.system_name == user_key_it_system_name, it_systems)
+    )
 
     # if no ad OR multiple
     if len(ad_systems) != 1:
@@ -229,7 +230,9 @@ def get_sts_user(uuid, settings):
     user = User(
         dict(
             uuid=uuid,
-            candidate_user_id=try_get_ad_user_key(uuid),
+            candidate_user_id=try_get_ad_user_key(
+                uuid, user_key_it_system_name=settings.os2sync_user_key_it_system_name
+            ),
             person=Person(employee, settings=settings),
         ),
         settings=settings,
