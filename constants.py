@@ -19,5 +19,3 @@ addresses_unit_pnr = "Pnummer"
 addresses_unit_phoneNumber = "Telefon"
 addresses_unit_dar = "Adresse"
 
-# LoRaCache
-lc_for_jobs_actual_db_name = "ActualState"
