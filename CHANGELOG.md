@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.33.2 - 2022-05-09
+-------------------
+
+[#xxxxx] Include a few exporters as packages to be able to import them from pypi
+
 2.33.1 - 2022-05-09
 -------------------
 
