@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.33.3 - 2022-05-09
+-------------------
+
+[#xxxxx] Removed lc_for_jobs_actual_db_name from constants as it isn't used anywhere else and we cant import sqlexports from pypi because of this reference.
+
 2.33.2 - 2022-05-09
 -------------------
 
