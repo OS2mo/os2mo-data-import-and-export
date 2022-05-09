@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.0 - 2022-05-09
+-------------------
+
+[#50199] Loracache: Switch to using os2mo_dar_client.
+
 2.33.3 - 2022-05-09
 -------------------
 
