@@ -288,6 +288,25 @@ class MockMoraHelper(MoraHelper):
         ]
 
 
+class MockUserNameSetAD(AD):
+    def __init__(self):
+        self.session = Mock(spec=Session)
+        self.all_settings = {
+            "primary": {
+                "search_base": "",
+                "system_user": "system_user",
+                "password": "password",
+            },
+            "global": {
+                "servers": ["server"],
+            },
+        }
+        self._reader = MockADParameterReader()
+
+    def _run_ps_script(self, ps_script):
+        return self._reader.read_it_all()
+
+
 class MockADWriterContext(ExitStack):
     """Mock enough of `ADWriter` dependencies to allow it to instantiate in a test.
     Usage:
@@ -336,6 +355,7 @@ class MockADWriterContext(ExitStack):
     def _context_managers(self):
         prefix = "integrations.ad_integration"
         yield patch(f"{prefix}.ad_common.read_settings", return_value=self._settings)
+        yield patch(f"{prefix}.user_names.AD", new=MockUserNameSetAD)
         yield patch(
             f"{prefix}.ad_writer.ADWriter._create_session", return_value=MagicMock()
         )

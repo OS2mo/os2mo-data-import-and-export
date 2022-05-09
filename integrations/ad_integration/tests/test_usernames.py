@@ -22,7 +22,7 @@ from ..user_names import UserNameSet
 from ..user_names import UserNameSetCSVFile
 from ..user_names import UserNameSetInAD
 from ..user_names import UserNameSetInDatabase
-from .mocks import MockADParameterReader
+from .mocks import MockUserNameSetAD
 from .name_simulator import create_name
 
 
@@ -97,8 +97,8 @@ class TestUserNameGen(unittest.TestCase):
         with self._patch_settings(settings):
             # Use mock `ADParameterReader` in `UserNameSetInAD`
             with mock.patch(
-                "integrations.ad_integration.user_names.ADParameterReader",
-                new=MockADParameterReader,
+                "integrations.ad_integration.user_names.AD",
+                new=MockUserNameSetAD,
             ):
                 impl = UserNameGen.get_implementation()
                 impl.load_occupied_names()
@@ -817,6 +817,14 @@ class TestUserNameGenPermutation(unittest.TestCase):
                 self.instance.create_username(["B", "C", "D"])
             except IndexError:
                 self.assertEqual(num, 54)
+
+
+class TestUserNameSet(unittest.TestCase):
+    def test_contains_is_case_insensitive(self):
+        username_set = UserNameSet()
+        username_set._usernames = {"aaa", "BBB"}
+        self.assertIn("Aaa", username_set)
+        self.assertIn("bbb", username_set)
 
 
 class TestUserNameSetCSVFile(unittest.TestCase):
