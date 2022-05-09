@@ -135,7 +135,7 @@ Lint Rollekatalog Exporter:
 Lint os2sync Exporter:
   extends: .lint-python
   script:
-    - cd integrations/os2sync
+    - cd exporters/os2sync_export
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files *.py test/*.py
 
@@ -236,7 +236,9 @@ Test Calculate Primary:
 Test OS2Sync Integration:
   extends: .test-python
   script:
-    - pytest integrations/os2sync/tests
+    - cd exporters/os2sync_export
+    - poetry install
+    - poetry run pytest 
 
 Test CPR Mapper:
   extends: .test-python
