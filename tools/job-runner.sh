@@ -275,7 +275,7 @@ exports_os2sync(){
         echo ${log_file}
     ))
     echo running exports_os2sync
-    ${VENV}/bin/python3 -m integrations.os2sync
+    ${VENV}/bin/python3 -m exporters.os2sync_export
 }
 
 exports_mox_stsorgsync(){

@@ -204,6 +204,7 @@ mypy-extensions = ">=0.4.3"
 pathspec = ">=0.9.0"
 platformdirs = ">=2"
 tomli = {version = ">=1.1.0", markers = "python_version < \"3.11\""}
+typing-extensions = {version = ">=3.10.0.0", markers = "python_version < \"3.10\""}
 
 [package.extras]
 colorama = ["colorama (>=0.4.3)"]
@@ -361,7 +362,7 @@ cli = ["click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.10.2)", "clevercsv (==0
 
 [[package]]
 name = "dipex"
-version = "2.33.3"
+version = "2.34.0"
 description = "OS2mo-data-import-and-export"
 category = "main"
 optional = false
@@ -1054,7 +1055,7 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "2.33.3"
+version = "2.34.0"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
@@ -1094,7 +1095,12 @@ optional = false
 python-versions = ">=3.8"
 
 [package.dependencies]
-numpy = {version = ">=1.21.0", markers = "python_version >= \"3.10\""}
+numpy = [
+    {version = ">=1.18.5", markers = "platform_machine != \"aarch64\" and platform_machine != \"arm64\" and python_version < \"3.10\""},
+    {version = ">=1.19.2", markers = "platform_machine == \"aarch64\" and python_version < \"3.10\""},
+    {version = ">=1.20.0", markers = "platform_machine == \"arm64\" and python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
+]
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.1"
 
@@ -1902,8 +1908,8 @@ multidict = ">=4.0"
 
 [metadata]
 lock-version = "1.1"
-python-versions = "^3.10"
-content-hash = "4c5cdef5a961870b83004e83150159a703bc5d184940b5966d695091f4a7e814"
+python-versions = "^3.9"
+content-hash = "e329fea32893553748f3f795ea13817d564067346bbe4b3df0396047382a6cbe"
 
 [metadata.files]
 aiohttp = [
@@ -2198,8 +2204,8 @@ deepdiff = [
     {file = "deepdiff-5.8.0.tar.gz", hash = "sha256:7e641c0cd6429c9e1b64a07b8f7713382a5626afe18c72bcafa8a4343c05c701"},
 ]
 dipex = [
-    {file = "DIPEX-2.33.3-py3-none-any.whl", hash = "sha256:37d8b394263d64a082b63e6e65e249cc7cc33ffc1f5b16ec66e4541600a813d0"},
-    {file = "DIPEX-2.33.3.tar.gz", hash = "sha256:5d161595394bd062f3ad0334c45f6c9a357ffbd596827e53801be65fed8fb5e5"},
+    {file = "DIPEX-2.34.0-py3-none-any.whl", hash = "sha256:f653556705b146841f670de8cf4eb858a6181ea94a1699f5e642da7c695e23ae"},
+    {file = "DIPEX-2.34.0.tar.gz", hash = "sha256:0c745885df74d246bed11c8f208eda33058885fae5b335caa378dde57adf0773"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
@@ -2765,8 +2771,8 @@ os2mo-dar-client = [
     {file = "os2mo_dar_client-1.0.0-py3-none-any.whl", hash = "sha256:976a96b2dff34bc30b379956ae2dc9e5a8bdab8b7b1c4a7e3ef3a3dc59e581ef"},
 ]
 os2mo-data-import = [
-    {file = "os2mo_data_import-2.33.3-py3-none-any.whl", hash = "sha256:52c527cf25aa61b09051d9f5c7d8e38c9e936fe4fadba2770a7b74d2e49ec5e5"},
-    {file = "os2mo_data_import-2.33.3.tar.gz", hash = "sha256:3d6fcd9b80161757cebad2beb0d3d3deda7a9e95cf07b09705bde7c59bc08e31"},
+    {file = "os2mo_data_import-2.34.0-py3-none-any.whl", hash = "sha256:a398b6940ed08b806295c67a19f907d2bc351eca692d129abf4502adf0cd8001"},
+    {file = "os2mo_data_import-2.34.0.tar.gz", hash = "sha256:e91bd16613fa4fe9232efe0901ea7a1df8e271209b00e97f90caad73de351381"},
 ]
 packaging = [
     {file = "packaging-19.2-py2.py3-none-any.whl", hash = "sha256:d9551545c6d761f3def1677baf08ab2a3ca17c56879e70fecba2fc4dde4ed108"},
