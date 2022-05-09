@@ -1,3 +1,3 @@
-Release type: patch
+Release type: minor
 
-[#xxxxx] Switch to using os2mo_dar_client
+[#50199] Loracache: Switch to using os2mo_dar_client.
