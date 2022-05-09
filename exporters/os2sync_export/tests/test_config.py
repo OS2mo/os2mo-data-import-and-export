@@ -26,13 +26,13 @@ class TestConfig:
         "os2sync.api_url": file_api_url,
     }
 
-    @patch("integrations.os2sync.config.load_settings", return_value={})
+    @patch("os2sync_export.config.load_settings", return_value={})
     def test_no_settings(self, settings_mock):
         with pytest.raises(ValidationError):
             get_os2sync_settings.cache_clear()
             get_os2sync_settings()
 
-    @patch("integrations.os2sync.config.load_settings", return_value=dummy_config)
+    @patch("os2sync_export.config.load_settings", return_value=dummy_config)
     def test_minimal_settings_file(self, settings_mock):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
@@ -42,14 +42,14 @@ class TestConfig:
         )
         assert settings.os2sync_api_url == self.dummy_config["os2sync.api_url"]
 
-    @patch("integrations.os2sync.config.load_settings", return_value={})
+    @patch("os2sync_export.config.load_settings", return_value={})
     def test_minimal_settings_env(self, mock_settings_file, mock_env):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
         assert settings.municipality == env_municipality
         assert settings.os2sync_top_unit_uuid == env_uuid
 
-    @patch("integrations.os2sync.config.load_settings", return_value=dummy_config)
+    @patch("os2sync_export.config.load_settings", return_value=dummy_config)
     def test_env_overrides(self, mock_settings_file, mock_env):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
@@ -80,7 +80,7 @@ class TestConfig:
             "os2sync.templates": {"template": "test"},
             "os2sync.use_contact_for_tasks": False,
         }
-        with patch("integrations.os2sync.config.load_settings", return_value=conf):
+        with patch("os2sync_export.config.load_settings", return_value=conf):
             get_os2sync_settings.cache_clear()
             assert get_os2sync_settings()
 
@@ -92,7 +92,7 @@ class TestConfig:
             ({"os2sync.use_lc_db": "No"},),
         ]
     )
-    @patch("integrations.os2sync.config.load_settings", return_value=dummy_config)
+    @patch("os2sync_export.config.load_settings", return_value=dummy_config)
     def test_invalid_values(self, wrong_type_config, settings_mock):
         settings_mock.return_value.update(wrong_type_config)
         with pytest.raises(ValidationError):

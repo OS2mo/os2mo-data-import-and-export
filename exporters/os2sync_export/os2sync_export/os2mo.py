@@ -175,14 +175,14 @@ def try_get_ad_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
     """
     it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
     it_systems = IT.from_mo_json(it_response)
-    ad_systems = list(
+    it_systems = list(
         filter(lambda x: x.system_name == user_key_it_system_name, it_systems)
     )
 
     # if no ad OR multiple
-    if len(accounts) != 1:
+    if len(it_systems) != 1:
         return None
-    return accounts[0].user_key
+    return it_systems[0].user_key
 
 
 def get_work_address(positions, work_address_names) -> Optional[str]:
@@ -217,7 +217,7 @@ def get_work_address(positions, work_address_names) -> Optional[str]:
 
 
 def get_fk_org_uuid(
-    it_accounts: Dict, mo_uuid: str, uuid_from_it_systems: List[str]
+    it_accounts: List, mo_uuid: str, uuid_from_it_systems: List[str]
 ) -> str:
     """Find FK-org uuid from it-accounts based on the given list of it-system names."""
     it = list(
@@ -375,7 +375,7 @@ def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
     return list(sorted(tasks_set)), []
 
 
-def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks):
+def kle_to_orgunit(org_unit: Dict, kle: List, use_contact_for_tasks):
     """Mutates the dict "org_unit" to include KLE data"""
     tasks, contactfortasks = partition_kle(
         kle, use_contact_for_tasks=use_contact_for_tasks

@@ -2,13 +2,13 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from helpers import dummy_settings
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
 from os2sync_export.os2mo import partition_kle
-from os2sync_export.tests.helpers import MockOs2moGet
 from parameterized import parameterized
+from tests.helpers import dummy_settings
+from tests.helpers import MockOs2moGet
 
 
 class TestsMOAd(unittest.TestCase):

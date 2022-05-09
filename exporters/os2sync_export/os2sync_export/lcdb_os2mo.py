@@ -273,7 +273,7 @@ def get_sts_orgunit(session, uuid, settings: config.Settings):
         }
     os2mo.kle_to_orgunit(
         sts_org_unit,
-        mokles.values(),
+        list(mokles.values()),
         use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
     )
     truncate_length = max(36, settings.os2sync_truncate_length)

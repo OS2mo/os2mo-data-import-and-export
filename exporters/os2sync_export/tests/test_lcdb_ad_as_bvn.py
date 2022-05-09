@@ -1,10 +1,10 @@
 import unittest
 from unittest.mock import patch
 
-from helpers import dummy_settings
 from os2sync_export.lcdb_os2mo import get_sts_user
 from os2sync_export.lcdb_os2mo import try_get_ad_user_key
 from sqlalchemy.orm import sessionmaker
+from tests.helpers import dummy_settings
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import Adresse

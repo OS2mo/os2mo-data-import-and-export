@@ -1,13 +1,12 @@
 import unittest
 from unittest.mock import patch
 
-from helpers import dummy_settings
+from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user as os2mo_get_sts_user
-from os2sync_export.tests.helpers import MoEmployeeMixin
-from os2sync_export.tests.helpers import NICKNAME_TEMPLATE
 from parameterized import parameterized
-
-from integrations.os2sync import os2mo
+from tests.helpers import dummy_settings
+from tests.helpers import MoEmployeeMixin
+from tests.helpers import NICKNAME_TEMPLATE
 
 
 class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):

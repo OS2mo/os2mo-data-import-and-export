@@ -3,12 +3,6 @@ from uuid import uuid4
 from os2sync_export.os2mo import get_fk_org_uuid
 from parameterized import parameterized
 
-from integrations.os2sync.os2mo import get_fk_org_uuid
-from .helpers import dummy_settings
-
-FK_org_uuid_it_system = dummy_settings.FK_org_uuid_it_system
-AD_objectguid_it_system = dummy_settings.AD_objectguid_it_system
-
 
 FK_ORG_UUID_IT_SYSTEM = "FK-org uuid"
 AD_OBJECTGUID_IT_SYSTEM = "AD ObjectGuid"
