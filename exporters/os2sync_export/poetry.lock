@@ -361,7 +361,7 @@ cli = ["click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.10.2)", "clevercsv (==0
 
 [[package]]
 name = "dipex"
-version = "2.33.2"
+version = "2.33.3"
 description = "OS2mo-data-import-and-export"
 category = "main"
 optional = false
@@ -1054,7 +1054,7 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "2.33.2"
+version = "2.33.3"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
@@ -1903,7 +1903,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "cc757016938d9c0abb74bc6882044f80de6076f1575c6594cf2011817c2bd811"
+content-hash = "4c5cdef5a961870b83004e83150159a703bc5d184940b5966d695091f4a7e814"
 
 [metadata.files]
 aiohttp = [
@@ -2198,8 +2198,8 @@ deepdiff = [
     {file = "deepdiff-5.8.0.tar.gz", hash = "sha256:7e641c0cd6429c9e1b64a07b8f7713382a5626afe18c72bcafa8a4343c05c701"},
 ]
 dipex = [
-    {file = "DIPEX-2.33.2-py3-none-any.whl", hash = "sha256:11c049d1668f082bc7861143958912eb169b6cd1afcf8dae4db998b4a4445fd5"},
-    {file = "DIPEX-2.33.2.tar.gz", hash = "sha256:3eb69a957826614dee2f819fbd35df1072c1508e03300682249f9651f74d9aed"},
+    {file = "DIPEX-2.33.3-py3-none-any.whl", hash = "sha256:37d8b394263d64a082b63e6e65e249cc7cc33ffc1f5b16ec66e4541600a813d0"},
+    {file = "DIPEX-2.33.3.tar.gz", hash = "sha256:5d161595394bd062f3ad0334c45f6c9a357ffbd596827e53801be65fed8fb5e5"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
@@ -2765,8 +2765,8 @@ os2mo-dar-client = [
     {file = "os2mo_dar_client-1.0.0-py3-none-any.whl", hash = "sha256:976a96b2dff34bc30b379956ae2dc9e5a8bdab8b7b1c4a7e3ef3a3dc59e581ef"},
 ]
 os2mo-data-import = [
-    {file = "os2mo_data_import-2.33.2-py3-none-any.whl", hash = "sha256:5e41628cddc8443afca4b2bdb3c254499b3dc52c4263ce2621e955f7d643681c"},
-    {file = "os2mo_data_import-2.33.2.tar.gz", hash = "sha256:f857df9ee51054d2694dcdaa6df182be1bf1e8b1a8c3d040ad4cab8afd60e7c1"},
+    {file = "os2mo_data_import-2.33.3-py3-none-any.whl", hash = "sha256:52c527cf25aa61b09051d9f5c7d8e38c9e936fe4fadba2770a7b74d2e49ec5e5"},
+    {file = "os2mo_data_import-2.33.3.tar.gz", hash = "sha256:3d6fcd9b80161757cebad2beb0d3d3deda7a9e95cf07b09705bde7c59bc08e31"},
 ]
 packaging = [
     {file = "packaging-19.2-py2.py3-none-any.whl", hash = "sha256:d9551545c6d761f3def1677baf08ab2a3ca17c56879e70fecba2fc4dde4ed108"},
