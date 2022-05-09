@@ -2,10 +2,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
+from os2sync_export.config import get_os2sync_settings
 from parameterized import parameterized
 from pydantic import ValidationError
-
-from integrations.os2sync.config import get_os2sync_settings
 
 env_municipality = "1234"
 env_uuid = uuid4()

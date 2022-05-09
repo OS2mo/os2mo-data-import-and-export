@@ -11,6 +11,10 @@ from uuid import UUID
 
 from more_itertools import flatten
 from more_itertools import only
+from os2sync_export import config
+from os2sync_export import os2mo
+from os2sync_export.templates import Person
+from os2sync_export.templates import User
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
@@ -22,10 +26,6 @@ from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
-from integrations.os2sync import config
-from integrations.os2sync import os2mo
-from integrations.os2sync.templates import Person
-from integrations.os2sync.templates import User
 
 logger = logging.getLogger(config.loggername)
 

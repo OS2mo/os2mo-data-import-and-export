@@ -17,13 +17,14 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
+from os2sync_export import config
+from os2sync_export.config import get_os2sync_settings
+from os2sync_export.config import Settings
+from os2sync_export.templates import Person
+from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
 
 from exporters.utils.priority_by_class import choose_public_address
-from integrations.os2sync import config
-from integrations.os2sync.config import get_os2sync_settings, Settings
-from integrations.os2sync.templates import Person
-from integrations.os2sync.templates import User
 
 logger = logging.getLogger(config.loggername)
 
@@ -230,7 +231,7 @@ def get_fk_org_uuid(
     return first(it)
 
 
-def get_sts_user(uuid, settings: ):
+def get_sts_user(uuid, settings: Settings):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     user = User(

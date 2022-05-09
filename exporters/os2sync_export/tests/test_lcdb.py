@@ -1,8 +1,8 @@
 from unittest.mock import Mock
 from uuid import uuid4
 
-from integrations.os2sync.lcdb_os2mo import is_ignored
-from integrations.os2sync.tests.helpers import dummy_settings
+from os2sync_export.lcdb_os2mo import is_ignored
+from os2sync_export.tests.helpers import dummy_settings
 
 
 def test_lcdb_is_ignored():

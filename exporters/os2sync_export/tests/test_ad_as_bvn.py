@@ -6,10 +6,9 @@ from typing import Optional
 from unittest.mock import patch
 
 from helpers import dummy_settings
-
-from integrations.os2sync import os2mo
-from integrations.os2sync.os2mo import get_sts_user
-from integrations.os2sync.os2mo import try_get_ad_user_key
+from os2sync_export import os2mo
+from os2sync_export.os2mo import get_sts_user
+from os2sync_export.os2mo import try_get_ad_user_key
 
 uuid = "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b"
 mo_employee_url_end = "e/{}/".format(uuid)

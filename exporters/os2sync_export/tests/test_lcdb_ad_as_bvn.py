@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import patch
 
 from helpers import dummy_settings
+from os2sync_export.lcdb_os2mo import get_sts_user
+from os2sync_export.lcdb_os2mo import try_get_ad_user_key
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
@@ -12,8 +14,6 @@ from exporters.sql_export.sql_table_defs import Engagement
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import Tilknytning
-from integrations.os2sync.lcdb_os2mo import get_sts_user
-from integrations.os2sync.lcdb_os2mo import try_get_ad_user_key
 
 AD_IT_SYSTEM = "Active Directory"
 
@@ -158,7 +158,7 @@ class Tests_lc_db(unittest.TestCase):
             ),
         )
 
-    @patch("integrations.os2sync.os2mo.org_unit_uuids", return_value={})
+    @patch("os2sync_export.os2mo.org_unit_uuids", return_value={})
     def test_lcdb_get_sts_user_default(self, allowed_unitids_mock):
         self.setup_wide()
         expected = {

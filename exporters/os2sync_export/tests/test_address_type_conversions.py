@@ -2,8 +2,8 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from integrations.os2sync.os2mo import addresses_to_orgunit
-from integrations.os2sync.os2mo import addresses_to_user
+from os2sync_export.os2mo import addresses_to_user
+from os2sync_export.os2mo import addresses_to_orgunit
 
 
 class _AddressMixin:

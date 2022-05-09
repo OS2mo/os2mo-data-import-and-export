@@ -6,7 +6,7 @@ authors = ["Benjamin Lyng Jørgensen <blj@magenta-aps.dk>"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-dipex = "^2.32.4"
+dipex = "^2.33.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
