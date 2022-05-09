@@ -5,7 +5,7 @@ description = ""
 authors = ["Benjamin Lyng Jørgensen <blj@magenta-aps.dk>"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
 dipex = "^2.33.3"
 
 [tool.poetry.dev-dependencies]
