@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.33.1 - 2022-05-09
+-------------------
+
+[#xxxxx] OS2Sync: Moved constants into settings.
+
 2.33.0 - 2022-05-05
 -------------------
 
