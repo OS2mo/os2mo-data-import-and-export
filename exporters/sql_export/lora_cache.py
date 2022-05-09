@@ -10,8 +10,11 @@ from collections import defaultdict
 from itertools import starmap
 from operator import itemgetter
 from pathlib import Path
+from typing import Dict
 from typing import Optional
+from typing import Set
 from typing import Tuple
+from uuid import UUID
 
 import click
 import lora_utils
@@ -19,12 +22,11 @@ import requests
 from dateutil import parser
 from dateutil import tz
 from more_itertools import bucket
+from os2mo_dar_client import DARClient
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from retrying import retry
 from tqdm import tqdm
-
-from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
@@ -1103,33 +1105,25 @@ class LoraCache:
             self.units[unit][0]["manager_uuid"] = manager_uuid
             self.units[unit][0]["acting_manager_uuid"] = acting_manager_uuid
 
+    def _read_from_dar(self, uuids: Set[UUID]) -> Tuple[Dict, Set[UUID]]:
+        with DARClient() as dc:
+            return dc.fetch(uuids)
+
     def _cache_dar(self):
         # Initialize cache for entries we cannot lookup
-        dar_uuids = self.dar_map.keys()
+        dar_uuids = missing = set(self.dar_map.keys())
         dar_cache = dict(
-            map(lambda dar_uuid: (dar_uuid, {"betegnelse": None}), dar_uuids)
+            map(lambda dar_uuid: (UUID(dar_uuid), {"betegnelse": None}), dar_uuids)
         )
-        total_dar = len(dar_uuids)
-        total_missing = total_dar
-
-        # Start looking entries up in DAR
         if self.resolve_dar:
-            dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
-            dar_adgange, missing = dar_helper.sync_dar_fetch(
-                list(missing), addrtype="adgangsadresser"
-            )
-            total_missing = len(missing)
-
-            dar_cache.update(dar_addresses)
-            dar_cache.update(dar_adgange)
-
-        # Update all addresses with betegnelse
-        for dar_uuid, uuid_list in self.dar_map.items():
-            for uuid in uuid_list:
-                for address in self.addresses[uuid]:
-                    address["value"] = dar_cache[dar_uuid].get("betegnelse")
-
-        logger.info("Total dar: {}, no-hit: {}".format(total_dar, total_missing))
+            dar_hits, missing = self._read_from_dar(dar_uuids)
+            dar_cache.update(dar_hits)
+            logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
+            for dar_uuid, uuid_list in self.dar_map.items():
+                for uuid in uuid_list:
+                    for address in self.addresses[uuid]:
+                        address["value"] = dar_cache[UUID(dar_uuid)].get("betegnelse")
+        logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
         return dar_cache
 
     def populate_cache(self, dry_run=None, skip_associations=False):

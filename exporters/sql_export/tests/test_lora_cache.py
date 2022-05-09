@@ -195,7 +195,7 @@ class TestLoraCacheAssociations(_TestLoraCacheMethodHelper, TestCase):
             self._attrs,
         )
         assoc = associations[self._association_uuid][0]
-        self.assertEquals(assoc["it_user"], "it-user-uuid")
+        self.assertEqual(assoc["it_user"], "it-user-uuid")
 
     def test_handles_empty_association_type(self):
         associations = self.get_method_results(
