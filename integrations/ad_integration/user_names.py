@@ -14,8 +14,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import column
 from sqlalchemy.sql import table
 
-from .ad_common import AD
 from .ad_exceptions import ImproperlyConfigured
+from .ad_reader import ADParameterReader
 from .username_rules import method_2
 
 logger = logging.getLogger(__name__)
@@ -307,12 +307,8 @@ class UserNameSetCSVFile(UserNameSet):
 
 class UserNameSetInAD(UserNameSet):
     def __init__(self):
-        ad = AD()
-        server = ad.all_settings["global"]["servers"][0]
-        cmd = f"""{ad._build_user_credential()}
-        Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties SamAccountName"""
-        all_users = ad._run_ps_script(cmd)
-        self._usernames = set(map(itemgetter("SamAccountName"), all_users))
+        reader = ADParameterReader()
+        self._usernames = reader.get_all_samaccountname_values()
 
 
 class UserNameSetInDatabase(UserNameSet):

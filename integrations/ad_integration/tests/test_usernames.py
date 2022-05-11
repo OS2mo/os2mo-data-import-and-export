@@ -22,7 +22,7 @@ from ..user_names import UserNameSet
 from ..user_names import UserNameSetCSVFile
 from ..user_names import UserNameSetInAD
 from ..user_names import UserNameSetInDatabase
-from .mocks import MockUserNameSetAD
+from .mocks import MockADParameterReader
 from .name_simulator import create_name
 
 
@@ -97,8 +97,8 @@ class TestUserNameGen(unittest.TestCase):
         with self._patch_settings(settings):
             # Use mock `ADParameterReader` in `UserNameSetInAD`
             with mock.patch(
-                "integrations.ad_integration.user_names.AD",
-                new=MockUserNameSetAD,
+                "integrations.ad_integration.user_names.ADParameterReader",
+                new=MockADParameterReader,
             ):
                 impl = UserNameGen.get_implementation()
                 impl.load_occupied_names()
