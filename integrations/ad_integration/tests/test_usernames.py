@@ -3,7 +3,6 @@ from typing import Any
 from unittest import mock
 
 from hypothesis import given
-from hypothesis import settings
 from hypothesis import strategies as st
 from parameterized import parameterized
 from sqlalchemy import Column
@@ -762,61 +761,57 @@ class TestUserNameGenMethod2(unittest.TestCase):
         self.assertTrue(fixed_name == expected_name)
 
 
-CONSONANTS = st.characters(
-    whitelist_characters="bcdfghjklmnpqrstvwxz",
-    whitelist_categories=(),
-)
-
-
 class TestUserNameGenPermutation(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.instance = UserNameGenPermutation()
 
-    @settings(max_examples=1000, deadline=None)
-    @given(st.lists(st.text(min_size=1, alphabet=CONSONANTS), min_size=0))
+    @given(
+        st.lists(
+            st.text(
+                min_size=1,
+                alphabet=st.characters(
+                    whitelist_characters="bcdfghjklmnpqrstvwxz",
+                    whitelist_categories=(),
+                ),
+            ),
+            min_size=2,
+        )
+    )
     def test_valid_input(self, name):
-        # If `name` has at least one item, each item being a string of at least
-        # 0 consonants, we should be able to create a username.
+        # If `name` has at least two items, each item being a string of at least
+        # one consonant, we should be able to create a username.
         self.instance.create_username(name)
 
-    def test_suffix_and_permutation_index_increments(self):
+    def test_suffix_increments(self):
         name = ["B", "C", "D"]
-        expected_permutations = ("bcd", "bdc", "cbd", "cdb", "dbc", "dcb")
-        for expected_permutation in expected_permutations:
-            for expected_suffix in range(1, 10):
-                username = self.instance.create_username(name)
-                self.assertEqual(
-                    username,
-                    "%s%d" % (expected_permutation, expected_suffix),
-                )
+        for expected_suffix in range(1, 100):
+            username = self.instance.create_username(name)
+            self.assertEqual(username, "bcd%d" % expected_suffix)
 
     def test_skips_names_already_taken(self):
-        name = ["Lille", "Claus", "Her"]
-        self.instance.add_occupied_names({"lch1", "lch4"})
-        for expected_username in ("lch2", "lch3", "lch5"):
+        name = ["First Name", "Last-Name"]
+        self.instance.add_occupied_names({"fnm1", "fnm4"})
+        for expected_username in ("fnm2", "fnm3", "fnm5"):
             username = self.instance.create_username(name)
             self.assertEqual(username, expected_username)
 
     @parameterized.expand(
         [
-            # name, expected feed
-            (["Bac", "Cab"], ["B", "C", "c", "b"]),  # unpadded
-            (["Baa", "Caa"], ["B", "C", "x"]),  # padded with one 'x'
+            ("Abel Spendabel", "asp1"),  # First name starts with a vowel
+            ("Erik Ejegod", "ejg1"),  # Both first name and last name start with a vowel
+            ("Erik Episk Ejegod", "eps1"),  # All parts start with a vowel
+            ("Gorm Den Gamle", "gdn1"),  # All parts start with a consonant
+            ("Ba Ca Da", "bcd1"),  # All parts start with a consonant
+            ("Theodor Fælgen", "tfl1"),  # Last name contains non-ASCII character
+            ("Øjvind Ørn", "jrn1"),  # All parts begin with non-ASCII characters
+            ("Ea Obe", "ebb1"),  # Last name contains just one consonant
         ]
     )
-    def test_feed_is_padded(self, name, expected_feed):
-        self.assertEqual(self.instance._get_feed(name), expected_feed)
-
-    def test_raises_indexerror_when_feed_exhausted(self):
-        # If we keep generating usernames from a very small feed of only three
-        # consonants, we will run out of new usernames when we have generated
-        # (3! * 9) = (6 * 9) = 54 usernames from that particular feed.
-        for num in range(55):  # sequence from 0 to and including 54
-            try:
-                self.instance.create_username(["B", "C", "D"])
-            except IndexError:
-                self.assertEqual(num, 54)
+    def test_by_example(self, name, expected_username):
+        name = name.split(maxsplit=1)
+        actual_username = self.instance.create_username(name)
+        self.assertEqual(actual_username, expected_username)
 
 
 class TestUserNameSet(unittest.TestCase):

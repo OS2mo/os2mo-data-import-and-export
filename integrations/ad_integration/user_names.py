@@ -1,13 +1,14 @@
 import csv
 import io
 import logging
+import re
 import string
+from functools import partial
 from operator import itemgetter
 from typing import List
 from typing import Tuple
 
-from more_itertools import interleave_longest
-from more_itertools import nth_permutation
+from more_itertools import flatten
 from ra_utils.load_settings import load_setting
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -234,17 +235,13 @@ class UserNameGenPermutation(UserNameGen):
     def __init__(self):
         super().__init__()
         self.length = 3
-        self.allowed_chars = "".join(set(string.ascii_lowercase) - set("aeiouy"))
+        self.consonants = "".join(set(string.ascii_lowercase) - set("aeiouy"))
 
     def create_username(self, name: NameType, dry_run: bool = False) -> str:
         suffix = 1
-        permutation_index = 0
-
-        feed = self._get_feed(name)
-
         while True:
-            letters = self._create_permutation(feed, permutation_index)
-            new_username = "%s%d" % (letters, suffix)
+            letters = self._extract_letters(name)
+            new_username = "%s%d" % ("".join(letters), suffix)
             if new_username not in self.occupied_names:
                 # An unused username was found, add it to the list of
                 # occupied names and return.
@@ -252,35 +249,54 @@ class UserNameGenPermutation(UserNameGen):
                 return new_username
             else:
                 # We are still looking for an available username.
-                # Bump the `suffix` variable until it reaches 10.
+                # Bump the `suffix` variable.
                 suffix += 1
-                if suffix > 9:
-                    # Reset the `suffix` back to 1, and go to the next
-                    # permutation.
-                    suffix = 1
-                    permutation_index += 1
 
-    def _get_feed(self, name: NameType):
-        name_cleaned = self._remove_unwanted_letters(name)
-        feed = list(interleave_longest(*name_cleaned))
+    def _extract_letters(self, name: NameType):
+        # Convert ["Firstname", "Last Name"] -> ["Firstname", "Last", "Name"]
+        # and ["First-Name", "Last-Name"] -> ["First", "Name", "Last", "Name"]
+        name = flatten(map(partial(re.split, r"[\-\s+]"), name))
 
-        # If there are not enough consonants in `feed`, pad it using 'x' chars
-        feed_length = sum(len(item) for item in feed)
-        if feed_length < self.length:
-            feed.extend("x" * (self.length - feed_length))
+        # Convert all name parts to lowercase
+        name = list(map(str.lower, name))
 
-        return feed
+        # Check name parts
+        first_ascii = set(name[0]) & set(string.ascii_lowercase)
+        next_consonant = set("".join(name[1:])) & set(self.consonants)
+        assert len(name) > 0, "name must have at least one part"
+        assert first_ascii, "first name part must contain at least one ASCII character"
+        assert next_consonant, "next name parts must contain at least one consonant"
 
-    def _create_permutation(self, feed, index=0):
-        permutation = nth_permutation(feed, r=self.length, index=index)
-        username = "".join(permutation).lower()
-        return username
+        def only(allowed: str, part: str):
+            return "".join(ch for ch in part if ch.lower() in allowed)
 
-    def _remove_unwanted_letters(self, name: NameType):
-        return [
-            "".join(char for char in name_part if char.lower() in self.allowed_chars)
-            for name_part in name
-        ]
+        result = []
+
+        # Take first letter of first name part (regardless of whether it is a vowel or
+        # a consonant.)
+        result.append(only(string.ascii_lowercase, name[0])[0])
+
+        # Continue at first letter of the second name part (first part if only one part)
+        p = min(1, len(name) - 1)  # second name part (or first if only one part)
+        offset = 0  # = first letter
+
+        while len(result) < self.length:
+            part = name[p]
+            try:
+                result.append(only(self.consonants, part)[offset])
+            except IndexError:
+                # Check if there are still more name parts to use
+                if p < len(name) - 1:
+                    # If yes, use next name part, starting at first letter
+                    p += 1
+                    offset = 0
+                else:
+                    # If no, go back to first name
+                    p = 0
+            else:
+                offset += 1
+
+        return result
 
 
 class UserNameSet:
