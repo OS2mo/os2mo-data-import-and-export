@@ -130,6 +130,12 @@ def has_kle():
 
 
 def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes):
+    # `phone_scope_classes` and `email_scope_classes` are both lists of UUIDs.
+    # We need to convert them to lists of strings in order to make them work correctly
+    # with `choose_public_address`.
+    phone_scope_classes = [str(cls) for cls in phone_scope_classes]
+    email_scope_classes = [str(cls) for cls in email_scope_classes]
+
     # TODO: This looks like bucketing (more_itertools.bucket)
     emails, phones = [], []
     for address in addresses:
