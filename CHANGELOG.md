@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.1 - 2022-05-11
+-------------------
+
+[#50165] Bugfix: `UserNameSetInAD` needs to load *all* "SamAccountName" values from AD; comparison must be case-insensitive
+
 2.34.0 - 2022-05-09
 -------------------
 
