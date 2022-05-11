@@ -12,13 +12,13 @@ def create_user(cpr: str, ad_user: dict, org_uuid, uuid: Optional[str] = None) -
     return payload
 
 
-def connect_it_system_to_user(ad_user, it_system):
+def connect_it_system_to_user(user_uuid, username, it_system, from_date="1930-01-01"):
     payload = {
         "type": "it",
-        "user_key": ad_user["SamAccountName"],
+        "user_key": username,
         "itsystem": {"uuid": it_system},
-        "person": {"uuid": ad_user["ObjectGUID"]},
-        "validity": {"from": "1930-01-01", "to": None},
+        "person": {"uuid": user_uuid},
+        "validity": {"from": from_date, "to": None},
     }
     return payload
 

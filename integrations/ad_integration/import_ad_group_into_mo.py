@@ -40,7 +40,7 @@ logging.basicConfig(
 
 class ADMOImporter(object):
     def __init__(self):
-
+        self.run_date = datetime.datetime.now().strftime("%Y-%m-%d")
         self.settings = load_settings()
         self.root_ou_uuid = self.settings["integrations.ad.import_ou.mo_unit_uuid"]
         self.helper = MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
@@ -122,23 +122,25 @@ class ADMOImporter(object):
         logger.info("Created employee {}".format(user_uuid))
         return user_uuid
 
-    def _connect_user_to_ad(self, ad_user: Dict) -> None:
+    def _connect_user_to_ad(self, mo_uuid: str, username: str) -> None:
         """Write user AD username to the AD it system"""
 
-        logger.info("Connect user to AD: {}".format(ad_user["SamAccountName"]))
+        logger.info("Connect user to AD: {}".format(username))
 
-        payload = payloads.connect_it_system_to_user(ad_user, self.AD_it_system_uuid)
+        payload = payloads.connect_it_system_to_user(
+            mo_uuid, username, self.AD_it_system_uuid, from_date=self.run_date
+        )
         logger.debug("AD account payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
-        logger.debug("Added AD account info to {}".format(ad_user["SamAccountName"]))
+        logger.debug("Added AD account info to {}".format(username))
 
     def _create_engagement(
         self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: UUID = None
     ) -> None:
         """Create the engagement in MO"""
         # TODO: Check if we have start/end date of engagements in AD
-        validity = {"from": datetime.datetime.now().strftime("%Y-%m-%d"), "to": None}
+        validity = {"from": self.run_date, "to": None}
 
         person_uuid = ad_user["ObjectGUID"]
         if mo_uuid:
@@ -219,7 +221,7 @@ class ADMOImporter(object):
                 )
 
                 if not AD_username:
-                    self._connect_user_to_ad(ad_user)
+                    self._connect_user_to_ad(mo_uuid, ad_user["SamAccountName"])
 
                 current_engagements = self.helper.read_user_engagement(user=mo_uuid)
                 this_engagement = list(
