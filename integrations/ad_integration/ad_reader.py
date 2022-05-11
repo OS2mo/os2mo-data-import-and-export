@@ -1,6 +1,7 @@
 import logging
 import random
 import time
+from operator import itemgetter
 
 from tqdm import tqdm
 
@@ -167,6 +168,16 @@ class ADParameterReader(AD):
             "Returned info for {}: {}".format(dict_key, self.results.get(dict_key, {}))
         )
         return self.results.get(dict_key, {})
+
+    def get_all_samaccountname_values(self):
+        """Retrieve *all* AD usernames (= "SamAccountName" values) including usernames
+        of AD users without a CPR or MO user UUID.
+        """
+        server = self.all_settings["global"]["servers"][0]
+        cmd = f"""{self._build_user_credential()}
+        Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties SamAccountName"""
+        all_users = self._run_ps_script(cmd)
+        return set(map(itemgetter("SamAccountName"), all_users))
 
 
 if __name__ == "__main__":

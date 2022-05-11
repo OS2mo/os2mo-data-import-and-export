@@ -819,6 +819,14 @@ class TestUserNameGenPermutation(unittest.TestCase):
                 self.assertEqual(num, 54)
 
 
+class TestUserNameSet(unittest.TestCase):
+    def test_contains_is_case_insensitive(self):
+        username_set = UserNameSet()
+        username_set._usernames = {"aaa", "BBB"}
+        self.assertIn("Aaa", username_set)
+        self.assertIn("bbb", username_set)
+
+
 class TestUserNameSetCSVFile(unittest.TestCase):
     csv_path = "some/fs/path"
     csv_lines = [
