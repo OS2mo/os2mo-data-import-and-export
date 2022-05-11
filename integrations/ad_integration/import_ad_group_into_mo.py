@@ -9,7 +9,6 @@ from uuid import UUID
 import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from more_itertools import one
 from more_itertools import only
 from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -157,19 +156,13 @@ class ADMOImporter(object):
     def cleanup_removed_users_from_mo(self) -> None:
         """Remove users in MO if they are no longer found as external users in AD."""
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        users = self._find_ou_users_in_ad()
-        active_account_names = set(map(itemgetter("SamAccountName"), users.values()))
+        active_account_names = self.ad_reader.get_all_samaccountname_values()
 
         mo_users = self.helper.read_organisation_people(self.root_ou_uuid)
-        it_systems = self.helper.read_it_systems()
-        AD_it_system = one(
-            filter(lambda it: it["user_key"] == "Active Directory", it_systems)
-        )
-        AD_it_system_uuid = AD_it_system["uuid"]
 
         for mo_user_uuid, user in mo_users.items():
             AD_accounts = self.helper.get_e_itsystems(
-                mo_user_uuid, it_system_uuid=AD_it_system_uuid
+                mo_user_uuid, it_system_uuid=self.AD_it_system_uuid
             )
             for account in AD_accounts:
                 if account["user_key"] not in active_account_names:
