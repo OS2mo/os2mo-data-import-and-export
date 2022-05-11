@@ -182,7 +182,10 @@ class ADMOImporter(object):
                     # terminate username
                     payload["uuid"] = account["uuid"]
                     payload["type"] = "it"
+                    logger.debug("Terminate it payload: {}".format(payload))
                     response = self.helper._mo_post("details/terminate", payload)
+                    logger.debug("Terminate it response: {}".format(response.text))
+                    response.raise_for_status()
 
     def create_or_update_users_in_mo(self) -> None:
         """
