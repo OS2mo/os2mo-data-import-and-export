@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.2 - 2022-05-11
+-------------------
+
+[#50188] Revise `UserNameGenPermutation` (Furesø AD username generator rules have changed)
+
 2.34.1 - 2022-05-11
 -------------------
 
