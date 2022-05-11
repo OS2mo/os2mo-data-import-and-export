@@ -38,6 +38,9 @@ class MockADParameterReader(TestADWriterMixin):
     def cache_all(self, **kwargs):
         return self.read_it_all()
 
+    def get_all_samaccountname_values(self):
+        return {self.read_user()["SamAccountName"]}
+
 
 class MockEmptyADReader(MockADParameterReader):
     """Mock implementation of `ADParameterReader` which simulates an empty AD"""

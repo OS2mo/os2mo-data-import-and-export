@@ -288,7 +288,7 @@ class UserNameSet:
         self._usernames = set()
 
     def __contains__(self, username: str) -> bool:
-        return username in self._usernames
+        return username.lower() in set(map(str.lower, self._usernames))
 
     def __iter__(self):
         return iter(self._usernames)
@@ -308,8 +308,7 @@ class UserNameSetCSVFile(UserNameSet):
 class UserNameSetInAD(UserNameSet):
     def __init__(self):
         reader = ADParameterReader()
-        all_users = reader.read_it_all()
-        self._usernames = set(map(itemgetter("SamAccountName"), all_users))
+        self._usernames = reader.get_all_samaccountname_values()
 
 
 class UserNameSetInDatabase(UserNameSet):
