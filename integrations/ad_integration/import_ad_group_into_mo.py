@@ -156,7 +156,8 @@ class ADMOImporter(object):
     def cleanup_removed_users_from_mo(self) -> None:
         """Remove users in MO if they are no longer found as external users in AD."""
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        active_account_names = self.ad_reader.get_all_samaccountname_values()
+        users = self._find_ou_users_in_ad()
+        active_account_names = set(map(itemgetter("SamAccountName"), users.values()))
 
         mo_users = self.helper.read_organisation_people(self.root_ou_uuid)
 
@@ -177,6 +178,9 @@ class ADMOImporter(object):
                     response.raise_for_status()
 
                     # terminate username
+                    payload["uuid"] = account["uuid"]
+                    payload["type"] = "it"
+                    response = self.helper._mo_post("details/terminate", payload)
 
     def create_or_update_users_in_mo(self) -> None:
         """
@@ -190,7 +194,7 @@ class ADMOImporter(object):
             cpr_field = AD["cpr_field"]
 
             for user_uuid, ad_user in tqdm(
-                users.items(), unit="Users", desc="Updating units"
+                users.items(), unit="Users", desc="Updating users"
             ):
                 logger.info("Updating {}".format(ad_user["SamAccountName"]))
                 cpr = ad_user[cpr_field]
