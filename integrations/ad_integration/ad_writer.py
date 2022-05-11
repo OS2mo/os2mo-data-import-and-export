@@ -884,13 +884,22 @@ class ADWriter(AD):
             mismatch.update(self._compare_fields(ad_field, rendered_value, ad_user))
 
         if mo_values.get("manager_cpr"):
-            manager_ad_user = self._find_ad_user(
-                mo_values["manager_cpr"], ad_dump=ad_dump
-            )
-            manager_distinguished_name = manager_ad_user["DistinguishedName"]
-            if ad_user["manager"] != manager_distinguished_name:
-                mismatch["manager"] = (ad_user["manager"], manager_distinguished_name)
-                logger.info("Manager should be updated")
+            try:
+                manager_ad_user = self._find_ad_user(
+                    mo_values["manager_cpr"], ad_dump=ad_dump
+                )
+            except CprNotFoundInADException:
+                logger.warning(
+                    "could not find manager by cpr %r", mo_values.get("manager_cpr")
+                )
+            else:
+                manager_distinguished_name = manager_ad_user["DistinguishedName"]
+                if ad_user["manager"] != manager_distinguished_name:
+                    mismatch["manager"] = (
+                        ad_user["manager"],
+                        manager_distinguished_name,
+                    )
+                    logger.info("Manager should be updated")
 
         return mismatch
 
