@@ -15,6 +15,7 @@ from ..ad_exceptions import CprNotNotUnique
 from ..ad_exceptions import NoPrimaryEngagementException
 from ..ad_exceptions import SamAccountNameNotUnique
 from ..ad_template_engine import illegal_parameters
+from ..ad_template_engine import INVALID
 from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
@@ -1258,6 +1259,7 @@ class TestSyncCompare(_TestRealADWriter):
         )
         ad_dump = [self._ad_user_employee]
         mo_values = ad_writer.read_ad_information_from_mo("uuid")
+
         with self.assertLogs() as actual_log_messages:
             mismatch = ad_writer._sync_compare(mo_values, ad_dump=ad_dump)
 
@@ -1276,6 +1278,12 @@ class TestSyncCompare(_TestRealADWriter):
             # Expected content
             "'ad_field_name': MO value is INVALID, not changing AD value None",
         )
+
+        # Assert that the generated PowerShell script does not include the invalid value
+        with mock.patch.object(ad_writer, "_run_ps_script") as mock_run_ps_script:
+            ad_writer.sync_user("mo_uuid", ad_dump=ad_dump)
+            ps_script = mock_run_ps_script.call_args[0][0]
+            self.assertNotIn(f'"ad_field_name"="{INVALID}"', ps_script)
 
 
 class TestPreview(_TestRealADWriter):
@@ -1360,6 +1368,6 @@ class TestReadADInformationFromMO(_TestRealADWriter):
         mo_values = ad_writer.read_ad_information_from_mo("uuid")
         self.assertEqual(mo_values["_parsed_addresses"], expected_parsed_address)
         if expected_parsed_address is ADWriter.INVALID_UNIT_ADDRESS:
-            self.assertEqual(mo_values["unit_postal_code"], ADWriter.INVALID)
-            self.assertEqual(mo_values["unit_city"], ADWriter.INVALID)
-            self.assertEqual(mo_values["unit_streetname"], ADWriter.INVALID)
+            self.assertEqual(mo_values["unit_postal_code"], INVALID)
+            self.assertEqual(mo_values["unit_city"], INVALID)
+            self.assertEqual(mo_values["unit_streetname"], INVALID)

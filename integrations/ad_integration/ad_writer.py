@@ -35,6 +35,7 @@ from .ad_exceptions import ReplicationFailedException
 from .ad_exceptions import SamAccountNameNotUnique
 from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
+from .ad_template_engine import INVALID
 from .ad_template_engine import prepare_field_templates
 from .ad_template_engine import template_powershell
 from .user_names import UserNameGen
@@ -45,16 +46,6 @@ from .utils import lower_list
 
 
 logger = logging.getLogger("AdWriter")
-
-
-class InvalidValue:
-    _value = "<invalid value>"
-
-    def __str__(self):
-        return self._value
-
-    def __eq__(self, other):
-        return self._value == other
 
 
 class MODataSource(ABC):
@@ -368,7 +359,6 @@ class MORESTSource(MODataSource):
 
 
 class ADWriter(AD):
-    INVALID = InvalidValue()
     INVALID_UNIT_ADDRESS = {
         "city": INVALID,
         "postal_code": INVALID,
@@ -791,7 +781,7 @@ class ADWriter(AD):
             ad_field_value = None
 
         # Do the actual comparison
-        if value == ADWriter.INVALID:
+        if value == INVALID:
             msg = "%r: MO value is INVALID, not changing AD value %r"
             logger.info(msg, ad_field, ad_field_value)
         elif ad_field_value != value:
