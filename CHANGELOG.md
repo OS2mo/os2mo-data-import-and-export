@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.4 - 2022-05-12
+-------------------
+
+[#50169] OS2sync: `addresses_to_user` should convert lists of UUIDs to lists of strings when passing address types to `choose_public_address`
+
 2.34.3 - 2022-05-12
 -------------------
 
