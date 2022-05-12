@@ -750,14 +750,8 @@ class ADWriter(AD):
         return ps_script
 
     def _compare_fields(self, ad_field, value, ad_user):
-        logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
         ad_field_value = ad_user.get(ad_field)
-
-        if value is None:
-            msg = "Value for {} is None-type replace to string None"
-            logger.debug(msg.format(ad_field))
-            value = "None"
 
         # Some AD fields contain one-element lists, rather than the usual strings,
         # numbers or UUIDs.
@@ -766,10 +760,25 @@ class ADWriter(AD):
         if isinstance(ad_field_value, list) and len(ad_field_value) == 1:
             ad_field_value = ad_field_value[0]
 
+        # The "MO value" in `value` actually comes from a call to
+        # `_render_field_template`, which may produce the string `"None"` when it
+        # encounters a `None`.
+        if value == "None":
+            value = None
+
+        # We also consider the reverse situation where the AD field contains the string
+        # "None" to indicate an empty value.
+        if ad_field_value == "None":
+            ad_field_value = None
+
+        # Do the actual comparison
         if ad_field_value != value:
             msg = "%r: AD value %r does not match MO value %r"
             logger.info(msg, ad_field, ad_field_value, value)
             mismatch = {ad_field: (ad_field_value, value)}
+        else:
+            msg = "%r: AD value %r already matches MO value %r"
+            logger.debug(msg, ad_field, ad_field_value, value)
 
         return mismatch
 

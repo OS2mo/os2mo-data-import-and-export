@@ -1148,6 +1148,49 @@ class TestSyncCompare(_TestRealADWriter):
 
     @parameterized.expand(
         [
+            # 1. The MO value is None, and the AD value is None - not a mismatch
+            (None, None, {}),
+            # 2. The MO value is "None", and the AD value is None - not a mismatch
+            ("None", None, {}),
+            # 3. The MO value is None, and the AD value is "None" - not a mismatch
+            (None, "None", {}),
+            # 4. The MO value is "None", and the AD value is "None" - not a mismatch
+            ("None", "None", {}),
+            # 5. Neither MO nor AD is None or "None" - not a mismatch
+            ("not none", "not none", {}),
+            # 6. The MO value is None, but the AD value is not None - a mismatch
+            (None, "not none", {"ad_field_name": ("not none", None)}),
+            # 7. The MO value is "None", but the AD value is not None - a mismatch
+            ("None", "not none", {"ad_field_name": ("not none", None)}),
+            # 8. The MO value is not None, but the AD value is None - a mismatch
+            ("not none", None, {"ad_field_name": (None, "not none")}),
+            # 9. The MO value is not None, but the AD value is "None" - a mismatch
+            ("not none", "None", {"ad_field_name": (None, "not none")}),
+        ]
+    )
+    def test_compare_fields_handles_none(self, mo_value, ad_value, expected_mismatch):
+        """When comparing the MO value `"None"` to the AD value `None`, do not consider
+        the AD and MO fields to differ - otherwise we will make a lot of pointless
+        updates in AD, giving empty AD fields the value `"None"`.
+
+        Even if no other AD fields need to be updated, this will cause `mo_to_ad_sync`
+        to update every AD user, causing the program to take a very long time to finish.
+
+        Also, consider the reverse situation (AD value is `"None"`, MO value is `None`)
+        as a non-mismatch.
+
+        See: #50291
+        """
+        # Arrange
+        ad_user = {"ad_field_name": ad_value}
+        ad_writer = self._prepare_adwriter()
+        # Act
+        mismatch = ad_writer._compare_fields("ad_field_name", mo_value, ad_user)
+        # Assert
+        self.assertEqual(mismatch, expected_mismatch)
+
+    @parameterized.expand(
+        [
             (
                 [],  # manager not present in AD
                 None,  # expected `mismatch["manager"]`
