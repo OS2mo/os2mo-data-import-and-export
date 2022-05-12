@@ -40,7 +40,7 @@ logging.basicConfig(
 
 class ADMOImporter(object):
     def __init__(self):
-
+        self.run_date = datetime.datetime.now().strftime("%Y-%m-%d")
         self.settings = load_settings()
         self.root_ou_uuid = self.settings["integrations.ad.import_ou.mo_unit_uuid"]
         self.helper = MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
@@ -122,23 +122,25 @@ class ADMOImporter(object):
         logger.info("Created employee {}".format(user_uuid))
         return user_uuid
 
-    def _connect_user_to_ad(self, ad_user: Dict) -> None:
+    def _connect_user_to_ad(self, mo_uuid: str, username: str) -> None:
         """Write user AD username to the AD it system"""
 
-        logger.info("Connect user to AD: {}".format(ad_user["SamAccountName"]))
+        logger.info("Connect user to AD: {}".format(username))
 
-        payload = payloads.connect_it_system_to_user(ad_user, self.AD_it_system_uuid)
+        payload = payloads.connect_it_system_to_user(
+            mo_uuid, username, self.AD_it_system_uuid, from_date=self.run_date
+        )
         logger.debug("AD account payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
-        logger.debug("Added AD account info to {}".format(ad_user["SamAccountName"]))
+        logger.debug("Added AD account info to {}".format(username))
 
     def _create_engagement(
         self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: UUID = None
     ) -> None:
         """Create the engagement in MO"""
         # TODO: Check if we have start/end date of engagements in AD
-        validity = {"from": datetime.datetime.now().strftime("%Y-%m-%d"), "to": None}
+        validity = {"from": self.run_date, "to": None}
 
         person_uuid = ad_user["ObjectGUID"]
         if mo_uuid:
@@ -157,19 +159,33 @@ class ADMOImporter(object):
         """Remove users in MO if they are no longer found as external users in AD."""
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
         users = self._find_ou_users_in_ad()
+        active_account_names = set(map(itemgetter("SamAccountName"), users.values()))
 
         mo_users = self.helper.read_organisation_people(self.root_ou_uuid)
 
-        for key, user in mo_users.items():
-            if key not in users:
-                # This users is in MO but not in AD:
-                payload = payloads.terminate_engagement(
-                    user["Engagement UUID"], yesterday
-                )
-                logger.debug("Terminate payload: {}".format(payload))
-                response = self.helper._mo_post("details/terminate", payload)
-                logger.debug("Terminate response: {}".format(response.text))
-                response.raise_for_status()
+        for mo_user_uuid, user in mo_users.items():
+            AD_accounts = self.helper.get_e_itsystems(
+                mo_user_uuid, it_system_uuid=self.AD_it_system_uuid
+            )
+            for account in AD_accounts:
+                if account["user_key"] not in active_account_names:
+                    # This users is in MO but not in AD:
+                    logger.info(f"Terminating user with uuid={user['Person UUID']}")
+                    payload = payloads.terminate_engagement(
+                        user["Engagement UUID"], yesterday
+                    )
+                    logger.debug("Terminate payload: {}".format(payload))
+                    response = self.helper._mo_post("details/terminate", payload)
+                    logger.debug("Terminate response: {}".format(response.text))
+                    response.raise_for_status()
+
+                    # terminate username
+                    payload["uuid"] = account["uuid"]
+                    payload["type"] = "it"
+                    logger.debug("Terminate it payload: {}".format(payload))
+                    response = self.helper._mo_post("details/terminate", payload)
+                    logger.debug("Terminate it response: {}".format(response.text))
+                    response.raise_for_status()
 
     def create_or_update_users_in_mo(self) -> None:
         """
@@ -183,7 +199,7 @@ class ADMOImporter(object):
             cpr_field = AD["cpr_field"]
 
             for user_uuid, ad_user in tqdm(
-                users.items(), unit="Users", desc="Updating units"
+                users.items(), unit="Users", desc="Updating users"
             ):
                 logger.info("Updating {}".format(ad_user["SamAccountName"]))
                 cpr = ad_user[cpr_field]
@@ -208,7 +224,7 @@ class ADMOImporter(object):
                 )
 
                 if not AD_username:
-                    self._connect_user_to_ad(ad_user)
+                    self._connect_user_to_ad(mo_uuid, ad_user["SamAccountName"])
 
                 current_engagements = self.helper.read_user_engagement(user=mo_uuid)
                 this_engagement = list(
