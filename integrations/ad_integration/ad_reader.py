@@ -175,7 +175,7 @@ class ADParameterReader(AD):
         """
         server = self.all_settings["global"]["servers"][0]
         cmd = f"""{self._build_user_credential()}
-        Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties SamAccountName"""
+        Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties SamAccountName | ConvertTo-Json"""
         all_users = self._run_ps_script(cmd)
         return set(map(itemgetter("SamAccountName"), all_users))
 
