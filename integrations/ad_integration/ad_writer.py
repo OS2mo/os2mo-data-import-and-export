@@ -47,6 +47,16 @@ from .utils import lower_list
 logger = logging.getLogger("AdWriter")
 
 
+class InvalidValue:
+    _value = "<invalid value>"
+
+    def __str__(self):
+        return self._value
+
+    def __eq__(self, other):
+        return self._value == other
+
+
 class MODataSource(ABC):
     @abstractmethod
     def read_user(self, uuid):
@@ -358,6 +368,13 @@ class MORESTSource(MODataSource):
 
 
 class ADWriter(AD):
+    INVALID = InvalidValue()
+    INVALID_UNIT_ADDRESS = {
+        "city": INVALID,
+        "postal_code": INVALID,
+        "streetname": INVALID,
+    }
+
     def __init__(self, lc=None, lc_historic=None, **kwargs):
         super().__init__(**kwargs)
         self.settings = self.all_settings
@@ -554,23 +571,25 @@ class ADWriter(AD):
             return None
 
         def split_addresses(addresses):
-            postal_code = city = streetname = "Ukendt"
-            if addresses.get("postal"):
-                postal = addresses["postal"]
+            try:
+                postal = addresses["postal"]["Adresse"]
+            except KeyError:
+                return ADWriter.INVALID_UNIT_ADDRESS
+            else:
                 try:
-                    postal_code = re.findall("[0-9]{4}", postal["Adresse"])[0]
-                    city_pos = postal["Adresse"].find(postal_code) + 5
-                    city = postal["Adresse"][city_pos:]
-                    streetname = postal["Adresse"][: city_pos - 7]
-                except IndexError:
+                    postal_code = re.findall("[0-9]{4}", postal)[0]
+                    city_pos = postal.find(postal_code) + 5
+                    city = postal[city_pos:]
+                    streetname = postal[: city_pos - 7]
+                except (IndexError, TypeError):
                     logger.error("Unable to read adresse from MO (no access to DAR?)")
-                except TypeError:
-                    logger.error("Unable to read adresse from MO (no access to DAR?)")
-            return {
-                "postal_code": postal_code,
-                "city": city,
-                "streetname": streetname,
-            }
+                    return ADWriter.INVALID_UNIT_ADDRESS
+                else:
+                    return {
+                        "postal_code": postal_code,
+                        "city": city,
+                        "streetname": streetname,
+                    }
 
         def read_manager_uuid(mo_user, eng_uuid):
             manager_uuid = self.datasource.get_manager_uuid(mo_user, eng_uuid)
@@ -772,7 +791,10 @@ class ADWriter(AD):
             ad_field_value = None
 
         # Do the actual comparison
-        if ad_field_value != value:
+        if value == ADWriter.INVALID:
+            msg = "%r: MO value is INVALID, not changing AD value %r"
+            logger.info(msg, ad_field, ad_field_value)
+        elif ad_field_value != value:
             msg = "%r: AD value %r does not match MO value %r"
             logger.info(msg, ad_field, ad_field_value, value)
             mismatch = {ad_field: (ad_field_value, value)}

@@ -253,8 +253,9 @@ class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
 
 
 class MockMoraHelper(MoraHelper):
-    def __init__(self, cpr):
+    def __init__(self, cpr, read_ou_addresses=None):
         self._mo_user = {"cpr_no": cpr, "uuid": MO_UUID}
+        self._read_ou_addresses = read_ou_addresses or {}
         self._read_user_calls = []
         super().__init__()
 
@@ -278,6 +279,12 @@ class MockMoraHelper(MoraHelper):
             "org_unit_level": {"uuid": "org_unit_level_uuid"},
             "parent": None,
         }
+
+    def read_ou_address(self, uuid, scope=None, **kwargs):
+        if scope == "EMAIL":
+            return []
+        if scope == "DAR":
+            return self._read_ou_addresses
 
     def read_engagement_manager(self, engagement_uuid):
         return {}
@@ -326,6 +333,7 @@ class MockADWriterContext(ExitStack):
         super().__init__()
         settings = copy.deepcopy(self.all_settings)
         template_to_ad_fields = kwargs.get("template_to_ad_fields", {})
+        self._read_ou_addresses = kwargs.get("read_ou_addresses")
         settings["primary_write"]["template_to_ad_fields"].update(template_to_ad_fields)
         self._settings = settings
 
@@ -350,5 +358,9 @@ class MockADWriterContext(ExitStack):
             return_value=MockADParameterReader(),
         )
         yield patch(
-            f"{prefix}.ad_writer.MoraHelper", return_value=MockMoraHelper(cpr="")
+            f"{prefix}.ad_writer.MoraHelper",
+            return_value=MockMoraHelper(
+                cpr="",
+                read_ou_addresses=self._read_ou_addresses,
+            ),
         )

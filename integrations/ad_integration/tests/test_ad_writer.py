@@ -5,6 +5,7 @@ from unittest import TestCase
 from freezegun import freeze_time
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
+from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 from ra_utils.lazy_dict import LazyDict
@@ -1084,7 +1085,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
 class _TestRealADWriter(TestCase):
     def _prepare_adwriter(self, **kwargs):
         template_to_ad_fields = kwargs.pop("template_to_ad_fields", {})
-        with MockADWriterContext(template_to_ad_fields=template_to_ad_fields):
+        read_ou_addresses = kwargs.pop("read_ou_addresses", None)
+        with MockADWriterContext(
+            template_to_ad_fields=template_to_ad_fields,
+            read_ou_addresses=read_ou_addresses,
+        ):
             instance = ADWriter(**kwargs)
             instance.get_from_ad = lambda *_args, **_kwargs: {}
             return instance
@@ -1126,6 +1131,12 @@ class TestInitNameCreator(_TestRealADWriter):
 
 
 class TestSyncCompare(_TestRealADWriter):
+    _ad_user_employee = {
+        "cpr_field": "cpr",
+        "SamAccountName": "sam",
+        "Manager": "old_manager_dn",
+    }
+
     def test_compare_fields_converts_ad_list(self):
         """Some AD fields contain one-element lists, rather than the usual strings,
         numbers or UUIDs.
@@ -1219,7 +1230,7 @@ class TestSyncCompare(_TestRealADWriter):
         ad_writer = self._prepare_adwriter()
         ad_dump = [
             # employee AD user
-            {"cpr_field": "cpr", "SamAccountName": "sam", "Manager": "old_manager_dn"},
+            self._ad_user_employee,
             # 0 or 1 manager AD users
             *ad_dump_extra,
         ]
@@ -1237,6 +1248,34 @@ class TestSyncCompare(_TestRealADWriter):
 
         # Assert we logged the expected message
         self.assertEqual(actual_log_messages.records[-1].message, expected_log_message)
+
+    def test_sync_compare_skips_invalid_mo_values(self):
+        ad_writer = self._prepare_adwriter(
+            # Map MO unit address to a hypothetical AD field called `ad_field_name`
+            template_to_ad_fields={"ad_field_name": "{{ mo_values['unit_city'] }}"},
+            # Ensure that MO returns an invalid unit address (DAR offline scenario)
+            read_ou_addresses={"Adresse": "Ukendt"},
+        )
+        ad_dump = [self._ad_user_employee]
+        mo_values = ad_writer.read_ad_information_from_mo("uuid")
+        with self.assertLogs() as actual_log_messages:
+            mismatch = ad_writer._sync_compare(mo_values, ad_dump=ad_dump)
+
+        # Assert that we did not consider the MO and AD values to be different and thus
+        # need synchronization.
+        self.assertNotIn("ad_field_name", mismatch)
+
+        # Assert that we logged the expected message
+        self.assertEqual(
+            # Find matching log message
+            only(
+                record.message
+                for record in actual_log_messages.records
+                if "INVALID" in record.message
+            ),
+            # Expected content
+            "'ad_field_name': MO value is INVALID, not changing AD value None",
+        )
 
 
 class TestPreview(_TestRealADWriter):
@@ -1285,3 +1324,42 @@ class TestJinjaEnv(_TestRealADWriter):
         )
         sync_cmd, _, _ = ad_writer._preview_sync_command(MO_UUID, "user_sam")
         self.assertIn(self._expected_fragment, sync_cmd)
+
+
+class TestReadADInformationFromMO(_TestRealADWriter):
+    @parameterized.expand(
+        [
+            # When DAR lookups work, MO returns addresses on the format
+            # "Testvej 123, 1234 Testby".
+            # Check that we parse such values correctly into its constituent parts.
+            (
+                {"Adresse": "Testvej 123, 1234 Testby"},
+                {"postal_code": "1234", "city": "Testby", "streetname": "Testvej 123"},
+            ),
+            # When DAR is offline, MO returns addresses with the literal value "Ukendt".
+            # We convert them into invalid unit addresses.
+            (
+                {"Adresse": "Ukendt"},
+                ADWriter.INVALID_UNIT_ADDRESS,
+            ),
+            # If we get an invalid Danish postal address, we also convert them into an
+            # invalid unit address.
+            (
+                {"Adresse": "Testvej 123, 123 Testby"},
+                ADWriter.INVALID_UNIT_ADDRESS,
+            ),
+            # Empty MO response causes an invalid unit address as well.
+            (
+                {},
+                ADWriter.INVALID_UNIT_ADDRESS,
+            ),
+        ]
+    )
+    def test_parsed_addresses(self, address, expected_parsed_address):
+        ad_writer = self._prepare_adwriter(read_ou_addresses=address)
+        mo_values = ad_writer.read_ad_information_from_mo("uuid")
+        self.assertEqual(mo_values["_parsed_addresses"], expected_parsed_address)
+        if expected_parsed_address is ADWriter.INVALID_UNIT_ADDRESS:
+            self.assertEqual(mo_values["unit_postal_code"], ADWriter.INVALID)
+            self.assertEqual(mo_values["unit_city"], ADWriter.INVALID)
+            self.assertEqual(mo_values["unit_streetname"], ADWriter.INVALID)
