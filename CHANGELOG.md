@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.6 - 2022-05-12
+-------------------
+
+[#50291] Fix `ADWriter._compare_fields` result when encountering `"None"` strings in MO or AD values
+
 2.34.5 - 2022-05-12
 -------------------
 
