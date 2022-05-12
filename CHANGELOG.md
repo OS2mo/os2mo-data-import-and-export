@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.3 - 2022-05-12
+-------------------
+
+[#50160] `ADWriter._sync_compare`: do not crash if manager's AD user cannot be found in `ad_dump`
+
 2.34.2 - 2022-05-11
 -------------------
 
