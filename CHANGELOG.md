@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.5 - 2022-05-12
+-------------------
+
+[#50181] AD user import: Fixed a bug where it-accounts would not be created and engagements would terminated again every day if their uuid in MO was not the same as ObjectGuid in AD.
+
 2.34.4 - 2022-05-12
 -------------------
 
