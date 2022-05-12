@@ -1146,6 +1146,55 @@ class TestSyncCompare(_TestRealADWriter):
         self.assertIn("ad_field_name", mismatch)
         self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))
 
+    @parameterized.expand(
+        [
+            (
+                [],  # manager not present in AD
+                None,  # expected `mismatch["manager"]`
+                "could not find manager by cpr 'manager_cpr'",  # expected logging
+            ),
+            (
+                # manager present in AD
+                [{"cpr_field": "manager_cpr", "DistinguishedName": "manager_dn"}],
+                ("old_manager_dn", "manager_dn"),  # expected `mismatch["manager"]`
+                "Manager should be updated",  # expected logging
+            ),
+        ]
+    )
+    def test_handles_manager_cpr_not_in_ad_dump(
+        self, ad_dump_extra, expected_manager_mismatch, expected_log_message
+    ):
+        """When `ADWriter.sync_user` is called from `run_mo_to_ad_sync`, an `ad_dump`
+        is provided. However, sometimes `sync_user` cannot find the AD user specified
+        by `mo_values["manager_cpr"] in `ad_dump` and crashes unexpectedly.
+
+        This test verifies that we no longer crash in such cases, but simply do not
+        update the `Manager` attribute in AD.
+
+        See: #50160
+        """
+        ad_writer = self._prepare_adwriter()
+        ad_dump = [
+            # employee AD user
+            {"cpr_field": "cpr", "SamAccountName": "sam", "Manager": "old_manager_dn"},
+            # 0 or 1 manager AD users
+            *ad_dump_extra,
+        ]
+        mo_values = {
+            "cpr": "cpr",
+            "full_name": "Full Name",
+            "manager_cpr": "manager_cpr",
+        }
+        with self.assertLogs() as actual_log_messages:
+            mismatch = ad_writer._sync_compare(mo_values, ad_dump=ad_dump)
+
+        # Assert we got the expected `mismatch["manager"]` value
+        actual_manager_mismatch = mismatch.get("manager")
+        self.assertEqual(actual_manager_mismatch, expected_manager_mismatch)
+
+        # Assert we logged the expected message
+        self.assertEqual(actual_log_messages.records[-1].message, expected_log_message)
+
 
 class TestPreview(_TestRealADWriter):
     def test_preview_create_command(self):
