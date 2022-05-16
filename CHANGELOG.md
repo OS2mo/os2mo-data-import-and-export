@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.8 - 2022-05-16
+-------------------
+
+[#50308] Loracache: Fixes bug where DAR addresses used UUID's, which caused a breakdown when trying to export it to sql.
+
 2.34.7 - 2022-05-16
 -------------------
 
