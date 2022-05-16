@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.7 - 2022-05-16
+-------------------
+
+[#49734] Import FK-org uuids changed to use only envvars and not settings-file to be able to run easily in a container without settings.json.
+
 2.34.6 - 2022-05-12
 -------------------
 
