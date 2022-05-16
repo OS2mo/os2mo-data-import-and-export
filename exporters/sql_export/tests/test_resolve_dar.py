@@ -82,5 +82,5 @@ class TestResolveDar(unittest.TestCase):
 
         # Check that all our betegnelser has been set
         for dar_uuid in dar_uuids:
-            self.assertIn(str(dar_uuid), dar_cache)
+            self.assertIn(dar_uuid, dar_cache)
             self.assertEqual(dar_cache[dar_uuid], {"betegnelse": None})
