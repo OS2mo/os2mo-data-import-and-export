@@ -1,7 +1,6 @@
 import logging
 import unittest
 from unittest.mock import patch
-from uuid import UUID
 
 import pytest
 from hypothesis import given
@@ -83,5 +82,5 @@ class TestResolveDar(unittest.TestCase):
 
         # Check that all our betegnelser has been set
         for dar_uuid in dar_uuids:
-            self.assertIn(UUID(dar_uuid), dar_cache)
-            self.assertEqual(dar_cache[UUID(dar_uuid)], {"betegnelse": None})
+            self.assertIn(str(dar_uuid), dar_cache)
+            self.assertEqual(dar_cache[dar_uuid], {"betegnelse": None})
