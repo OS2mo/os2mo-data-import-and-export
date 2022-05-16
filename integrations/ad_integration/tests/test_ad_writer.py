@@ -1353,7 +1353,7 @@ class TestReadADInformationFromMO(_TestRealADWriter):
             # If we get an invalid Danish postal address, we also convert them into an
             # invalid unit address.
             (
-                {"Adresse": "Testvej 123, 123 Testby"},
+                {"Adresse": "Ikke en gyldig dansk postadresse"},
                 ADWriter.INVALID_UNIT_ADDRESS,
             ),
             # Empty MO response causes an invalid unit address as well.
