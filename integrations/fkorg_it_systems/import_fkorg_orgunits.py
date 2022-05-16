@@ -9,7 +9,6 @@ import click
 from more_itertools import one
 from more_itertools import only
 from ra_utils.async_to_sync import async_to_sync
-from ra_utils.load_settings import load_setting
 from raclients.modelclient.mo import ModelClient
 from ramodels.mo.details import ITUser
 
@@ -48,18 +47,13 @@ async def check_it_system_value(
 
 @click.command()
 @click.argument("input-file")
-@click.option("--mora-base", default=load_setting("mora.base"), envvar="BASE_URL")
-@click.option(
-    "--client-id", default=load_setting("crontab.CLIENT_ID"), envvar="CLIENT_ID"
-)
+@click.option("--mora-base", envvar="BASE_URL")
+@click.option("--client-id", envvar="CLIENT_ID")
 @click.option(
     "--client-secret",
-    default=load_setting("crontab.CLIENT_SECRET"),
     envvar="CLIENT_SECRET",
 )
-@click.option(
-    "--auth-server", default=load_setting("crontab.AUTH_SERVER"), envvar="AUTH_SERVER"
-)
+@click.option("--auth-server", envvar="AUTH_SERVER")
 @click.option("--dry-run", is_flag=True)
 @async_to_sync
 async def cli(
