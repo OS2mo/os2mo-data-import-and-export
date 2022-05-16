@@ -1117,7 +1117,9 @@ class LoraCache:
         )
         if self.resolve_dar:
             dar_hits, missing = self._read_from_dar(dar_uuids)
-            dar_hits = dict(map(lambda x: (str(x[0]), x[1]), dar_hits.items()))
+            # dar_hits is a dict with UUIDs as keys. We need to cast them to strings.
+            dar_hits_uuids_as_str = map(str, dar_hits.keys())
+            dar_hits = dict(zip(dar_hits_uuids_as_str, dar_hits.values()))
             dar_cache.update(dar_hits)
             logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
             for dar_uuid, uuid_list in self.dar_map.items():
