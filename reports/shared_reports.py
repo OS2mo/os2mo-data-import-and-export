@@ -12,7 +12,6 @@ import pandas as pd
 from anytree import PreOrderIter
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
-
 from ra_utils.load_settings import load_settings
 
 
@@ -165,13 +164,10 @@ class CustomerReports(MoraHelper):
         for node in PreOrderIter(self.nodes["root"]):
             path_dict = self._create_path_dict(cols, node)
             org_address = self.read_ou_address(node.name)
-            row = {**org_address, **path_dict}
             employees = self.read_organisation_people(node.name, split_name=False)
             for uuid, employee in employees.items():
                 address = self.read_user_address(uuid, username=True)
-                row.update({**address, **employee})
-                rows.append(row)
-
+                rows.append({**org_address, **path_dict, **address, **employee})
         return pd.DataFrame(rows, columns=cols)
 
     def organisation_units(self) -> pd.DataFrame:
