@@ -103,6 +103,9 @@ class UserNameGen:
                     self.add_occupied_names(username_set)
                     logger.debug("added %r to set of occupied names", username_set)
 
+    def is_username_occupied(self, username):
+        return username.lower() in set(map(str.lower, self.occupied_names))
+
 
 class UserNameGenMethod2(UserNameGen):
     """
@@ -221,7 +224,7 @@ class UserNameGenMethod2(UserNameGen):
                     if not username:
                         continue
                     indexed_username = username.replace("X", str(permutation_counter))
-                    if indexed_username not in self.occupied_names:
+                    if not self.is_username_occupied(indexed_username):
                         if not dry_run:
                             self.occupied_names.add(indexed_username)
                         final_user_name = indexed_username
@@ -242,7 +245,7 @@ class UserNameGenPermutation(UserNameGen):
         while True:
             letters = self._extract_letters(name)
             new_username = "%s%d" % ("".join(letters), suffix)
-            if new_username not in self.occupied_names:
+            if not self.is_username_occupied(new_username):
                 # An unused username was found, add it to the list of
                 # occupied names and return.
                 self.occupied_names.add(new_username)

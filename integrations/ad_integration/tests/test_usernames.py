@@ -88,6 +88,12 @@ class TestUserNameGen(unittest.TestCase):
         with self.assertRaises(ImproperlyConfigured):
             self._get_instance("InvalidUserNameSetName")
 
+    def test_is_username_occupied_is_case_insensitive(self):
+        impl = self._get_instance("UserNameSet")
+        username = list(impl.occupied_names)[0]
+        self.assertEqual(username, username.lower())
+        self.assertTrue(impl.is_username_occupied(username.upper()))
+
     def _get_instance(self, usernameset_class_name: str) -> "UserNameGen":
         cls_names = [usernameset_class_name]
         settings = {
@@ -760,6 +766,18 @@ class TestUserNameGenMethod2(unittest.TestCase):
         expected_name = ["Anders", "abzaoa", "Andersen"]
         self.assertTrue(fixed_name == expected_name)
 
+    def test_check_is_case_insensitive(self):
+        name = ["Fornavn", "Efternavn"]
+        name_creator = UserNameGenMethod2()
+        # Generate username (no occupied names yet)
+        first_username = name_creator.create_username(name)
+        # Add upper-case version of generated username to list of occupied names
+        name_creator.add_occupied_names({first_username.upper()})
+        # Generate second username from same name
+        second_username = name_creator.create_username(name)
+        # Assert new username is different, even when case is ignored
+        self.assertNotEqual(first_username.lower(), second_username.lower())
+
 
 class TestUserNameGenPermutation(unittest.TestCase):
     def setUp(self):
@@ -812,6 +830,17 @@ class TestUserNameGenPermutation(unittest.TestCase):
         name = name.split(maxsplit=1)
         actual_username = self.instance.create_username(name)
         self.assertEqual(actual_username, expected_username)
+
+    def test_check_is_case_insensitive(self):
+        name = ["Fornavn", "Efternavn"]
+        # Generate username (no occupied names yet)
+        first_username = self.instance.create_username(name)
+        # Add upper-case version of generated username to list of occupied names
+        self.instance.add_occupied_names({first_username.upper()})
+        # Generate second username from same name
+        second_username = self.instance.create_username(name)
+        # Assert new username is different, even when case is ignored
+        self.assertNotEqual(first_username.lower(), second_username.lower())
 
 
 class TestUserNameSet(unittest.TestCase):
