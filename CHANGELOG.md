@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.10 - 2022-05-17
+--------------------
+
+[#50165] Use case-insensitive check to determine whether a generated username is already occupied
+
 2.34.9 - 2022-05-17
 -------------------
 
