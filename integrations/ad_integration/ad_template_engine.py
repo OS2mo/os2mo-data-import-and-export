@@ -10,6 +10,20 @@ from .utils import dict_partition
 from .utils import duplicates
 from .utils import lower_list
 
+
+class InvalidValue:
+    _value = "<invalid value>"
+
+    def __str__(self):
+        return self._value
+
+    def __eq__(self, other):
+        return self._value == other
+
+
+INVALID = InvalidValue()
+
+
 # Parameters that should not be quoted
 no_quote_list = ["Credential", "Enabled", "AccountPassword"]
 
@@ -345,7 +359,7 @@ def filter_empty_values(
     for name, template_code in attrs.items():
         template = load_jinja_template(environment, template_code)
         value = template.render(**context)
-        if value in ('"None"', ""):
+        if value in ('"None"', "", f'"{INVALID}"'):
             to_remove.add(name)
 
     for attribute_name in to_remove:
@@ -386,7 +400,7 @@ def prepare_template(environment: Environment, cmd, settings, context):
         cmd,
         *partition_templates(
             cmd, quote_templates(prepare_field_templates(cmd, settings))
-        )
+        ),
     )
 
     parameters = filter_empty_values(environment, parameters, context)
