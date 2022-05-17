@@ -275,7 +275,12 @@ exports_os2sync(){
         echo ${log_file}
     ))
     echo running exports_os2sync
-    ${VENV}/bin/python3 -m exporters.os2sync_export
+    source exporters/os2sync_export/.venv/bin/activate.fish
+    ${POETRYPATH} run python -m os2sync_export
+    EXIT_CODE=$?
+    source .venv/bin/activate
+    return $EXIT_CODE
+
 }
 
 exports_mox_stsorgsync(){

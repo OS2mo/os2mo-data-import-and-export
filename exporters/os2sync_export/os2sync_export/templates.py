@@ -14,9 +14,8 @@ from jinja2 import Environment
 from jinja2 import StrictUndefined
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
-
-from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.config import Settings
+from os2sync_export.config import loggername as _loggername
+from os2sync_export.config import Settings
 
 logger = logging.getLogger(_loggername)
 
@@ -111,7 +110,7 @@ class User(Entity):
     def __init__(
         self,
         context: Dict[str, Any],
-        settings: Settings = None,
+        settings: Settings,
     ):
         super().__init__(context, settings=settings)
         assert isinstance(context["uuid"], (UUID, str))
