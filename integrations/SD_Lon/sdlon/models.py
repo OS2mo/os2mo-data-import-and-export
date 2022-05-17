@@ -1,4 +1,5 @@
 from enum import Enum
+import logging
 from typing import Optional
 
 from pydantic import BaseModel
@@ -10,11 +11,11 @@ class JobFunction(str, Enum):
 
 
 class LogLevel(str, Enum):
-    debug = "DEBUG"
-    info = "INFO"
-    warning = "WARNING"
-    error = "ERROR"
-    critical = "CRITICAL"
+    debug = logging.getLevelName(logging.DEBUG)
+    info = logging.getLevelName(logging.INFO)
+    warning = logging.getLevelName(logging.WARNING)
+    error = logging.getLevelName(logging.ERROR)
+    critical = logging.getLevelName(logging.CRITICAL)
 
 
 class SDBasePerson(BaseModel):
