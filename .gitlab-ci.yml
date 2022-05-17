@@ -235,8 +235,6 @@ Test Calculate Primary:
 
 Test OS2Sync Integration:
   extends: .test-python
-  variables:
-    POETRY_VIRTUALENVS_CREATE: "true"
   script:
     - cd exporters/os2sync_export
     - poetry install
