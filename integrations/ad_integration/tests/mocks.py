@@ -114,10 +114,15 @@ class MockLoraCache:
                     {
                         "uuid": eng["uuid"],
                         "user": self._mo_values["uuid"],
+                        "unit": MO_ROOT_ORG_UNIT_UUID,
+                        "user_key": "engagement_%s" % self._mo_values["uuid"],
                         "primary_boolean": eng["is_primary"],
                         "from_date": eng["validity"]["from"],
                         "to_date": eng["validity"]["to"],
                         "extensions": extensions,
+                        "job_function": eng.get("job_function", {}).get("uuid"),
+                        "primary_type": None,
+                        "engagement_type": None,
                     }
                 ]
                 for eng in self._mo_engagements
@@ -128,6 +133,8 @@ class MockLoraCache:
                     {
                         "uuid": "engagement_uuid",
                         "user": self._mo_values["uuid"],
+                        "unit": MO_ROOT_ORG_UNIT_UUID,
+                        "user_key": "engagement_%s" % self._mo_values["uuid"],
                         "primary_boolean": True,
                         "from_date": "1960-01-01",
                         "to_date": None,
@@ -250,6 +257,38 @@ class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
                 }
             ],
         }
+
+
+class MockLoraCacheUnitAddress(MockLoraCacheExtended):
+
+    _job_function_class_uuid = "job_function_class_uuid"
+
+    def __init__(self, address_value):
+        self._address_value = address_value
+        mo_values = {"uuid": MO_UUID}
+        mo_engagements = [
+            {
+                "uuid": "eng_%s" % MO_UUID,
+                "is_primary": True,
+                "validity": {"from": "1960-01-01", "to": None},
+                "job_function": {"uuid": self._job_function_class_uuid},
+            }
+        ]
+        super().__init__(mo_values, mo_engagements=mo_engagements)
+
+    @property
+    def classes(self):
+        return {self._job_function_class_uuid: {"title": "Job function title"}}
+
+    @property
+    def addresses(self):
+        address_uuid = "address-uuid"
+        address = {
+            "unit": MO_ROOT_ORG_UNIT_UUID,
+            "scope": "DAR",
+            "value": self._address_value,
+        }
+        return {address_uuid: [address]}
 
 
 class MockMoraHelper(MoraHelper):

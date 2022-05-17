@@ -22,6 +22,7 @@ from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
 from .mocks import MO_UUID
 from .mocks import MockADWriterContext
+from .mocks import MockLoraCacheUnitAddress
 from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
@@ -1364,10 +1365,24 @@ class TestReadADInformationFromMO(_TestRealADWriter):
         ]
     )
     def test_parsed_addresses(self, address, expected_parsed_address):
-        ad_writer = self._prepare_adwriter(read_ou_addresses=address)
-        mo_values = ad_writer.read_ad_information_from_mo("uuid")
-        self.assertEqual(mo_values["_parsed_addresses"], expected_parsed_address)
-        if expected_parsed_address is ADWriter.INVALID_UNIT_ADDRESS:
-            self.assertEqual(mo_values["unit_postal_code"], INVALID)
-            self.assertEqual(mo_values["unit_city"], INVALID)
-            self.assertEqual(mo_values["unit_streetname"], INVALID)
+        ad_writers = (
+            ("ADWriter using MO API", self._get_mo_ad_writer(address)),
+            ("ADWriter using LoraCache", self._get_loracache_ad_writer(address)),
+        )
+        for name, ad_writer in ad_writers:
+            with self.subTest(name):
+                mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
+                self.assertEqual(
+                    mo_values["_parsed_addresses"], expected_parsed_address
+                )
+                if expected_parsed_address is ADWriter.INVALID_UNIT_ADDRESS:
+                    self.assertEqual(mo_values["unit_postal_code"], INVALID)
+                    self.assertEqual(mo_values["unit_city"], INVALID)
+                    self.assertEqual(mo_values["unit_streetname"], INVALID)
+
+    def _get_mo_ad_writer(self, address):
+        return self._prepare_adwriter(read_ou_addresses=address)
+
+    def _get_loracache_ad_writer(self, address):
+        lc = MockLoraCacheUnitAddress(address_value=address.get("Adresse"))
+        return self._prepare_adwriter(lc=lc, lc_historic=lc)
