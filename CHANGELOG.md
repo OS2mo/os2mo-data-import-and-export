@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.11 - 2022-05-17
+--------------------
+
+[#50304] Exclude invalid DAR addresses when creating or updating AD users in `ADWriter`
+
 2.34.10 - 2022-05-17
 --------------------
 
