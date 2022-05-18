@@ -7,6 +7,7 @@
 import logging
 from functools import lru_cache
 from operator import itemgetter
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -225,13 +226,13 @@ def get_fk_org_uuid(
     )
     # Sort the relevant it-systems based on their position in the given list
     it.sort(key=lambda name: uuid_from_it_systems.index(name["itsystem"]["name"]))
-    it = list(map(itemgetter("uuid"), it))
+    it_uuids = list(map(itemgetter("uuid"), it))
     # Append mo_uuid to return it if no matches were found in it-accounts
-    it.append(mo_uuid)
-    return first(it)
+    it_uuids.append(mo_uuid)
+    return first(it_uuids)
 
 
-def get_sts_user(uuid, settings: Settings) -> Dict[str, Any]:
+def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     user = User(
@@ -306,7 +307,9 @@ def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
 
-def address_type_is(address: Dict[str, Any], user_key=None, scope: str = "TEXT") -> bool:
+def address_type_is(
+    address: Dict[str, Any], user_key=None, scope: str = "TEXT"
+) -> bool:
     return (
         address["address_type"]["user_key"] == user_key
         and address["address_type"]["scope"] == scope
@@ -344,7 +347,9 @@ def filter_kle(aspect: str, kle) -> List[str]:
     return list(sorted(task_uuids))
 
 
-def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
+def partition_kle(
+    kle: List, use_contact_for_tasks: bool
+) -> Tuple[List[str], List[str]]:
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
@@ -375,7 +380,7 @@ def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
     return list(sorted(tasks_set)), []
 
 
-def kle_to_orgunit(org_unit: Dict, kle: List, use_contact_for_tasks) -> None:
+def kle_to_orgunit(org_unit: Dict, kle: List, use_contact_for_tasks: bool) -> None:
     """Mutates the dict "org_unit" to include KLE data"""
     tasks, contactfortasks = partition_kle(
         kle, use_contact_for_tasks=use_contact_for_tasks
