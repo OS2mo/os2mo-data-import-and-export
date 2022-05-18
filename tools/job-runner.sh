@@ -275,7 +275,7 @@ exports_os2sync(){
         echo ${log_file}
     ))
     echo running exports_os2sync
-    source exporters/os2sync_export/.venv/bin/activate.fish
+    source exporters/os2sync_export/.venv/bin/activate
     ${POETRYPATH} run python -m os2sync_export
     EXIT_CODE=$?
     source .venv/bin/activate
