@@ -20,7 +20,7 @@ session = requests.Session()
 
 
 if settings.os2sync_api_url == "stub":
-    from integrations.os2sync import stub
+    from os2ysnc_export import stub
 
     session = stub.Session()
 

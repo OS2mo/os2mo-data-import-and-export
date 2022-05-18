@@ -1,7 +1,7 @@
 import json
 import logging
 
-from integrations.os2sync.config import loggername
+from os2sync_export.config import loggername
 
 logger = logging.getLogger(loggername)
 
