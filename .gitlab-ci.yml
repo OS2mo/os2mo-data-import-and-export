@@ -238,7 +238,7 @@ Test OS2Sync Integration:
   script:
     - cd exporters/os2sync_export
     - poetry install
-    - poetry run pytest tests
+    - pytest tests
 
 Test CPR Mapper:
   extends: .test-python
