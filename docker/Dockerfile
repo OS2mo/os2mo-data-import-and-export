@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.10
 
 RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
 
