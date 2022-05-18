@@ -275,7 +275,7 @@ exports_os2sync(){
         echo ${log_file}
     ))
     echo running exports_os2sync
-    python -m os2sync_export
+    ${POETRYPATH} run python -m os2sync_export
 }
 
 exports_mox_stsorgsync(){
