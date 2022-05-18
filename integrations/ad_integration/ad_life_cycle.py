@@ -31,6 +31,7 @@ from .read_ad_conf_settings import injected_settings
 from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("CreateAdUsers")
+export_logger = logging.getLogger("export")
 
 FilterFunction = Callable[[Tuple[Dict, Dict]], bool]
 
@@ -419,8 +420,13 @@ class AdLifeCycle:
             except NoPrimaryEngagementException:
                 logger.exception("No engagment found!")
                 self.stats["engagement_not_found"] += 1
-            except Exception:
+            except Exception as e:
                 logger.exception("Unknown error!")
+                export_logger.error(
+                    "Error creating AD user for MO user %r: %r",
+                    employee["uuid"],
+                    e,
+                )
                 self.stats["critical_errors"] += 1
 
         return self.stats
