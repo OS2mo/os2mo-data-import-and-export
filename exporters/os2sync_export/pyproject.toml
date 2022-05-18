@@ -2,7 +2,13 @@
 name = "os2sync_export"
 version = "0.1.0"
 description = ""
-authors = ["Benjamin Lyng Jørgensen <blj@magenta-aps.dk>"]
+description = "Integration from OS2mo to OS2Sync"
+authors = ["Magenta ApS <info@magenta.dk>"]
+license = "MPL-2.0"
+readme = "readme.rst"
+homepage = "https://magenta.dk/"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
+keywords = ["os2mo", "dipex", "os2sync"]
 
 [tool.poetry.dependencies]
 python = "^3.9"

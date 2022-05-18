@@ -1,3 +1,3 @@
 Release type: minor
 
-[#49741] Os2sync: moved to a seperate poetry project in exporters, now called os2sync_export.
+[#49741] OS2sync: moved to a separate poetry project in exporters, now called os2sync_export.

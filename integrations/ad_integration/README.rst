@@ -1096,7 +1096,6 @@ Dette vil tilføje "title" til settings svarende til settings["primary_write"]["
 Man kan se resultatet af at tilføre de ekstra settings ved at køre: ``python -m integrations.ad_integration.read_ad_conf_settings --inject``
 
 
-
 execute_ad_script.py
 ++++++++++++++++++++
 
