@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.34.12 - 2022-05-19
+--------------------
+
+[#50165] Log AD PowerShell errors in "ad_life_cycle" and "mo_to_ad_sync" to MO "queries" folder
+
 2.34.11 - 2022-05-17
 --------------------
 
