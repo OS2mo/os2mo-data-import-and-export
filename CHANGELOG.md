@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.35.0 - 2022-05-19
+-------------------
+
+[#49873] AAK LOS import: make STAM UUID imports idempotent. Existing LoRa classes are not duplicated, and removed STAM UUID items are unpublished in LoRa.
+
 2.34.12 - 2022-05-19
 --------------------
 
