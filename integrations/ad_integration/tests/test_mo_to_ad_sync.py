@@ -54,11 +54,16 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
 
     def test_unhandled_exception(self, *args):
         with mock.patch.object(self.ad_writer, "sync_user", side_effect=Exception):
-            self._assert_stats_ok(
-                self._run(),
-                num_successful=0,
-                num_critical_error=1,
-            )
+            with self.assertLogs("export") as cm:
+                self._assert_stats_ok(
+                    self._run(),
+                    num_successful=0,
+                    num_critical_error=1,
+                )
+                self.assertEqual(len(cm.records), 1)
+                self.assertRegex(
+                    cm.records[0].message, r"Error updating AD user '.*?': .*"
+                )
 
     def test_preview_command_for_uuid(self, *args):
         with mock.patch("click.echo_via_pager") as mock_echo:

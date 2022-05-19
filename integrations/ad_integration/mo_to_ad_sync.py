@@ -22,6 +22,7 @@ from exporters.sql_export.lora_cache import fetch_loracache
 LOG_FILE = "mo_to_ad_sync.log"
 
 logger = logging.getLogger("MoAdSync")
+export_logger = logging.getLogger("export")
 
 
 def run_mo_to_ad_sync(
@@ -113,6 +114,9 @@ def run_mo_to_ad_sync(
             stats["critical_error"] += 1
             logger.error("Unhandled exception: {}".format(e))
             logger.exception("Unhandled exception:")
+            export_logger.error(
+                "Error updating AD user %r: %s", user["SamAccountName"], e
+            )
             print("Unhandled exception: {}".format(e))
 
     print()

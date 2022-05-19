@@ -376,6 +376,17 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
             self.assertIsInstance(commands[0], str)
             self.assertIsInstance(commands[1], str)
 
+    def test_unhandled_exception(self, *args):
+        instance = self._get_instance()
+        with mock.patch.object(self.ad_writer, "create_user", side_effect=Exception):
+            with self.assertLogs("export") as cm:
+                instance.create_ad_accounts()
+                self.assertEqual(len(cm.records), 1)
+                self.assertRegex(
+                    cm.records[0].message,
+                    r"Error creating AD user for MO user '.*?': .*",
+                )
+
     def _get_instance(
         self,
         reader=None,
