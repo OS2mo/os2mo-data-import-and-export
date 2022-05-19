@@ -18,6 +18,7 @@ from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
+from sdlon.sd_logging import configure_logging
 from sdlon.sd_logging import get_logger
 from .config import get_importer_settings
 from .config import ImporterSettings
@@ -728,4 +729,5 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
 
 
 if __name__ == "__main__":
+    configure_logging()
     cli()

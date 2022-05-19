@@ -36,6 +36,7 @@ from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
+from sdlon.sd_logging import configure_logging
 from sdlon.sd_logging import get_logger
 from . import sd_payloads
 from .config import ChangedAtSettings
@@ -1501,4 +1502,5 @@ def import_state(from_date: datetime.datetime, dry_run: bool):
 
 
 if __name__ == "__main__":
+    configure_logging()
     cli()

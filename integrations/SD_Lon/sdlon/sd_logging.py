@@ -1,15 +1,16 @@
-import logging
-
 import structlog
 
-from sdlon.models import LogLevel
+from sdlon.config import get_common_settings
 
 
-def get_logger(name: str, log_level: LogLevel = LogLevel.debug):
-    log_level_value = logging.getLevelName(log_level.value)
-
+def configure_logging():
+    settings = get_common_settings()
     structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(log_level_value)
+        wrapper_class=structlog.make_filtering_bound_logger(
+            settings.sd_log_level.value
+        )
     )
 
+
+def get_logger(name: str):
     return structlog.get_logger(name)
