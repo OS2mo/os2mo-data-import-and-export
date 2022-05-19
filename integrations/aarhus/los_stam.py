@@ -409,7 +409,28 @@ class StamImporter:
 
         facet_uuid = await self._get_or_create_facet(csv_class, mox_helper)
 
-        for row in rows:
+        # Find class UUIDs currently in facet
+        facet_class_uuids = list(
+            map(
+                uuid.UUID,
+                set(
+                    await mox_helper._search(
+                        "klassifikation",
+                        "klasse",
+                        {"vilkaarligrel": str(facet_uuid)},
+                    )
+                ),
+            )
+        )
+
+        # Find rows to insert (classes in CSV but not yet in LoRa)
+        rows_class_uuids = set(row.class_uuid for row in rows)
+        rows_to_insert = [
+            row for row in rows if row.class_uuid not in facet_class_uuids
+        ]
+
+        # Create classes in LoRa
+        for row in rows_to_insert:
             klasse = mox_payloads.lora_klasse(
                 bvn=row.bvn,
                 title=row.title,
@@ -418,6 +439,57 @@ class StamImporter:
                 scope="TEXT",
             )
             await mox_helper.insert_klassifikation_klasse(klasse, str(row.class_uuid))
+            print("Created LoRa class %r" % row.class_uuid)
+
+        # Find classes to terminate (classes in LoRa but no longer in CSV file)
+        class_uuids_to_terminate = [
+            class_uuid
+            for class_uuid in facet_class_uuids
+            if class_uuid not in rows_class_uuids
+        ]
+
+        # Terminate classes in LoRa by setting them as unpublished
+        unpublish_payload = self._get_lora_unpublish_payload()
+        for class_uuid in class_uuids_to_terminate:
+            try:
+                await mox_helper._update(
+                    "klassifikation",
+                    "klasse",
+                    str(class_uuid),
+                    unpublish_payload,
+                )
+            except KeyError:  # this class is already unpublished
+                print("LoRa class %r was already unpublished" % class_uuid)
+            else:
+                print("Unpublished LoRa class %r" % class_uuid)
+
+    @staticmethod
+    def _get_lora_unpublish_payload():
+        return {
+            "attributter": {
+                "klasseegenskaber": [
+                    {
+                        "brugervendtnoegle": "-",
+                        "titel": "-",
+                        "virkning": {
+                            "from": "1910-01-01 00:00:00+01",
+                            "to": "infinity",
+                        },
+                    }
+                ]
+            },
+            "tilstande": {
+                "klassepubliceret": [
+                    {
+                        "publiceret": "IkkePubliceret",
+                        "virkning": {
+                            "from": "1910-01-01 00:00:00+01",
+                            "to": "infinity",
+                        },
+                    }
+                ]
+            },
+        }
 
     @staticmethod
     async def _get_or_create_facet(csv_class: StamCSVType, mox_helper: Any) -> str:
