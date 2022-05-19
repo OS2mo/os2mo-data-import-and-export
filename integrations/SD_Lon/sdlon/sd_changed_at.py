@@ -22,7 +22,6 @@ from uuid import uuid4
 import click
 import requests
 from fastapi.encoders import jsonable_encoder
-
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.common import NoPrimaryFound

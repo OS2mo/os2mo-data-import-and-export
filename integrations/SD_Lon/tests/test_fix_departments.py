@@ -8,9 +8,9 @@ from uuid import uuid4
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
+
 from sdlon.config import ChangedAtSettings
 from sdlon.fix_departments import FixDepartments
-
 from .test_config import DEFAULT_CHANGED_AT_SETTINGS
 
 

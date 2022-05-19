@@ -9,6 +9,7 @@ import pytest
 from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
+
 from sdlon.config import ChangedAtSettings
 from sdlon.config import gen_json_file_settings_func
 from sdlon.config import get_changed_at_settings

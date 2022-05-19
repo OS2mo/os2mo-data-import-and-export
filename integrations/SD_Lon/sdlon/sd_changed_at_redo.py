@@ -5,7 +5,6 @@
 #
 # angiv uuider for de berørte på kommandolinien
 import datetime
-import sys
 
 import click
 

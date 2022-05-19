@@ -14,7 +14,6 @@ import psycopg2
 import sd_importer  # noqa
 from integration_test_helpers import _count  # noqa
 from os2mo_helpers.mora_helpers import MoraHelper
-
 from os2mo_data_import import ImportHelper
 
 sys.path.append("../SD_Lon")

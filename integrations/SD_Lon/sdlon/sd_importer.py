@@ -12,7 +12,6 @@ from typing import Dict
 
 import click
 from anytree import Node
-
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper

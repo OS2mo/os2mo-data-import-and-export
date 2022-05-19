@@ -10,13 +10,13 @@ import hypothesis.strategies as st
 import pytest
 from hypothesis import given
 from hypothesis import settings
+from os2mo_data_import import ImportHelper
 from ra_utils.attrdict import attrdict
-from sdlon.config import ImporterSettings
-from sdlon.sd_importer import SdImport
 
 from .fixtures import get_department_fixture
 from .fixtures import get_organisation_fixture
-from os2mo_data_import import ImportHelper
+from sdlon.config import ImporterSettings
+from sdlon.sd_importer import SdImport
 
 
 @pytest.fixture(autouse=True)
