@@ -629,6 +629,7 @@ class LoraCache:
                 "organisatoriskfunktionstype",
                 "tilknyttedefunktioner",
                 "tilknyttedeitsystemer",
+                "primær",
             ),
             "attributter": ("organisationfunktionegenskaber",),
         }
@@ -670,6 +671,12 @@ class LoraCache:
                     else None
                 )
 
+                primary_boolean = None
+                primary_class_uuid = get_rel_uuid_or_none(uuid, rel, "primær")
+                primary_class = self.classes.get(primary_class_uuid)
+                if primary_class:
+                    primary_boolean = primary_class.get("user_key", "") == "primary"
+
                 associations[uuid].append(
                     {
                         "uuid": uuid,
@@ -681,6 +688,7 @@ class LoraCache:
                         "job_function": job_function_uuid,
                         "from_date": from_date,
                         "to_date": to_date,
+                        "primary_boolean": primary_boolean,
                     }
                 )
 

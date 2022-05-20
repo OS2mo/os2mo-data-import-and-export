@@ -22,9 +22,10 @@ class _TestableLoraCache(LoraCache):
 
 
 class _TestableLoraCacheMockedLookup(_TestableLoraCache):
-    def __init__(self, lookup_response):
+    def __init__(self, lookup_response, classes=None):
         super().__init__()
         self._lookup_response = lookup_response
+        self.classes = classes or {}
 
     def _perform_lora_lookup(self, url, params, **kwargs):
         return self._lookup_response
@@ -57,13 +58,14 @@ class _TestLoraCacheMethodHelper:
     from_dt: Optional[datetime] = None
     to_dt: Optional[datetime] = None
 
-    def get_method_results(self, uuid, relations, attrs=None):
+    def get_method_results(self, uuid, relations, attrs=None, classes=None):
         instance = _TestableLoraCacheMockedLookup(
             # Return enough of the actual LoRa response to make `_cache_lora_*` methods
             # continue to the code under test.
             # As we patch `lora_utils.get_effects`, we don't need to provide actual data
             # in "registreringer".
-            [{"id": uuid, "registreringer": [None]}]
+            [{"id": uuid, "registreringer": [None]}],
+            classes=classes,
         )
 
         # Mock return value of `lora_utils.get_effects`
@@ -72,6 +74,7 @@ class _TestLoraCacheMethodHelper:
             "tilknyttedebrugere",
             "tilknyttedeenheder",
             "organisatoriskfunktionstype",
+            "primær",
         )
         collected_relations = {
             name: relations.get(name, default_list) for name in names
@@ -187,21 +190,41 @@ class TestLoraCacheAssociations(_TestLoraCacheMethodHelper, TestCase):
     _attrs = {
         "organisationfunktionegenskaber": [{"brugervendtnoegle": "some-user-key"}]
     }
+    _it_user_uuid = "it-user-uuid"
+    _primary_type_uuid = "primary-type-uuid"
 
-    def test_handles_it_associations(self):
+    @parameterized.expand(
+        [
+            (None, None),
+            ("primary", True),
+            ("non-primary", False),
+        ]
+    )
+    def test_handles_it_associations(
+        self, primary_type_user_key, expected_primary_boolean
+    ):
+        relations = {"tilknyttedeitsystemer": [{"uuid": self._it_user_uuid}]}
+        classes = None
+
+        if primary_type_user_key:
+            relations["primær"] = [{"uuid": self._primary_type_uuid}]
+            classes = {self._primary_type_uuid: {"user_key": primary_type_user_key}}
+
         associations = self.get_method_results(
             self._association_uuid,
-            {"tilknyttedeitsystemer": [{"uuid": "it-user-uuid"}]},
-            self._attrs,
+            relations,
+            attrs=self._attrs,
+            classes=classes,
         )
         assoc = associations[self._association_uuid][0]
-        self.assertEqual(assoc["it_user"], "it-user-uuid")
+        self.assertEqual(assoc["it_user"], self._it_user_uuid)
+        self.assertEqual(assoc["primary_boolean"], expected_primary_boolean)
 
     def test_handles_empty_association_type(self):
         associations = self.get_method_results(
             self._association_uuid,
             {"organisatoriskfunktionstype": []},
-            self._attrs,
+            attrs=self._attrs,
         )
         assoc = associations[self._association_uuid][0]
         self.assertIsNone(assoc["association_type"])
