@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.0 - 2022-05-23
+-------------------
+
+[#49741] OS2sync: moved to a separate poetry project in exporters, now called os2sync_export.
+
 2.35.2 - 2022-05-23
 -------------------
 
