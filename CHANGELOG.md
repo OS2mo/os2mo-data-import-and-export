@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.1 - 2022-05-23
+-------------------
+
+[#xxxxx] OS2sync_export: allow installing on python 3.8
+
 2.36.0 - 2022-05-23
 -------------------
 
