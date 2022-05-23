@@ -2,14 +2,13 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from helpers import dummy_settings
+from os2sync_export.os2mo import get_work_address
+from os2sync_export.os2mo import is_ignored
+from os2sync_export.os2mo import kle_to_orgunit
+from os2sync_export.os2mo import partition_kle
 from parameterized import parameterized
-
-from integrations.os2sync.os2mo import get_work_address
-from integrations.os2sync.os2mo import is_ignored
-from integrations.os2sync.os2mo import kle_to_orgunit
-from integrations.os2sync.os2mo import partition_kle
-from integrations.os2sync.tests.helpers import MockOs2moGet
+from tests.helpers import dummy_settings
+from tests.helpers import MockOs2moGet
 
 
 class TestsMOAd(unittest.TestCase):
@@ -102,7 +101,7 @@ class TestsMOAd(unittest.TestCase):
         ]
         positions = [{"is_primary": True, "OrgUnitUuid": "Some_unit_uuid"}]
         with patch(
-            "integrations.os2sync.os2mo.os2mo_get", return_value=MockOs2moGet(addresses)
+            "os2sync_export.os2mo.os2mo_get", return_value=MockOs2moGet(addresses)
         ):
 
             work_address = get_work_address(positions, work_address_names)

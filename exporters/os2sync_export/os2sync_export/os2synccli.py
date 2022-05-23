@@ -1,9 +1,8 @@
 import click
-
-from integrations.os2sync import os2sync
-from integrations.os2sync.config import get_os2sync_settings
-from integrations.os2sync.os2mo import get_sts_orgunit
-from integrations.os2sync.os2mo import get_sts_user
+from os2sync_export import os2sync
+from os2sync_export.config import get_os2sync_settings
+from os2sync_export.os2mo import get_sts_orgunit
+from os2sync_export.os2mo import get_sts_user
 
 
 @click.group()

@@ -11,8 +11,7 @@ import logging
 from typing import Dict
 
 import requests
-
-from integrations.os2sync import config
+from os2sync_export import config
 
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(config.loggername)
@@ -21,7 +20,7 @@ session = requests.Session()
 
 
 if settings.os2sync_api_url == "stub":
-    from integrations.os2sync import stub
+    from os2ysnc_export import stub
 
     session = stub.Session()
 

@@ -13,12 +13,11 @@ from functools import partial
 from operator import itemgetter
 from typing import Set
 
+from os2sync_export import config
+from os2sync_export import lcdb_os2mo
+from os2sync_export import os2mo
+from os2sync_export import os2sync
 from tqdm import tqdm
-
-from integrations.os2sync import config
-from integrations.os2sync import lcdb_os2mo
-from integrations.os2sync import os2mo
-from integrations.os2sync import os2sync
 
 logger = None  # set in main()
 

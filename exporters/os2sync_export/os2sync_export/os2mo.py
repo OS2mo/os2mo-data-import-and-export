@@ -7,6 +7,7 @@
 import logging
 from functools import lru_cache
 from operator import itemgetter
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -17,13 +18,14 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
+from os2sync_export import config
+from os2sync_export.config import get_os2sync_settings
+from os2sync_export.config import Settings
+from os2sync_export.templates import Person
+from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
 
 from exporters.utils.priority_by_class import choose_public_address
-from integrations.os2sync import config
-from integrations.os2sync.config import get_os2sync_settings
-from integrations.os2sync.templates import Person
-from integrations.os2sync.templates import User
 
 logger = logging.getLogger(config.loggername)
 
@@ -174,14 +176,14 @@ def try_get_ad_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
     """
     it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
     it_systems = IT.from_mo_json(it_response)
-    ad_systems = list(
+    it_systems = list(
         filter(lambda x: x.system_name == user_key_it_system_name, it_systems)
     )
 
     # if no ad OR multiple
-    if len(ad_systems) != 1:
+    if len(it_systems) != 1:
         return None
-    return ad_systems[0].user_key
+    return one(it_systems).user_key
 
 
 def get_work_address(positions, work_address_names) -> Optional[str]:
@@ -216,7 +218,7 @@ def get_work_address(positions, work_address_names) -> Optional[str]:
 
 
 def get_fk_org_uuid(
-    it_accounts: Dict, mo_uuid: str, uuid_from_it_systems: List[str]
+    it_accounts: List[Dict[str, Any]], mo_uuid: str, uuid_from_it_systems: List[str]
 ) -> str:
     """Find FK-org uuid from it-accounts based on the given list of it-system names."""
     it = list(
@@ -224,13 +226,13 @@ def get_fk_org_uuid(
     )
     # Sort the relevant it-systems based on their position in the given list
     it.sort(key=lambda name: uuid_from_it_systems.index(name["itsystem"]["name"]))
-    it = list(map(itemgetter("uuid"), it))
+    it_uuids = list(map(itemgetter("uuid"), it))
     # Append mo_uuid to return it if no matches were found in it-accounts
-    it.append(mo_uuid)
-    return first(it)
+    it_uuids.append(mo_uuid)
+    return first(it_uuids)
 
 
-def get_sts_user(uuid, settings):
+def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     user = User(
@@ -282,7 +284,7 @@ def organization_uuid() -> str:
 
 
 @lru_cache()
-def org_unit_uuids(**kwargs) -> Set[str]:
+def org_unit_uuids(**kwargs: Any) -> Set[str]:
     org_uuid = organization_uuid()
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
         "items"
@@ -305,7 +307,9 @@ def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
 
-def address_type_is(address, user_key=None, scope="TEXT"):
+def address_type_is(
+    address: Dict[str, Any], user_key=None, scope: str = "TEXT"
+) -> bool:
     return (
         address["address_type"]["user_key"] == user_key
         and address["address_type"]["scope"] == scope
@@ -343,7 +347,9 @@ def filter_kle(aspect: str, kle) -> List[str]:
     return list(sorted(task_uuids))
 
 
-def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
+def partition_kle(
+    kle: List, use_contact_for_tasks: bool
+) -> Tuple[List[str], List[str]]:
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
@@ -374,7 +380,7 @@ def partition_kle(kle, use_contact_for_tasks) -> Tuple[List[str], List[str]]:
     return list(sorted(tasks_set)), []
 
 
-def kle_to_orgunit(org_unit: Dict, kle: Dict, use_contact_for_tasks):
+def kle_to_orgunit(org_unit: Dict, kle: List, use_contact_for_tasks: bool) -> None:
     """Mutates the dict "org_unit" to include KLE data"""
     tasks, contactfortasks = partition_kle(
         kle, use_contact_for_tasks=use_contact_for_tasks
