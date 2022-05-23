@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.35.1 - 2022-05-23
+-------------------
+
+[#50482] `SqlExport`: export `Tilknytning.primær_boolean` from MO `Association` objects
+
 2.35.0 - 2022-05-19
 -------------------
 
