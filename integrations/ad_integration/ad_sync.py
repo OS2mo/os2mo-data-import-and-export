@@ -163,13 +163,11 @@ class AddressDecisionList:
         )
 
 
-class AdMoSync(object):
+class AdMoSync:
     def __init__(self, all_settings=None):
         logger.info("AD Sync Started")
 
-        self.settings = all_settings
-        if self.settings is None:
-            self.settings = load_settings()
+        self._setup_settings(all_settings)
 
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
@@ -178,6 +176,11 @@ class AdMoSync(object):
         self.lc = self._setup_lora_cache()
 
         self._setup_visibilities()
+
+    def _setup_settings(self, all_settings):
+        self.settings = all_settings
+        if self.settings is None:
+            self.settings = load_settings()
 
     def _setup_visibilities(self):
         mo_visibilities = self.helper.read_classes_in_facet("visibility")[0]
@@ -221,7 +224,9 @@ class AdMoSync(object):
         """
         logger.info("Read all MO users")
         if self.lc:
-            employees = list(map(itemgetter(0), self.lc.users.values()))
+            employees = [
+                employee[0] for employee in self.lc.users.values() if len(employee) > 0
+            ]
         else:
             employees = self.helper.read_all_users()
         logger.info("Done reading all MO users")
