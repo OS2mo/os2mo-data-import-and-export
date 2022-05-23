@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.35.2 - 2022-05-23
+-------------------
+
+[#49746] AD_sync fix issue with "empty" user in loracache
+
 2.35.1 - 2022-05-23
 -------------------
 
