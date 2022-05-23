@@ -10,7 +10,7 @@ repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-expor
 keywords = ["os2mo", "dipex", "os2sync"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 dipex = "^2.33.3"
 tqdm = "^4.62.0"
 more-itertools = "^8.13.0"
