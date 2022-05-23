@@ -399,6 +399,7 @@ class SqlExport:
                     it_forbindelse_uuid=association_info["it_user"],
                     stillingsbetegnelse_uuid=job_function_uuid,
                     stillingsbetegnelse_titel=job_function_class["title"],
+                    primær_boolean=association_info.get("primary_boolean"),
                 )
                 self.session.add(sql_association)
             self.session.commit()

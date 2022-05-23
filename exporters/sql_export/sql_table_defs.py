@@ -137,6 +137,7 @@ class Tilknytning(Base):
     it_forbindelse_uuid = Column(String(36))
     startdato = Column(String(10))
     slutdato = Column(String(10))
+    primær_boolean = Column(Boolean, nullable=True)
 
 
 class Orlov(Base):
