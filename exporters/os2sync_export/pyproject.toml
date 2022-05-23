@@ -22,7 +22,6 @@ requests = "^2.21.0"
 SQLAlchemy = "^1.4.31"
 pydantic = "^1.9.0"
 
-
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
 pre-commit = "^2.18.1"
