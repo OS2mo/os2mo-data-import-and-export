@@ -1,8 +1,7 @@
 from uuid import UUID
 
 import click
-
-from integrations.os2sync.os2sync import delete_user
+from os2sync_export.os2sync import delete_user
 
 
 @click.command()

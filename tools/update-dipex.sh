@@ -21,5 +21,8 @@ $POETRYPATH install --no-interaction
 
 .venv/bin/pip install --editable .
 
-cd integrations/SD_Lon/
+cd $DIPEXAR/integrations/SD_Lon/
+$POETRYPATH install
+
+cd $DIPEXAR/exporters/os2sync_export
 $POETRYPATH install

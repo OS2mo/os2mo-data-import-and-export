@@ -1,15 +1,14 @@
 import logging
 import unittest
 
-from helpers import dummy_settings
+from os2sync_export.config import loggername as _loggername
+from os2sync_export.templates import FieldTemplateRenderError
+from os2sync_export.templates import FieldTemplateSyntaxError
+from os2sync_export.templates import Person
 from parameterized import parameterized
-
-from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.templates import FieldTemplateRenderError
-from integrations.os2sync.templates import FieldTemplateSyntaxError
-from integrations.os2sync.templates import Person
-from integrations.os2sync.tests.helpers import MoEmployeeMixin
-from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
+from tests.helpers import dummy_settings
+from tests.helpers import MoEmployeeMixin
+from tests.helpers import NICKNAME_TEMPLATE
 
 
 class TestPerson(unittest.TestCase, MoEmployeeMixin):

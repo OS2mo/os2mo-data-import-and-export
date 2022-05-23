@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "os2sync_export"
+version = "0.1.0"
+description = "Integration from OS2mo to OS2Sync"
+authors = ["Magenta ApS <info@magenta.dk>"]
+license = "MPL-2.0"
+readme = "readme.rst"
+homepage = "https://magenta.dk/"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
+keywords = ["os2mo", "dipex", "os2sync"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+dipex = "^2.33.3"
+tqdm = "^4.62.0"
+more-itertools = "^8.13.0"
+pytest = "^6.2.5"
+click = "^8.0.3"
+Jinja2 = "^2.10"
+ra-utils = "^1.0.0"
+requests = "^2.21.0"
+SQLAlchemy = "^1.4.31"
+pydantic = "^1.9.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
+pre-commit = "^2.18.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

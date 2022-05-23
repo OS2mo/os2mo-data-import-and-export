@@ -4,7 +4,8 @@ import pathlib
 import time
 import unittest
 
-from integrations.os2sync import __main__, config
+from integrations.os2sync import __main__
+from integrations.os2sync import config
 
 config.logformat = "%(message)s"
 

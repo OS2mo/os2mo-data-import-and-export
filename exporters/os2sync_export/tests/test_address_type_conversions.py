@@ -2,8 +2,8 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from integrations.os2sync.os2mo import addresses_to_orgunit
-from integrations.os2sync.os2mo import addresses_to_user
+from os2sync_export.os2mo import addresses_to_orgunit
+from os2sync_export.os2mo import addresses_to_user
 
 
 class _AddressMixin:
@@ -53,7 +53,7 @@ class TestAddressesToUser(unittest.TestCase):
         addresses = []
         phone_scope_classes = [uuid4()]
         email_scope_classes = [uuid4()]
-        with patch("integrations.os2sync.os2mo.choose_public_address") as mock_choose:
+        with patch("os2sync_export.os2mo.choose_public_address") as mock_choose:
             # Mutates `result`
             addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
             # Assert lists of UUIDs are converted to lists of strings before calling
