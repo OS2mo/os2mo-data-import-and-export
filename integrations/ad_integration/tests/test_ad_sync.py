@@ -7,8 +7,12 @@ from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
+from ..ad_sync import AdMoSync
 from ..utils import AttrDict
+from .mocks import MO_UUID
 from .mocks import MockLoraCache
+from .mocks import MockLoraCacheEmptyEmployee
+from .mocks import MockMoraHelper
 from .test_utils import dict_modifier
 from .test_utils import TestADMoSyncMixin
 
@@ -19,6 +23,33 @@ def iso_date(date):
 
 def today_iso():
     return iso_date(date.today())
+
+
+MO_VALUES = {"uuid": MO_UUID}
+
+
+class _TestableAdMoSync(AdMoSync):
+    def _setup_settings(self, all_settings):
+        self.settings = {}
+
+    def _setup_visibilities(self):
+        self.visibility = {}
+
+    def _setup_mora_helper(self):
+        return MockMoraHelper("cpr")
+
+    def _setup_lora_cache(self):
+        return None
+
+
+class _TestableAdMoSyncLoraCache(_TestableAdMoSync):
+    def _setup_lora_cache(self):
+        return MockLoraCache(MO_VALUES)
+
+
+class _TestableAdMoSyncLoraCacheEmptyEmployee(_TestableAdMoSync):
+    def _setup_lora_cache(self):
+        return MockLoraCacheEmptyEmployee(MO_VALUES)
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -1087,3 +1118,29 @@ class TestADMoSyncEditUserAttrs(TestCase, TestADMoSyncMixin):
         else:
             # Assert no MO POST calls were made
             self.assertEqual(len(self.ad_sync.mo_post_calls), 0)
+
+
+class TestReadAllMOUsers(TestCase):
+    def test_returns_users(self):
+        """`AdMoSync._read_all_mo_users` must return all non-empty users found in
+        `self.lc.users` if using LoraCache.
+
+        See: #48568
+        """
+        instance = _TestableAdMoSyncLoraCache()
+        expected_users = [MO_VALUES]
+        actual_users = instance._read_all_mo_users()
+        self.assertEqual(actual_users, expected_users)
+
+    def test_handles_empty_loracache_user(self):
+        """Regression test. `AdMoSync._read_all_mo_users` did not handle "empty
+        LoraCache users" well, and would fail with an `IndexError`.
+
+        (An "empty LoraCache user" is a key/value pair where the key is a valid UUID but
+        the value is an empty list.)
+
+        See: #48568, #50410
+        """
+        instance = _TestableAdMoSyncLoraCacheEmptyEmployee()
+        employees = instance._read_all_mo_users()
+        self.assertEqual(employees, [])
