@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.4 - 2022-05-24
+-------------------
+
+[#50536] OS2Sync: fix bug where the uuid of the it-account object would be used in stead of the value from the it-account.
+
 2.36.3 - 2022-05-24
 -------------------
 
