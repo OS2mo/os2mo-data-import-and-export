@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.3 - 2022-05-24
+-------------------
+
+[#50410] Handle "empty LoraCache users" in `AdMoSync._read_all_mo_users`
+
 2.36.2 - 2022-05-24
 -------------------
 
