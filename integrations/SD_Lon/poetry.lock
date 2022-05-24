@@ -246,6 +246,14 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
+name = "boltons"
+version = "21.0.0"
+description = "When they're not builtins, they're boltons."
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "cachetools"
 version = "5.0.0"
 description = "Extensible memoizing collections and decorators"
@@ -387,7 +395,7 @@ cli = ["click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.10.2)", "clevercsv (==0
 
 [[package]]
 name = "dipex"
-version = "2.22.2"
+version = "2.36.1"
 description = "OS2mo-data-import-and-export"
 category = "main"
 optional = false
@@ -411,6 +419,7 @@ docutils = ">=0.14,<0.15"
 fastapi = ">=0.75.0,<0.76.0"
 freezegun = ">=0.3.11,<0.4.0"
 "fs.smbfs" = ">=1.0.3,<2.0.0"
+glom = ">=22.1.0,<23.0.0"
 google-cloud-storage = ">=2.1.0,<3.0.0"
 httpx = ">=0.22.0,<0.23.0"
 hypothesis = ">=6.36.1,<7.0.0"
@@ -490,6 +499,17 @@ optional = false
 python-versions = ">=3.6"
 
 [[package]]
+name = "face"
+version = "20.1.1"
+description = "A command-line application framework (and CLI parser). Friendly for users, full-featured for developers."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+boltons = ">=20.0.0"
+
+[[package]]
 name = "fastapi"
 version = "0.75.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
@@ -567,6 +587,22 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 fs = ">=2.2,<3.0"
 pysmb = ">=1.1.22,<1.1.26 || >1.1.26,<1.1.29 || >1.1.29,<=1.2.7"
 six = ">=1.10,<2.0"
+
+[[package]]
+name = "glom"
+version = "22.1.0"
+description = "A declarative object transformer and formatter, for conglomerating nested data."
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+attrs = "*"
+boltons = ">=19.3.0"
+face = ">=20.1.0"
+
+[package.extras]
+yaml = ["pyyaml"]
 
 [[package]]
 name = "google-api-core"
@@ -1391,7 +1427,7 @@ pyasn1 = "*"
 
 [[package]]
 name = "pyspnego"
-version = "0.5.1"
+version = "0.5.2"
 description = "Windows Negotiate Authentication Client and Server"
 category = "main"
 optional = false
@@ -1998,7 +2034,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "cc3b4c52e594f06fa435e7155aaf6f583c610da2218d27a5d441e4d702112e76"
+content-hash = "bc4a638dd9576c94f55241336bd9ea24821d856c3ae80b9521771f623caac07f"
 
 [metadata.files]
 aiohttp = [
@@ -2193,6 +2229,10 @@ black = [
     {file = "black-22.3.0-py3-none-any.whl", hash = "sha256:bc58025940a896d7e5356952228b68f793cf5fcb342be703c3a2669a1488cb72"},
     {file = "black-22.3.0.tar.gz", hash = "sha256:35020b8886c022ced9282b51b5a875b6d1ab0c387b31a065b84db7c33085ca79"},
 ]
+boltons = [
+    {file = "boltons-21.0.0-py2.py3-none-any.whl", hash = "sha256:b9bb7b58b2b420bbe11a6025fdef6d3e5edc9f76a42fb467afe7ca212ef9948b"},
+    {file = "boltons-21.0.0.tar.gz", hash = "sha256:65e70a79a731a7fe6e98592ecfb5ccf2115873d01dbc576079874629e5c90f13"},
+]
 cachetools = [
     {file = "cachetools-5.0.0-py3-none-any.whl", hash = "sha256:8fecd4203a38af17928be7b90689d8083603073622229ca7077b72d8e5a976e4"},
     {file = "cachetools-5.0.0.tar.gz", hash = "sha256:486471dfa8799eb7ec503a8059e263db000cdda20075ce5e48903087f79d5fd6"},
@@ -2312,8 +2352,8 @@ deepdiff = [
     {file = "deepdiff-5.7.0.tar.gz", hash = "sha256:838766484e323dcd9dec6955926a893a83767dc3f3f94542773e6aa096efe5d4"},
 ]
 dipex = [
-    {file = "DIPEX-2.22.2-py3-none-any.whl", hash = "sha256:e7452d970c173c05b369fa4f574808520eda03d3a1a51e3e5934858ae8466e46"},
-    {file = "DIPEX-2.22.2.tar.gz", hash = "sha256:baa32ed0bc31bfb2ebef44e8883b4b800d93ca9a63d94dcd0ee027eac0aa508c"},
+    {file = "DIPEX-2.36.1-py3-none-any.whl", hash = "sha256:b3351fa8eab8913a312a1eaae9bff99d7bfad6a2892fa693efbb38c8de6d80d2"},
+    {file = "DIPEX-2.36.1.tar.gz", hash = "sha256:4a92a326334d6618d46db84a82789a2a1b446214901c16f696387fb41c1ef852"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
@@ -2327,6 +2367,10 @@ docutils = [
 et-xmlfile = [
     {file = "et_xmlfile-1.1.0-py3-none-any.whl", hash = "sha256:a2ba85d1d6a74ef63837eed693bcb89c3f752169b0e3e7ae5b16ca5e1b3deada"},
     {file = "et_xmlfile-1.1.0.tar.gz", hash = "sha256:8eb9e2bc2f8c97e37a2dc85a09ecdcdec9d8a396530a6d5a33b30b9a92da0c5c"},
+]
+face = [
+    {file = "face-20.1.1-py2-none-any.whl", hash = "sha256:3790311a7329e4b0d90baee346eecad54b337629576edf3a246683a5f0d24446"},
+    {file = "face-20.1.1.tar.gz", hash = "sha256:7d59ca5ba341316e58cf72c6aff85cca2541cf5056c4af45cb63af9a814bed3e"},
 ]
 fastapi = [
     {file = "fastapi-0.75.0-py3-none-any.whl", hash = "sha256:43d12891b78fc497a50623e9c7c24640c569489f060acd9ce2c4902080487a93"},
@@ -2408,6 +2452,10 @@ fs = [
 "fs.smbfs" = [
     {file = "fs.smbfs-1.0.3-py2.py3-none-any.whl", hash = "sha256:3c238ca024202c916aa0e0eb47c48b1a215f87bd9660ad28724ebf0a13dc30ff"},
     {file = "fs.smbfs-1.0.3.tar.gz", hash = "sha256:11a460222c2f3e9378d5b2de3d5ba45872e7768001e0fb0fb0b08f5d78fab4ae"},
+]
+glom = [
+    {file = "glom-22.1.0-py2.py3-none-any.whl", hash = "sha256:5339da206bf3532e01a83a35aca202960ea885156986d190574b779598e9e772"},
+    {file = "glom-22.1.0.tar.gz", hash = "sha256:1510c6587a8f9c64a246641b70033cbc5ebde99f02ad245693678038e821aeb5"},
 ]
 google-api-core = [
     {file = "google-api-core-2.7.1.tar.gz", hash = "sha256:b0fa577e512f0c8e063386b974718b8614586a798c5894ed34bedf256d9dae24"},
@@ -3217,18 +3265,18 @@ pysmb = [
     {file = "pysmb-1.2.7.zip", hash = "sha256:298605b8f467ce15b412caaf9af331c135e88fa2172333af14b1b2916361cb6b"},
 ]
 pyspnego = [
-    {file = "pyspnego-0.5.1-cp310-cp310-win32.whl", hash = "sha256:77b7c75bed737f24989aab453b9b8cd1c1512dfc5bed7a303a1cb1156fd59959"},
-    {file = "pyspnego-0.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:3361027e7e86de6b784791e09a7b2ba73d06c0be40f027a7be09e45fc92325a5"},
-    {file = "pyspnego-0.5.1-cp36-cp36m-win32.whl", hash = "sha256:adf2f3e09bc4751c06fab1fedfe734af7f232d79927c753d8981f75a25f791ec"},
-    {file = "pyspnego-0.5.1-cp36-cp36m-win_amd64.whl", hash = "sha256:e21fc7283caa16761d46bea54e78cbfe3177c21e3b2d17d9ef213edcd86e1250"},
-    {file = "pyspnego-0.5.1-cp37-cp37m-win32.whl", hash = "sha256:c6993ee6bcfe0036d6246324fcb7975daed858a476bfc7bf1d9334911d3dfca2"},
-    {file = "pyspnego-0.5.1-cp37-cp37m-win_amd64.whl", hash = "sha256:4971fb166dc9821c98d31d698722d48d0066f1bc63beff8bf3d2a2e60fe507d1"},
-    {file = "pyspnego-0.5.1-cp38-cp38-win32.whl", hash = "sha256:fe8b2a0d7468d904c61ae63275f8234eb055767aaaba66f6d58d86f47a25aa8e"},
-    {file = "pyspnego-0.5.1-cp38-cp38-win_amd64.whl", hash = "sha256:05438a4e3e1526134bc2d72213417a06a2c3010f5b7271f3122e635e523c3790"},
-    {file = "pyspnego-0.5.1-cp39-cp39-win32.whl", hash = "sha256:f05f1a6316a9baeaef243c9420d995c3dc34cfc91841f17db0c793e3fe557728"},
-    {file = "pyspnego-0.5.1-cp39-cp39-win_amd64.whl", hash = "sha256:12e4da1cbbbd645c0624699a1d99f734161cb9095e9f1fc1c1982ed1b7a44abe"},
-    {file = "pyspnego-0.5.1-py2.py3-none-any.whl", hash = "sha256:185e0c576cde30d8853d9ea1d69c32cb93e98423934263d6c067bec7adc7dc4f"},
-    {file = "pyspnego-0.5.1.tar.gz", hash = "sha256:58d352d901baab754f63cb0da790c1f798605eb634f7f922df9bb6822d3de3c5"},
+    {file = "pyspnego-0.5.2-cp310-cp310-win32.whl", hash = "sha256:9c5bdb9f0207e2ce9e5410ee2205bf016755712018534c711ae6c1daff7fa7db"},
+    {file = "pyspnego-0.5.2-cp310-cp310-win_amd64.whl", hash = "sha256:4b9bda51bd964f40322aa1b33dcfc5d68f23b0680b4b5158175f2e9a04119aa9"},
+    {file = "pyspnego-0.5.2-cp36-cp36m-win32.whl", hash = "sha256:bd95633e7dce69e267579bdbe992fc081a14310236b4e84c3d179b1cf6439ca5"},
+    {file = "pyspnego-0.5.2-cp36-cp36m-win_amd64.whl", hash = "sha256:7562bc640bf402bb2849f325b0bb41260bd2c0cb06e38b9a8c6f7021b452c873"},
+    {file = "pyspnego-0.5.2-cp37-cp37m-win32.whl", hash = "sha256:3b1ff3c1d5588b66f8e4ebafa3079a7bf0bdcc6fb144b944c5a101e688a5a280"},
+    {file = "pyspnego-0.5.2-cp37-cp37m-win_amd64.whl", hash = "sha256:25fbc90fc6bd16881480316739bab820cc91364765e46340da17f861f89691f1"},
+    {file = "pyspnego-0.5.2-cp38-cp38-win32.whl", hash = "sha256:274b3a2d37e45ad4567bc5754be04b5fefad3f7cdea7d205f739d8a26b5a9189"},
+    {file = "pyspnego-0.5.2-cp38-cp38-win_amd64.whl", hash = "sha256:5d6d91e35ee63a5de30eb70716bf25274bf16c2c472b046dd21fad60fe63b0b6"},
+    {file = "pyspnego-0.5.2-cp39-cp39-win32.whl", hash = "sha256:36db7ec38023a23a545114dfd23825639571f135c72fb4b13a1ed559a0a4d93c"},
+    {file = "pyspnego-0.5.2-cp39-cp39-win_amd64.whl", hash = "sha256:a5c135d20819db3c48f65054d648317f369a61b7b22dc17b9e5ec9c0169541a0"},
+    {file = "pyspnego-0.5.2-py2.py3-none-any.whl", hash = "sha256:eb41b970dbda0dfe07b1da6fc83fe9f534a66d8dea38c06c0155377697407d9a"},
+    {file = "pyspnego-0.5.2.tar.gz", hash = "sha256:1fed228edc4b1730844da8237b90489be28c55681cf3934cd04fceb2253e55bf"},
 ]
 pytest = [
     {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
