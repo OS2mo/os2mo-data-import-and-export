@@ -22,19 +22,30 @@ class TestUUIDFromITSystem:
             # With no list in settings, choose mo_uuid whatever it-accounts exist
             (
                 [],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
+                [
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    }
+                ],
                 mo_uuid,
             ),
             (
                 [],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
+                [{"user_key": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 mo_uuid,
             ),
             (
                 [],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
+                    {
+                        "user_key": ad_uuid,
+                        "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM},
+                    },
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    },
                 ],
                 mo_uuid,
             ),
@@ -44,21 +55,32 @@ class TestUUIDFromITSystem:
             # There is an it-account, it is in settings - chose the value from that
             (
                 [FK_ORG_UUID_IT_SYSTEM],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
+                [
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    }
+                ],
                 fk_org_uuid,
             ),
             # There is an it-account, it is not in settings - chose mo_uuid.
             (
                 [FK_ORG_UUID_IT_SYSTEM],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
+                [{"user_key": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 mo_uuid,
             ),
             # There are two it-accounts - chose the value from the correct one.
             (
                 [FK_ORG_UUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
+                    {
+                        "user_key": ad_uuid,
+                        "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM},
+                    },
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    },
                 ],
                 fk_org_uuid,
             ),
@@ -68,21 +90,32 @@ class TestUUIDFromITSystem:
             # There is one account, it is in settings, use the uuid from that.
             (
                 [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
-                [{"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}}],
+                [
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    }
+                ],
                 fk_org_uuid,
             ),
             # There is one account, it is in settings, but second in the list, use the uuid from that it account.
             (
                 [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
-                [{"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
+                [{"user_key": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}}],
                 ad_uuid,
             ),
             # There are two it-accounts, both it-systems are in settings, use the value from the first in the settings list.
             (
                 [FK_ORG_UUID_IT_SYSTEM, AD_OBJECTGUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
+                    {
+                        "user_key": ad_uuid,
+                        "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM},
+                    },
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    },
                 ],
                 fk_org_uuid,
             ),
@@ -90,8 +123,14 @@ class TestUUIDFromITSystem:
             (
                 [AD_OBJECTGUID_IT_SYSTEM, FK_ORG_UUID_IT_SYSTEM],
                 [
-                    {"uuid": ad_uuid, "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM}},
-                    {"uuid": fk_org_uuid, "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM}},
+                    {
+                        "user_key": ad_uuid,
+                        "itsystem": {"name": AD_OBJECTGUID_IT_SYSTEM},
+                    },
+                    {
+                        "user_key": fk_org_uuid,
+                        "itsystem": {"name": FK_ORG_UUID_IT_SYSTEM},
+                    },
                 ],
                 ad_uuid,
             ),
