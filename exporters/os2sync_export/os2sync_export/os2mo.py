@@ -258,6 +258,13 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
+    if settings.os2sync_uuid_from_it_systems:
+        for e in engagements:
+            unit_uuid = e["org_unit"]["uuid"]
+            it = os2mo_get(f"{{BASE}}/ou/{unit_uuid}/details/it").json()
+            unit_uuid = get_fk_org_uuid(
+                it, unit_uuid, settings.os2sync_uuid_from_it_systems
+            )
     allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
@@ -449,7 +456,6 @@ def get_sts_orgunit(uuid: str, settings):
         if manager_uuid:
             sts_org_unit["managerUuid"] = manager_uuid
 
-    # this is set by __main__
     if has_kle():
         kle_to_orgunit(
             sts_org_unit,
@@ -457,16 +463,24 @@ def get_sts_orgunit(uuid: str, settings):
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
         )
 
-    # show_all_details(uuid,"ou")
     strip_truncate_and_warn(
         sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
     )
 
+    # Overwrite UUIDs with values from it-account
     if settings.os2sync_uuid_from_it_systems:
         it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
         sts_org_unit["Uuid"] = get_fk_org_uuid(
             it, uuid, settings.os2sync_uuid_from_it_systems
         )
+        # Also check if parent unit has a UUID from an it-account
+        parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
+        if parent_uuid:
+            it = os2mo_get(f"{{BASE}}/ou/{parent_uuid}/details/it").json()
+            sts_org_unit["ParentOrgUnitUuid"] = get_fk_org_uuid(
+                it, uuid, settings.os2sync_uuid_from_it_systems
+            )
+
     return sts_org_unit
 
 
