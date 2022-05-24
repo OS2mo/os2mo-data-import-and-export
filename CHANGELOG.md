@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.2 - 2022-05-24
+-------------------
+
+[#50533] Bump DIPEX version to ^2.36.1 for SD integration
+
 2.36.1 - 2022-05-23
 -------------------
 
