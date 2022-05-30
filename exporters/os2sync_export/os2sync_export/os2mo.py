@@ -418,6 +418,20 @@ def is_ignored(unit, settings):
     )
 
 
+def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List):
+    # Overwrite UUIDs with values from it-account
+    uuid = sts_org_unit["Uuid"]
+    it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
+    sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    # Also check if parent unit has a UUID from an it-account
+    parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
+    if parent_uuid:
+        it = os2mo_get(f"{{BASE}}/ou/{parent_uuid}/details/it").json()
+        sts_org_unit["ParentOrgUnitUuid"] = get_fk_org_uuid(
+            it, parent_uuid, os2sync_uuid_from_it_systems
+        )
+
+
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
@@ -463,23 +477,12 @@ def get_sts_orgunit(uuid: str, settings):
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
         )
 
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_unit_uuids(sts_org_unit, settings.os2sync_uuid_from_it_systems)
+
     strip_truncate_and_warn(
         sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
     )
-
-    # Overwrite UUIDs with values from it-account
-    if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
-        sts_org_unit["Uuid"] = get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
-        # Also check if parent unit has a UUID from an it-account
-        parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
-        if parent_uuid:
-            it = os2mo_get(f"{{BASE}}/ou/{parent_uuid}/details/it").json()
-            sts_org_unit["ParentOrgUnitUuid"] = get_fk_org_uuid(
-                it, uuid, settings.os2sync_uuid_from_it_systems
-            )
 
     return sts_org_unit
 

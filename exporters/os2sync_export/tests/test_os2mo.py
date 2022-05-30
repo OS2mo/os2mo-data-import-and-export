@@ -5,6 +5,7 @@ from uuid import uuid4
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
+from os2sync_export.os2mo import overwrite_unit_uuids
 from os2sync_export.os2mo import partition_kle
 from parameterized import parameterized
 from tests.helpers import dummy_settings
@@ -106,3 +107,57 @@ class TestsMOAd(unittest.TestCase):
 
             work_address = get_work_address(positions, work_address_names)
             self.assertEqual(work_address, expected)
+
+    @parameterized.expand(
+        [
+            # No (relevant) it systems - no change
+            ([], [], {"Uuid": "old_uuid", "ParentOrgUnitUuid": "old_parent_uuid"}),
+            (
+                [{"itsystem": {"name": "irrelevant it system"}, "user_key": "dummy"}],
+                [{"itsystem": {"name": "irrelevant it system"}, "user_key": "dummy"}],
+                {"Uuid": "old_uuid", "ParentOrgUnitUuid": "old_parent_uuid"},
+            ),
+            # Overwrite both uuid and parent uuid
+            (
+                [{"itsystem": {"name": "FK-org uuid"}, "user_key": "fk-unit_uuid"}],
+                [{"itsystem": {"name": "FK-org uuid"}, "user_key": "parent_uuid"}],
+                {"Uuid": "fk-unit_uuid", "ParentOrgUnitUuid": "parent_uuid"},
+            ),
+            (
+                [{"itsystem": {"name": "AD ObjectGUID"}, "user_key": "fk-unit_uuid"}],
+                [{"itsystem": {"name": "AD ObjectGUID"}, "user_key": "parent_uuid"}],
+                {"Uuid": "fk-unit_uuid", "ParentOrgUnitUuid": "parent_uuid"},
+            ),
+            # Two it-systems - use first from the given list (fk-org first, AD second)
+            (
+                [
+                    {"itsystem": {"name": "FK-org uuid"}, "user_key": "right_uuid"},
+                    {"itsystem": {"name": "AD ObjectGUID"}, "user_key": "wrong_uuid"},
+                ],
+                [],
+                {"Uuid": "right_uuid", "ParentOrgUnitUuid": "old_parent_uuid"},
+            ),
+            (
+                [],
+                [
+                    {
+                        "itsystem": {"name": "FK-org uuid"},
+                        "user_key": "right_parent_uuid",
+                    },
+                    {
+                        "itsystem": {"name": "AD ObjectGUID"},
+                        "user_key": "wrong_parent_uuid",
+                    },
+                ],
+                {"Uuid": "old_uuid", "ParentOrgUnitUuid": "right_parent_uuid"},
+            ),
+        ]
+    )
+    def test_overwrite_unit_uuids(self, it_system, parent_it_system, expected):
+        test_org = {"Uuid": "old_uuid", "ParentOrgUnitUuid": "old_parent_uuid"}
+        with patch(
+            "os2sync_export.os2mo.os2mo_get",
+            side_effect=[MockOs2moGet(it_system), MockOs2moGet(parent_it_system)],
+        ):
+            overwrite_unit_uuids(test_org, ["FK-org uuid", "AD ObjectGUID"])
+        assert test_org == expected
