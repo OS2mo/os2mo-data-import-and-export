@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.5 - 2022-05-30
+-------------------
+
+[#50171] Fix overwrite of employees in organisation_employees report
+
 2.36.4 - 2022-05-24
 -------------------
 
