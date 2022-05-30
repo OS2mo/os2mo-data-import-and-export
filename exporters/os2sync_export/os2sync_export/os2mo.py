@@ -232,6 +232,18 @@ def get_fk_org_uuid(
     return first(it_uuids)
 
 
+def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
+    # Overwrite UUIDs with values from it-account
+    uuid = sts_user["Uuid"]
+    it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
+    sts_user["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    # For each position check the it-system of the org-unit
+    for p in sts_user["Positions"]:
+        unit_uuid = p["OrgUnitUuid"]
+        it = os2mo_get(f"{{BASE}}/ou/{unit_uuid}/details/it").json()
+        p["OrgUnitUuid"] = get_fk_org_uuid(it, unit_uuid, os2sync_uuid_from_it_systems)
+
+
 def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
@@ -258,13 +270,6 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
-    if settings.os2sync_uuid_from_it_systems:
-        for e in engagements:
-            unit_uuid = e["org_unit"]["uuid"]
-            it = os2mo_get(f"{{BASE}}/ou/{unit_uuid}/details/it").json()
-            unit_uuid = get_fk_org_uuid(
-                it, unit_uuid, settings.os2sync_uuid_from_it_systems
-            )
     allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
@@ -274,14 +279,13 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
         sts_user["Location"] = get_work_address(
             sts_user["Positions"], work_address_names
         )
+
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
+
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
 
-    if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
-        sts_user["Uuid"] = get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
     return sts_user
 
 

@@ -6,6 +6,7 @@ from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
 from os2sync_export.os2mo import overwrite_unit_uuids
+from os2sync_export.os2mo import overwrite_user_uuids
 from os2sync_export.os2mo import partition_kle
 from parameterized import parameterized
 from tests.helpers import dummy_settings
@@ -161,3 +162,47 @@ class TestsMOAd(unittest.TestCase):
         ):
             overwrite_unit_uuids(test_org, ["FK-org uuid", "AD ObjectGUID"])
         assert test_org == expected
+
+    @parameterized.expand(
+        [
+            # No (relevant) it systems - no change
+            (
+                [],
+                [],
+                {"Uuid": "old_uuid", "Positions": [{"OrgUnitUuid": "old_unit_uuid"}]},
+            ),
+            # Person has a uuid in it-system
+            (
+                [
+                    {
+                        "itsystem": {"name": "AD ObjectGUID"},
+                        "user_key": "new_uuid",
+                    },
+                ],
+                [],
+                {"Uuid": "new_uuid", "Positions": [{"OrgUnitUuid": "old_unit_uuid"}]},
+            ),
+            # Person has a position in a unit with a mapped uuid:
+            (
+                [],
+                [
+                    {
+                        "itsystem": {"name": "AD ObjectGUID"},
+                        "user_key": "new_uuid",
+                    },
+                ],
+                {"Uuid": "old_uuid", "Positions": [{"OrgUnitUuid": "new_uuid"}]},
+            ),
+        ]
+    )
+    def test_overwrite_user_uuids(self, it_system, position_it_systems, expected):
+        test_user = {
+            "Uuid": "old_uuid",
+            "Positions": [{"OrgUnitUuid": "old_unit_uuid"}],
+        }
+        with patch(
+            "os2sync_export.os2mo.os2mo_get",
+            side_effect=[MockOs2moGet(it_system), MockOs2moGet(position_it_systems)],
+        ):
+            overwrite_user_uuids(test_user, ["FK-org uuid", "AD ObjectGUID"])
+        assert test_user == expected
