@@ -72,9 +72,7 @@ class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
 
 class TestCreateEngagement(unittest.TestCase):
     @unittest.mock.patch("sdlon.engagement.read_employment_at")
-    def test_return_none_when_sd_employment_not_found(
-        self, mock_read_employment_at
-    ):
+    def test_return_none_when_sd_employment_not_found(self, mock_read_employment_at):
         mock_read_employment_at.return_value = None
         mock_sd_updater = unittest.mock.MagicMock()
         create_engagement(mock_sd_updater, 12345, "person_uuid")

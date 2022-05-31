@@ -17,7 +17,7 @@ def test_return_none_when_sd_employment_empty(mock_sd_lookup):
         sd_user="user",
         sd_password="password",
         sd_job_function=JobFunction.employment_name,
-        sd_monthly_hourly_divide=1
+        sd_monthly_hourly_divide=1,
     )
 
     assert read_employment_at(date(2000, 1, 1), settings) is None
