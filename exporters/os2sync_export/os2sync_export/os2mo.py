@@ -232,6 +232,18 @@ def get_fk_org_uuid(
     return first(it_uuids)
 
 
+def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
+    # Overwrite UUIDs with values from it-account
+    uuid = sts_user["Uuid"]
+    it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
+    sts_user["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    # For each position check the it-system of the org-unit
+    for p in sts_user["Positions"]:
+        unit_uuid = p["OrgUnitUuid"]
+        it = os2mo_get(f"{{BASE}}/ou/{unit_uuid}/details/it").json()
+        p["OrgUnitUuid"] = get_fk_org_uuid(it, unit_uuid, os2sync_uuid_from_it_systems)
+
+
 def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
@@ -267,14 +279,13 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
         sts_user["Location"] = get_work_address(
             sts_user["Positions"], work_address_names
         )
+
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
+
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
 
-    if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
-        sts_user["Uuid"] = get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
     return sts_user
 
 
@@ -411,6 +422,20 @@ def is_ignored(unit, settings):
     )
 
 
+def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List):
+    # Overwrite UUIDs with values from it-account
+    uuid = sts_org_unit["Uuid"]
+    it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
+    sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    # Also check if parent unit has a UUID from an it-account
+    parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
+    if parent_uuid:
+        it = os2mo_get(f"{{BASE}}/ou/{parent_uuid}/details/it").json()
+        sts_org_unit["ParentOrgUnitUuid"] = get_fk_org_uuid(
+            it, parent_uuid, os2sync_uuid_from_it_systems
+        )
+
+
 def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
@@ -449,7 +474,6 @@ def get_sts_orgunit(uuid: str, settings):
         if manager_uuid:
             sts_org_unit["managerUuid"] = manager_uuid
 
-    # this is set by __main__
     if has_kle():
         kle_to_orgunit(
             sts_org_unit,
@@ -457,16 +481,13 @@ def get_sts_orgunit(uuid: str, settings):
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
         )
 
-    # show_all_details(uuid,"ou")
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_unit_uuids(sts_org_unit, settings.os2sync_uuid_from_it_systems)
+
     strip_truncate_and_warn(
         sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
     )
 
-    if settings.os2sync_uuid_from_it_systems:
-        it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
-        sts_org_unit["Uuid"] = get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
     return sts_org_unit
 
 

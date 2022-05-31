@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
 from typing import Dict
+from typing import List
 from typing import Optional
 from uuid import UUID
 
@@ -100,6 +101,38 @@ def to_mo_employee(employee):
     )
 
 
+def lookup_unit_it_connections(session, uuid):
+    it_connections = (
+        session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
+    )
+    return [
+        {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
+        for itf in it_connections
+    ]
+
+
+def lookup_user_it_connections(session, uuid):
+    it_connections = (
+        session.query(ItForbindelse).filter(ItForbindelse.bruger_uuid == uuid).all()
+    )
+    return [
+        {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
+        for itf in it_connections
+    ]
+
+
+def overwrite_user_uuids(session, sts_user: Dict, os2sync_uuid_from_it_systems: List):
+    uuid = sts_user["Uuid"]
+    it = lookup_user_it_connections(session, uuid)
+    sts_user["Uuid"] = os2mo.get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    for p in sts_user["Positions"]:
+        unit_uuid = p["OrgUnitUuid"]
+        it = lookup_unit_it_connections(session, unit_uuid)
+        p["OrgUnitUuid"] = os2mo.get_fk_org_uuid(
+            it, unit_uuid, os2sync_uuid_from_it_systems
+        )
+
+
 def get_sts_user(session, uuid, settings: config.Settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     user = User(
@@ -151,17 +184,10 @@ def get_sts_user(session, uuid, settings: config.Settings):
     allowed_unitids = os2mo.org_unit_uuids(root=settings.os2sync_top_unit_uuid)
 
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
+
     if settings.os2sync_uuid_from_it_systems:
-        it_connections = (
-            session.query(ItForbindelse).filter(ItForbindelse.bruger_uuid == uuid).all()
-        )
-        it = [
-            {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
-            for itf in it_connections
-        ]
-        sts_user["Uuid"] = os2mo.get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
+        overwrite_user_uuids(session, sts_user, settings.os2sync_uuid_from_it_systems)
+
     return sts_user
 
 
@@ -209,6 +235,24 @@ def is_ignored(unit, settings: config.Settings):
         unittype_uuid in settings.os2sync_ignored_unit_types
         or unitlevel_uuid in settings.os2sync_ignored_unit_levels
     )
+
+
+def overwrite_unit_uuids(
+    session, sts_org_unit: Dict, os2sync_uuid_from_it_systems: List
+):
+    # Overwrite UUIDs with values from it-account
+    uuid = sts_org_unit["Uuid"]
+    it = lookup_unit_it_connections(session, uuid)
+
+    sts_org_unit["Uuid"] = os2mo.get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    # Also check if parent unit has a UUID from an it-account
+    parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
+    if parent_uuid:
+        it = lookup_unit_it_connections(session, parent_uuid)
+
+        sts_org_unit["ParentOrgUnitUuid"] = os2mo.get_fk_org_uuid(
+            it, parent_uuid, os2sync_uuid_from_it_systems
+        )
 
 
 def get_sts_orgunit(session, uuid, settings: config.Settings):
@@ -278,19 +322,14 @@ def get_sts_orgunit(session, uuid, settings: config.Settings):
         list(mokles.values()),
         use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
     )
+
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_unit_uuids(
+            session, sts_org_unit, settings.os2sync_uuid_from_it_systems
+        )
+
     truncate_length = max(36, settings.os2sync_truncate_length)
 
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
-    if settings.os2sync_uuid_from_it_systems:
-        it_connections = (
-            session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
-        )
-        it = [
-            {"itsystem": {"uuid": itf.it_system_uuid, "name": itf.it_system_name}}
-            for itf in it_connections
-        ]
-        sts_org_unit["Uuid"] = os2mo.get_fk_org_uuid(
-            it, uuid, settings.os2sync_uuid_from_it_systems
-        )
     return sts_org_unit
