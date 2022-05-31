@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.7 - 2022-05-31
+-------------------
+
+[#50673] Fixed problem where SD does not return person in response
+
 2.36.6 - 2022-05-31
 -------------------
 
