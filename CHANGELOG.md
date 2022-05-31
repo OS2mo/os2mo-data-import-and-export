@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.6 - 2022-05-31
+-------------------
+
+[#50536] OS2Sync_export: Overwrite uuids of parent-units and units in employee positions.
+
 2.36.5 - 2022-05-30
 -------------------
 
