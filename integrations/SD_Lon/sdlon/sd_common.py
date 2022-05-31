@@ -336,7 +336,7 @@ def read_employment_at(
     employment_id: Optional[str] = None,
     status_active_indicator: bool = True,
     status_passive_indicator: bool = True,
-) -> Union[OrderedDict, List[OrderedDict]]:
+) -> Union[OrderedDict, List[OrderedDict], None]:
     url = "GetEmployment20111201"
     params = {
         "EffectiveDate": effective_date.strftime("%d.%m.%Y"),
@@ -355,4 +355,4 @@ def read_employment_at(
         params.update({"EmploymentIdentifier": employment_id})
 
     response = sd_lookup(url, settings=settings, params=params)
-    return response["Person"]
+    return response.get("Person")
