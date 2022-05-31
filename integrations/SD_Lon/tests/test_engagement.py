@@ -1,4 +1,4 @@
-import unittest
+import unittest.mock
 from copy import deepcopy
 
 from more_itertools import one
@@ -7,6 +7,7 @@ from parameterized import parameterized
 from .fixtures import get_read_employment_changed_fixture
 from sdlon.engagement import _is_external
 from sdlon.engagement import (
+    create_engagement,
     is_employment_id_and_no_salary_minimum_consistent,
 )
 
@@ -67,3 +68,13 @@ class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
             is_employment_id_and_no_salary_minimum_consistent(engagement, 9000)
             == expected
         )
+
+
+class TestCreateEngagement(unittest.TestCase):
+    @unittest.mock.patch("sdlon.engagement.read_employment_at")
+    def test_return_none_when_sd_employment_not_found(self, mock_read_employment_at):
+        mock_read_employment_at.return_value = None
+        mock_sd_updater = unittest.mock.MagicMock()
+        create_engagement(mock_sd_updater, 12345, "person_uuid")
+
+        mock_sd_updater.assert_not_called()

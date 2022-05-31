@@ -39,6 +39,8 @@ def create_engagement(sd_updater, employment_id, person_uuid) -> None:
     sd_employment_payload = read_employment_at(
         datetime.now().date(), settings=sd_updater.settings, employment_id=employment_id
     )
+    if sd_employment_payload is None:
+        return
 
     assert not isinstance(sd_employment_payload, list)
 
