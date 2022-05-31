@@ -25,7 +25,7 @@ Lint os2sync Exporter:
   script:
     - cd exporters/os2sync_export
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --all-files
+    - pre-commit run --files os2sync_export/*.py tests/*.py 
 
 # Build
 ########
