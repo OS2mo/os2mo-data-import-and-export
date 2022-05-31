@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     os2sync_use_lc_db: bool = False
 
     os2sync_log_level: int = logging.INFO
-    os2sync_log_file: Path = Path("/opt/dipex")
-    os2sync_hash_cache: Path = Path("/opt/dipex")
+    os2sync_log_file: Path = Path("/app/os2sync_export.log")
+    os2sync_hash_cache: Path = Path("/app/hash_cache")
     os2sync_xfer_cpr: bool = False
 
     os2sync_autowash: bool = False
