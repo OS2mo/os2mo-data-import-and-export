@@ -46,6 +46,7 @@ Test OS2SYNC exporter:
     GIT_STRATEGY: none # We do not need the source code
     HYPOTHESIS_PROFILE: ci
   script:
+    - cd /app/
     - pytest tests/
 
 # # Release
