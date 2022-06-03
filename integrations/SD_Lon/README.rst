@@ -370,10 +370,13 @@ ChangedAt.db_) .
 3. Kør sd_changed_at.py periodisk
 ---------------------------------
 
-Daglige indlæsninger foregår som nævnt også med programmet `sd_changed_at.py`,
+Efterfølgende indlæsninger foregår som nævnt også med programmet `sd_changed_at.py`,
 hvilket foregår ved at sætte `init` til `False` og køre programmet uden yderligere
 parametre. Programmet vil så spørge ChangedAt.db_ om hvorår der sidst blev
-synkroniseret, og vil herefter synkronisere yderligere en dag frem i tiden.
+synkroniseret, og vil herefter hente data fra SD's ChangedAt API i intervallet fra sidste synkronisering til kørselstidspunktet.
+API'et kaldes med både dato og tidsstempler, og kan således importere ændringer fra SD flere gange om dagen.
+Er det mere end 24 timer siden sidste indlæsning vil den dog hente data fra SD i intervaller af et døgn, da man ellers
+ikke får alle ændringer med.
 
 4. Eventuelt synkroisering af stillingsbetegnelser
 --------------------------------------------------
