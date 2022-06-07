@@ -140,7 +140,12 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
             # 6. An AD user must  be created if there is a current or future manager-role
             # whether or not there are any active engagements
             (
-                {"managers": {"7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0":"Test User Is A Manager!"}, "users_with_engagements": {}},
+                {
+                    "managers": {
+                        "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0": "Test User Is A Manager!"
+                    },
+                    "users_with_engagements": {},
+                },
                 # Expected stats
                 lambda instance: {
                     "created_users": 1,
