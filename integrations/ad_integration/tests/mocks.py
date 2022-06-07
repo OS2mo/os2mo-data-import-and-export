@@ -175,6 +175,10 @@ class MockLoraCacheExtended(MockLoraCache):
     def classes(self):
         return {None: {}}
 
+    @property
+    def managers(self):
+        return {}
+
     def _load_settings(self):
         return {}
 

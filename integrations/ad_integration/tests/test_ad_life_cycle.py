@@ -137,6 +137,19 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                 # Assert no AD writes were done
                 None,
             ),
+            # 6. An AD user must  be created if there is a current or future manager-role
+            # whether or not there are any active engagements
+            (
+                {"managers": {"7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0":"Test User Is A Manager!"}, "users_with_engagements": {}},
+                # Expected stats
+                lambda instance: {
+                    "created_users": 1,
+                    "users": {instance._prepare_static_person()["uuid"]},
+                },
+                # Assert the proper AD writes were issued: 2 reads (?) and 1
+                # write
+                {"num_scripts": 3, "expected_script_content": "New-ADUser"},
+            ),
         ]
     )
     def test_create_ad_accounts(
@@ -394,6 +407,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         users_with_engagements=None,
         create_filters=None,
         disable_filters=None,
+        managers=None,
         mock_lora_cache_class=MockLoraCacheExtended,
         **kwargs,
     ):
@@ -450,6 +464,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                             # mocked version.
                             if users_with_engagements is not None:
                                 instance.users_with_engagements = {}
+                            instance.managers = managers if managers else {}
                             return instance
 
     def _assert_stats_equal(self, actual_stats, **expected_stats):

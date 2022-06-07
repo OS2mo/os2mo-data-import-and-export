@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import datetime
 from functools import lru_cache
 from functools import partial
 from functools import wraps
@@ -42,6 +43,7 @@ class AdLifeCycle:
     ) -> None:
         logger.info("AD Sync Started")
         self._settings = self._load_settings()
+        self.rundate = datetime.utcnow().strftime("%Y-%m-%d")
 
         self.roots = self._settings["integrations.ad.write.create_user_trees"]
 
@@ -61,6 +63,10 @@ class AdLifeCycle:
         # Create a set of users with engagements for faster filtering
         engagements = self.lc_historic.engagements.values()
         self.users_with_engagements = set(map(lambda eng: eng[0]["user"], engagements))
+
+        # Create a set of users with manager roles
+        managers = self.lc_historic.managers.values()
+        self.managers = set(map(lambda m: m[0]["user"], managers))
 
         print("Retrieve AD Writer name list")
         with catchtime() as t:
@@ -312,7 +318,10 @@ class AdLifeCycle:
         def filter_user_has_engagements(employee: dict, ad_object: dict) -> bool:
             # Check the user does not have a valid engagement:
             # TODO: Consider using the lazy properties for this
-            if employee["uuid"] in self.users_with_engagements:
+            if (
+                employee["uuid"] in self.users_with_engagements
+                or employee["uuid"] in self.managers
+            ):
                 logger.debug("User {} is active - do not touch".format(employee))
                 return False
             return True
@@ -363,7 +372,10 @@ class AdLifeCycle:
         @apply
         def filter_user_without_engagements(employee, ad_object):
             # TODO: Consider using the lazy properties for this
-            if employee["uuid"] not in self.users_with_engagements:
+
+            if (employee["uuid"] not in self.users_with_engagements) and (
+                employee["uuid"] not in self.managers
+            ):
                 self.stats["no_active_engagements"] += 1
                 logger.debug(
                     "User {} has no active engagements - skip".format(employee)
