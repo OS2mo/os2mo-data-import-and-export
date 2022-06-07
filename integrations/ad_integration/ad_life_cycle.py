@@ -1,6 +1,5 @@
 import logging
 import uuid
-from datetime import datetime
 from functools import lru_cache
 from functools import partial
 from functools import wraps
@@ -43,7 +42,6 @@ class AdLifeCycle:
     ) -> None:
         logger.info("AD Sync Started")
         self._settings = self._load_settings()
-        self.rundate = datetime.utcnow().strftime("%Y-%m-%d")
 
         self.roots = self._settings["integrations.ad.write.create_user_trees"]
 
