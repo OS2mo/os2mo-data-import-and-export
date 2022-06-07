@@ -49,16 +49,16 @@ Test OS2SYNC exporter:
     - cd /app/
     - pytest tests/
 
-# # Release
-# ##########
-# Release OS2Sync master image:
-#   extends: .release-master
-#   variables:
-#     CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-#     RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
+# Release
+##########
+Release OS2Sync master image:
+  extends: .release-master
+  variables:
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
 
-# Release OS2Sync release image:
-#   extends: .release-version
-#   variables:
-#     CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-#     RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
+Release OS2Sync release image:
+  extends: .release-version
+  variables:
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
