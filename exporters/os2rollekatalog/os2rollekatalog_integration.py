@@ -23,10 +23,14 @@ from typing import Tuple
 from uuid import UUID
 
 import click
+import pydantic
 import requests
+from gql import gql
 from more_itertools import bucket
+from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
+from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 
@@ -293,6 +297,40 @@ def get_users(
     return converted_users
 
 
+class Title(pydantic.BaseModel):
+    uuid: UUID
+    name: str = pydantic.Field(alias="user_key")
+
+
+class Titles(pydantic.BaseModel):
+    titles: List[Title]
+
+
+def read_engagement_types(session):
+    query = gql(
+        """query MyQuery {
+            facets {
+                user_key
+                uuid
+                classes {
+                    user_key
+                    uuid
+                    }
+                }
+            }
+        """
+    )
+    r = session.execute(query)
+    # Get engagement_types
+    eng_types = one(filter(lambda f: f["user_key"] == "engagement_type", r["facets"]))[
+        "classes"
+    ]
+    # load into model
+    titles = Titles(titles=eng_types)
+    # Extract "titles"
+    return json.loads(titles.json())["titles"]
+
+
 @click.command()
 @click.option(
     "--mora-base",
@@ -361,6 +399,33 @@ def get_users(
     envvar="MOX_ROLLE_MAPPING",
 )
 @click.option(
+    "--client-id",
+    default="dipex",
+    envvar="CLIENT_ID",
+)
+@click.option(
+    "--client-secret",
+    envvar="CLIENT_SECRET",
+)
+@click.option(
+    "--auth-realm",
+    default="mo",
+    envvar="AUTH_REALM",
+)
+@click.option(
+    "--auth-server",
+    envvar="AUTH_SERVER",
+)
+@click.option(
+    "--use-nickname",
+    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Use employee nicknames if available. Will use name if nickname is unavailable"
+    ),
+)
+@click.option(
     "--use-nickname",
     default=load_setting("exporters.os2rollekatalog.use_nickname", False),
     type=click.BOOL,
@@ -384,6 +449,10 @@ def main(
     rollekatalog_root_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
+    client_id: str,
+    client_secret: str,
+    auth_realm: str,
+    auth_server: str,
     use_nickname: bool,
     dry_run: bool,
 ):
@@ -393,6 +462,24 @@ def main(
     Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
     """
     init_log(log_file_path)
+
+    with GraphQLClient(
+        url=f"{mora_base}/graphql",
+        client_id=client_id,
+        client_secret=client_secret,
+        auth_realm=auth_realm,
+        auth_server=auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    ) as session:
+        eng_types = read_engagement_types(session)
+    titles_url = rollekatalog_url.replace("organisation/v3", "title")
+    requests.post(
+        titles_url,
+        json=eng_types,
+        headers={"ApiKey": str(rollekatalog_api_key)},
+        verify=False,
+    )
 
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
