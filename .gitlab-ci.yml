@@ -47,6 +47,7 @@ include:
     ref: "master"
     file: "/gitlab-ci-templates/common/rules.v1.yml"
   - local: "integrations/SD_Lon/.gitlab-ci.yml"
+  - local: "exporters/os2sync_export/.gitlab-ci.yml"
 
 
 # Only run pipeline when pushing a tag or a branch.
@@ -131,14 +132,6 @@ Lint Rollekatalog Exporter:
     - cd exporters/os2rollekatalog/
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files *.py
-
-Lint os2sync Exporter:
-  extends: .lint-python
-  script:
-    - cd exporters/os2sync_export
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files *.py test/*.py
-
 
 Lint CPR UUID Exporter:
   extends: .lint-python
@@ -232,13 +225,6 @@ Test Calculate Primary:
   script:
     - cd integrations/calculate_primary/
     - pytest tests/
-
-Test OS2Sync Integration:
-  extends: .test-python
-  script:
-    - cd exporters/os2sync_export
-    - poetry install
-    - pytest tests
 
 Test CPR Mapper:
   extends: .test-python

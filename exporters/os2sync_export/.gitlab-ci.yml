@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+
+stages:
+  - lint
+  - build
+  - test
+  - release
+
+include:
+  - project: 'labs/salt-automation'
+    ref: 'master'
+    file: '/gitlab-ci-templates/common/docker-build-meta.v1.yml'
+  - project: 'labs/salt-automation'
+    ref: 'master'
+    file: '/gitlab-ci-templates/common/docker-release-meta.v1.yml'
+
+variables:
+  OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-os2sync-export
+  OS2SYNC_EXPORT_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-os2sync-export:${CI_COMMIT_SHA}
+
+
+Lint os2sync Exporter:
+  extends: .lint-python
+  script:
+    - cd exporters/os2sync_export
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files os2sync_export/*.py tests/*.py 
+
+# Build
+########
+Build os2sync_export image:
+  extends: .build-docker
+  variables:
+    CONTEXT: ${CI_PROJECT_DIR}/exporters/os2sync_export
+    DOCKERFILE: ${CI_PROJECT_DIR}/exporters/os2sync_export/Dockerfile
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+
+# Test
+######
+Test OS2SYNC exporter:
+  stage: test
+  needs: ["Build os2sync_export image"]
+  image: ${OS2SYNC_EXPORT_IMAGE_SHA}
+  variables:
+    GIT_STRATEGY: none # We do not need the source code
+    HYPOTHESIS_PROFILE: ci
+  script:
+    - cd /app/
+    - pytest tests/
+
+# Release
+##########
+Release OS2Sync master image:
+  extends: .release-master
+  variables:
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
+
+Release OS2Sync release image:
+  extends: .release-version
+  variables:
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
