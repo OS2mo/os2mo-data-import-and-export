@@ -3,31 +3,32 @@ import json
 import logging
 import pathlib
 import time
+from functools import partial
+from functools import wraps
 from itertools import starmap
-from functools import wraps, partial
 from operator import attrgetter
 
 import click
-from aiohttp import BasicAuth, ClientSession, TCPConnector
+from aiohttp import BasicAuth
+from aiohttp import ClientSession
 from more_itertools import side_effect
-from retrying import retry
+from ra_utils.async_to_sync import async_to_sync
+from sqlalchemy import event
+from sqlalchemy import or_
+from sqlalchemy.orm import sessionmaker
+from tenacity import retry
+from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Leder,
-    Tilknytning,
-    KLE,
-    DARAdresse
-)
-from sqlalchemy import create_engine, event, or_
-from sqlalchemy.orm import sessionmaker
-
-from integrations.dar_helper.dar_helper import dar_fetch
-from ra_utils.async_to_sync import async_to_sync
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import DARAdresse
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import KLE
+from exporters.sql_export.sql_table_defs import Leder
+from exporters.sql_export.sql_table_defs import Tilknytning
 
 
 LOG_LEVEL = logging.DEBUG
@@ -80,9 +81,11 @@ class elapsedtime(object):
 
 def apply_tuple(func):
     """Wrap a function to apply its arguments to itself."""
+
     @wraps(func)
     def wrapped(tup):
         return func(*tup)
+
     return wrapped
 
 
@@ -112,20 +115,19 @@ def generate_json():
 
     def filter_missing_entry(entry_map, entry_type, unit_uuid, entry):
         if unit_uuid not in entry_map:
-            logger.error(
-                entry_type + " not found in map: " + str(unit_uuid)
-            )
+            logger.error(entry_type + " not found in map: " + str(unit_uuid))
             return False
         return True
 
     def enrich_org_unit_with_x(org_unit_map, entry_type, entry_gen, entries):
         def gen_entry(x, bruger):
             return x.enhed_uuid, entry_gen(x, bruger)
+
         # Bind two arguments so the function only takes unit_uuid, entry.
         # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
-        missing_entry_filter = apply_tuple(partial(
-            filter_missing_entry, org_unit_map, entry_type.capitalize()
-        ))
+        missing_entry_filter = apply_tuple(
+            partial(filter_missing_entry, org_unit_map, entry_type.capitalize())
+        )
 
         entries = starmap(gen_entry, entries)
         entries = filter(missing_entry_filter, entries)
@@ -136,17 +138,15 @@ def generate_json():
     def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
         def gen_entry(x, enhed):
             return x.bruger_uuid, entry_gen(x, enhed)
+
         # Bind two arguments so the function only takes unit_uuid, entry.
         # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
-        missing_entry_filter = apply_tuple(partial(
-            filter_missing_entry, employee_map, entry_type.capitalize()
-        ))
+        missing_entry_filter = apply_tuple(
+            partial(filter_missing_entry, employee_map, entry_type.capitalize())
+        )
 
         # Add org-units to queue as side-effect
-        entries = side_effect(
-            lambda x_enhed: add_org_unit(x_enhed[1]),
-            entries
-        )
+        entries = side_effect(lambda x_enhed: add_org_unit(x_enhed[1]), entries)
         entries = starmap(gen_entry, entries)
         entries = filter(missing_entry_filter, entries)
         for bruger_uuid, entry in entries:
@@ -160,9 +160,12 @@ def generate_json():
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        engagements = session.query(Engagement, Bruger).filter(
-            Engagement.bruger_uuid == Bruger.uuid
-        ).all()
+
+        engagements = (
+            session.query(Engagement, Bruger)
+            .filter(Engagement.bruger_uuid == Bruger.uuid)
+            .all()
+        )
         return enrich_org_unit_with_x(
             org_unit_map, "engagements", gen_engagement, engagements
         )
@@ -174,9 +177,12 @@ def generate_json():
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        associations = session.query(Tilknytning, Bruger).filter(
-            Tilknytning.bruger_uuid == Bruger.uuid
-        ).all()
+
+        associations = (
+            session.query(Tilknytning, Bruger)
+            .filter(Tilknytning.bruger_uuid == Bruger.uuid)
+            .all()
+        )
         return enrich_org_unit_with_x(
             org_unit_map, "associations", gen_association, associations
         )
@@ -188,9 +194,10 @@ def generate_json():
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        managements = session.query(Leder, Bruger).filter(
-            Leder.bruger_uuid == Bruger.uuid
-        ).all()
+
+        managements = (
+            session.query(Leder, Bruger).filter(Leder.bruger_uuid == Bruger.uuid).all()
+        )
         return enrich_org_unit_with_x(
             org_unit_map, "management", gen_management, managements
         )
@@ -202,14 +209,15 @@ def generate_json():
                 # "name": kle.kle_aspekt_titel,
                 "uuid": kle.uuid,
             }
+
         # Bind two arguments so the function only takes unit_uuid, entry.
         # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
-        missing_entry_filter = apply_tuple(partial(
-            filter_missing_entry, org_unit_map, "KLE"
-        ))
+        missing_entry_filter = apply_tuple(
+            partial(filter_missing_entry, org_unit_map, "KLE")
+        )
 
         kles = session.query(KLE).all()
-        kles = filter(lambda kle: kle.kle_aspekt_titel == 'Udførende', kles)
+        kles = filter(lambda kle: kle.kle_aspekt_titel == "Udførende", kles)
         kles = map(gen_kle, kles)
         kles = filter(missing_entry_filter, kles)
         for unit_uuid, kle in kles:
@@ -276,8 +284,8 @@ def generate_json():
                     "EMAIL": [],
                     "EAN": [],
                     "PNUMBER": [],
-                    "WWW": []
-                }
+                    "WWW": [],
+                },
             }
 
         def create_uuid_tuple(entry):
@@ -294,9 +302,12 @@ def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        engagements = session.query(Engagement, Enhed).filter(
-            Engagement.enhed_uuid == Enhed.uuid
-        ).all()
+
+        engagements = (
+            session.query(Engagement, Enhed)
+            .filter(Engagement.enhed_uuid == Enhed.uuid)
+            .all()
+        )
         return enrich_employees_with_x(
             employee_map, "engagements", gen_engagement, engagements
         )
@@ -308,9 +319,12 @@ def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        associations = session.query(Tilknytning, Enhed).filter(
-            Tilknytning.enhed_uuid == Enhed.uuid
-        ).all()
+
+        associations = (
+            session.query(Tilknytning, Enhed)
+            .filter(Tilknytning.enhed_uuid == Enhed.uuid)
+            .all()
+        )
         return enrich_employees_with_x(
             employee_map, "associations", gen_association, associations
         )
@@ -322,12 +336,17 @@ def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        managements = session.query(Leder, Enhed).filter(
-            Leder.enhed_uuid == Enhed.uuid
-        ).filter(
-            # Filter vacant leders
-            Leder.bruger_uuid != None
-        ).all()
+
+        managements = (
+            session.query(Leder, Enhed)
+            .filter(Leder.enhed_uuid == Enhed.uuid)
+            .filter(
+                # Filter vacant leders
+                Leder.bruger_uuid
+                != None
+            )
+            .all()
+        )
         return enrich_employees_with_x(
             employee_map, "management", gen_management, managements
         )
@@ -426,7 +445,7 @@ def generate_json():
 
         uuids = set(dawa_queue.keys())
         queryset = session.query(DARAdresse).filter(DARAdresse.uuid.in_(uuids))
-        betegnelser = map(attrgetter('betegnelse'), queryset.all())
+        betegnelser = map(attrgetter("betegnelse"), queryset.all())
         betegnelser = filter(lambda x: x is not None, betegnelser)
         for value in betegnelser:
             for address in dawa_queue[dar_uuid]:
@@ -438,11 +457,9 @@ def generate_json():
                     "value": value,
                 }
 
-                entry_map[entry_uuid]["addresses"][atype].append(
-                    formatted_address
-                )
+                entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
 
-        found = set(map(attrgetter('uuid'), queryset.all()))
+        found = set(map(attrgetter("uuid"), queryset.all()))
         missing = uuids - found
         if missing:
             print(missing, "not found in DAWA")
@@ -532,9 +549,9 @@ async def transfer_json():
     basic_auth = BasicAuth(username, password)
 
     @retry(
-        stop_max_attempt_number=20,
-        wait_exponential_multiplier=1000,
-        wait_exponential_max=10000
+        wait=wait_random_exponential(multiplier=1000, max=10000),
+        stop=stop_after_attempt(20),
+        reraise=True,
     )
     async def push_updates(url, payload):
         async with aiohttp_session.post(
