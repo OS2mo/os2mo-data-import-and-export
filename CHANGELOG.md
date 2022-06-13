@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.36.8 - 2022-06-13
+-------------------
+
+[#50764] OS2Phonebook: Replace "Retrying" with "Tenacity" to handle retrying of async functions.
+
 2.36.7 - 2022-05-31
 -------------------
 
