@@ -21,6 +21,8 @@ ra-utils = "^1.0.0"
 requests = "^2.21.0"
 SQLAlchemy = "^1.4.31"
 pydantic = "^1.9.0"
+fastapi = "0.75"
+uvicorn = "0.17.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
