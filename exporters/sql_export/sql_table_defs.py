@@ -35,7 +35,7 @@ class Bruger(Base):
     efternavn = Column(String(250))
     kaldenavn_fornavn = Column(String(250))
     kaldenavn_efternavn = Column(String(250))
-    cpr = Column(String(250), nullable=False)
+    cpr = Column(String(250), nullable=True)
     startdato = Column(String(10))
     slutdato = Column(String(10))
 

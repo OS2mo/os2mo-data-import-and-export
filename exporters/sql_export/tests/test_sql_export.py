@@ -1,6 +1,7 @@
 from collections import ChainMap
 from typing import Any
 from typing import Dict
+from typing import Optional
 from typing import Tuple
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_table_defs import Bruger
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import Tilknytning
 
@@ -202,6 +204,48 @@ def test_get_lora_class_returns_uuid_as_title_if_none():
     class_uuid, class_dict = sql_export._get_lora_class(uuid)
     assert class_uuid == uuid
     assert class_dict == {"title": uuid}
+
+
+@parameterized.expand(
+    [
+        (None,),
+        ("cpr",),
+    ]
+)
+def test_sql_export_writes_users(cpr: Optional[str]):
+    # Arrange
+    user_uuid = _mk_uuid()
+    user = {
+        "uuid": user_uuid,
+        "cpr": cpr,
+        "user_key": user_uuid,
+        "fornavn": "Fornavn",
+        "efternavn": "Efternavn",
+        "kaldenavn_fornavn": "KaldenavnFornavn",
+        "kaldenavn_efternavn": "KaldenavnEfternavn",
+        "from_date": "2020-01-01",
+        "to_date": "2020-01-01",
+    }
+    lc_data = {"users": {user_uuid: [user]}}
+    sql_export = _TestableSqlExport(inject_lc=lc_data)
+
+    # Act
+    sql_export.perform_export()
+
+    # Assert
+    _assert_db_session_add(
+        sql_export.session,
+        Bruger,
+        uuid=user_uuid,
+        cpr=cpr,  # type: ignore
+        bvn=user["user_key"],  # type: ignore
+        fornavn=user["fornavn"],  # type: ignore
+        efternavn=user["efternavn"],  # type: ignore
+        kaldenavn_fornavn=user["kaldenavn_fornavn"],  # type: ignore
+        kaldenavn_efternavn=user["kaldenavn_efternavn"],  # type: ignore
+        startdato=user["from_date"],  # type: ignore
+        slutdato=user["to_date"],  # type: ignore
+    )
 
 
 @parameterized.expand(
