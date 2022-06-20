@@ -19,6 +19,7 @@ export POETRY_VIRTUALENVS_CREATE=true
 export POETRY_VIRTUALENVS_IN_PROJECT=true
 $POETRYPATH install --no-interaction
 
+.venv/bin/pip install ./os2mo_data_import --upgrade
 .venv/bin/pip install --editable .
 
 cd $DIPEXAR/integrations/SD_Lon/
