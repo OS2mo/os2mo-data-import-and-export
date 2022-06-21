@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.37.0 - 2022-06-21
+-------------------
+
+[#50923] Adds script to ensure classes are static.
+
 2.36.8 - 2022-06-13
 -------------------
 
