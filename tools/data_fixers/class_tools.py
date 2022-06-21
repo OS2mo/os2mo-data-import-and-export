@@ -1,6 +1,5 @@
+import asyncio
 import json
-import urllib.parse
-from collections import defaultdict
 from operator import itemgetter
 from typing import Dict
 from typing import List
@@ -12,9 +11,13 @@ from uuid import uuid4
 import click
 import jmespath
 import requests
+from aiohttp.client_exceptions import ClientResponseError
+from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
+from mox_helpers.mox_util import ensure_class_value_helper
+from ra_utils.load_settings import load_setting
 from ra_utils.load_settings import load_settings
 from ra_utils.transpose_dict import transpose_dict
 from tqdm import tqdm
@@ -85,9 +88,11 @@ def switch_class(
     r.raise_for_status()
 
 
-def read_classes(session, mox_base: str) -> List[Dict]:
+def read_classes(session, mox_base: str, historic: bool = False) -> List[Dict]:
     """Read all classes from MO"""
-    r = session.get(mox_base + "/klassifikation/klasse?list=true")
+    url = mox_base + "/klassifikation/klasse?list=1"
+    url = url + "&virkningfra=-infinity&virkningtil=infinity" if historic else url
+    r = session.get(url)
     r.raise_for_status()
     return one(r.json()["results"])
 
@@ -272,6 +277,44 @@ def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base:
     move_class_helper(
         old_uuid=old_uuid, new_uuid=new_uuid, copy=copy, mox_base=mox_base
     )
+
+
+@cli.command()
+@click.option(
+    "--mox-base",
+    help="URL for MOX",
+    type=click.STRING,
+    default=load_setting("mox.base", "http://localhost:8080/"),
+)
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+def ensure_static_classes(mox_base, dry_run):
+    session = requests.Session()
+    # Read all classes (historic)
+    for c in read_classes(session, mox_base, historic=True):
+        # Read `one` registration which can include more than one "klasseegenskaber"
+        properties = one(c["registreringer"])["attributter"]["klasseegenskaber"]
+        if len(properties) > 1:
+            # Sort by from-date to be able to choose the newest value
+            properties.sort(key=lambda x: x["virkning"]["from"], reverse=True)
+            try:
+                asyncio.run(
+                    ensure_class_value_helper(
+                        mox_base=mox_base,
+                        uuid=c["id"],
+                        variable="brugervendtnoegle",
+                        new_value=first(properties)["brugervendtnoegle"],
+                        dry_run=dry_run,
+                    )
+                )
+            except ClientResponseError:
+                click.echo(
+                    f"No new registration for class with uuid={c['id']} and name={first(properties)['brugervendtnoegle']}"
+                )
 
 
 if __name__ == "__main__":
