@@ -296,8 +296,10 @@ def ensure_static_classes(mox_base, dry_run):
     session = requests.Session()
     # Read all classes (historic)
     for c in read_classes(session, mox_base, historic=True):
+        # Read `one` registration which can include more than one "klasseegenskaber"
         properties = one(c["registreringer"])["attributter"]["klasseegenskaber"]
         if len(properties) > 1:
+            # Sort by from-date to be able to choose the newest value
             properties.sort(key=lambda x: x["virkning"]["from"], reverse=True)
             try:
                 asyncio.run(
