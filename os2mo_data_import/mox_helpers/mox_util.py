@@ -1,17 +1,21 @@
 import asyncio
 import json
 import sys
-from datetime import datetime
-from functools import lru_cache, partial
+from functools import lru_cache
+from functools import partial
 from operator import itemgetter
-from typing import Optional, Tuple
+from typing import Optional
+from typing import Tuple
 
 import click
-from more_itertools import bucket, flatten, unzip
+from more_itertools import bucket
+from more_itertools import flatten
+from more_itertools import unzip
 from mox_helpers.mox_helper import create_mox_helper
-from mox_helpers.payloads import lora_facet, lora_klasse
-from mox_helpers.utils import async_to_sync, dict_map
-
+from mox_helpers.payloads import lora_facet
+from mox_helpers.payloads import lora_klasse
+from mox_helpers.utils import async_to_sync
+from mox_helpers.utils import dict_map
 from ra_utils.load_settings import load_settings
 
 
@@ -251,7 +255,7 @@ async def ensure_class_value_helper(
     uuid: str = None,
     dry_run: bool = False,
 ):
-    """Ensures a value of a class is as expected. """
+    """Ensures a value of a class is as expected."""
     mox_helper = await create_mox_helper(mox_base)
 
     if bvn:
@@ -270,14 +274,18 @@ async def ensure_class_value_helper(
         item: klasse.get(item) for item in ("attributter", "relationer", "tilstande")
     }
 
-    virkning = {"from": datetime.now().strftime("%Y-%m-%d"), "to": "infinity"}
+    virkning = {"from": "-infinity", "to": "infinity"}
 
     def check_value(variable, new_value, o):
         """Recurse through object to ensure correct value "new_value" in "variable"."""
         seeded_check_value = partial(check_value, variable, new_value)
         if isinstance(o, dict):
             if variable in o:
-                if o[variable] == new_value:
+                if (
+                    (o[variable] == new_value)
+                    and (o["virkning"]["from"] == virkning["from"])
+                    and (o["virkning"]["to"] == virkning["to"])
+                ):
                     return o, False
                 o[variable] = new_value
                 o["virkning"] = virkning

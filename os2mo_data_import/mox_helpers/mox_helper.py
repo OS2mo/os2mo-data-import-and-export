@@ -1,7 +1,9 @@
 import asyncio
 from functools import partial
 from itertools import product
-from typing import Any, Sequence, Tuple
+from typing import Any
+from typing import Sequence
+from typing import Tuple
 from uuid import UUID
 
 import aiohttp
@@ -127,6 +129,7 @@ class MoxHelper:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj
         async with session.post(url, json=payload) as response:
+            response.raise_for_status()
             return (await response.json())["uuid"]
 
     @ensure_session
@@ -148,6 +151,7 @@ class MoxHelper:
         url = self.hostname + "/" + service + "/" + obj + "/" + uuid
 
         async with session.patch(url, json=payload) as response:
+            response.raise_for_status()
             return (await response.json())["uuid"]
 
     async def _read_uuid_list(self, service: str, obj: str) -> Sequence[UUIDstr]:
