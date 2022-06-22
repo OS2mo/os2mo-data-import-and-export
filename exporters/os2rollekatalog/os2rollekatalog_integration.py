@@ -334,7 +334,9 @@ def read_engagement_job_function(session):
     return titles["titles"]
 
 
-def check_update_titles(url: str, api_key: UUID, titles: Titles) -> None:
+def check_update_titles(
+    url: str, api_key: UUID, titles: Titles, dry_run: bool = False
+) -> None:
     """Checks titles in rollekataloget and updates if changes are found"""
     res = requests.get(
         url,
@@ -342,8 +344,19 @@ def check_update_titles(url: str, api_key: UUID, titles: Titles) -> None:
         verify=False,
     )
     res.raise_for_status()
+    current_titles = res.json()
 
-    if res.json() == titles:
+    if dry_run:
+        if current_titles == titles:
+            click.echo("Current titles in rollekataloget dosn't match OS2MO")
+            click.echo(f"{current_titles=}")
+            click.echo(f"{titles=}")
+        else:
+            click.echo("Current titles in rollekataloget matches OS2MO")
+
+        return None
+
+    if current_titles == titles:
         return None
 
     post = requests.post(
@@ -500,7 +513,10 @@ def main(
 
     titles_url = rollekatalog_url.replace("organisation/v3", "title")
     check_update_titles(
-        url=titles_url, api_key=rollekatalog_api_key, titles=engagement_job_function
+        url=titles_url,
+        api_key=rollekatalog_api_key,
+        titles=engagement_job_function,
+        dry_run=dry_run,
     )
 
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
