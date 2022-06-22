@@ -4,11 +4,11 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from exporters.os2rollekatalog.os2rollekatalog_integration import (
+from exporters.os2rollekatalog.titles import (
     read_engagement_job_function,
 )
-from exporters.os2rollekatalog.os2rollekatalog_integration import Title
-from exporters.os2rollekatalog.os2rollekatalog_integration import Titles
+from exporters.os2rollekatalog.titles import Title
+from exporters.os2rollekatalog.titles import Titles
 
 
 @given(st.uuids(), st.text())
@@ -30,9 +30,7 @@ def test_title_class(uuid, user_key):
     ],
 )
 def test_read_titles(test_input, expected):
-    with patch(
-        "exporters.os2rollekatalog.os2rollekatalog_integration.GraphQLClient"
-    ) as mock_session:
+    with patch("exporters.os2rollekatalog.titles.GraphQLClient") as mock_session:
         mock_return = {
             "facets": [{"user_key": "engagement_job_function", "classes": test_input}]
         }
