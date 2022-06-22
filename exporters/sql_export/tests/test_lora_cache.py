@@ -228,3 +228,31 @@ class TestLoraCacheAssociations(_TestLoraCacheMethodHelper, TestCase):
         )
         assoc = associations[self._association_uuid][0]
         self.assertIsNone(assoc["association_type"])
+
+
+class TestCacheLoraUsers(_TestLoraCacheMethodHelper, TestCase):
+    method_name = "_cache_lora_users"
+    from_dt = datetime(2020, 1, 1)
+    to_dt = datetime(2025, 1, 1)
+
+    _user_uuid = "user-uuid"
+    _attrs = {
+        "brugeregenskaber": [{"brugervendtnoegle": "some-user-key"}],
+        "brugerudvidelser": [
+            {
+                "fornavn": "Fornavn",
+                "efternavn": "Efternavn",
+                "kaldenavn_fornavn": "KaldenavnFornavn",
+                "kaldenavn_efternavn": "KaldenavnEfternavn",
+            }
+        ],
+    }
+
+    def test_handles_empty_cpr(self):
+        users = self.get_method_results(
+            self._user_uuid,
+            {"tilknyttedepersoner": []},
+            attrs=self._attrs,
+        )
+        user = users[self._user_uuid][0]
+        self.assertIsNone(user["cpr"])
