@@ -306,7 +306,7 @@ class Titles(pydantic.BaseModel):
     titles: List[Title]
 
 
-def read_engagement_types(session):
+def read_engagement_job_function(session):
     query = gql(
         """query MyQuery {
             facets {
@@ -321,14 +321,38 @@ def read_engagement_types(session):
         """
     )
     r = session.execute(query)
-    # Get engagement_types
-    eng_types = one(filter(lambda f: f["user_key"] == "engagement_type", r["facets"]))[
-        "classes"
-    ]
+    facets = r["facets"]
+    # Get engagement_job_function
+    eng_types = one(
+        filter(lambda f: f["user_key"] == "engagement_job_function", facets)
+    )
+
     # load into model
-    titles = Titles(titles=eng_types)
-    # Extract "titles"
-    return json.loads(titles.json())["titles"]
+    titles = Titles(titles=eng_types["classes"])
+    # Dump model to json and load back to convert uuids to str and "user_key" to "name"
+    titles = json.loads(titles.json())
+    return titles["titles"]
+
+
+def check_update_titles(url: str, api_key: UUID, titles: Titles) -> None:
+    """Checks titles in rollekataloget and updates if changes are found"""
+    res = requests.get(
+        url,
+        headers={"ApiKey": str(api_key)},
+        verify=False,
+    )
+    res.raise_for_status()
+
+    if res.json() == titles:
+        return None
+
+    post = requests.post(
+        url,
+        json=titles,
+        headers={"ApiKey": str(api_key)},
+        verify=False,
+    )
+    post.raise_for_status()
 
 
 @click.command()
@@ -472,13 +496,11 @@ def main(
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:
-        eng_types = read_engagement_types(session)
+        engagement_job_function = read_engagement_job_function(session)
+
     titles_url = rollekatalog_url.replace("organisation/v3", "title")
-    requests.post(
-        titles_url,
-        json=eng_types,
-        headers={"ApiKey": str(rollekatalog_api_key)},
-        verify=False,
+    check_update_titles(
+        url=titles_url, api_key=rollekatalog_api_key, titles=engagement_job_function
     )
 
     mh = MoraHelper(hostname=mora_base, export_ansi=False)

@@ -4,7 +4,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from exporters.os2rollekatalog.os2rollekatalog_integration import read_engagement_types
+from exporters.os2rollekatalog.os2rollekatalog_integration import (
+    read_engagement_job_function,
+)
 from exporters.os2rollekatalog.os2rollekatalog_integration import Title
 from exporters.os2rollekatalog.os2rollekatalog_integration import Titles
 
@@ -32,8 +34,8 @@ def test_read_titles(test_input, expected):
         "exporters.os2rollekatalog.os2rollekatalog_integration.GraphQLClient"
     ) as mock_session:
         mock_return = {
-            "facets": [{"user_key": "engagement_type", "classes": test_input}]
+            "facets": [{"user_key": "engagement_job_function", "classes": test_input}]
         }
         mock_session.execute.return_value = mock_return
-        t = read_engagement_types(mock_session)
+        t = read_engagement_job_function(mock_session)
     assert t == expected
