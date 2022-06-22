@@ -82,15 +82,15 @@ def check_update_titles(
 
 
 def export_titles(
-    mora_base,
-    client_id,
-    client_secret,
-    auth_realm,
-    auth_server,
-    rollekatalog_url,
-    rollekatalog_api_key,
-    dry_run,
-):
+    mora_base: str,
+    client_id: str,
+    client_secret: str,
+    auth_realm: str,
+    auth_server: str,
+    rollekatalog_url: str,
+    rollekatalog_api_key: UUID,
+    dry_run: bool,
+) -> None:
     with GraphQLClient(
         url=f"{mora_base}/graphql",
         client_id=client_id,
