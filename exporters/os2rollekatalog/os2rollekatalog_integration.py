@@ -403,7 +403,7 @@ def get_users(
     default=load_setting("exporters.os2rollekatalog.sync_titles", False),
     type=click.BOOL,
     required=False,
-    help=("Sync engagement_job_functions to titles in rollekataloget"),
+    help="Sync engagement_job_functions to titles in rollekataloget",
 )
 @click.option(
     "--dry-run",
