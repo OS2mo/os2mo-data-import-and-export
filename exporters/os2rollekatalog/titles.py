@@ -61,11 +61,11 @@ def check_update_titles(
 
     if dry_run:
         if current_titles == titles:
+            click.echo("Current titles in rollekataloget matches OS2MO")
+        else:
             click.echo("Current titles in rollekataloget dosn't match OS2MO")
             click.echo(f"{current_titles=}")
             click.echo(f"{titles=}")
-        else:
-            click.echo("Current titles in rollekataloget matches OS2MO")
 
         return None
 
