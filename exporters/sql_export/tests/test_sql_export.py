@@ -185,7 +185,9 @@ def _join_dicts(*dicts: dict) -> ChainMap:
     return ChainMap(*dicts)
 
 
-def _assert_db_session_add(session: MagicMock, cls: Base, **expected: str) -> None:
+def _assert_db_session_add(
+    session: MagicMock, cls: Base, **expected: Optional[str]
+) -> None:
     session_add_calls = [
         call
         for call in session.method_calls
@@ -237,14 +239,14 @@ def test_sql_export_writes_users(cpr: Optional[str]):
         sql_export.session,
         Bruger,
         uuid=user_uuid,
-        cpr=cpr,  # type: ignore
-        bvn=user["user_key"],  # type: ignore
-        fornavn=user["fornavn"],  # type: ignore
-        efternavn=user["efternavn"],  # type: ignore
-        kaldenavn_fornavn=user["kaldenavn_fornavn"],  # type: ignore
-        kaldenavn_efternavn=user["kaldenavn_efternavn"],  # type: ignore
-        startdato=user["from_date"],  # type: ignore
-        slutdato=user["to_date"],  # type: ignore
+        cpr=cpr,
+        bvn=user["user_key"],
+        fornavn=user["fornavn"],
+        efternavn=user["efternavn"],
+        kaldenavn_fornavn=user["kaldenavn_fornavn"],
+        kaldenavn_efternavn=user["kaldenavn_efternavn"],
+        startdato=user["from_date"],
+        slutdato=user["to_date"],
     )
 
 
