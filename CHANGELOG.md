@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.37.1 - 2022-06-22
+-------------------
+
+[#50910] `SQLExport`: don't crash on MO users without CPR
+
 2.37.0 - 2022-06-21
 -------------------
 
