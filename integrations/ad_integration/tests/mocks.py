@@ -2,6 +2,7 @@ import copy
 import json
 import uuid
 from contextlib import ExitStack
+from typing import List
 from unittest.mock import MagicMock
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -295,6 +296,29 @@ class MockLoraCacheUnitAddress(MockLoraCacheExtended):
             "value": self._address_value,
         }
         return {address_uuid: [address]}
+
+
+class MockLoraCacheUserAddress(MockLoraCacheExtended):
+    """Mock a LoraCache with one or more addresses for the user given by `MO_UUID`."""
+
+    def __init__(self, user_addresses: List[dict]):
+        mo_values = {"uuid": MO_UUID}
+        super().__init__(mo_values)
+        self._addresses = user_addresses
+
+    @property
+    def addresses(self):
+        visibility_class_uuid = str(uuid.uuid4())
+
+        def fixup(addr: dict):
+            addr.setdefault("uuid", str(uuid.uuid4()))
+            addr.setdefault("user", MO_UUID)
+            addr.setdefault("visibility", visibility_class_uuid)
+            addr.setdefault("from_date", "")
+            addr.setdefault("to_date", "")
+            return addr
+
+        return dict((addr["uuid"], [addr]) for addr in map(fixup, self._addresses))
 
 
 class MockMoraHelper(MoraHelper):

@@ -122,7 +122,7 @@ class AddressDecisionList:
             # Only process the MO addresses that differ from AD.
             differing_addresses = filter(
                 partial(self._mo_and_ad_differs, field),
-                user_addresses,
+                sorted(user_addresses, key=lambda item: item.get("value") or ""),
             )
 
             # First element in `differing_addresses` is edited, and all other

@@ -1,3 +1,5 @@
+import random
+import uuid
 from datetime import date
 from itertools import chain
 from typing import Any
@@ -8,14 +10,19 @@ from typing import Tuple
 from unittest import TestCase
 from unittest.mock import MagicMock
 
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 from parameterized import parameterized
 
+from ..ad_sync import AddressDecisionList
 from ..ad_sync import AdMoSync
 from ..utils import AttrDict
 from .mocks import MO_UUID
 from .mocks import MockADParameterReader
 from .mocks import MockLoraCache
 from .mocks import MockLoraCacheEmptyEmployee
+from .mocks import MockLoraCacheUserAddress
 from .mocks import MockMoraHelper
 from .test_utils import dict_modifier
 from .test_utils import TestADMoSyncMixin
@@ -120,6 +127,23 @@ class _TestableAdMoSyncLoraCacheUserAttrs(_TestableAdMoSync):
         self.mock_ad_reader = MockADParameterReader()
         self.mock_ad_reader._get_setting = _get_setting
         return self.mock_ad_reader
+
+
+class _TestableAdMoSyncLoraCacheAddresses(_TestableAdMoSync):
+    def __init__(self, user_addresses: List[dict], user_address_mapping: dict):
+        self._user_addresses = user_addresses
+        super().__init__()
+        # Usually this is set by `AdMoSync._update_users`, but we set it here, so it can
+        # be read by `AdMoSync._get_address_decision_list` even though `_update_users`
+        # is not called during the test.
+        self.mapping = {"user_addresses": user_address_mapping}
+
+    def _setup_settings(self, all_settings):
+        self.settings = {}
+
+    def _setup_lora_cache(self):
+        return MockLoraCacheUserAddress(self._user_addresses)
+
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -1234,3 +1258,115 @@ class TestEditUserAttrsLoraCache:
         assert mo_uuid == MO_UUID
         assert mo_data["user_key"] == ad_user["UserPrincipalName"]
         assert mo_data["validity"] == {"from": today_iso(), "to": None}
+
+
+class TestAddressDecisionListLoraCache:
+    """Test behavior of `AddressDecisionList` when initialized by an `AdMoSync` which
+    uses `LoraCache` (its `self.lc` is an instance of `LoraCache`.)
+    """
+
+    _mo_address_type_uuid = str(uuid.uuid4())
+
+    def test_addresses_are_processed_in_order(self):
+        """Test `AddressDecisionList` behavior when multiple addresses match on address
+        type. The expected behavior is to edit the first address, and terminate the
+        remaining addresses (addresses are ordered by their value.)
+        """
+        # In this test, we give the MO user multiple LoraCache addresses of the same
+        # address type, each address having a unique value.
+        user_addresses = [
+            {"adresse_type": self._mo_address_type_uuid, "value": "address-%02d" % n}
+            for n in range(5)
+        ]
+        # Order the addresses randomly
+        random.shuffle(user_addresses)
+        # Map the AD field `mail` to the MO address type we are using
+        user_address_mapping = {"mail": [self._mo_address_type_uuid, None]}
+        # Get an `AddressDecisionList` instance
+        instance = self._get_instance(
+            {"mail": "foobar@example.org"},  # AD object
+            user_addresses,
+            user_address_mapping,
+        )
+        # Assert that the first address is edited, and the others are terminated
+        for idx, (decision, address, *args) in enumerate(instance):
+            assert address["value"] == "address-%02d" % idx
+            if idx == 0:
+                assert decision == AddressDecisionList.EDIT
+            else:
+                assert decision == AddressDecisionList.TERMINATE
+
+    def test_address_is_created(self):
+        instance = self._get_instance(
+            {"mail": "foobar@example.org"},  # AD object
+            [],  # LoraCache addresses (empty list)
+            {"mail": [self._mo_address_type_uuid, None]},  # AD -> MO field mapping
+        )
+        decisions = list(instance)
+        assert len(decisions) == 1
+        decision, address, *args = decisions[0]
+        assert decision == AddressDecisionList.CREATE  # create a new MO address
+        assert address is None  # there is no existing MO address
+        assert args[0] == MO_UUID  # user UUID
+        assert args[1] == "foobar@example.org"  # value of mapped AD address
+        assert args[2][0] == self._mo_address_type_uuid  # mapped address type UUID
+        assert args[2][1] is None  # mapped visibility class
+
+    def test_dropped_ad_field_terminates_mo_address(self):
+        loracache_address = {"adresse_type": self._mo_address_type_uuid, "value": "42"}
+        instance = self._get_instance(
+            {},  # AD object (empty dict)
+            [loracache_address],
+            {"mail": [self._mo_address_type_uuid, None]},  # AD -> MO field mapping
+        )
+        decisions = list(instance)
+        assert len(decisions) == 1
+        decision, address, *args = decisions[0]
+        assert decision == AddressDecisionList.TERMINATE  # terminate MO address
+        assert address["uuid"] == loracache_address["uuid"]
+        assert address["value"] == loracache_address["value"]
+        assert address["address_type"]["uuid"] == loracache_address["adresse_type"]
+        assert address["visibility"]["uuid"] == loracache_address["visibility"]
+        assert address["validity"]["from"] == loracache_address["from_date"]
+        assert address["validity"]["to"] == loracache_address["to_date"]
+
+    _ad_field_keys = st.shared(st.text(min_size=1))
+    _mo_address_type_uuids = st.shared(st.uuids().map(str))
+
+    @settings(max_examples=500)
+    @given(
+        ad_object=(
+            st.dictionaries(keys=_ad_field_keys, values=st.text(min_size=0) | st.none())
+            | st.just({})
+        ),
+        user_addresses=st.lists(
+            st.fixed_dictionaries(
+                {
+                    "adresse_type": _mo_address_type_uuids,
+                    "value": st.text(min_size=0) | st.none(),
+                }
+            )
+        ),
+        user_address_mapping=st.dictionaries(
+            keys=_ad_field_keys,
+            values=st.tuples(_mo_address_type_uuids, st.none()),
+        ),
+    )
+    def test_fuzz(
+        self, ad_object: dict, user_addresses: List[dict], user_address_mapping: dict
+    ):
+        """Test `AddressDecisionList` using a wide range of possible inputs"""
+        instance = self._get_instance(ad_object, user_addresses, user_address_mapping)
+        assert len(list(instance)) >= 0
+
+    def _get_instance(
+        self,
+        ad_object: dict,
+        user_addresses: List[dict],
+        user_address_mapping: dict,
+    ) -> AddressDecisionList:
+        ad_mo_sync = _TestableAdMoSyncLoraCacheAddresses(
+            user_addresses, user_address_mapping
+        )
+        instance = ad_mo_sync._get_address_decision_list(MO_UUID, ad_object)
+        return instance
