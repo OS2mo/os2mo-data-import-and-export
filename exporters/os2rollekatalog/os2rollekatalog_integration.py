@@ -399,6 +399,13 @@ def get_users(
     ),
 )
 @click.option(
+    "--sync-titles",
+    default=load_setting("exporters.os2rollekatalog.sync_titles", False),
+    type=click.BOOL,
+    required=False,
+    help=("Sync engagement_job_functions to titles in rollekataloget"),
+)
+@click.option(
     "--dry-run",
     default=False,
     is_flag=True,
@@ -418,6 +425,7 @@ def main(
     auth_realm: str,
     auth_server: str,
     use_nickname: bool,
+    sync_titles: bool,
     dry_run: bool,
 ):
     """OS2Rollekatalog exporter.
@@ -427,16 +435,17 @@ def main(
     """
     init_log(log_file_path)
 
-    export_titles(
-        mora_base,
-        client_id,
-        client_secret,
-        auth_realm,
-        auth_server,
-        rollekatalog_url,
-        rollekatalog_api_key,
-        dry_run,
-    )
+    if sync_titles:
+        export_titles(
+            mora_base=mora_base,
+            client_id=client_id,
+            client_secret=client_secret,
+            auth_realm=auth_realm,
+            auth_server=auth_server,
+            rollekatalog_url=rollekatalog_url,
+            rollekatalog_api_key=rollekatalog_api_key,
+            dry_run=dry_run,
+        )
 
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
