@@ -308,12 +308,10 @@ class MockLoraCacheUserAddress(MockLoraCacheExtended):
 
     @property
     def addresses(self):
-        visibility_class_uuid = str(uuid.uuid4())
-
         def fixup(addr: dict):
             addr.setdefault("uuid", str(uuid.uuid4()))
             addr.setdefault("user", MO_UUID)
-            addr.setdefault("visibility", visibility_class_uuid)
+            addr.setdefault("visibility", str(uuid.uuid4()))
             addr.setdefault("from_date", "")
             addr.setdefault("to_date", "")
             return addr

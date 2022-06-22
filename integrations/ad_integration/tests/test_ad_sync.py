@@ -130,6 +130,10 @@ class _TestableAdMoSyncLoraCacheUserAttrs(_TestableAdMoSync):
 
 
 class _TestableAdMoSyncLoraCacheAddresses(_TestableAdMoSync):
+    visibility_public_uuid = str(uuid.uuid4())
+    visibility_internal_uuid = str(uuid.uuid4())
+    visibility_secret_uuid = str(uuid.uuid4())
+
     def __init__(self, user_addresses: List[dict], user_address_mapping: dict):
         self._user_addresses = user_addresses
         super().__init__()
@@ -140,6 +144,13 @@ class _TestableAdMoSyncLoraCacheAddresses(_TestableAdMoSync):
 
     def _setup_settings(self, all_settings):
         self.settings = {}
+
+    def _setup_visibilities(self):
+        self.visibility = {
+            "PUBLIC": self.visibility_public_uuid,
+            "INTERNAL": self.visibility_internal_uuid,
+            "SECRET": self.visibility_secret_uuid,
+        }
 
     def _setup_lora_cache(self):
         return MockLoraCacheUserAddress(self._user_addresses)
@@ -1273,28 +1284,56 @@ class TestAddressDecisionListLoraCache:
         remaining addresses (addresses are ordered by their value.)
         """
         # In this test, we give the MO user multiple LoraCache addresses of the same
-        # address type, each address having a unique value.
+        # address type, each address having a unique value. The public addresses have
+        # "even" values ("address-00", "address-02", etc.) and the internal addresses
+        # have "odd" values ("address-01", "address-03", etc.)
         user_addresses = [
-            {"adresse_type": self._mo_address_type_uuid, "value": "address-%02d" % n}
-            for n in range(5)
+            {
+                "adresse_type": self._mo_address_type_uuid,
+                "value": "%02d" % n,
+                "visibility": (
+                    _TestableAdMoSyncLoraCacheAddresses.visibility_public_uuid
+                    if ((n % 2) == 0)
+                    else _TestableAdMoSyncLoraCacheAddresses.visibility_internal_uuid
+                ),
+            }
+            for n in range(6)
         ]
         # Order the addresses randomly
         random.shuffle(user_addresses)
-        # Map the AD field `mail` to the MO address type we are using
-        user_address_mapping = {"mail": [self._mo_address_type_uuid, None]}
+        # Map the AD fields `mail` and 'internalMail' to the same MO address type, but
+        # two different visibility class UUIDs.
+        user_address_mapping = {
+            "mail": [self._mo_address_type_uuid, "PUBLIC"],
+            "internalMail": [self._mo_address_type_uuid, "INTERNAL"],
+        }
+        # Our "AD object"
+        ad_object = {
+            "mail": "foobar@example.org",
+            "internalMail": "internal@customer.local",
+        }
         # Get an `AddressDecisionList` instance
         instance = self._get_instance(
-            {"mail": "foobar@example.org"},  # AD object
+            ad_object,
             user_addresses,
             user_address_mapping,
         )
-        # Assert that the first address is edited, and the others are terminated
-        for idx, (decision, address, *args) in enumerate(instance):
-            assert address["value"] == "address-%02d" % idx
-            if idx == 0:
-                assert decision == AddressDecisionList.EDIT
-            else:
-                assert decision == AddressDecisionList.TERMINATE
+        # Verify decision list
+        actual = [
+            dict(idx=idx, decision=decision, value=int(address["value"]))
+            for idx, (decision, address, *rest) in enumerate(instance)
+        ]
+        expected = [
+            # First, process the even addresses (= public addresses)
+            dict(idx=0, decision=AddressDecisionList.EDIT, value=0),
+            dict(idx=1, decision=AddressDecisionList.TERMINATE, value=2),
+            dict(idx=2, decision=AddressDecisionList.TERMINATE, value=4),
+            # Then, process the odd addresses (= internal addresses)
+            dict(idx=3, decision=AddressDecisionList.EDIT, value=1),
+            dict(idx=4, decision=AddressDecisionList.TERMINATE, value=3),
+            dict(idx=5, decision=AddressDecisionList.TERMINATE, value=5),
+        ]
+        assert actual == expected
 
     def test_address_is_created(self):
         instance = self._get_instance(
