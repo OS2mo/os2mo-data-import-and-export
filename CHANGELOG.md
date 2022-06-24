@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.38.0 - 2022-06-24
+-------------------
+
+[#xxxxx] Adds a graphql cli tool.
+
 2.37.2 - 2022-06-22
 -------------------
 
