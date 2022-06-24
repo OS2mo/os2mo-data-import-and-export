@@ -312,14 +312,21 @@ class MockLoraCacheUserAddress(MockLoraCacheExtended):
             addr.setdefault("uuid", str(uuid.uuid4()))
             addr.setdefault("user", MO_UUID)
             addr.setdefault("visibility", str(uuid.uuid4()))
-            addr.setdefault("from_date", "")
-            addr.setdefault("to_date", "")
+            addr.setdefault("from_date", None)
+            addr.setdefault("to_date", None)
             return addr
 
         return dict((addr["uuid"], [addr]) for addr in map(fixup, self._addresses))
 
 
 class MockMoraHelper(MoraHelper):
+    class _MockResponse:
+        def __init__(self, url: str, payload: dict, force: bool):
+            self.url = url
+            self.payload = payload
+            self.force = force
+            self.text = "mock response"
+
     def __init__(self, cpr, mo_uuid=None, read_ou_addresses=None):
         self._mo_user = {"cpr_no": cpr, "uuid": mo_uuid or MO_UUID}
         self._read_ou_addresses = read_ou_addresses or {}

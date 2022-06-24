@@ -15,6 +15,7 @@ from hypothesis import settings
 from hypothesis import strategies as st
 from parameterized import parameterized
 
+from ..ad_reader import ADParameterReader
 from ..ad_sync import AddressDecisionList
 from ..ad_sync import AdMoSync
 from ..utils import AttrDict
@@ -136,14 +137,12 @@ class _TestableAdMoSyncLoraCacheAddresses(_TestableAdMoSync):
 
     def __init__(self, user_addresses: List[dict], user_address_mapping: dict):
         self._user_addresses = user_addresses
+        self._user_address_mapping = user_address_mapping
         super().__init__()
         # Usually this is set by `AdMoSync._update_users`, but we set it here, so it can
         # be read by `AdMoSync._get_address_decision_list` even though `_update_users`
         # is not called during the test.
-        self.mapping = {"user_addresses": user_address_mapping}
-
-    def _setup_settings(self, all_settings):
-        self.settings = {}
+        self.mapping = {"user_addresses": self._user_address_mapping}
 
     def _setup_visibilities(self):
         self.visibility = {
@@ -155,6 +154,40 @@ class _TestableAdMoSyncLoraCacheAddresses(_TestableAdMoSync):
     def _setup_lora_cache(self):
         return MockLoraCacheUserAddress(self._user_addresses)
 
+
+class _TestableAdMoSyncUpdateUsersLoraCache(_TestableAdMoSyncLoraCacheAddresses):
+    def __init__(
+        self,
+        user_addresses: List[dict],
+        user_address_mapping: dict,
+    ):
+        super().__init__(user_addresses, user_address_mapping)
+
+    def _setup_settings(self, all_settings):
+        # Just enough to make `_update_users` enter iteration over multiple ADs
+        self.settings = {"integrations.ad": ["one", "two"]}
+
+    def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
+        self._ad_reader_mock = MagicMock(spec=ADParameterReader)
+        self._ad_reader_mock._get_setting.return_value = self._get_mock_settings(index)
+        self._ad_reader_mock.read_user.return_value = self._get_mock_ad_user(index)
+        return self._ad_reader_mock
+
+    def _get_mock_settings(self, index: int):
+        return {
+            "ad_mo_sync_mapping": {"user_addresses": self._user_address_mapping},
+            "ad_mo_sync_terminate_disabled": True,
+            "ad_mo_sync_terminate_missing": True,
+            "ad_mo_sync_terminate_missing_require_itsystem": None,
+            "ad_mo_sync_pre_filters": [],
+            "ad_mo_sync_terminate_disabled_filters": [],
+        }
+
+    def _get_mock_ad_user(self, index: int):
+        if index == 0:
+            return {"field": "ad_value"}
+        else:
+            return {}  # indicate user is not found in `ADParameterReader` "cache"
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -1335,6 +1368,58 @@ class TestAddressDecisionListLoraCache:
         ]
         assert actual == expected
 
+    def test_multiple_ads_and_multiple_mo_addresses(self):
+        # Multiple addresses using different address types, but sharing the same (blank)
+        # visibility class.
+        address_type_uuid_1 = str(uuid.uuid4())
+        address_type_uuid_2 = str(uuid.uuid4())
+        address_type_uuid_3 = str(uuid.uuid4())
+        user_addresses = [
+            {
+                "adresse_type": address_type_uuid_1,
+                "value": "first",
+                "visibility": None,
+            },
+            {
+                "adresse_type": address_type_uuid_2,
+                "value": "second",
+                "visibility": None,
+            },
+            {
+                "adresse_type": address_type_uuid_3,
+                "value": "third",
+                "visibility": None,
+            },
+        ]
+        # Order the addresses randomly
+        random.shuffle(user_addresses)
+
+        # Our "AD objects" (multiple AD objects for the same person, as we simulate
+        # synchronizing from multiple ADs.)
+        ad_object_1 = {"field1": "value1"}
+        ad_object_2 = {"field1": "value2"}
+        ad_object_3 = {}
+
+        # Get an `AddressDecisionList` instance for each AD object
+        zipped = zip(
+            (ad_object_1, ad_object_2, ad_object_3),
+            (address_type_uuid_1, address_type_uuid_2, address_type_uuid_3),
+        )
+        for ad_object, address_type_uuid in zipped:
+            user_address_mapping = {"field1": [address_type_uuid, None]}
+            instance = self._get_instance(
+                ad_object,
+                user_addresses,
+                user_address_mapping,
+            )
+            for decision, address, *rest in instance:
+                if decision == AddressDecisionList.EDIT:
+                    print("%s: from=%r to=%r" % (decision, address["value"], rest[0]))
+                else:
+                    print("%s: %r" % (decision, address["value"]))
+
+        assert False
+
     def test_address_is_created(self):
         instance = self._get_instance(
             {"mail": "foobar@example.org"},  # AD object
@@ -1409,3 +1494,52 @@ class TestAddressDecisionListLoraCache:
         )
         instance = ad_mo_sync._get_address_decision_list(MO_UUID, ad_object)
         return instance
+
+
+class TestAdMoSyncUpdateUsersLoraCache:
+    def test_update_users_multiple_ads(self):
+        # Arrange
+        address_uuid = str(uuid.uuid4())
+        address_type_uuid = str(uuid.uuid4())
+        user_addresses = [
+            {
+                "uuid": address_uuid,
+                "adresse_type": address_type_uuid,
+                "value": "mo_value",
+                "visibility": None,
+            },
+        ]
+        user_address_mapping = {"field": [address_type_uuid, None]}
+
+        # Act
+        ad_mo_sync = _TestableAdMoSyncUpdateUsersLoraCache(
+            user_addresses, user_address_mapping
+        )
+        ad_mo_sync.update_all_users()
+
+        # Assert
+        calls = ad_mo_sync.helper._mo_post_calls
+        assert calls[0] == {
+            "url": "details/edit",
+            "payload": [
+                {
+                    "type": "address",
+                    "uuid": address_uuid,
+                    "data": {
+                        "validity": {"from": today_iso(), "to": None},
+                        "value": "ad_value",
+                        "address_type": {"uuid": address_type_uuid},
+                    },
+                }
+            ],
+            "force": True,
+        }
+        assert calls[1] == {
+            "url": "details/terminate",
+            "payload": {
+                "type": "address",
+                "uuid": address_uuid,
+                "validity": {"to": today_iso()},
+            },
+            "force": True,
+        }
