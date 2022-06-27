@@ -28,6 +28,8 @@ from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
+from exporters.os2rollekatalog.titles import export_titles
+
 logger = logging.getLogger(__name__)
 
 
@@ -361,6 +363,24 @@ def get_users(
     envvar="MOX_ROLLE_MAPPING",
 )
 @click.option(
+    "--client-id",
+    default="dipex",
+    envvar="CLIENT_ID",
+)
+@click.option(
+    "--client-secret",
+    envvar="CLIENT_SECRET",
+)
+@click.option(
+    "--auth-realm",
+    default="mo",
+    envvar="AUTH_REALM",
+)
+@click.option(
+    "--auth-server",
+    envvar="AUTH_SERVER",
+)
+@click.option(
     "--use-nickname",
     default=load_setting("exporters.os2rollekatalog.use_nickname", False),
     type=click.BOOL,
@@ -368,6 +388,22 @@ def get_users(
     help=(
         "Use employee nicknames if available. Will use name if nickname is unavailable"
     ),
+)
+@click.option(
+    "--use-nickname",
+    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Use employee nicknames if available. Will use name if nickname is unavailable"
+    ),
+)
+@click.option(
+    "--sync-titles",
+    default=load_setting("exporters.os2rollekatalog.sync_titles", False),
+    type=click.BOOL,
+    required=False,
+    help="Sync engagement_job_functions to titles in rollekataloget",
 )
 @click.option(
     "--dry-run",
@@ -384,7 +420,12 @@ def main(
     rollekatalog_root_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
+    client_id: str,
+    client_secret: str,
+    auth_realm: str,
+    auth_server: str,
     use_nickname: bool,
+    sync_titles: bool,
     dry_run: bool,
 ):
     """OS2Rollekatalog exporter.
@@ -393,6 +434,18 @@ def main(
     Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
     """
     init_log(log_file_path)
+
+    if sync_titles:
+        export_titles(
+            mora_base=mora_base,
+            client_id=client_id,
+            client_secret=client_secret,
+            auth_realm=auth_realm,
+            auth_server=auth_server,
+            rollekatalog_url=rollekatalog_url,
+            rollekatalog_api_key=rollekatalog_api_key,
+            dry_run=dry_run,
+        )
 
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
