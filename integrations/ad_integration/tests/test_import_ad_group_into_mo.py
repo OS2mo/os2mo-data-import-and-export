@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import Tuple
 
-import pytest
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from ..ad_reader import ADParameterReader
@@ -16,6 +15,9 @@ from .mocks import MockMoraHelper
 
 class _MockMoraHelperNoEmployeeITUsers(MockMoraHelper):
     def get_e_itsystems(self, e_uuid, it_system_uuid=None):
+        return []
+
+    def read_user_engagement(self, *args, **kwargs):
         return []
 
 
@@ -59,6 +61,20 @@ class TestADMOImporter:
     def test_create_or_update_users_in_mo(self):
         # Regression test for #51052
         instance = _TestableADMOImporter()
-        with pytest.raises(TypeError):
-            # TypeError: Object of type UUID is not JSON serializable
-            instance.create_or_update_users_in_mo()
+        instance.create_or_update_users_in_mo()
+
+        expected_ops = [
+            (
+                "details/create",
+                "it",
+            ),
+            (
+                "details/create",
+                "engagement",
+            ),
+        ]
+        ops = [
+            (call["url"], call["payload"]["type"])
+            for call in instance.helper._mo_post_calls
+        ]
+        assert ops == expected_ops

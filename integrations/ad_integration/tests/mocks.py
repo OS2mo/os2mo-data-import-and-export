@@ -6,6 +6,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 from uuid import uuid4
 
+import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 from winrm import Session
 
@@ -342,6 +343,7 @@ class MockMoraHelper(MoraHelper):
     def _mo_post(self, url, payload, force=True):
         json.dumps(payload)
         self._mo_post_calls.append(dict(url=url, payload=payload, force=force))
+        return Mock(spec=requests.Response, status_code=201)
 
 
 class MockADWriterContext(ExitStack):

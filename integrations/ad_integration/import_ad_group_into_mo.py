@@ -140,7 +140,7 @@ class ADMOImporter(object):
         logger.info("Connect user to AD: {}".format(username))
 
         payload = payloads.connect_it_system_to_user(
-            mo_uuid, username, self.AD_it_system_uuid, from_date=self.run_date
+            str(mo_uuid), username, str(self.AD_it_system_uuid), from_date=self.run_date
         )
         logger.debug("AD account payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
@@ -160,7 +160,10 @@ class ADMOImporter(object):
 
         # TODO: Check if we can use job title from AD
         payload = payloads.create_engagement(
-            ad_user=ad_user, validity=validity, person_uuid=person_uuid, **uuids
+            ad_user=ad_user,
+            validity=validity,
+            person_uuid=str(person_uuid),
+            **{k: str(v) for k, v in uuids.items()},
         )
         logger.info("Create engagement payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
