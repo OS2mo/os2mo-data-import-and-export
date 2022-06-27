@@ -1,4 +1,5 @@
 import copy
+import json
 from contextlib import ExitStack
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -17,6 +18,7 @@ MO_CHILD_ORG_UNIT_UUID = uuid4()
 MO_UUID = "not-a-uuid"
 AD_UUID_FIELD = "uuidField"
 UNKNOWN_CPR_NO = "not-a-cpr-no"
+MO_AD_IT_SYSTEM_UUID = uuid4()
 
 
 class MockAD(AD):
@@ -292,10 +294,11 @@ class MockLoraCacheUnitAddress(MockLoraCacheExtended):
 
 
 class MockMoraHelper(MoraHelper):
-    def __init__(self, cpr, read_ou_addresses=None):
-        self._mo_user = {"cpr_no": cpr, "uuid": MO_UUID}
+    def __init__(self, cpr, mo_uuid=None, read_ou_addresses=None):
+        self._mo_user = {"cpr_no": cpr, "uuid": mo_uuid or MO_UUID}
         self._read_ou_addresses = read_ou_addresses or {}
         self._read_user_calls = []
+        self._mo_post_calls = []
         super().__init__()
 
     def read_organisation(self):
@@ -335,6 +338,10 @@ class MockMoraHelper(MoraHelper):
                 "address_type": {"uuid": "address-type-uuid"},
             }
         ]
+
+    def _mo_post(self, url, payload, force=True):
+        json.dumps(payload)
+        self._mo_post_calls.append(dict(url=url, payload=payload, force=force))
 
 
 class MockADWriterContext(ExitStack):
