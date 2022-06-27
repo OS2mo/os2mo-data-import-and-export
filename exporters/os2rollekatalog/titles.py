@@ -63,13 +63,14 @@ def check_update_titles(
         if current_titles == titles:
             click.echo("Current titles in rollekataloget matches OS2MO")
         else:
-            click.echo("Current titles in rollekataloget dosn't match OS2MO")
+            click.echo("Current titles in rollekataloget doesn't match OS2MO")
             click.echo(f"{current_titles=}")
             click.echo(f"{titles=}")
 
         return None
 
     if current_titles == titles:
+        click.echo("No changes to titles - not posting titles to OS2Rollekataloget.")
         return None
 
     post = requests.post(
