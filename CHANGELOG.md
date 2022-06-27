@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.39.0 - 2022-06-27
+-------------------
+
+[#50747] OS2Rollekatalog export: Adds information on engagement_types to the "titles" endpoint in rollekataloget.
+
 2.38.0 - 2022-06-24
 -------------------
 
