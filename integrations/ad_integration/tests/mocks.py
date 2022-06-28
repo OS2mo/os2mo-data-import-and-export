@@ -1,5 +1,6 @@
 import copy
 import json
+import uuid
 from contextlib import ExitStack
 from unittest.mock import MagicMock
 from unittest.mock import Mock
@@ -341,9 +342,15 @@ class MockMoraHelper(MoraHelper):
         ]
 
     def _mo_post(self, url, payload, force=True):
+        # Raise exception if payload cannot be serialized as JSON, e.g. if it contains
+        # types that cannot be serialized as JSON (`uuid.UUID`, etc.)
         json.dumps(payload)
+        # Record the MO API call
         self._mo_post_calls.append(dict(url=url, payload=payload, force=force))
-        return Mock(spec=requests.Response, status_code=201)
+        # Mock the MO API response
+        mock_response = Mock(spec=requests.Response, status_code=201)
+        mock_response.json.return_value = str(uuid.uuid4())
+        return mock_response
 
 
 class MockADWriterContext(ExitStack):
