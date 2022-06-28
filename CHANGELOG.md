@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.39.1 - 2022-06-28
+-------------------
+
+[#51052] Fix `TypeError` in `ADMOImporter` (cannot serialize `uuid.UUID` as JSON values)
+
 2.39.0 - 2022-06-27
 -------------------
 
