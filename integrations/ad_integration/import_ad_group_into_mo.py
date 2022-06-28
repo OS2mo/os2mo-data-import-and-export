@@ -159,11 +159,14 @@ class ADMOImporter(object):
             person_uuid = mo_uuid
 
         # TODO: Check if we can use job title from AD
+
+        # Convert `uuid.UUID` values to strings before passing to `create_engagement`
+        payload_kwargs = {k: str(v) for k, v in uuids.items()}
         payload = payloads.create_engagement(
             ad_user=ad_user,
             validity=validity,
             person_uuid=str(person_uuid),
-            **{k: str(v) for k, v in uuids.items()},
+            **payload_kwargs,
         )
         logger.info("Create engagement payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
