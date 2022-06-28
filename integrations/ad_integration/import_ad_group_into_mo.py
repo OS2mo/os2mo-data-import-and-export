@@ -1,9 +1,11 @@
 import datetime
 import logging
 from operator import itemgetter
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from uuid import UUID
 
 import click
@@ -17,41 +19,51 @@ from tqdm import tqdm
 
 import constants
 from . import payloads
+from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 
-# Set up a real logger!
-logger = logging.getLogger("ImportADGroup")
 
-LOG_LEVEL = logging.DEBUG
 LOG_FILE = "external_ad_users.log"
 
-for name in logging.root.manager.loggerDict:
-    if name in ("ImportADGroup", "AdReader", "mora-helper", "AdCommon"):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format="%(levelname)s %(asctime)s %(name)s %(message)s",
-    level=LOG_LEVEL,
-    filename=LOG_FILE,
-)
+logger = logging.getLogger("ImportADGroup")
 
 
 class ADMOImporter(object):
     def __init__(self):
         self.run_date = datetime.datetime.now().strftime("%Y-%m-%d")
-        self.settings = load_settings()
+
+        self.settings = self._get_settings()
+        self.helper = self._get_mora_helper()
+
         self.root_ou_uuid = self.settings["integrations.ad.import_ou.mo_unit_uuid"]
-        self.helper = MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
         self.org_uuid = self.helper.read_organisation()
 
-        self.ad_reader = ADParameterReader()
-        self.ad_reader.cache_all(print_progress=True)
+        self.AD_it_system_uuid = self._get_ad_it_system()
 
-        its = self.helper.read_it_systems()
-        AD_its = only(filter(lambda x: x["name"] == constants.AD_it_system, its))
-        self.AD_it_system_uuid = AD_its["uuid"]
+        self.ad_reader = self._get_ad_reader()
+
+    def _get_settings(self) -> Dict[str, Any]:
+        return load_settings()
+
+    def _get_mora_helper(self) -> MoraHelper:
+        return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
+
+    def _get_ad_it_system(self) -> UUID:
+        it_systems = self.helper.read_it_systems()
+        ad_it_systems = only(
+            filter(lambda x: x["name"] == constants.AD_it_system, it_systems)
+        )
+        return ad_it_systems["uuid"]
+
+    def _get_ad_reader(self) -> ADParameterReader:
+        ad_reader = ADParameterReader()
+        ad_reader.cache_all(print_progress=True)
+        return ad_reader
+
+    def _ensure_class_in_lora(
+        self, facet_bvn: str, class_value: str
+    ) -> Tuple[UUID, bool]:
+        return ensure_class_in_lora(facet_bvn, class_value)
 
     def _find_or_create_unit_and_classes(self):
         """
@@ -60,9 +72,9 @@ class ADMOImporter(object):
         containg uuids needed to create users and engagements.
         """
         # TODO: Add a dynamic creation of classes
-        job_type, _ = ensure_class_in_lora("engagement_job_function", "Ekstern")
-        eng_type, _ = ensure_class_in_lora("engagement_type", "Ekstern")
-        org_unit_type, _ = ensure_class_in_lora("org_unit_type", "Ekstern")
+        job_type, _ = self._ensure_class_in_lora("engagement_job_function", "Ekstern")
+        eng_type, _ = self._ensure_class_in_lora("engagement_type", "Ekstern")
+        org_unit_type, _ = self._ensure_class_in_lora("org_unit_type", "Ekstern")
 
         unit = self.helper.read_ou(uuid=self.root_ou_uuid)
         if "status" in unit:  # Unit does not exist
@@ -128,7 +140,7 @@ class ADMOImporter(object):
         logger.info("Connect user to AD: {}".format(username))
 
         payload = payloads.connect_it_system_to_user(
-            mo_uuid, username, self.AD_it_system_uuid, from_date=self.run_date
+            str(mo_uuid), username, str(self.AD_it_system_uuid), from_date=self.run_date
         )
         logger.debug("AD account payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
@@ -147,8 +159,14 @@ class ADMOImporter(object):
             person_uuid = mo_uuid
 
         # TODO: Check if we can use job title from AD
+
+        # Convert `uuid.UUID` values to strings before passing to `create_engagement`
+        payload_kwargs = {k: str(v) for k, v in uuids.items()}
         payload = payloads.create_engagement(
-            ad_user=ad_user, validity=validity, person_uuid=person_uuid, **uuids
+            ad_user=ad_user,
+            validity=validity,
+            person_uuid=str(person_uuid),
+            **payload_kwargs,
         )
         logger.info("Create engagement payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
@@ -260,4 +278,5 @@ def import_ad_group(**args):
 
 
 if __name__ == "__main__":
+    start_logging(LOG_FILE)
     import_ad_group()
