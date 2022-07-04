@@ -11,11 +11,21 @@ MO_TEST_ENG_1 = {
     "job_function": {"name": "tester", "uuid": "job_function_uuid"},
     "org_unit": {"uuid": "org_unit_uuid"},
 }
-POSITONS_1 = {"name": "tester", "orgUnitUuid": "org_unit_uuid"}
-POSITONS_TITLES_1 = {
+MO_TEST_ENG_2 = {
+    "job_function": {"name": "QA", "uuid": "job_function_uuid2"},
+    "org_unit": {"uuid": "org_unit_uuid2"},
+}
+POSITIONS_1 = {"name": "tester", "orgUnitUuid": "org_unit_uuid"}
+POSITIONS_2 = {"name": "QA", "orgUnitUuid": "org_unit_uuid2"}
+POSITIONS_TITLES_1 = {
     "name": "tester",
     "titleUuid": "job_function_uuid",
     "orgUnitUuid": "org_unit_uuid",
+}
+POSITIONS_TITLES_2 = {
+    "name": "QA",
+    "titleUuid": "job_function_uuid2",
+    "orgUnitUuid": "org_unit_uuid2",
 }
 
 
@@ -24,10 +34,13 @@ POSITONS_TITLES_1 = {
     [
         # No engagements in MO - No positions to rollekataloget
         ([], []),
-        # One current engagement
+        # One engagement
         ([MO_TEST_ENG_1], []),
-        # One future engagement
         ([], [MO_TEST_ENG_1]),
+        # More than one engagement:
+        ([MO_TEST_ENG_1], [MO_TEST_ENG_2]),
+        ([MO_TEST_ENG_1, MO_TEST_ENG_2], []),
+        ([], [MO_TEST_ENG_1, MO_TEST_ENG_2]),
     ],
 )
 def test_get_employee_engagements(current, future):
@@ -41,10 +54,12 @@ def test_get_employee_engagements(current, future):
 @pytest.mark.parametrize(
     "sync_titles,engagement,expected",
     [
-        # One current engagement
-        (False, MO_TEST_ENG_1, POSITONS_1),
-        # One future engagement
-        (True, MO_TEST_ENG_1, POSITONS_TITLES_1),
+        # Without syncing titles:
+        (False, MO_TEST_ENG_1, POSITIONS_1),
+        (False, MO_TEST_ENG_2, POSITIONS_2),
+        # Sync titles
+        (True, MO_TEST_ENG_1, POSITIONS_TITLES_1),
+        (True, MO_TEST_ENG_2, POSITIONS_TITLES_2),
     ],
 )
 def test_convert_position(sync_titles, engagement, expected):
