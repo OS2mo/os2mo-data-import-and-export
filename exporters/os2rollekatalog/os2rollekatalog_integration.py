@@ -10,6 +10,7 @@ import json
 import logging
 import sys
 from functools import lru_cache
+from functools import partial
 from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from pathlib import Path
@@ -199,12 +200,29 @@ def get_org_units(
     return converted_org_units
 
 
+def get_employee_engagements(employee_uuid, mh: MoraHelper):
+    present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
+    return present + future
+
+
+def convert_position(e: Dict, sync_titles: bool = False):
+    position = {
+        "name": e["job_function"]["name"],
+        "orgUnitUuid": e["org_unit"]["uuid"],
+    }
+    if sync_titles:
+        position["titleUuid"] = e["job_function"]["uuid"]
+    return position
+
+
 def get_users(
     mh: MoraHelper,
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
     use_nickname: bool = False,
+    sync_titles: bool = False,
 ) -> List[Dict[str, Any]]:
     # read mapping
     employees = mh.read_all_users()
@@ -245,32 +263,18 @@ def get_users(
                 return emails[0]["value"]
             return None
 
-        def get_employee_positions(employee_uuid, mh: MoraHelper):
-            present = mh._mo_lookup(
-                employee_uuid, "e/{}/details/engagement?validity=present"
-            )
-            future = mh._mo_lookup(
-                employee_uuid, "e/{}/details/engagement?validity=future"
-            )
-            engagements = present + future
-
-            converted_positions = []
-            for engagement in engagements:
-                converted_positions.append(
-                    {
-                        "name": engagement["job_function"]["name"],
-                        "orgUnitUuid": engagement["org_unit"]["uuid"],
-                    }
-                )
-            return converted_positions
-
-        # read positions first to filter any persons with engagements
+        # Read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
-        positions = get_employee_positions(employee_uuid, mh)
+        engagements = get_employee_engagements(employee_uuid, mh)
+        convert = partial(convert_position, sync_titles=sync_titles)
+        # Convert MO engagements to Rollekatalog positions
+        converted_positions = map(convert, engagements)
+
+        # Filter positions outside relevant orgunits
         positions = list(
             filter(
                 lambda position: position["orgUnitUuid"] in org_unit_uuids,
-                positions,
+                converted_positions,
             )
         )
         if not positions:
@@ -462,7 +466,12 @@ def main(
     try:
         logger.info("Reading employees")
         users = get_users(
-            mh, mapping_file_path, org_unit_uuids, ou_filter, use_nickname
+            mh,
+            mapping_file_path,
+            org_unit_uuids,
+            ou_filter,
+            use_nickname,
+            sync_titles=sync_titles,
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
