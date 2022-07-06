@@ -1,7 +1,10 @@
 from datetime import date
 from itertools import chain
+from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import List
+from typing import Tuple
 from unittest import TestCase
 from unittest.mock import MagicMock
 
@@ -10,6 +13,7 @@ from parameterized import parameterized
 from ..ad_sync import AdMoSync
 from ..utils import AttrDict
 from .mocks import MO_UUID
+from .mocks import MockADParameterReader
 from .mocks import MockLoraCache
 from .mocks import MockLoraCacheEmptyEmployee
 from .mocks import MockMoraHelper
@@ -50,6 +54,72 @@ class _TestableAdMoSyncLoraCache(_TestableAdMoSync):
 class _TestableAdMoSyncLoraCacheEmptyEmployee(_TestableAdMoSync):
     def _setup_lora_cache(self):
         return MockLoraCacheEmptyEmployee(MO_VALUES)
+
+
+class _TestableAdMoSyncLoraCacheUserAttrs(_TestableAdMoSync):
+    """A subclass of `_TestableAdMoSync` which is used by
+    `TestEditUserAttrsLoraCache.test_edit_user_attrs_is_idempotent` to test that calls
+    to `AdMoSync._edit_user_attrs` are idempotent.
+    """
+
+    class _MockMoraHelperMutatingLoraCache(MockMoraHelper):
+        """A subclass of `MockMoraHelper` which records all calls to `update_user` and
+        mutates the mocked (LoraCache) user object in order to test idempotency.
+        """
+
+        def __init__(self, loracache: MockLoraCache):
+            self.update_user_calls: List[Tuple[str, Dict[str, Any]]] = []
+            self._loracache = loracache
+            super().__init__("cpr")
+
+        def update_user(self, uuid, data):
+            # Record attempt to mutate user given by `uuid`
+            self.update_user_calls.append((uuid, data))
+            # Mutate the user in mock `LoraCache`
+            self._loracache.users[uuid][0].update(**data)
+
+    def __init__(self):
+        self.mo_user = {"uuid": MO_UUID}
+        super().__init__()
+
+    def _setup_settings(self, all_settings):
+        # Configuration keys required by `AdMoSync._update_users`
+        required_keys = {
+            "ad_mo_sync_pre_filters": [],
+            "ad_mo_sync_terminate_disabled": None,
+            "ad_mo_sync_terminate_disabled_filters": [],
+            "ad_mo_sync_terminate_missing": None,
+            "ad_mo_sync_terminate_missing_require_itsystem": None,
+        }
+
+        # Map AD field "UserPrincipalName" to MO field "user_key"
+        self.settings = {
+            "integrations.ad": [
+                {
+                    "ad_mo_sync_mapping": {
+                        "user_attrs": {"UserPrincipalName": "user_key"},
+                    },
+                    **required_keys,
+                }
+            ]
+        }
+
+    def _setup_lora_cache(self):
+        return MockLoraCache(self.mo_user)
+
+    def _setup_mora_helper(self):
+        # Return a helper mutating the mock `LoraCache` returned by `_setup_lora_cache`
+        return self._MockMoraHelperMutatingLoraCache(self.lc)
+
+    def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
+        # Return a mock AD reader which also exposes our mocked `user_attrs` mapping
+
+        def _get_setting():
+            return self.settings["integrations.ad"][index]
+
+        self.mock_ad_reader = MockADParameterReader()
+        self.mock_ad_reader._get_setting = _get_setting
+        return self.mock_ad_reader
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -1144,3 +1214,23 @@ class TestReadAllMOUsers(TestCase):
         instance = _TestableAdMoSyncLoraCacheEmptyEmployee()
         employees = instance._read_all_mo_users()
         self.assertEqual(employees, [])
+
+
+class TestEditUserAttrsLoraCache:
+    def test_edit_user_attrs_is_idempotent(self):
+        # Invoke `_edit_user_attrs` twice on the same MO user and AD user
+        instance = _TestableAdMoSyncLoraCacheUserAttrs()
+        instance._update_users([instance.mo_user])
+        instance._update_users([instance.mo_user])
+
+        # Assert that we only issue *one* call to `self.helper.update_user` in
+        # `_edit_user_attrs` as neither the AD user or MO user has changed between the
+        # two update attempts.
+        assert len(instance.helper.update_user_calls) == 1
+
+        # Assert contents of the single update
+        mo_uuid, mo_data = instance.helper.update_user_calls[0]
+        ad_user = instance.mock_ad_reader.read_user()
+        assert mo_uuid == MO_UUID
+        assert mo_data["user_key"] == ad_user["UserPrincipalName"]
+        assert mo_data["validity"] == {"from": today_iso(), "to": None}
