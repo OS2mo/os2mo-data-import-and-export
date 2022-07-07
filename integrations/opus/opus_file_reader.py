@@ -1,7 +1,9 @@
 import datetime
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict
+from typing import Optional
 
 import click
 import fs
@@ -9,12 +11,11 @@ from google.cloud import storage
 from more_itertools import one
 from ra_utils.load_settings import load_settings
 from retrying import retry
-from smb.base import NotConnectedError
 
 
 class OpusReaderInterface(ABC):
     @abstractmethod
-    def list_opus_files(self) -> List[str]:
+    def list_opus_files(self) -> Dict[datetime.datetime, str]:
         raise NotImplementedError()
 
     @abstractmethod
@@ -83,7 +84,7 @@ class LocalOpusReader(OpusReaderInterface):
     def __init__(self, settings):
         self.settings = settings
 
-    def list_opus_files(self) -> Dict[datetime.datetime, Path]:
+    def list_opus_files(self) -> Dict[datetime.datetime, str]:
         dump_path = Path(self.settings["integrations.opus.import.xml_path"])
         return self.map_dates(dump_path.glob("*.xml"))
 
@@ -125,7 +126,7 @@ def list_files():
 
 
 @cli.command()
-@click.option("--date", prompt=None, type=click.DateTime())
+@click.option("--date", type=click.DateTime())
 def read_file(date):
     """Read opus-file from specific date. If no date is supplied show all available dates"""
     ofr = get_opus_filereader()

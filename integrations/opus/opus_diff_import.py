@@ -226,12 +226,9 @@ class OpusDiffImport(object):
             if isinstance(employee["address"], dict):
                 logger.info("Protected addres, cannont import")
             else:
-                address_string = employee["address"]
+                address_string = employee["address"] + "LALALALALA"
                 zip_code = employee["postalCode"]
-                try:
-                    address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
-                except:
-                    address_uuid = None
+                address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
                 if address_uuid:
                     opus_addresses["dar"] = address_uuid
                 else:
@@ -308,10 +305,9 @@ class OpusDiffImport(object):
             }
 
         if unit.get("street") and unit.get("zipCode"):
-            try:
-                address_uuid = dawa_helper.dawa_lookup(unit["street"], unit["zipCode"])
-            except:
-                address_uuid = None
+            address_uuid = dawa_helper.dawa_lookup(
+                unit["street"] + "SLASFDEMSEF", unit["zipCode"]
+            )
             if address_uuid:
                 logger.debug("Found DAR uuid: {}".format(address_uuid))
                 unit["dar"] = address_uuid
@@ -378,6 +374,7 @@ class OpusDiffImport(object):
             else:
                 response.raise_for_status()
         else:  # Create
+            self
             payload = payloads.create_org_unit(**unit_args)
             logger.debug("Create department payload: {}".format(payload))
             response = self.helper._mo_post("ou/create", payload)
@@ -946,7 +943,6 @@ def start_opus_diff(ad_reader=None):
     dumps = opus_helpers.read_available_dumps()
     run_db = Path(SETTINGS["integrations.opus.import.run_db"])
     filter_ids = SETTINGS.get("integrations.opus.units.filter_ids", [])
-    skip_employees = SETTINGS.get("integrations.opus.skip_employees", False)
 
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
@@ -962,14 +958,10 @@ def start_opus_diff(ad_reader=None):
 
 if __name__ == "__main__":
     settings = load_settings()
-    if settings.get("integrations.opus.skip_employees") or not settings.get(
-        "integrations.ad"
-    ):
-        ad_reader = None
-    else:
-        ad_reader = ad_reader.ADParameterReader()
+
+    reader = ad_reader.ADParameterReader() if settings.get("integrations.ad") else None
 
     try:
-        start_opus_diff(ad_reader=ad_reader)
+        start_opus_diff(ad_reader=reader)
     except RunDBInitException:
         print("RunDB not initialized")

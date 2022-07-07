@@ -1,8 +1,4 @@
-import asyncio
-import time
-from datetime import datetime
-from operator import itemgetter
-from pathlib import Path
+from typing import Dict
 from typing import Optional
 
 import click
@@ -10,20 +6,14 @@ import requests
 from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
 from more_itertools import first
-from more_itertools import flatten
 from more_itertools import pairwise
-from more_itertools import partition
 from more_itertools import prepend
 from ra_utils.load_settings import load_settings
-from tqdm import tqdm
 
-import constants
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
-from tools.default_mo_setup import create_new_root_and_it
-from tools.default_mo_setup import ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
@@ -48,23 +38,15 @@ def find_opus_name() -> str:
 
 
 def prepare_re_import(
-    settings: Optional[list] = None,
+    settings: Optional[Dict] = None,
     opus_uuid: Optional[str] = None,
-    truncate: Optional[bool] = None,
     connections: int = 4,
 ) -> None:
-    """Create a MO setup with necessary classes.
-
-    Clear MO database, or only the opus-unit with the given uuid.
-    Ensure necessary classes exists.
-    """
+    """Remove all opus-units from MO"""
     settings = settings or load_settings()
     mox_base = settings.get("mox.base")
-    if truncate:
-        truncate_db(mox_base)
-        # Create root org and it systems
-        create_new_root_and_it()
-    elif opus_uuid:
+
+    if opus_uuid:
         session = requests.session()
         dub = find_duplicates_classes(session=session, mox_base=mox_base)
         if dub:
@@ -77,7 +59,6 @@ def prepare_re_import(
             keep_functions=["KLE", "Relateret Enhed"],
             connections=connections,
         )
-    ensure_default_classes()
 
 
 def import_opus(
@@ -90,7 +71,6 @@ def import_opus(
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
-    skip_employees = settings.get("integrations.opus.skip_employees", False)
     dumps = opus_helpers.read_available_dumps()
 
     all_dates = dumps.keys()
@@ -101,8 +81,8 @@ def import_opus(
     elif import_all:
         export_dates = sorted(all_dates)
 
-    export_dates = prepend(None, export_dates)
-    date_pairs = pairwise(export_dates)
+    all_export_dates = prepend(None, export_dates)
+    date_pairs = pairwise(all_export_dates)
     for date1, date2 in date_pairs:
         import_one(
             ad_reader,
@@ -176,7 +156,6 @@ def clear_and_reload(
     prepare_re_import(
         settings=settings,
         opus_uuid=opus_uuid,
-        truncate=truncate,
         connections=connections,
     )
     AD = None

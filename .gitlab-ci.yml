@@ -126,6 +126,13 @@ Lint RunDB Integration:
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
+Lint Opus Integration:
+  extends: .lint-python
+  script:
+    - cd integrations/opus/
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files tests/*.py *.py
+
 Lint Rollekatalog Exporter:
   extends: .lint-python
   script:

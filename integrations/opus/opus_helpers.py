@@ -1,9 +1,7 @@
 import datetime
 import hashlib
-import json
 import logging
 import pathlib
-import pickle
 import re
 import sqlite3
 import uuid
@@ -24,11 +22,7 @@ from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from integrations import cpr_mapper
-from integrations.opus import opus_diff_import
-from integrations.opus import opus_import
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
-from integrations.opus.opus_exceptions import RedundantForceException
-from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_file_reader import get_opus_filereader
 
 SETTINGS = load_settings()
@@ -53,10 +47,12 @@ def read_available_dumps() -> Dict[datetime.datetime, str]:
     assert len(dumps) > 0, "No Opus files found!"
     return dumps
 
+
 def get_latest_dump():
     dumps = read_available_dumps()
     latest_date = max(dumps.keys())
     return latest_date, dumps[latest_date]
+
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(
@@ -85,7 +81,7 @@ def initialize_db(run_db):
     conn.close()
 
 
-def next_xml_file(run_db, dumps) -> Tuple[datetime.date, datetime.date]:
+def next_xml_file(run_db, dumps) -> Tuple[Optional[datetime.date], datetime.date]:
     conn = sqlite3.connect(
         SETTINGS["integrations.opus.import.run_db"],
         detect_types=sqlite3.PARSE_DECLTYPES,
@@ -206,7 +202,7 @@ def find_changes(
     return changed_obj
 
 
-def find_missing(before: Dict, after: Dict) -> List[Dict]:
+def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
     """Check if an element is missing. This happens when an object is cancled in Opus.
 
     >>> a = [{"@id":1}, {"@id":2}, {"@id":3}]
@@ -225,10 +221,14 @@ def find_missing(before: Dict, after: Dict) -> List[Dict]:
 
 
 def file_diff(
-    file1: Optional[Path], file2: Path, disable_tqdm: bool = True, opus_id: Optional[int] = None
+    file1: Optional[Path],
+    file2: Path,
+    disable_tqdm: bool = True,
+    opus_id: Optional[int] = None,
 ):
     """Compares two files and returns all units and employees that have been changed."""
-    units1 = employees1 = {}
+    units1: List[Dict] = []
+    employees1: List[Dict] = []
     if file1:
         units1, employees1 = parser(file1, opus_id=opus_id)
     units2, employees2 = parser(file2, opus_id=opus_id)
@@ -268,52 +268,6 @@ def compare_employees(original, new, force=False):
             msg = "Changed {} from {} to {}"
             print(msg.format(key, original.get(key), new[key]))
     return identical
-
-
-def update_employee(employee_number, days):
-    from integrations.ad_integration import ad_reader
-
-    employee_mapping = read_cpr_mapping()
-    ad_read = ad_reader.ADParameterReader()
-    latest_date = None
-
-    current_object = {}
-    cut_date = datetime.datetime.now() - datetime.timedelta(days=days)
-    dumps = read_available_dumps()
-
-    for date in sorted(dumps.keys()):
-        print(date)
-        if date < cut_date:
-            continue
-        dump_file = dumps[date]
-        data = read_dump_data(dump_file)
-
-        employees = data["employee"]
-        for employee in employees:
-            if employee["@id"] != employee_number:
-                continue
-
-            if employee == current_object:
-                continue
-            if not compare_employees(current_object, employee):
-                if not latest_date:
-                    latest_date = date - datetime.timedelta(days=1)
-                msg = "date: {}, lastChanged: {}"
-                print(msg.format(date, employee["@lastChanged"]))
-
-                diff = opus_diff_import.OpusDiffImport(
-                    latest_date, ad_reader=ad_read, employee_mapping=employee_mapping
-                )
-
-                if current_object:
-                    # If this is not the first edit, we force the lastChanged to that
-                    # of the latest known edit.
-                    employee["@lastChanged"] = latest_date.strftime("%Y-%m-%d")
-                else:
-                    employee["@lastChanged"] = employee["entryDate"]
-                diff.import_single_employment(employee)
-                current_object = employee
-                latest_date = date
 
 
 def filter_units(units, filter_ids):
@@ -379,7 +333,7 @@ def filter_units(units, filter_ids):
     return partition(is_disjoint_from_filter_ids, units)
 
 
-def filter_employees(employees: List[Dict], all_filtered_ids: set):
+def filter_employees(employees: Iterable[Dict], all_filtered_ids: set):
     """Remove any employees that has an engagement in an unit that is in all_filtered_ids
 
     >>> e = [{'orgUnit': "1"}, {'orgUnit': "2"}]
@@ -388,8 +342,7 @@ def filter_employees(employees: List[Dict], all_filtered_ids: set):
     [{'orgUnit': '1'}]
 
     """
-    is_filtered = lambda empl: empl.get("orgUnit") not in all_filtered_ids
-    return filter(is_filtered, employees)
+    return filter(lambda empl: empl.get("orgUnit") not in all_filtered_ids, employees)
 
 
 def split_employees_leaves(employees: List[Dict]) -> Tuple[Iterable, Iterable]:
@@ -403,8 +356,8 @@ def split_employees_leaves(employees: List[Dict]) -> Tuple[Iterable, Iterable]:
     >>> list(e2)
     [{'@action': 'leave'}]
     """
-    is_leave = lambda empl: empl.get("@action") == "leave"
-    return partition(is_leave, employees)
+
+    return partition(lambda empl: empl.get("@action") == "leave", employees)
 
 
 def read_cpr(employee: OrderedDict) -> str:
@@ -433,11 +386,11 @@ def include_cancelled(filename: Path, employees, cancelled_employees) -> List:
     [{'id': 1, 'leaveDate': '2020-01-01'}]
     """
 
-    filedate = re.search("\d{8}", str(filename))
-    filedate = datetime.datetime.strptime(filedate.group(), "%Y%m%d")
-    filedate = filedate.strftime("%Y-%m-%d")
+    filedate = re.search(r"\d{8}", str(filename))  # type: ignore
+    filedatetime = datetime.datetime.strptime(filedate.group(), "%Y%m%d")  # type: ignore
+    filedatestr = filedatetime.strftime("%Y-%m-%d")
     for empl in cancelled_employees:
-        empl["leaveDate"] = filedate
+        empl["leaveDate"] = filedatestr
     employees.extend(cancelled_employees)
     return employees
 
@@ -461,11 +414,11 @@ def read_and_transform_data(
     )
     all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
     filtered_units, units = filter_units(file_diffs["units"], filter_ids)
-    employees, terminated_employees = split_employees_leaves(employees)
-    employees = filter_employees(employees, all_filtered_ids)
+    active_employees, terminated_employees = split_employees_leaves(employees)
+    filtered_employees = filter_employees(active_employees, all_filtered_ids)
     return (
         list(units),
         list(filtered_units),
-        list(employees),
+        list(filtered_employees),
         list(terminated_employees),
     )

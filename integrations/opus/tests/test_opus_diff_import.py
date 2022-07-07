@@ -310,7 +310,6 @@ class Opus_diff_import_tester(unittest.TestCase):
         xml_date,
     ):
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
-        date = xml_date.strftime("%Y-%m-%d")
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
             {"user_key": "username1", "uuid": "dummyuuid"},
@@ -319,7 +318,10 @@ class Opus_diff_import_tester(unittest.TestCase):
         with self.assertLogs() as cm:
             diff.connect_it_system("new_username", "Opus", {}, "personuuid")
             diff.morahelper_mock._mo_post.assert_not_called()
-            assert cm.output == ['WARNING:opusImport:Skipped connecting Opus IT system . More than one '"IT system found for person_uuid='personuuid'"]
+            assert cm.output == [
+                "WARNING:opusImport:Skipped connecting Opus IT system . More than one "
+                "IT system found for person_uuid='personuuid'"
+            ]
 
 
 if __name__ == "__main__":
