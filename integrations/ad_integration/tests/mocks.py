@@ -33,6 +33,8 @@ class MockADParameterReader(TestADWriterMixin):
     """Mock implementation of `ADParameterReader` which always returns the same
     AD user."""
 
+    generate_dynamic_person = False
+
     def read_user(self, cpr=None, **kwargs):
         return self._prepare_get_from_ad(ad_transformer=None)
 

@@ -166,16 +166,11 @@ class AddressDecisionList:
 class AdMoSync:
     def __init__(self, all_settings=None):
         logger.info("AD Sync Started")
-
-        self._setup_settings(all_settings)
-
-        self.helper = self._setup_mora_helper()
+        self._setup_settings(all_settings)  # Populates `self.settings`
+        self.lc = self._setup_lora_cache()  # Depends on `self.settings`
+        self.helper = self._setup_mora_helper()  # Depends on `self.settings`
+        self._setup_visibilities()  # Depends on `self.settings` and `self.helper`
         self.org = self.helper.read_organisation()
-
-        # Possibly get IT-system directly from LoRa for better performance.
-        self.lc = self._setup_lora_cache()
-
-        self._setup_visibilities()
 
     def _setup_settings(self, all_settings):
         self.settings = all_settings
@@ -618,18 +613,20 @@ class AdMoSync:
         logger.debug("Response: {}".format(response.text))
         return response
 
-    def _edit_user_attrs(self, uuid, ad_object):
-        user_attrs = {
+    def _edit_user_attrs(self, employee, ad_object):
+        user_attrs_mapping = self.mapping.get("user_attrs", {}).items()
+        user_attrs_changed = {
             mo_field_name: ad_object.get(ad_field_name)
-            for ad_field_name, mo_field_name in self.mapping.get(
-                "user_attrs", {}
-            ).items()
-            if ad_object.get(ad_field_name) is not None
+            for ad_field_name, mo_field_name in user_attrs_mapping
+            if (
+                ad_object.get(ad_field_name) is not None
+                and ad_object[ad_field_name] != employee.get(mo_field_name)
+            )
         }
-        if user_attrs:
-            user_attrs["validity"] = VALIDITY
-            self.stats["users"].add(uuid)
-            return self.helper.update_user(uuid, user_attrs)
+        if user_attrs_changed:
+            user_attrs_changed["validity"] = VALIDITY
+            self.stats["users"].add(employee["uuid"])
+            return self.helper.update_user(employee["uuid"], user_attrs_changed)
 
     def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
@@ -638,14 +635,14 @@ class AdMoSync:
 
     def _update_single_user(
         self,
-        uuid,
+        employee,
         ad_object,
         terminate_disabled,
         terminate_disabled_filters,
     ):
         """Update all fields for a single user.
 
-        :param uuid: uuid of the user.
+        :param employee: MO employee object (dict)
         :param ad_object: Dict with the AD information for the user.
         :param terminate_disabled: terminate *all* disabled users if True
         :param terminate_disabled_filters: list of filter functions
@@ -653,7 +650,7 @@ class AdMoSync:
         # If `user_attrs` is set up, transfer values from mapped AD user fields
         # to corresponding MO user attributes.
         if self.mapping.get("user_attrs"):
-            self._edit_user_attrs(uuid, ad_object)
+            self._edit_user_attrs(employee, ad_object)
 
         # Debug log if enabled is not found
         if "Enabled" not in ad_object:
@@ -664,7 +661,7 @@ class AdMoSync:
         # terminate_disabled_filters, by invariant we at least one exist.
         if terminate_disabled is None:
             terminate_disabled = all(
-                terminate_disabled_filter((uuid, ad_object))
+                terminate_disabled_filter((employee["uuid"], ad_object))
                 for terminate_disabled_filter in terminate_disabled_filters
             )
 
@@ -672,18 +669,18 @@ class AdMoSync:
         # configured to terminate disabled users.
         if terminate_disabled and not user_enabled:
             # Set validity end --> today if in the future
-            self._terminate_single_user(uuid, ad_object)
+            self._terminate_single_user(employee["uuid"], ad_object)
             return
 
         # Sync the user, whether disabled or not
         if "it_systems" in self.mapping:
-            self._edit_it_system(uuid, ad_object)
+            self._edit_it_system(employee["uuid"], ad_object)
 
         if "engagements" in self.mapping:
-            self._edit_engagement(uuid, ad_object)
+            self._edit_engagement(employee["uuid"], ad_object)
 
         if "user_addresses" in self.mapping:
-            self._edit_user_addresses(uuid, ad_object)
+            self._edit_user_addresses(employee["uuid"], ad_object)
 
     def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
         ad_reader = ADParameterReader(index=index)
@@ -756,24 +753,25 @@ class AdMoSync:
                         raise Exception(msg.format(mo_combi))
                     used_mo_fields.append(mo_combi)
 
-            def employee_to_cpr_uuid(employee):
-                """Convert an employee to a tuple (cpr, uuid)."""
-                uuid = employee["uuid"]
+            def add_employee_cpr(employee):
+                """Convert an employee to a tuple (cpr, employee)."""
                 if "cpr" in employee:
                     cpr = employee["cpr"]
                 else:
-                    cpr = self.helper.read_user(uuid).get("cpr_no")
+                    uuid = employee["uuid"]
+                    user = self.helper.read_user(uuid)
+                    cpr = user.get("cpr_no")
                     if not cpr:
                         logger.warning("no 'cpr_no' for MO user %r", uuid)
-                return cpr, uuid
+                return cpr, employee
 
             @apply
-            def cpr_uuid_to_uuid_ad(cpr, uuid):
+            def cpr_uuid_to_uuid_ad(cpr, employee):
                 ad_object = ad_reader.read_user(cpr=cpr, cache_only=ad_cache_all)
-                return uuid, ad_object
+                return employee, ad_object
 
             @apply
-            def filter_no_ad_object(uuid, ad_object):
+            def filter_no_ad_object(employee, ad_object):
                 return ad_object
 
             # Lookup filter jinja templates
@@ -797,24 +795,28 @@ class AdMoSync:
                 terminate_disabled = False
 
             # Iterate over all users and sync AD informations to MO.
-            employees = map(employee_to_cpr_uuid, employees)
+            employees = map(add_employee_cpr, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
+
             # Remove all entries without ad_object
             missing_employees, employees = partition(filter_no_ad_object, employees)
+
             # Run all pre filters
             for pre_filter in pre_filters:
                 employees = filter(pre_filter, employees)
+
             # Call update_single_user on each remaining users
             print("Updating users")
             employees = list(employees)
             employees = tqdm(employees)
-            for uuid, ad_object in employees:
+            for employee, ad_object in employees:
                 # TODO: Convert this function into two seperate phases.
                 # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
                 # 2. Bulk updating of MO using the data from 1.
                 self._update_single_user(
-                    uuid, ad_object, terminate_disabled, terminate_disabled_filters
+                    employee, ad_object, terminate_disabled, terminate_disabled_filters
                 )
+
             # Call terminate on each missing user
             if terminate_missing:
                 print("Terminating missing users")
