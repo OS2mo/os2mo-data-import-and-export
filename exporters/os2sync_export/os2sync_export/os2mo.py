@@ -270,7 +270,10 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
-    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    allowed_unitids = org_unit_uuids(
+        root=settings.os2sync_top_unit_uuid,
+        hierarchy_uuids=settings.os2sync_filter_hierarchy_uuids,
+    )
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
     # Optionally find the work address of employees primary engagement.
@@ -294,9 +297,10 @@ def organization_uuid() -> str:
     return one(os2mo_get("{BASE}/o/").json())["uuid"]
 
 
-@lru_cache()
 def org_unit_uuids(**kwargs: Any) -> Set[str]:
     org_uuid = organization_uuid()
+    if hierarchy_uuids := kwargs.get("hierarchy_uuids"):
+        kwargs["hierarchy_uuids"] = [str(u) for u in hierarchy_uuids]
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
         "items"
     ]

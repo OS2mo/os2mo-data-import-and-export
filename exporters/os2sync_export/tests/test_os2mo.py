@@ -1,10 +1,15 @@
 import unittest
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
+from hypothesis import given
+from hypothesis import strategies as st
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
+from os2sync_export.os2mo import org_unit_uuids
+from os2sync_export.os2mo import os2mo_get
 from os2sync_export.os2mo import overwrite_unit_uuids
 from os2sync_export.os2mo import overwrite_user_uuids
 from os2sync_export.os2mo import partition_kle
@@ -206,3 +211,20 @@ class TestsMOAd(unittest.TestCase):
         ):
             overwrite_user_uuids(test_user, ["FK-org uuid", "AD ObjectGUID"])
         assert test_user == expected
+
+
+@patch("os2sync_export.os2mo.organization_uuid", return_value="root_uuid")
+@given(st.lists(st.uuids()))
+def test_org_unit_uuids(root_mock, hierarchy_uuids):
+    session_mock = MagicMock()
+    os2mo_get.cache_clear()
+    with patch("os2sync_export.os2mo.os2mo_get") as session_mock:
+
+        session_mock.return_value = MockOs2moGet({"items": [{"uuid": "test"}]})
+        org_unit_uuids(hierarchy_uuids=hierarchy_uuids)
+
+    session_mock.assert_called_once_with(
+        "{BASE}/o/root_uuid/ou/",
+        limit=999999,
+        hierarchy_uuids=[str(u) for u in hierarchy_uuids],
+    )

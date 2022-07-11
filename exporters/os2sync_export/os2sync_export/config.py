@@ -84,6 +84,8 @@ class Settings(BaseSettings):
 
     os2sync_user_key_it_system_name: str = "Active Directory"
 
+    os2sync_filter_hierarchy_uuids: List[UUID] = []
+
     class Config:
 
         env_file_encoding = "utf-8"
