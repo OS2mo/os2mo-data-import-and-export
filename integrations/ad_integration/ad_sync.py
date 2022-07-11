@@ -753,8 +753,8 @@ class AdMoSync:
                         raise Exception(msg.format(mo_combi))
                     used_mo_fields.append(mo_combi)
 
-            def employee_to_cpr_uuid(employee):
-                """Convert an employee to a tuple (cpr, uuid)."""
+            def add_employee_cpr(employee):
+                """Convert an employee to a tuple (cpr, employee)."""
                 if "cpr" in employee:
                     cpr = employee["cpr"]
                 else:
@@ -795,7 +795,7 @@ class AdMoSync:
                 terminate_disabled = False
 
             # Iterate over all users and sync AD informations to MO.
-            employees = map(employee_to_cpr_uuid, employees)
+            employees = map(add_employee_cpr, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
 
             # Remove all entries without ad_object
