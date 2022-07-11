@@ -13,8 +13,10 @@ class NoNewerDumpAvailable(Exception):
 class UnknownOpusAction(Exception):
     pass
 
+
 class UnknownOpusUnit(Exception):
     pass
+
 
 class EmploymentIdentifierNotUnique(Exception):
     pass
