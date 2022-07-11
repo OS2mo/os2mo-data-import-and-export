@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.39.3 - 2022-07-11
+-------------------
+
+[#51414] Compare mapped MO user attributes to mapped AD values, and only issue an update if any mapped fields have changed
+
 2.39.2 - 2022-07-05
 -------------------
 
