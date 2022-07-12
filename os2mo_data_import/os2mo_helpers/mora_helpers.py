@@ -328,13 +328,12 @@ class MoraHelper:
             )
         )
 
-        current_uuid = UUID(first(current)["uuid"])
-        if len(current) > 1:
-            print(
-                f"More than one class matched on title or bvn. Picked {current_uuid} from: {current}"
-            )
-
-        if current_uuid:
+        if current:
+            current_uuid = UUID(first(current)["uuid"])
+            if len(current) > 1:
+                print(
+                    f"More than one class matched on title or bvn. Picked {current_uuid} from: {current}"
+                )
             return current_uuid
 
         org_uuid = self.read_organisation()
