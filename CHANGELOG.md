@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.40.0 - 2022-07-12
+-------------------
+
+[#50996] Morahelpers: Allow setting owner on new classes. Improved handling of existing classes.
+
 2.39.3 - 2022-07-11
 -------------------
 
