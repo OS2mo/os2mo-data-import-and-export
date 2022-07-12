@@ -21,13 +21,13 @@ from uuid import UUID
 
 import requests
 from anytree import Node
-from more_itertools import one
+from more_itertools import first
 from more_itertools import only
 from ra_utils.headers import TokenSettings
 from tenacity import retry
 from tenacity import retry_if_exception_type
-from tenacity import wait_random_exponential
 from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
@@ -222,12 +222,13 @@ class MoraHelper:
         total = 1
         all_employees = []
         while start < total:
-            employee_list = self._mo_lookup(org, f"o/{{}}/e/?limit={limit}&start={start}", at=at)
+            employee_list = self._mo_lookup(
+                org, f"o/{{}}/e/?limit={limit}&start={start}", at=at
+            )
             all_employees.extend(employee_list["items"])
-            start = employee_list['offset'] + limit
-            total = employee_list['total']
+            start = employee_list["offset"] + limit
+            total = employee_list["total"]
         return all_employees
-
 
     def read_it_systems(self):
         """Read all it systems
@@ -304,21 +305,46 @@ class MoraHelper:
         facet_uuid = class_list["uuid"]
         return (classes, facet_uuid)
 
-    @lru_cache
+    @lru_cache(maxsize=None)
     def ensure_class_in_facet(
-        self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT", uuid: Optional[UUID] = None
+        self,
+        facet: str,
+        bvn: str,
+        title: Optional[str] = None,
+        scope: str = "TEXT",
+        uuid: Optional[UUID] = None,
+        owner: Optional[UUID] = None,
     ) -> UUID:
         """Ensures class exists in given facet."""
 
         classes, _ = self.read_classes_in_facet(facet)
-        current = list(filter(lambda c: c["user_key"] == bvn, classes))
+        class_title = title or bvn
+        # Check if title or bvn matches existing class
+        current = list(
+            filter(
+                lambda c: c["name"].lower() == class_title.lower()
+                or c["user_key"].lower() == bvn.lower(),
+                classes,
+            )
+        )
 
-        if current:
-            return UUID(one(current)["uuid"])
+        current_uuid = UUID(first(current)["uuid"])
+        if len(current) > 1:
+            print(
+                f"More than one class matched on title or bvn. Picked {current_uuid} from: {current}"
+            )
+
+        if current_uuid:
+            return current_uuid
 
         org_uuid = self.read_organisation()
-        title = title or bvn
-        payload = {"name": title, "user_key": bvn, "scope": scope, "org_uuid": org_uuid}
+        payload = {
+            "name": class_title,
+            "user_key": bvn,
+            "scope": scope,
+            "org_uuid": org_uuid,
+            "owner": str(owner) if owner else None,
+        }
         url = f"f/{facet}/"
         if uuid:
             payload.update({"uuid": str(uuid)})
@@ -697,7 +723,7 @@ class MoraHelper:
         """
         url = f"o/{org}/ou/"
         if root:
-            url +=f"?root={root}"
+            url += f"?root={root}"
         org_units = self._mo_lookup(None, url)["items"]
         return org_units
 
