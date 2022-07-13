@@ -323,6 +323,20 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "IT system found for person_uuid='personuuid'"
             ]
 
+    @patch("integrations.opus.opus_helpers.find_opus_root_unit_uuid")
+    def test_ensure_class_in_facet(self, root_uuid_mock):
+        """Tests that calling ensure_class_in_facet calls morahelpers with the correct owner added"""
+        root_uuid = uuid4()
+        root_uuid_mock.return_value = root_uuid
+        diff = OpusDiffImportTestbase(
+            "2022-07-13", ad_reader=None, employee_mapping="test"
+        )
+
+        diff.ensure_class_in_facet("Facetname", "classbvn")
+        diff.helper.ensure_class_in_facet.assert_called_once_with(
+            "Facetname", "classbvn", owner=root_uuid
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
