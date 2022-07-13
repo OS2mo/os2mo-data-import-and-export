@@ -8,7 +8,6 @@ import uuid
 from collections import OrderedDict
 from functools import lru_cache
 from operator import itemgetter
-from pathlib import Path
 from typing import Dict
 from typing import Iterable
 from typing import List
@@ -17,6 +16,7 @@ from typing import Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
+from more_itertools import first
 from more_itertools import partition
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
@@ -135,7 +135,7 @@ def generate_uuid(value):
     return value_uuid
 
 
-def parser(target_file: Path, opus_id: Optional[int] = None) -> Tuple[List, List]:
+def parser(target_file: str, opus_id: Optional[int] = None) -> Tuple[List, List]:
     """Read an opus file and return units and employees"""
     text_input = get_opus_filereader().read_file(target_file)
 
@@ -221,8 +221,8 @@ def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
 
 
 def file_diff(
-    file1: Optional[Path],
-    file2: Path,
+    file1: Optional[str],
+    file2: str,
     disable_tqdm: bool = True,
     opus_id: Optional[int] = None,
 ):
@@ -379,7 +379,7 @@ def find_all_filtered_ids(inputfile, filter_ids):
     return set(map(itemgetter("@id"), all_filtered_units))
 
 
-def include_cancelled(filename: Path, employees, cancelled_employees) -> List:
+def include_cancelled(filename: str, employees, cancelled_employees) -> List:
     """Add cancelled employees to employees list, but set leavedate to date from filename
 
     >>> include_cancelled('./ZLPE202001010253_delta.xml', [], [{"id":1}])
@@ -396,8 +396,8 @@ def include_cancelled(filename: Path, employees, cancelled_employees) -> List:
 
 
 def read_and_transform_data(
-    inputfile1: Optional[Path],
-    inputfile2: Path,
+    inputfile1: Optional[str],
+    inputfile2: str,
     filter_ids: List[Optional[str]],
     disable_tqdm=False,
     opus_id: Optional[int] = None,
@@ -422,3 +422,18 @@ def read_and_transform_data(
         list(filtered_employees),
         list(terminated_employees),
     )
+
+
+def find_opus_root_unit_uuid() -> uuid.UUID:
+    """Generates uuid for opus root.
+
+    Reads the first available opus file and generates the uuid for the first unit in the file.
+    Assumes this is the root organisation of opus.
+    """
+    dumps = read_available_dumps()
+
+    first_date = min(sorted(dumps.keys()))
+    units, _ = parser(dumps[first_date])
+    main_unit = first(units)
+    calculated_uuid = generate_uuid(main_unit["@id"])
+    return calculated_uuid

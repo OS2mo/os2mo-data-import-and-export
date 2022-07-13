@@ -5,7 +5,6 @@ import click
 import requests
 from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
-from more_itertools import first
 from more_itertools import pairwise
 from more_itertools import prepend
 from ra_utils.load_settings import load_settings
@@ -22,21 +21,6 @@ def truncate_db(MOX_BASE: str = "http://localhost:8080") -> None:
     r.raise_for_status()
 
 
-def find_opus_name() -> str:
-    """Generates uuid for opus root.
-
-    Reads the first available opus file and generates the uuid for the first unit in the file.
-    Assumes this is the root organisation of opus.
-    """
-    dumps = opus_helpers.read_available_dumps()
-
-    first_date = min(sorted(dumps.keys()))
-    units, _ = opus_helpers.parser(dumps[first_date])
-    main_unit = first(units)
-    calculated_uuid = opus_helpers.generate_uuid(main_unit["@id"])
-    return str(calculated_uuid)
-
-
 def prepare_re_import(
     settings: Optional[Dict] = None,
     opus_uuid: Optional[str] = None,
@@ -45,7 +29,6 @@ def prepare_re_import(
     """Remove all opus-units from MO"""
     settings = settings or load_settings()
     mox_base = settings.get("mox.base")
-
     if opus_uuid:
         session = requests.session()
         dub = find_duplicates_classes(session=session, mox_base=mox_base)
@@ -114,7 +97,6 @@ def import_opus(
 @optgroup.group(
     "Clear data", cls=MutuallyExclusiveOptionGroup, help="Default: No data deleted"
 )
-@optgroup.option("--truncate", is_flag=True, help="Truncate all MO tables")
 @optgroup.option(
     "--delete-opus",
     is_flag=True,
@@ -131,7 +113,6 @@ def clear_and_reload(
     import_all: bool,
     import_last: bool,
     delete_opus: bool,
-    truncate: bool,
     new_rundb: bool,
     use_ad: bool,
     connections: int,
@@ -145,14 +126,10 @@ def clear_and_reload(
     Add the --use-ad flag to connect to AD when reading users.
     """
     settings = load_settings()
-    if truncate:
-        click.confirm(
-            "This will purge ALL DATA FROM MO. Do you want to continue?", abort=True
-        )
     if new_rundb:
         opus_helpers.initialize_db(settings["integrations.opus.import.run_db"])
 
-    opus_uuid = find_opus_name() if delete_opus else None
+    opus_uuid = str(opus_helpers.find_opus_root_unit_uuid()) if delete_opus else None
     prepare_re_import(
         settings=settings,
         opus_uuid=opus_uuid,
