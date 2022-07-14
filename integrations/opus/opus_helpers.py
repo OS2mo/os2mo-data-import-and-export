@@ -424,6 +424,7 @@ def read_and_transform_data(
     )
 
 
+@lru_cache
 def find_opus_root_unit_uuid() -> uuid.UUID:
     """Generates uuid for opus root.
 

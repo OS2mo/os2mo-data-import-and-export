@@ -1,6 +1,5 @@
 import logging
 from datetime import datetime
-from functools import partial
 from operator import itemgetter
 from pathlib import Path
 from typing import Dict
@@ -111,9 +110,11 @@ class OpusDiffImport(object):
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
 
         logger.info("__init__ done, now ready for import")
-        root_unit_uuid = opus_helpers.find_opus_root_unit_uuid()
-        self.ensure_class_in_facet = partial(
-            self.helper.ensure_class_in_facet, owner=root_unit_uuid
+
+    def ensure_class_in_facet(self, *args, **kwargs):
+        """Helper function to call ensure_class_in_facet from morahelpers with owner"""
+        return self.helper.ensure_class_in_facet(
+            *args, owner=opus_helpers.find_opus_root_unit_uuid(), **kwargs
         )
 
     def _find_classes(self, facet):
