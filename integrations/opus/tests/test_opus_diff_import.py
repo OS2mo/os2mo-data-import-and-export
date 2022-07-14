@@ -165,6 +165,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     def test_update_unit(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
@@ -174,9 +175,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                     {
                         "type": "address",
                         "value": dawa_helper_mock(),
-                        "address_type": {
-                            "uuid": str(diff.morahelper_mock.ensure_class_in_facet())
-                        },
+                        "address_type": {"uuid": "dummy-class-uuid"},
                         "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
                         "org_unit": {"uuid": str(calculated_uuid)},
                         "visibility": None,
@@ -192,6 +191,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         diff.updater.primary_types = {"non_primary": "test"}
         diff.updater.set_current_person = MagicMock()
         diff.updater.recalculate_primary = MagicMock()
+        diff.ensure_class_in_facet = MagicMock()
         with patch(
             "integrations.opus.opus_diff_import.OpusDiffImport._assert",
             return_value=None,
