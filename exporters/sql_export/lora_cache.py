@@ -207,6 +207,14 @@ class LoraCache:
         )
         return complete_data
 
+    def _get_primary_class_as_boolean(self, uuid: str, rel: dict) -> Optional[bool]:
+        primary_boolean = None
+        primary_class_uuid = get_rel_uuid_or_none(uuid, rel, "primær")
+        primary_class = self.classes.get(primary_class_uuid)
+        if primary_class:
+            primary_boolean = primary_class.get("user_key", "") == "primary"
+        return primary_boolean
+
     def _cache_lora_facets(self):
         # Facets are eternal i MO and does not need a historic dump
         params = {"bvn": "%"}
@@ -673,11 +681,7 @@ class LoraCache:
                     else None
                 )
 
-                primary_boolean = None
-                primary_class_uuid = get_rel_uuid_or_none(uuid, rel, "primær")
-                primary_class = self.classes.get(primary_class_uuid)
-                if primary_class:
-                    primary_boolean = primary_class.get("user_key", "") == "primary"
+                primary_boolean = self._get_primary_class_as_boolean(uuid, rel)
 
                 associations[uuid].append(
                     {
@@ -824,7 +828,7 @@ class LoraCache:
                     user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
                     unit_uuid = None
 
-                primary_type = get_rel_uuid_or_none(uuid, rel, "primær")
+                primary_boolean = self._get_primary_class_as_boolean(uuid, rel)
 
                 it_connections[uuid].append(
                     {
@@ -833,7 +837,7 @@ class LoraCache:
                         "unit": unit_uuid,
                         "username": user_key,
                         "itsystem": itsystem,
-                        "primary_type": primary_type,
+                        "primary_boolean": primary_boolean,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
