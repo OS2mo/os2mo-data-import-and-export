@@ -17,6 +17,7 @@ from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import Base
 from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Enhed
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import Tilknytning
 
@@ -245,6 +246,59 @@ def test_sql_export_writes_users(cpr: Optional[str]):
         kaldenavn_efternavn=user["kaldenavn_efternavn"],
         startdato=user["from_date"],
         slutdato=user["to_date"],
+    )
+
+
+def test_sql_export_writes_org_units():
+    # Arrange
+    type_cls, type_facet = _mock_lora_class("org_unit_type")
+    level_cls, level_facet = _mock_lora_class("org_unit_level")
+    hierarchy_cls, hierarchy_facet = _mock_lora_class("org_unit_hierarchy")
+    unit_uuid = _mk_uuid()
+    unit = {
+        "uuid": unit_uuid,
+        "user_key": unit_uuid,
+        "name": "Enhedsnavn",
+        "unit_type": _get_cls_uuid(type_cls),
+        "level": _get_cls_uuid(level_cls),
+        "parent": _mk_uuid(),
+        "org_unit_hierarchy": _get_cls_uuid(hierarchy_cls),
+        "from_date": "2020-01-01",
+        "to_date": "2020-01-01",
+    }
+    lc_data = {
+        "facets": _join_dicts(type_facet, level_facet, hierarchy_facet),
+        "classes": _join_dicts(type_cls, level_cls, hierarchy_cls),
+        "units": {unit_uuid: [unit]},
+    }
+    sql_export = _TestableSqlExport(inject_lc=lc_data)
+
+    # Act
+    sql_export.perform_export()
+
+    # Assert
+    _assert_db_session_add(
+        sql_export.session,
+        Enhed,
+        uuid=unit_uuid,
+        navn=unit["name"],
+        bvn=unit["user_key"],
+        forældreenhed_uuid=unit["parent"],
+        # org unit type
+        enhedstype_uuid=unit["unit_type"],
+        enhedstype_titel=_get_cls_field(type_cls, "title"),
+        # org unit level
+        enhedsniveau_uuid=unit["level"],
+        enhedsniveau_titel=_get_cls_field(level_cls, "title"),
+        # org unit hierarchy
+        opmærkning_uuid=unit["org_unit_hierarchy"],
+        opmærkning_titel=_get_cls_field(hierarchy_cls, "title"),
+        # other fields
+        organisatorisk_sti=None,
+        leder_uuid=None,
+        fungerende_leder_uuid=None,
+        startdato=unit["from_date"],
+        slutdato=unit["to_date"],
     )
 
 

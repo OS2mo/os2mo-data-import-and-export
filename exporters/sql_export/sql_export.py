@@ -234,9 +234,16 @@ class SqlExport:
                 acting_manager_uuid = unit_info.get("acting_manager_uuid")
 
                 unit_type = unit_info["unit_type"]
+
                 enhedsniveau_titel = ""
                 if unit_info["level"]:
                     enhedsniveau_titel = self.lc.classes[unit_info["level"]]["title"]
+
+                (
+                    org_unit_hierarchy_uuid,
+                    org_unit_hierarchy_class,
+                ) = self._get_lora_class(unit_info["org_unit_hierarchy"])
+
                 sql_unit = Enhed(
                     uuid=unit,
                     navn=unit_info["name"],
@@ -249,6 +256,8 @@ class SqlExport:
                     fungerende_leder_uuid=acting_manager_uuid,
                     enhedstype_titel=self.lc.classes[unit_type]["title"],
                     enhedsniveau_titel=enhedsniveau_titel,
+                    opmærkning_uuid=org_unit_hierarchy_uuid,
+                    opmærkning_titel=org_unit_hierarchy_class["title"],
                     startdato=unit_info["from_date"],
                     slutdato=unit_info["to_date"],
                 )
