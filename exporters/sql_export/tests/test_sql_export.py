@@ -185,9 +185,7 @@ def _join_dicts(*dicts: dict) -> ChainMap:
     return ChainMap(*dicts)
 
 
-def _assert_db_session_add(
-    session: MagicMock, cls: Base, **expected: Optional[str]
-) -> None:
+def _assert_db_session_add(session: MagicMock, cls: Base, **expected: Any) -> None:
     session_add_calls = [
         call
         for call in session.method_calls
@@ -308,7 +306,8 @@ def test_sql_export_writes_associations(assoc_type_present: bool):
     )
 
 
-def test_sql_export_writes_it_users():
+@parameterized.expand([(True,), (False,), (None,)])
+def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
     # Arrange
     it_user_uuid = _mk_uuid()
     it_user = {
@@ -317,7 +316,7 @@ def test_sql_export_writes_it_users():
         "unit": _mk_uuid(),
         "username": "username",
         "itsystem": _mk_uuid(),
-        "primary_type": _mk_uuid(),
+        "primary_boolean": primary_boolean,
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
     }
@@ -338,5 +337,5 @@ def test_sql_export_writes_it_users():
         brugernavn=it_user["username"],
         startdato=it_user["from_date"],
         slutdato=it_user["to_date"],
-        primær_boolean=it_user["primary_type"] is not None,
+        primær_boolean=it_user["primary_boolean"],
     )

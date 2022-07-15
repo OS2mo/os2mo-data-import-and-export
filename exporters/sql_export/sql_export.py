@@ -468,7 +468,7 @@ class SqlExport:
                     brugernavn=it_connection_info["username"],
                     startdato=it_connection_info["from_date"],
                     slutdato=it_connection_info["to_date"],
-                    primær_boolean=it_connection_info["primary_type"] is not None,
+                    primær_boolean=it_connection_info.get("primary_boolean"),
                 )
                 self.session.add(sql_it_connection)
             self.session.commit()
