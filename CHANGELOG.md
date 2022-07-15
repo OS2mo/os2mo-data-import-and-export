@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.40.2 - 2022-07-15
+-------------------
+
+[#51223] Added to Silkeborgs uuid mapping.
+
 2.40.1 - 2022-07-15
 -------------------
 
