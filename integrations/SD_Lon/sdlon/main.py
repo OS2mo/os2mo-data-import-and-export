@@ -9,6 +9,7 @@ from integrations.rundb.db_overview import DBOverview
 
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
+from .sd_changed_at import import_state
 from .sd_importer import full_import
 from typing import Optional
 

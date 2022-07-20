@@ -713,16 +713,28 @@ def cli():
     type=click.BOOL,
     help="Only import organisation structure",
 )
+@click.option(
+    "--mora-base",
+    default=load_setting("mora.base", "http://localhost:5000"),
+    help="URL for OS2mo.",
+)
+@click.option(
+    "--mox-base",
+    default=load_setting("mox.base", "http://localhost:8080"),
+    help="URL for LoRa.",
+)
 def full_import_cli(org_only: bool, mora_base: str, mox_base: str):
+    """Tool to do an initial full import."""
     full_import(org_only, mora_base, mox_base)
 
 
-def full_import(org_only: bool = False, mora_base: Optional[str] = None, mox_base: Optional[str] = None):
+def full_import(
+    org_only: bool = False,
+    mora_base: Optional[str] = None,
+    mox_base: Optional[str] = None,
+):
     """Tool to do an initial full import."""
-    settings = get_importer_settings(
-        mora_base=mora_base,
-        mox_base=mox_base
-    )
+    settings = get_importer_settings(mora_base=mora_base, mox_base=mox_base)
 
     # Check connection to MO before we fire requests against SD
     mh = MoraHelper(settings.mora_base)
@@ -736,9 +748,7 @@ def full_import(org_only: bool = False, mora_base: Optional[str] = None, mox_bas
         store_integration_data=False,
         seperate_names=True,
     )
-    sd = SdImport(
-        importer, settings=settings, org_only=org_only, ad_info=None
-    )
+    sd = SdImport(importer, settings=settings, org_only=org_only, ad_info=None)
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:

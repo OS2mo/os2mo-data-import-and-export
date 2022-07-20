@@ -1534,6 +1534,7 @@ def import_state_cli(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
     import_state(from_date, dry_run)
 
+
 def import_state(from_date: Optional[datetime.datetime] = None, dry_run: bool = False):
     """Import engagement changes for all users."""
     settings = get_changed_at_settings()
