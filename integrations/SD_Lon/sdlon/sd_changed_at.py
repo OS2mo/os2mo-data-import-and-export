@@ -1447,6 +1447,7 @@ def cli():
     help="Global import from-date, only used if init is True",
 )
 def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
+    """Tool to delta synchronize with MO with SD."""
     changed_at(init, force, from_date)
 
 
@@ -1529,7 +1530,12 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 @click.option(
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
-def import_state(from_date: datetime.datetime, dry_run: bool):
+def import_state_cli(from_date: datetime.datetime, dry_run: bool):
+    """Import engagement changes for all users."""
+    import_state(from_date, dry_run)
+
+
+def import_state(from_date: Optional[datetime.datetime] = None, dry_run: bool = False):
     """Import engagement changes for all users."""
     settings = get_changed_at_settings()
     setup_logging(settings.sd_log_file)
