@@ -9,6 +9,8 @@ from integrations.rundb.db_overview import DBOverview
 
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
+from .sd_importer import full_import
+from typing import Optional
 
 state = Enum(
     "sd_changed_at_state",
@@ -45,6 +47,18 @@ def update_state_metric() -> None:
 @app.get("/")
 async def index() -> dict[str, str]:
     return {"name": "sdlon"}
+
+
+def run_initial_import() -> None:
+    full_import()
+    import_state()
+
+
+@app.post("/initial")
+async def initial_import() -> dict[str, str]:
+    loop = asyncio.get_running_loop()
+    loop.call_soon(run_initial_import)
+    return {"triggered": "OK"}
 
 
 @app.post("/trigger")

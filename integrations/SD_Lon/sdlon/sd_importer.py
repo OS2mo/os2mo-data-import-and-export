@@ -10,6 +10,7 @@ import uuid
 from operator import itemgetter
 from typing import Any
 from typing import Dict
+from typing import Optional
 
 import click
 from anytree import Node
@@ -712,32 +713,31 @@ def cli():
     type=click.BOOL,
     help="Only import organisation structure",
 )
-@click.option(
-    "--mora-base",
-    default=load_setting("mora.base", "http://localhost:5000"),
-    help="URL for OS2mo.",
-)
-@click.option(
-    "--mox-base",
-    default=load_setting("mox.base", "http://localhost:8080"),
-    help="URL for LoRa.",
-)
-def full_import(org_only: bool, mora_base: str, mox_base: str):
+def full_import_cli(org_only: bool, mora_base: str, mox_base: str):
+    full_import(org_only, mora_base, mox_base)
+
+
+def full_import(org_only: bool = False, mora_base: Optional[str] = None, mox_base: Optional[str] = None):
     """Tool to do an initial full import."""
+    settings = get_importer_settings(
+        mora_base=mora_base,
+        mox_base=mox_base
+    )
+
     # Check connection to MO before we fire requests against SD
-    mh = MoraHelper(mora_base)
+    mh = MoraHelper(settings.mora_base)
     if not mh.check_connection():
         raise click.ClickException("No MO reply, aborting.")
 
     importer = ImportHelper(
         create_defaults=True,
-        mox_base=mox_base,
-        mora_base=mora_base,
+        mox_base=settings.mox_base,
+        mora_base=settings.mora_base,
         store_integration_data=False,
         seperate_names=True,
     )
     sd = SdImport(
-        importer, settings=get_importer_settings(), org_only=org_only, ad_info=None
+        importer, settings=settings, org_only=org_only, ad_info=None
     )
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
