@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.41.0 - 2022-07-20
+-------------------
+
+[#40507] Added initial import endpoint to SD
+
 2.40.2 - 2022-07-15
 -------------------
 
