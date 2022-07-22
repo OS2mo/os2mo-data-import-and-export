@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.41.1 - 2022-07-22
+-------------------
+
+[#51519] `SQLExport`: `ItForbindelse.primær_boolean` is nullable
+
 2.41.0 - 2022-07-20
 -------------------
 
