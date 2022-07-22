@@ -1519,6 +1519,7 @@ class TestAdMoSyncUpdateUsersLoraCache:
 
         # Assert
         calls = ad_mo_sync.helper._mo_post_calls
+        assert len(calls) == 1
         assert calls[0] == {
             "url": "details/edit",
             "payload": [
@@ -1532,14 +1533,5 @@ class TestAdMoSyncUpdateUsersLoraCache:
                     },
                 }
             ],
-            "force": True,
-        }
-        assert calls[1] == {
-            "url": "details/terminate",
-            "payload": {
-                "type": "address",
-                "uuid": address_uuid,
-                "validity": {"to": today_iso()},
-            },
             "force": True,
         }
