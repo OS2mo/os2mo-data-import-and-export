@@ -24,9 +24,10 @@ from dateutil import tz
 from more_itertools import bucket
 from os2mo_dar_client import DARClient
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
 from retrying import retry
 from tqdm import tqdm
+
+from .config import get_settings
 
 logger = logging.getLogger("LoraCache")
 
@@ -55,7 +56,7 @@ class LoraCache:
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = self._load_settings()
+        self.settings = get_settings()
 
         self.additional = {"relationer": ("tilknyttedeorganisationer", "tilhoerer")}
 
@@ -65,11 +66,8 @@ class LoraCache:
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
 
-    def _load_settings(self):
-        return load_settings()
-
     def _read_org_uuid(self):
-        mh = MoraHelper(hostname=self.settings["mora.base"], export_ansi=False)
+        mh = MoraHelper(hostname=self.settings.mora_base, export_ansi=False)
         for attempt in range(0, 10):
             try:
                 org_uuid = mh.read_organisation()
@@ -173,7 +171,7 @@ class LoraCache:
             if not self.skip_past:
                 params["virkningFra"] = "-infinity"
 
-        response = requests.get(self.settings["mox.base"] + url, params=params)
+        response = requests.get(self.settings.mox_base + url, params=params)
         data = response.json()
         total = len(data["results"][0])
 
@@ -184,7 +182,7 @@ class LoraCache:
 
         with tqdm(total=total, desc="Fetching " + unit, unit=unit) as pbar:
             while True:
-                response = requests.get(self.settings["mox.base"] + url, params=params)
+                response = requests.get(self.settings.mox_base + url, params=params)
                 data = response.json()
                 results = data["results"]
                 data_list = []
@@ -1072,9 +1070,7 @@ class LoraCache:
             print(msg)
             return
 
-        responsibility_class = self.settings.get(
-            "exporters.actual_state.manager_responsibility_class", None
-        )
+        responsibility_class = self.settings.sql_export_manager_responsibility_class
         for unit, unit_validities in self.units.items():
             assert (len(unit_validities)) == 1
             unit_info = unit_validities[0]

@@ -13,19 +13,23 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from exporters.sql_export.sql_export import SqlExport
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import Tilknytning
+from ..config import Settings
+from ..lora_cache import LoraCache
+from ..sql_export import SqlExport
+from ..sql_table_defs import Base
+from ..sql_table_defs import Bruger
+from ..sql_table_defs import ItForbindelse
+from ..sql_table_defs import Tilknytning
 
 
-class FakeLC:
+class FakeLC(LoraCache):
     """Fake version of LoraCache, presenting the empty member dicts.
 
     LoraCache's interface is essentially just these dictionaries.
     """
+
+    def __init__(self):
+        pass
 
     classes: Dict[str, Any] = {}
     addresses: Dict[str, Any] = {}
@@ -60,7 +64,7 @@ class FakeLCSqlExport(SqlExport):
 
 class _TestableSqlExport(SqlExport):
     def __init__(self, inject_lc=None):
-        super().__init__(force_sqlite=False, historic=False, settings={})
+        super().__init__(force_sqlite=False, historic=False)
         self.inject_lc = inject_lc
 
     def _get_engine(self) -> Engine:
@@ -93,10 +97,12 @@ def check_tables(engine, expected):
 
 
 def test_sql_export_tables():
-    settings = {
-        "exporters.actual_state.type": "Memory",
-        "exporters.actual_state.db_name": "Whatever",
-    }
+    settings = Settings(
+        **{
+            "sql_export_type": "Memory",
+            "sql_export_db_name": "Whatever",
+        }
+    )
     sql_export = FakeLCSqlExport(
         force_sqlite=False,
         historic=False,

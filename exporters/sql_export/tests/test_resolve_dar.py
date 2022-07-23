@@ -8,7 +8,7 @@ from hypothesis.strategies import booleans
 from hypothesis.strategies import lists
 from hypothesis.strategies import uuids
 
-from exporters.sql_export.lora_cache import LoraCache
+from ..lora_cache import LoraCache
 
 
 class LoraCacheTest(LoraCache):

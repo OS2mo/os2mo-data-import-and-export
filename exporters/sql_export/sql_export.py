@@ -1,5 +1,6 @@
 import datetime
 import logging
+from typing import Optional
 from typing import Tuple
 
 import click
@@ -14,28 +15,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from exporters.sql_export.lora_cache import LoraCache
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import DARAdresse
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Enhedssammenkobling
-from exporters.sql_export.sql_table_defs import Facet
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import ItSystem
-from exporters.sql_export.sql_table_defs import Klasse
-from exporters.sql_export.sql_table_defs import KLE
-from exporters.sql_export.sql_table_defs import Kvittering
-from exporters.sql_export.sql_table_defs import Leder
-from exporters.sql_export.sql_table_defs import LederAnsvar
-from exporters.sql_export.sql_table_defs import Orlov
-from exporters.sql_export.sql_table_defs import Rolle
-from exporters.sql_export.sql_table_defs import Tilknytning
-from exporters.sql_export.sql_url import DatabaseFunction
-from exporters.sql_export.sql_url import generate_connection_url
-from exporters.sql_export.sql_url import generate_engine_settings
+from .config import get_settings
+from .config import Settings
+from .lora_cache import LoraCache
+from .sql_table_defs import Adresse
+from .sql_table_defs import Base
+from .sql_table_defs import Bruger
+from .sql_table_defs import DARAdresse
+from .sql_table_defs import Engagement
+from .sql_table_defs import Enhed
+from .sql_table_defs import Enhedssammenkobling
+from .sql_table_defs import Facet
+from .sql_table_defs import ItForbindelse
+from .sql_table_defs import ItSystem
+from .sql_table_defs import Klasse
+from .sql_table_defs import KLE
+from .sql_table_defs import Kvittering
+from .sql_table_defs import Leder
+from .sql_table_defs import LederAnsvar
+from .sql_table_defs import Orlov
+from .sql_table_defs import Rolle
+from .sql_table_defs import Tilknytning
+from .sql_url import DatabaseFunction
+from .sql_url import generate_connection_url
+from .sql_url import generate_engine_settings
 
 
 class SqlExportSettings(JobSettings):
@@ -47,11 +50,13 @@ logger = logging.getLogger(__name__)
 
 
 class SqlExport:
-    def __init__(self, force_sqlite=False, historic=False, settings=None):
+    def __init__(
+        self, force_sqlite=False, historic=False, settings: Optional[Settings] = None
+    ):
         logger.info("Start SQL export")
         self.force_sqlite = force_sqlite
         self.historic = historic
-        self.settings = settings
+        self.settings = settings or get_settings()
         self.engine = self._get_engine()
         self.export_cpr = self._get_export_cpr_setting()
 
@@ -59,6 +64,7 @@ class SqlExport:
         database_function = DatabaseFunction.ACTUAL_STATE
         if self.historic:
             database_function = DatabaseFunction.ACTUAL_STATE_HISTORIC
+
         db_string = generate_connection_url(
             database_function, force_sqlite=self.force_sqlite, settings=self.settings
         )
@@ -68,7 +74,7 @@ class SqlExport:
         return create_engine(db_string, **engine_settings)
 
     def _get_export_cpr_setting(self) -> bool:
-        return self.settings.get("exporters.actual_state.export_cpr", True)
+        return self.settings.sql_export_export_cpr
 
     def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
         if self.historic:
@@ -149,28 +155,32 @@ class SqlExport:
         tables = list(map(gen_table_names, tables))
 
         # Drop any left-over old tables that may exist
-        with ctx.begin_transaction():
-            for _, _, old_table in tables:
+        for _, _, old_table in tables:
+            with ctx.begin_transaction():
                 try:
                     op.drop_table(old_table)
                 except Exception:
                     pass
 
-        # Rename current to old and write to current
-        with ctx.begin_transaction():
-            for write_table, current_table, old_table in tables:
+        # Rename current to old
+        for write_table, current_table, old_table in tables:
+            with ctx.begin_transaction():
                 # Rename current table to old table
                 # No current tables is OK
                 try:
                     op.rename_table(current_table, old_table)
                 except Exception:
                     pass
+
+        # Rename write to current
+        for write_table, current_table, old_table in tables:
+            with ctx.begin_transaction():
                 # Rename write table to current table
                 op.rename_table(write_table, current_table)
 
         # Drop any old tables that may exist
-        with ctx.begin_transaction():
-            for _, _, old_table in tables:
+        for _, _, old_table in tables:
+            with ctx.begin_transaction():
                 # Drop old tables
                 try:
                     op.drop_table(old_table)
@@ -613,12 +623,9 @@ def cli(**args):
 
     logger.info("Command line args: %r", args)
 
-    settings = load_settings()
-
     sql_export = SqlExport(
         force_sqlite=args["force_sqlite"],
         historic=args["historic"],
-        settings=settings,
     )
 
     sql_export.perform_export(
