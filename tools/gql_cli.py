@@ -24,7 +24,7 @@ def gql_cli(
     """
     q = gql(query)
     with GraphQLClient(
-        url=f"{mora_base}/graphql",
+        url=f"{mora_base}/graphql/v1",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
