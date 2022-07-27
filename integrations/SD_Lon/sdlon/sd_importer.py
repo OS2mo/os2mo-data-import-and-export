@@ -715,15 +715,15 @@ def cli():
 )
 @click.option(
     "--mora-base",
-    default=load_setting("mora.base", "http://localhost:5000"),
+    required=False,
     help="URL for OS2mo.",
 )
 @click.option(
     "--mox-base",
-    default=load_setting("mox.base", "http://localhost:8080"),
+    required=False,
     help="URL for LoRa.",
 )
-def full_import_cli(org_only: bool, mora_base: str, mox_base: str):
+def full_import_cli(org_only: bool, mora_base: Optional[str], mox_base: Optional[str]):
     """Tool to do an initial full import."""
     full_import(org_only, mora_base, mox_base)
 
@@ -734,7 +734,13 @@ def full_import(
     mox_base: Optional[str] = None,
 ):
     """Tool to do an initial full import."""
-    settings = get_importer_settings(mora_base=mora_base, mox_base=mox_base)
+    overrides = {}
+    if mora_base:
+        overrides["mora_base"] = mora_base
+    if mox_base:
+        overrides["mox_base"] = mox_base
+
+    settings = get_importer_settings(**overrides)
 
     # Check connection to MO before we fire requests against SD
     mh = MoraHelper(settings.mora_base)
