@@ -5,6 +5,8 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Optional
+from typing import Tuple
 from uuid import UUID
 
 from pydantic import AnyHttpUrl
@@ -84,7 +86,7 @@ class Settings(BaseSettings):
 
     os2sync_user_key_it_system_name: str = "Active Directory"
 
-    os2sync_filter_hierarchy_uuids: List[UUID] = []
+    os2sync_filter_hierarchy_names: Optional[Tuple[str]] = None  # Title in MO
 
     class Config:
 

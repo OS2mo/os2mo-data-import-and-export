@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from hypothesis import given
 from hypothesis import strategies as st
+from os2sync_export.os2mo import get_org_unit_hierarchy
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
@@ -214,10 +215,11 @@ class TestsMOAd(unittest.TestCase):
 
 
 @patch("os2sync_export.os2mo.organization_uuid", return_value="root_uuid")
-@given(st.lists(st.uuids()))
+@given(st.tuples(st.uuids()))
 def test_org_unit_uuids(root_mock, hierarchy_uuids):
     session_mock = MagicMock()
     os2mo_get.cache_clear()
+    org_unit_uuids.cache_clear()
     with patch("os2sync_export.os2mo.os2mo_get") as session_mock:
 
         session_mock.return_value = MockOs2moGet({"items": [{"uuid": "test"}]})
@@ -226,5 +228,47 @@ def test_org_unit_uuids(root_mock, hierarchy_uuids):
     session_mock.assert_called_once_with(
         "{BASE}/o/root_uuid/ou/",
         limit=999999,
-        hierarchy_uuids=[str(u) for u in hierarchy_uuids],
+        hierarchy_uuids=tuple(str(u) for u in hierarchy_uuids),
     )
+
+
+@patch("os2sync_export.os2mo.organization_uuid", return_value="root_uuid")
+def test_get_org_unit_hierarchy(root_mock):
+
+    os2mo_get.cache_clear()
+
+    with patch(
+        "os2sync_export.os2mo.os2mo_get",
+        return_value=MockOs2moGet(
+            {
+                "uuid": "403eb28f-e21e-bdd6-3612-33771b098a12",
+                "user_key": "org_unit_hierarchy",
+                "description": "",
+                "data": {
+                    "total": 2,
+                    "offset": 0,
+                    "items": [
+                        {
+                            "uuid": "8c30ab5a-8c3a-566c-bf12-790bdd7a9fef",
+                            "name": "Skjult organisation",
+                            "user_key": "hide",
+                            "example": None,
+                            "scope": "TEXT",
+                            "owner": None,
+                        },
+                        {
+                            "uuid": "f805eb80-fdfe-8f24-9367-68ea955b9b9b",
+                            "name": "Linjeorganisation",
+                            "user_key": "linjeorg",
+                            "example": None,
+                            "scope": "TEXT",
+                            "owner": None,
+                        },
+                    ],
+                },
+                "path": "/o/3b866d97-0b1f-48e0-8078-686d96f430b3/f/org_unit_hierarchy/",
+            }
+        ),
+    ):
+        hierarchy_uuids = get_org_unit_hierarchy("Linjeorganisation")
+    assert list(hierarchy_uuids) == ["f805eb80-fdfe-8f24-9367-68ea955b9b9b"]

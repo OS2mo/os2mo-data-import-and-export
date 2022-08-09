@@ -92,7 +92,7 @@ os2syncs parametre
  * ``os2sync.templates``: Giver mulighed for at styre formatteringen af data vha. Jinja-templates.
  * ``os2sync.user_key_it_system_name``: Henter en brugers user_key fra IT-system. Default er "Active Directory"
  * ``os2sync.uuid_from_it_systems``: Prioriteret liste af uuider på IT-systemer hvorfra en bruger/enheds uuid skal hentes. Bruger MOs uuid hvis denne er tom eller hvis de angivne it-systemer ikke er udfyldt i MO.
- * ``os2sync.filter_hierarchy_uuids`` : Filtrer enheder ud fra deres org_unit_hierarchy, fx. Linjeorganisation. Skal være en liste af uuid'er på org_unit_hierarchy klasser der markerer de enheder der skal eksporteres til FK-org.
+ * ``os2sync.filter_hierarchy_names`` : Filtrer enheder ud fra deres org_unit_hierarchy, fx. Linjeorganisation. Skal være en tuple af titler på org_unit_hierarchy klasser der markerer de enheder der skal eksporteres til FK-org.
 
 ``os2sync.templates``
 ---------------------
