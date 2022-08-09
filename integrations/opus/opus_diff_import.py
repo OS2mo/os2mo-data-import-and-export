@@ -111,6 +111,12 @@ class OpusDiffImport(object):
 
         logger.info("__init__ done, now ready for import")
 
+    def ensure_class_in_facet(self, *args, **kwargs):
+        """Helper function to call ensure_class_in_facet from morahelpers with owner"""
+        return self.helper.ensure_class_in_facet(
+            *args, owner=opus_helpers.find_opus_root_unit_uuid(), **kwargs
+        )
+
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
         types_dict = {}
@@ -261,14 +267,14 @@ class OpusDiffImport(object):
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            addr_type_uuid = self.helper.ensure_class_in_facet(
+            addr_type_uuid = self.ensure_class_in_facet(
                 "employee_address_type",
                 mo_addr_type,
                 scope=predefined_scopes.get(mo_addr_type),
             )
             visibility = None
             if mo_addr_type == "Adresse":
-                visibility = self.helper.ensure_class_in_facet(
+                visibility = self.ensure_class_in_facet(
                     facet="visibility",
                     bvn="Hemmelig",
                     title="Må vises internt",
@@ -320,7 +326,7 @@ class OpusDiffImport(object):
             if unit.get(addr_type) is None:
                 continue
 
-            addr_type_uuid = self.helper.ensure_class_in_facet(
+            addr_type_uuid = self.ensure_class_in_facet(
                 "org_unit_address_type",
                 mo_addr_type,
                 scope=predefined_scopes.get(mo_addr_type),
@@ -348,7 +354,7 @@ class OpusDiffImport(object):
         org_type_title = unit.get("orgTypeTxt", "Enhed")
         org_type_bvn = unit.get("orgType", org_type_title)
 
-        unit_type = self.helper.ensure_class_in_facet(
+        unit_type = self.ensure_class_in_facet(
             "org_unit_type", bvn=org_type_bvn, title=org_type_title
         )
         from_date = unit.get("startDate", "01-01-1900")
@@ -383,14 +389,12 @@ class OpusDiffImport(object):
 
     def _job_and_engagement_type(self, employee):
         job = employee["position"]
-        job_function_uuid = self.helper.ensure_class_in_facet(
+        job_function_uuid = self.ensure_class_in_facet(
             "engagement_job_function", bvn=job
         )
 
         contract = employee.get("workContractText", "Ansat")
-        engagement_type_uuid = self.helper.ensure_class_in_facet(
-            "engagement_type", contract
-        )
+        engagement_type_uuid = self.ensure_class_in_facet("engagement_type", contract)
         return str(job_function_uuid), str(engagement_type_uuid)
 
     def update_engagement(self, engagement, employee):
@@ -558,14 +562,12 @@ class OpusDiffImport(object):
             manager_level = "{}.{}".format(
                 employee["superiorLevel"], employee["subordinateLevel"]
             )
-            manager_level_uuid = self.helper.ensure_class_in_facet(
+            manager_level_uuid = self.ensure_class_in_facet(
                 "manager_level", manager_level
             )
             manager_type = employee["position"]
-            manager_type_uuid = self.helper.ensure_class_in_facet(
-                "manager_type", manager_type
-            )
-            responsibility_uuid = self.helper.ensure_class_in_facet(
+            manager_type_uuid = self.ensure_class_in_facet("manager_type", manager_type)
+            responsibility_uuid = self.ensure_class_in_facet(
                 "responsibility", "Lederansvar"
             )
 
@@ -691,7 +693,7 @@ class OpusDiffImport(object):
                 logger.info("Create new role: {}".format(opus_role))
                 # TODO: We will fail a if  new role-type surfaces
                 role_name = opus_role["artText"]
-                role_type = self.helper.ensure_class_in_facet("role_type", role_name)
+                role_type = self.ensure_class_in_facet("role_type", role_name)
                 payload = payloads.create_role(
                     employee=employee,
                     user_uuid=mo_user["uuid"],
