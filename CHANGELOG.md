@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.42.0 - 2022-08-23
+-------------------
+
+[#51223] OS2Sync: Add option to filter org_units based on org_unit_hierarchy.
+
 2.41.2 - 2022-08-01
 -------------------
 
