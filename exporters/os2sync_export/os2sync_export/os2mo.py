@@ -244,6 +244,25 @@ def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
         p["OrgUnitUuid"] = get_fk_org_uuid(it, unit_uuid, os2sync_uuid_from_it_systems)
 
 
+@lru_cache
+def get_org_unit_hierarchy(titles: Tuple):
+    """Find uuids of org_unit_hierarchy classes with the specified titles"""
+    if not titles:
+        return
+    org_unit_hierarchy_classes = os2mo_get(
+        f"{{BASE}}/o/{organization_uuid()}/f/org_unit_hierarchy/"
+    ).json()
+    filtered_hierarchies = list(
+        filter(
+            lambda x: x["name"] in titles, org_unit_hierarchy_classes["data"]["items"]
+        )
+    )
+    assert (
+        len(filtered_hierarchies) > 0
+    ), f"No org_unit_hierarchy classes found matching the titles {titles}."
+    return map(itemgetter("uuid"), filtered_hierarchies)
+
+
 def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
@@ -270,7 +289,10 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
-    allowed_unitids = org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    allowed_unitids = org_unit_uuids(
+        root=settings.os2sync_top_unit_uuid,
+        hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
+    )
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
     # Optionally find the work address of employees primary engagement.
@@ -294,9 +316,12 @@ def organization_uuid() -> str:
     return one(os2mo_get("{BASE}/o/").json())["uuid"]
 
 
-@lru_cache()
+@lru_cache
 def org_unit_uuids(**kwargs: Any) -> Set[str]:
     org_uuid = organization_uuid()
+    hierarchy_uuids = kwargs.get("hierarchy_uuids")
+    if hierarchy_uuids:
+        kwargs["hierarchy_uuids"] = tuple(str(u) for u in hierarchy_uuids)
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
         "items"
     ]

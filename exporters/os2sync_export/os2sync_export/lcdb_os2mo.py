@@ -181,7 +181,12 @@ def get_sts_user(session, uuid, settings: config.Settings):
                 "is_primary": lc_engagement.primær_boolean,
             }
         )
-    allowed_unitids = os2mo.org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    allowed_unitids = os2mo.org_unit_uuids(
+        root=settings.os2sync_top_unit_uuid,
+        hierarchy_uuids=os2mo.get_org_unit_hierarchy(
+            settings.os2sync_filter_hierarchy_names
+        ),
+    )
 
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
 
