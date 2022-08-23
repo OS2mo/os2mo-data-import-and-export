@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.43.0 - 2022-08-23
+-------------------
+
+[#51530] SQL export: expose "org unit hierarchy" in org unit export table
+
 2.42.0 - 2022-08-23
 -------------------
 
