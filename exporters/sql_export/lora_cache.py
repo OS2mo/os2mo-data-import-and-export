@@ -354,7 +354,7 @@ class LoraCache:
             skip_history = True
         url = "/organisation/organisationenhed"
         relevant = {
-            "relationer": ("overordnet", "enhedstype", "niveau"),
+            "relationer": ("overordnet", "enhedstype", "niveau", "opmærkning"),
             "attributter": ("organisationenhedegenskaber",),
         }
 
@@ -377,7 +377,9 @@ class LoraCache:
                 orgegenskaber = effect[2]["attributter"]["organisationenhedegenskaber"]
                 if len(orgegenskaber) == 0:
                     continue
+
                 egenskaber = orgegenskaber[0]
+
                 parent_raw = relationer["overordnet"][0]["uuid"]
                 if parent_raw == self.org_uuid:
                     parent = None
@@ -388,18 +390,26 @@ class LoraCache:
                     level = relationer["niveau"][0]["uuid"]
                 else:
                     level = None
+
+                unit_type = relationer["enhedstype"][0]["uuid"]
+                org_unit_hierarchy = get_rel_uuid_or_none(
+                    uuid, relationer, "opmærkning"
+                )
+
                 units[uuid].append(
                     {
                         "uuid": uuid,
                         "user_key": egenskaber["brugervendtnoegle"],
                         "name": egenskaber["enhedsnavn"],
-                        "unit_type": relationer["enhedstype"][0]["uuid"],
-                        "level": level,
-                        "parent": parent,
+                        "unit_type": unit_type,  # class uuid
+                        "level": level,  # class uuid
+                        "parent": parent,  # org unit uuid
+                        "org_unit_hierarchy": org_unit_hierarchy,  # class uuid
                         "from_date": from_date,
                         "to_date": to_date,
                     }
                 )
+
         return units
 
     def _cache_lora_address(self):

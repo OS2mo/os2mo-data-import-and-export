@@ -55,6 +55,8 @@ class Enhed(Base):
     organisatorisk_sti = Column(String(1000))
     leder_uuid = Column(String(36))
     fungerende_leder_uuid = Column(String(36))
+    opmærkning_uuid = Column(String(36))  # Export UUID of "org_unit_hierarchy"
+    opmærkning_titel = Column(String(250))  # Export title of "org_unit_hierarchy"
     startdato = Column(String(10))
     slutdato = Column(String(10))
 

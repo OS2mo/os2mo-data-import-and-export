@@ -75,11 +75,21 @@ class _TestLoraCacheMethodHelper:
             "tilknyttedeenheder",
             "organisatoriskfunktionstype",
             "primær",
+            "overordnet",
+            "enhedstype",
+            "niveau",
         )
         collected_relations = {
             name: relations.get(name, default_list) for name in names
         }
-        for additional in ("adresser", "opgaver", "tilknyttedeitsystemer"):
+
+        allowed_additional = (
+            "adresser",
+            "opgaver",
+            "tilknyttedeitsystemer",
+            "opmærkning",
+        )
+        for additional in allowed_additional:
             if additional in relations:
                 collected_relations[additional] = relations[additional]
 
@@ -256,3 +266,40 @@ class TestCacheLoraUsers(_TestLoraCacheMethodHelper, TestCase):
         )
         user = users[self._user_uuid][0]
         self.assertIsNone(user["cpr"])
+
+
+class TestCacheLoraUnits(_TestLoraCacheMethodHelper, TestCase):
+    method_name = "_cache_lora_units"
+    from_dt = datetime(2020, 1, 1)
+    to_dt = datetime(2025, 1, 1)
+
+    _unit_uuid = "unit-uuid"
+    _unit_user_key = "unit-user-key"
+    _unit_name = "unit-name"
+    _parent_org_unit_uuid = "parent-org-unit-uuid"
+    _org_unit_hierarchy_class_uuid = "org-unit-hierarchy-class-uuid"
+    _attrs = {
+        "organisationenhedegenskaber": [
+            {"brugervendtnoegle": _unit_user_key, "enhedsnavn": _unit_name},
+        ],
+    }
+
+    def test_handles_units(self):
+        units = self.get_method_results(
+            self._unit_uuid,
+            {
+                "overordnet": [{"uuid": self._parent_org_unit_uuid}],
+                "opmærkning": [{"uuid": self._org_unit_hierarchy_class_uuid}],
+            },
+            attrs=self._attrs,
+        )
+        unit = units[self._unit_uuid][0]
+        self.assertEqual(unit["uuid"], self._unit_uuid),
+        self.assertEqual(unit["user_key"], self._unit_user_key)
+        self.assertEqual(unit["name"], self._unit_name)
+        self.assertEqual(unit["unit_type"], "uuid")
+        self.assertEqual(unit["level"], "uuid")
+        self.assertEqual(unit["parent"], self._parent_org_unit_uuid)
+        self.assertEqual(
+            unit["org_unit_hierarchy"], self._org_unit_hierarchy_class_uuid
+        )
