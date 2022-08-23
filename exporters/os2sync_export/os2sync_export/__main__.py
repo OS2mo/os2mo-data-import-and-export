@@ -47,13 +47,22 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_orgunits getting " "all current organisational units from os2mo"
     )
-    os2mo_uuids_present = os2mo.org_unit_uuids(root=settings.os2sync_top_unit_uuid)
+    os2mo_uuids_present = os2mo.org_unit_uuids(
+        root=settings.os2sync_top_unit_uuid,
+        hierarchy_uuids=os2mo.get_org_unit_hierarchy(
+            settings.os2sync_filter_hierarchy_names
+        ),
+    )
 
     logger.info(
         "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
     )
     os2mo_uuids_past = os2mo.org_unit_uuids(
-        root=settings.os2sync_top_unit_uuid, at=prev_date
+        root=settings.os2sync_top_unit_uuid,
+        at=prev_date,
+        hierarchy_uuids=os2mo.get_org_unit_hierarchy(
+            settings.os2sync_filter_hierarchy_names
+        ),
     )
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
