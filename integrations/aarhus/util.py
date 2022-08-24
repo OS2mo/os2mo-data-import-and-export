@@ -7,6 +7,7 @@ from typing import Tuple
 
 import config
 import tqdm
+from aiohttp import ClientResponse
 from aiohttp import ClientSession
 from aiohttp import ClientTimeout
 from aiohttp import TCPConnector
@@ -68,6 +69,36 @@ async def create_klasse(payload: dict, obj_uuid: str, mox_helper: MoxHelper) -> 
     await mox_helper.insert_klassifikation_klasse(payload, obj_uuid)
 
 
+async def raise_on_unhandled_mo_error(
+    endpoint: str,
+    doc: Iterable[dict],
+    response: ClientResponse,
+    ignored_mo_error_keys: tuple[str] = ("V_DUPLICATED_IT_USER",),
+) -> None:
+    """Raise an exception on any MO errors that we do not know to handle.
+
+    :param endpoint: The MO endpoint that was called
+    :param doc: The payload used when calling the MO endpoint
+    :param response: The MO response returned by the endpoint
+    :param ignored_mo_error_keys: Zero or more MO error keys to ignore, if encountered
+    """
+    if not response.ok:
+        # Print out the MO error response to ease debugging
+        mo_error = await response.json()
+        print(
+            f'Posting "{doc}" to "{endpoint}" resulted in MO error '
+            f'response "{mo_error}"'
+        )
+        # Examine the MO error to see if it should be ignored
+        mo_error_key = mo_error.get("error_key")
+        needs_check = mo_error_key and ignored_mo_error_keys
+        if needs_check and mo_error_key in ignored_mo_error_keys:
+            print(f'Continuing on ignored MO error "{mo_error_key}"')
+            return
+
+    response.raise_for_status()
+
+
 async def submit_payloads(
     session: ClientSession,
     endpoint: str,
@@ -83,23 +114,25 @@ async def submit_payloads(
     :param endpoint: Which endpoint to send the payloads to
     :param payloads: An iterable of dict payloads
     :param description: A description to print as part of the output
+    :param ignored_http_statuses: A tuple of HTTP status codes to ignore, if encountered
     """
     settings = config.get_config()
     base_url = settings.mora_base
     headers = TokenSettings().get_headers()
 
     async def submit(data: List[dict]) -> None:
+        doc = list(data)
         # Use semaphore to throttle the amount of concurrent requests
         async with session.post(
             base_url + endpoint,
             params={"force": 1},
-            json=list(data),
+            json=doc,
             headers=headers,
         ) as response:
             if ignored_http_statuses and response.status in ignored_http_statuses:
                 print(f"{endpoint} returned status {response.status}, ignoring")
             else:
-                response.raise_for_status()
+                await raise_on_unhandled_mo_error(endpoint, doc, response)
 
     chunks = chunked(payloads, settings.os2mo_chunk_size)
     tasks = list(map(submit, chunks))

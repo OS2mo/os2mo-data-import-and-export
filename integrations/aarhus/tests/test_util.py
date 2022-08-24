@@ -1,10 +1,13 @@
+import contextlib
 from datetime import datetime
 from operator import itemgetter
+from typing import Optional
 
 import los_files
 import pytest
 import util
 from aiohttp import ClientResponseError
+from aiohttp import ClientSession
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import one
@@ -70,30 +73,44 @@ class TestParseFilenames:
         assert expected_dates == actual_dates
 
 
+@contextlib.asynccontextmanager
+async def _mock_mo_response(
+    aioresponses,
+    mo_endpoint: str,
+    mo_http_status: int,
+    mo_response: Optional[dict] = None,
+) -> ClientSession:
+    mora_base = "http://example.com:8080"
+    # Mock a response from MO
+    aioresponses.post(
+        f"{mora_base}{mo_endpoint}?force=1",
+        status=mo_http_status,
+        payload=mo_response or {},
+    )
+    # Create client session on mock base URL
+    with mock_config(
+        mora_base=mora_base,
+        max_concurrent_requests=1,
+        os2mo_chunk_size=1,
+    ):
+        session = util.get_client_session()
+        yield session
+        session.close()
+
+
 @pytest.mark.asyncio
 async def test_terminate_details_handles_404_response(aioresponses):
     async def _run_test(ignored_http_statuses):
-        mora_base = "http://example.com:8080"
-
-        # Mock a 404 response from MO "terminate" API
-        aioresponses.post(
-            f"{mora_base}/service/details/terminate?force=1",
-            status=404,
-        )
-
-        # Run `terminate_details`
-        with mock_config(
-            mora_base=mora_base,
-            max_concurrent_requests=1,
-            os2mo_chunk_size=1,
-        ):
-            async with util.get_client_session() as client_session:
-                detail_payloads = [{"foo": "bar"}]
-                await util.terminate_details(
-                    client_session,
-                    detail_payloads,
-                    ignored_http_statuses=ignored_http_statuses,
-                )
+        # Mock a 404 response from MO "terminate" API, and run `terminate_details`
+        async with _mock_mo_response(
+            aioresponses, "/service/details/terminate", 404
+        ) as client_session:
+            detail_payloads = [{"foo": "bar"}]
+            await util.terminate_details(
+                client_session,
+                detail_payloads,
+                ignored_http_statuses=ignored_http_statuses,
+            )
 
     # Expect no exceptions if 404 is ignored
     await _run_test(ignored_http_statuses=(404,))
@@ -101,3 +118,23 @@ async def test_terminate_details_handles_404_response(aioresponses):
     # Expect an exception if `raise_for_status` is called in `submit_payloads`
     with pytest.raises(ClientResponseError):
         await _run_test(ignored_http_statuses=None)
+
+
+@pytest.mark.asyncio
+async def test_unhandled_status_400(aioresponses):
+    async with _mock_mo_response(
+        aioresponses, "/service/details/create", 400, {}
+    ) as client_session:
+        with pytest.raises(ClientResponseError):
+            await util.create_details(client_session, [{"foo": "bar"}])
+
+
+@pytest.mark.asyncio
+async def test_handled_status_400(aioresponses):
+    async with _mock_mo_response(
+        aioresponses,
+        "/service/details/create",
+        400,
+        {"error_key": "V_DUPLICATED_IT_USER"},
+    ) as client_session:
+        await util.create_details(client_session, [{"foo": "bar"}])
