@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.43.1 - 2022-08-24
+-------------------
+
+[#51938] LOS import: continue on MO error `V_DUPLICATED_IT_USER`
+
 2.43.0 - 2022-08-23
 -------------------
 
