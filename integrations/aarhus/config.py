@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     mora_base: str = "http://localhost:5000"
     queries_dir: str = "/opt/docker/os2mo/queries"
     max_concurrent_requests: int = 4
-    os2mo_chunk_size: int = 20
+    os2mo_chunk_size: int = 1
     azid_it_system_uuid: UUID
 
     class Config:
