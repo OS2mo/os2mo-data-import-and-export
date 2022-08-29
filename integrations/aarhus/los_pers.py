@@ -29,9 +29,11 @@ class Person(pydantic.BaseModel):
     org_unit_uuid: uuid.UUID = Field(alias="OrgenhedUUID")
     engagement_type_uuid: uuid.UUID = Field(alias="EngagementTypeUUID")
     az_id: Optional[str] = Field(alias="AZID")
+    # These 3 fields are present but no longer read/used by the LOS importer
     ad_it_system_uuid: Optional[uuid.UUID] = Field(alias="ADITSystemUUID")
     ad_account: Optional[str] = Field(alias="ADkonto")
     ad_acccount_uuid: Optional[uuid.UUID] = Field(alias="ADkontoUUID")
+    # This field is used when creating engagements
     job_function_uuid: uuid.UUID = Field(alias="StillingsBetegnelseUUID")
 
 
@@ -74,22 +76,6 @@ class PersonImporter:
             user_key=person.az_id,
             person_uuid=self.uuid_generator(person.cpr),
             itsystem_uuid=self.settings.azid_it_system_uuid,
-            from_date=filedate,
-            to_date=to_date,
-        )
-
-    def generate_employee_ad_account_payload(self, person: Person, filedate: str):
-        # For creation of Employee address/IT details we always
-        # use the parsed file-date as from-date
-        # The start_time field is still used for creating engagements
-        _, to_date = util.convert_validities(
-            person.start_time.date(), person.end_time.date()
-        )
-        return mo_payloads.create_it_rel(
-            uuid=person.ad_acccount_uuid,
-            user_key=person.ad_account,
-            person_uuid=self.uuid_generator(person.cpr),
-            itsystem_uuid=person.ad_it_system_uuid,
             from_date=filedate,
             to_date=to_date,
         )
@@ -143,15 +129,10 @@ class PersonImporter:
             partial(self.generate_employee_az_id_payload, filedate=filedate),
             filter(lambda person: person.az_id, persons),
         )
-        ad_account_payloads = map(
-            partial(self.generate_employee_ad_account_payload, filedate=filedate),
-            filter(lambda person: person.ad_account, persons),
-        )
         return chain(
             engagement_payloads,
             email_payloads,
             az_id_payloads,
-            ad_account_payloads,
         )
 
     async def handle_create(self, filename: str, filedate: datetime):
