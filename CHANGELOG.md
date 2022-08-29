@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.44.0 - 2022-08-29
+-------------------
+
+[#51764] LOS import: remove creation of "AD" IT users in MO
+
 2.43.1 - 2022-08-24
 -------------------
 
