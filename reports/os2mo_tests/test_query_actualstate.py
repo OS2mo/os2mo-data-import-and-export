@@ -71,7 +71,7 @@ def test_merge_dynamic_classes():
     data_df = merge_dynamic_classes(
         data_df=data_df, association_dynamic_classes=association_map
     )
-    assert data_df.dynamic_class[0] == "TestTilknytning"
+    assert data_df["Hovedorganisation / Faglig organisation"][0] == "TestTilknytning"
 
 
 class Tests_db(unittest.TestCase):
@@ -219,7 +219,7 @@ class Tests_db(unittest.TestCase):
                 "Ansættelsesenhed",
                 "Enhed 1",
                 "Enhed 2",
-                "dynamic_class",
+                "Hovedorganisation / Faglig organisation",
             ),
         )
 

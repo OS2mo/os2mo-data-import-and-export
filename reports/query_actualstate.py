@@ -137,7 +137,7 @@ def merge_dynamic_classes(
 ) -> pd.DataFrame:
     association_df = pd.DataFrame(
         association_dynamic_classes.items(),
-        columns=["Tilknytningsuuid", "dynamic_class"],
+        columns=["Tilknytningsuuid", "Hovedorganisation / Faglig organisation"],
     )
     data_df = data_df.merge(association_df, on="Tilknytningsuuid", how="left")
     return data_df.replace({np.nan: None})
