@@ -86,7 +86,7 @@ wheel = "^0.37.1"
 jmespath = "^0.10.0"
 spsftp = "^0.0.1"
 lora-utils = "^0.1.0"
-os2mo-data-import = "^2.22.1"
+os2mo-data-import = "^2.44.0"
 python-dateutil = "^2.8.2"
 glom = "^22.1.0"
 
