@@ -1,26 +1,77 @@
 # import tempfile
 import unittest
+from unittest.mock import patch
 
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Base,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
-from reports.query_actualstate import (
-    get_engine,
-    list_employees,
-    list_MED_members,
-    sessionmaker,
-    set_of_org_units,
-)
+import pandas as pd
 
-# import xlsxwriter
-# from openpyxl import load_workbook
-# from sqlalchemy import create_engine
-# from reports.XLSXExporter import XLSXExporter
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
+from reports.query_actualstate import get_engine
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import map_dynamic_class
+from reports.query_actualstate import merge_dynamic_classes
+from reports.query_actualstate import sessionmaker
+from reports.query_actualstate import set_of_org_units
+
+
+def test_map_dynamic_class():
+    returned_data = [
+        {
+            "uuid": "03d133d8-656a-4c8e-bffe-867b30e088a2",
+            "objects": [
+                {
+                    "dynamic_class": {
+                        "name": "Testorganisation",
+                        "parent": {"name": "Hovedorganisation"},
+                    }
+                }
+            ],
+        },
+        {
+            "uuid": "00bffb5f-9975-4b72-a6f2-afb3ff6e5295",
+            "objects": [
+                {"dynamic_class": {"name": "Testorganisation", "parent": None}}
+            ],
+        },
+        {
+            "uuid": "022e7717-a023-4577-b6ee-1eec5dee63c1",
+            "objects": [{"dynamic_class": None}],
+        },
+    ]
+    expected = {
+        "03d133d8-656a-4c8e-bffe-867b30e088a2": "Hovedorganisation / Testorganisation",
+        "00bffb5f-9975-4b72-a6f2-afb3ff6e5295": "Testorganisation",
+        "022e7717-a023-4577-b6ee-1eec5dee63c1": None,
+    }
+
+    result = map_dynamic_class(returned_data)
+    assert result == expected
+
+
+def test_merge_dynamic_classes():
+    data_df = pd.DataFrame(
+        [("testuuid", "test", "test", "test", "test", "test", "test", "test")],
+        columns=[
+            "Tilknytningsuuid",
+            "Navn",
+            "Email",
+            "Telefonnummer",
+            "Tilknytningstype",
+            "Tilknytningsenhed",
+            "Ansættelsesenhed",
+            "Sti",
+        ],
+    )
+    association_map = {"testuuid": "TestTilknytning"}
+    data_df = merge_dynamic_classes(
+        data_df=data_df, association_dynamic_classes=association_map
+    )
+    assert data_df.dynamic_class[0] == "TestTilknytning"
 
 
 class Tests_db(unittest.TestCase):
@@ -149,7 +200,12 @@ class Tests_db(unittest.TestCase):
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
-    def test_MED_data(self):
+    # dynamic classes are fetched from graphql, here we just mock the return to check the resulting list.
+    @patch(
+        "reports.query_actualstate.fetch_dynamic_class",
+        return_value={"t1": "Tilknytningsorganisation"},
+    )
+    def test_MED_data(self, _):
         # hoved_enhed = self.session.query(Enhed).all()
         data = list_MED_members(self.session, {"løn": "LØN-org", "MED": "Hoved-MED"})
         self.assertEqual(
@@ -163,6 +219,7 @@ class Tests_db(unittest.TestCase):
                 "Ansættelsesenhed",
                 "Enhed 1",
                 "Enhed 2",
+                "dynamic_class",
             ),
         )
 
@@ -177,6 +234,7 @@ class Tests_db(unittest.TestCase):
                 "Under-Enhed",
                 "LØN-org",
                 "Under-Enhed",
+                "Tilknytningsorganisation",
             ),
         )
 
@@ -191,6 +249,7 @@ class Tests_db(unittest.TestCase):
                 "Under-Enhed",
                 "LØN-org",
                 "Under-Enhed",
+                None,
             ),
         )
 
