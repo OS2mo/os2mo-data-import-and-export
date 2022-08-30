@@ -101,20 +101,21 @@ def fetch_dynamic_class(association_uuids: list[str]) -> Dict[str, str]:
     settings = Settings()
     query = gql(
         """
-            query employeeDynamicClasses($uuids: [UUID!]) {
-                associations(uuids: $uuids) {
-                    objects {
-                        dynamic_class {
-                        name
-                        parent {
-                            name
-                        }
-                    }
-                    }
+        query employeeDynamicClasses($uuids: [UUID!]) {
+          associations(uuids: $uuids) {
+            uuid
+            objects {
+              dynamic_class {
+                name
+                parent {
+                  name
                 }
+              }
             }
-            """
-    )
+          }
+        }
+        """
+        )
 
     with GraphQLClient(
         url=f"{settings.mora_base}/graphql",
