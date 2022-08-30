@@ -7,6 +7,7 @@
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
 from typing import Dict
 
+import jmespath
 import numpy as np
 import pandas as pd
 import xlsxwriter
@@ -75,8 +76,7 @@ class Settings(BaseSettings):
 
 
 def map_dynamic_class(result: list) -> Dict[str, str]:
-    import jmespath
-
+    """Transforms a list of associations from graphql into a dict."""
     dynamic_classes = jmespath.compile("objects[0].dynamic_class.name")
     dynamic_class_parents = jmespath.compile("objects[0].dynamic_class.parent.name")
     return {
