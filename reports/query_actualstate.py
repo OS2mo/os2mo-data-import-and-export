@@ -76,7 +76,10 @@ class Settings(BaseSettings):
 
 
 def map_dynamic_class(result: list) -> Dict[str, str]:
-    """Transforms a list of associations from graphql into a dict."""
+    """Transforms a list of associations from graphql into a dict.
+    Uses jmes to search the results for names of classes parent classes.
+    If there is a parent output as "parent name / class name"
+    """
     dynamic_classes = jmespath.compile("objects[0].dynamic_class.name")
     dynamic_class_parents = jmespath.compile("objects[0].dynamic_class.parent.name")
     return {
@@ -137,12 +140,16 @@ def fetch_dynamic_class(association_uuids: list[str]) -> Dict[str, str]:
 def merge_dynamic_classes(
     data_df: pd.DataFrame, association_dynamic_classes: Dict[str, str]
 ) -> pd.DataFrame:
+    """Merges information on dynamic classes into the dataframe."""
+    # Create a new pandas dataframe with uuid on associations and their dynamic class.
     association_df = pd.DataFrame(
         association_dynamic_classes.items(),
         columns=["Tilknytningsuuid", "Hovedorganisation / Faglig organisation"],
     )
+    # Merge (left join) on uuids.
     data_df = data_df.merge(association_df, on="Tilknytningsuuid", how="left")
-    return data_df.replace({np.nan: None})
+
+    return data_df.replace({np.nan: None})  # Replace nan values with None
 
 
 def list_MED_members(session, org_names: dict) -> list:
