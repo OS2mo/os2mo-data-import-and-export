@@ -596,10 +596,7 @@ class SdImport:
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            date_from, date_to = get_employment_dates(
-                employment,
-                self.settings.sd_importer_employment_date_as_engagement_start_date,
-            )
+            date_from, date_to = get_employment_dates(employment)
 
             date_from_str = format_date(date_from)
             date_to_str = format_date(date_to)

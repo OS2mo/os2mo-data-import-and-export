@@ -11,6 +11,7 @@ from parameterized import parameterized
 
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
+from sdlon.date_utils import format_date
 from sdlon.date_utils import gen_cut_dates
 from sdlon.date_utils import gen_date_intervals
 from sdlon.date_utils import get_employment_dates
@@ -74,24 +75,46 @@ class TestSdToMoTerminationDate:
         assert "2021-01-29" == sd_to_mo_termination_date("2021-01-30")
 
 
-@parameterized.expand([(False, datetime(2022, 2, 22)), (True, datetime(2011, 11, 11))])
-def test_get_from_date(use_activation_date, date):
+@parameterized.expand(
+    [
+        (datetime(2020, 1, 1), datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2020, 1, 1)),
+        (datetime(2001, 1, 1), datetime(2021, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2021, 1, 1)),
+        (datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2022, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2022, 1, 1)),
+        (datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2023, 1, 1), datetime(2004, 1, 1), datetime(2023, 1, 1)),
+        (datetime(2020, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2024, 1, 1), datetime(2024, 1, 1)),
+    ]
+)
+def test_get_from_date_return_max_date(
+    emp_date: datetime,
+    emp_dep_date: datetime,
+    emp_status_date: datetime,
+    prof_date: datetime,
+    working_time_date: datetime,
+    expected_date: datetime,
+):
     employment = OrderedDict(
         [
-            ("EmploymentDate", "2011-11-11"),
-            ("EmploymentStatus", OrderedDict([("ActivationDate", "2022-02-22")])),
+            ("EmploymentDate", format_date(emp_date)),
+            ("EmploymentDepartment", OrderedDict([("ActivationDate", format_date(emp_dep_date))])),
+            ("EmploymentStatus", OrderedDict([("ActivationDate", format_date(emp_status_date))])),
+            ("Profession", OrderedDict([("ActivationDate", format_date(prof_date))])),
+            ("WorkingTime", OrderedDict([("ActivationDate", format_date(working_time_date))])),
         ]
     )
 
-    from_date = _get_employment_from_date(employment, use_activation_date)
+    from_date = _get_employment_from_date(employment)
 
-    assert from_date == date
+    assert from_date == expected_date
+
+
+def test_get_from_date_always_return_date():
+    assert _get_employment_from_date(OrderedDict()) == datetime.min
 
 
 @parameterized.expand(
     [
-        ("1960-01-01", "1970-01-01", datetime(1960, 1, 1)),
-        ("1970-01-01", "1960-01-01", datetime(1960, 1, 1)),
+        ("1960-01-01", "1970-01-01", datetime(1970, 1, 1)),
+        ("1970-01-01", "1960-01-01", datetime(1970, 1, 1)),
         ("1970-01-01", "1970-01-01", datetime(1970, 1, 1)),
     ]
 )
@@ -110,7 +133,8 @@ def test_get_employment_from_date_when_status_is_leave(
         },
     }
 
-    date_from, date_to = get_employment_dates(employment, False)
+    date_from, date_to = get_employment_dates(employment)
+    print(date_from, date_to)
 
     assert date_from == exp_date
 
@@ -135,7 +159,7 @@ def test_get_employment_to_date_when_status_is_leave(
         },
     }
 
-    date_from, date_to = get_employment_dates(employment, False)
+    date_from, date_to = get_employment_dates(employment)
 
     assert date_to == exp_date
 
