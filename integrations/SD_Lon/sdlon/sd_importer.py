@@ -660,7 +660,7 @@ class SdImport:
                     employee=cpr,
                     engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
-                    date_from=employment["EmploymentStatus"]["ActivationDate"],
+                    date_from=date_from_str,
                     date_to=date_to_str,
                 )
 
@@ -675,7 +675,7 @@ class SdImport:
                     manager_type_ref="leder_type",
                     responsibility_list=["Lederansvar"],
                     date_from=date_from_str,
-                    date_to=date_to_str,
+                    date_to=employment["Profession"]["DeactivationDate"],
                 )
 
 

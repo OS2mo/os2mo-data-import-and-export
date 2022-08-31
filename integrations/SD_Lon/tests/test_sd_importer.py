@@ -450,6 +450,67 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
+    assert leave.date_from == "1970-01-01"
+
+
+@patch("sdlon.sd_importer.uuid.uuid4")
+def test_manager_dates_set_correctly(mock_uuid4):
+    # Arrange
+
+    mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
+    sd = get_sd_importer()
+
+    ou = attrdict({"name": "org_unit"})
+
+    sd.nodes["org_unit_uuid"] = ou
+    sd.importer.organisation_units["org_unit_uuid"] = ou
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee who is a manager (job_pos_id is 1030, 1035 or 1040)
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "EmploymentDate": "2022-06-01",
+                    "AnniversaryDate": "2004-08-15",
+                    "Profession": {
+                        "JobPositionIdentifier": "1030",
+                        "ActivationDate": "2022-01-01",
+                        "DeactivationDate": "2023-12-31",
+                    },
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    details = sd.importer.employee_details[cpr_no]
+    _, manager = details
+
+    assert manager.date_from == "2022-06-01"
+    assert manager.date_to == "2023-12-31"
 
 
 def test_employment_date_as_engagement_start_date_disabled_per_default():

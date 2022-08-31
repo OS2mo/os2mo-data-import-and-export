@@ -109,7 +109,10 @@ class ImporterSettings(CommonSettings):
     municipality_name: str
     sd_importer_create_associations: bool = True
     sd_importer_create_email_addresses: bool = True
+
+    # Deprecated
     sd_importer_employment_date_as_engagement_start_date: bool = False
+
     sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_employment_types: List[str] = []
     sd_skip_job_functions: List[str] = []
