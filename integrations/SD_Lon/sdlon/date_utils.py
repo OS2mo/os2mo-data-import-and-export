@@ -41,6 +41,16 @@ def parse_date(date_str: str) -> datetime:
 
 
 def _get_employment_from_date(employment: Dict) -> datetime:
+    """
+    Get the latest date of all the dates in the payload from the SD
+    GetEmployment endpoint (see https://redmine.magenta-aps.dk/issues/51898)
+
+    Args:
+        employment: the SD employment
+
+    Returns: the maximum of all the date in the SD payload
+
+    """
     MIN_DATE = "000" + format_date(datetime.min)
 
     employment_date = employment.get("EmploymentDate", MIN_DATE)
@@ -125,6 +135,10 @@ def to_midnight(dt: datetime) -> datetime:
 def is_midnight(dt: datetime) -> bool:
     """Check if datetime is at midnight."""
     return dt == to_midnight(dt)
+
+
+def is_engagement_older_than_org_unit(employment_start_date: datetime, org_unit: Dict) -> bool:
+    return employment_start_date < parse_date(org_unit.date_from)
 
 
 def gen_cut_dates(from_datetime: datetime, to_datetime: datetime) -> Iterator[datetime]:

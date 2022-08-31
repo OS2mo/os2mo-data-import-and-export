@@ -131,7 +131,7 @@ def test_create_employee(create_associations: bool):
             "sd_importer_create_associations": create_associations,
         }
     )
-    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
 
     original_classes = set(sd.importer.klasse_objects.keys())
 
@@ -406,7 +406,7 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
-    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
 
     cpr_no = "0101709999"
     sd.importer.add_employee(
@@ -448,6 +448,10 @@ def test_set_engagement_on_leave(mock_uuid4):
     details = sd.importer.employee_details[cpr_no]
     engagement, leave = details
 
+    assert len(details) == 2
+    assert engagement.type_id == "engagement"
+    assert leave.type_id == "leave"
+
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.date_from == "1970-01-01"
@@ -460,7 +464,7 @@ def test_manager_dates_set_correctly(mock_uuid4):
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
 
-    ou = attrdict({"name": "org_unit"})
+    ou = attrdict({"name": "org_unit", "date_from": "1960-01-01"})
 
     sd.nodes["org_unit_uuid"] = ou
     sd.importer.organisation_units["org_unit_uuid"] = ou
@@ -507,10 +511,82 @@ def test_manager_dates_set_correctly(mock_uuid4):
     # Assert
 
     details = sd.importer.employee_details[cpr_no]
-    _, manager = details
+    engagement, manager = details
+
+    assert len(details) == 2
+    assert engagement.type_id == "engagement"
+    assert manager.type_id == "manager"
 
     assert manager.date_from == "2022-06-01"
     assert manager.date_to == "2023-12-31"
+
+
+@patch("sdlon.sd_importer.uuid.uuid4")
+def test_create_historic_dummy_engagement(mock_uuid4):
+    """
+    Test that a historic dummy engagement is created if the employee
+    engagement start date is older than the corresponding org unit
+    start date (see https://redmine.magenta-aps.dk/issues/51898).
+    """
+
+    # Arrange
+
+    mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
+    sd = get_sd_importer()
+    sd.nodes["org_unit_uuid"] = attrdict(
+        {
+            "name": "org_unit",
+            "date_from": "2000-01-01",  # Later than 1970-01-01 (see below)
+        }
+    )
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee on leave (SD EmploymentStatusCode = 3)
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "EmploymentDate": "1960-01-01",
+                    "AnniversaryDate": "2004-08-15",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    details = sd.importer.employee_details[cpr_no]
+    engagement, engagement_historic_dummy = details
+
+    # Two engagements are expected - one active and one historic dummy
+    assert len(details) == 2
+    assert engagement.type_id == "engagement"
+    assert engagement_historic_dummy.type_id == "engagement"
+
+    assert engagement_historic_dummy.date_from == "1970-01-01"
+    assert engagement_historic_dummy.date_to == "1999-12-31"
 
 
 def test_employment_date_as_engagement_start_date_disabled_per_default():

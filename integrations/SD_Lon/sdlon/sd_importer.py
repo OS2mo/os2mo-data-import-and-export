@@ -18,12 +18,13 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
 
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date
 from .date_utils import get_employment_dates
+from .date_utils import is_engagement_older_than_org_unit
+from .date_utils import parse_date
 from .models import JobFunction
 from .sd_common import calc_employment_id
 from .sd_common import EmploymentStatus
@@ -655,6 +656,22 @@ class SdImport:
                 date_to=date_to_str,
                 **extention,
             )
+
+            # Add historic dummy engagement if the start date of the engagement
+            # is older than the start date of the corresponding org unit
+            # (see https://redmine.magenta-aps.dk/issues/51898)
+            if is_engagement_older_than_org_unit(date_from, self.nodes[unit]):
+                dummy_eng_date_to = parse_date(self.nodes[unit].date_from) - datetime.timedelta(days=1)
+                dummy_eng_date_to_str = format_date(dummy_eng_date_to)
+                self.importer.add_engagement(
+                    employee=cpr,
+                    organisation_unit=unit,
+                    job_function_ref=job_func_ref,
+                    engagement_type_ref=engagement_type_ref,
+                    date_from=date_from_str,
+                    date_to=dummy_eng_date_to_str
+                )
+
             if status == EmploymentStatus.Orlov:
                 self.importer.add_leave(
                     employee=cpr,
