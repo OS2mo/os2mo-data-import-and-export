@@ -667,7 +667,7 @@ class SdImport:
                     employee=cpr,
                     organisation_unit=unit,
                     job_function_ref=job_func_ref,
-                    engagement_type_ref=engagement_type_ref,
+                    engagement_type_ref="historisk",
                     date_from=date_from_str,
                     date_to=dummy_eng_date_to_str
                 )

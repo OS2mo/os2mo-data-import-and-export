@@ -587,6 +587,8 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     assert engagement_historic_dummy.date_from == "1970-01-01"
     assert engagement_historic_dummy.date_to == "1999-12-31"
+    assert engagement_historic_dummy.org_unit_ref == "org_unit_uuid"
+    assert engagement_historic_dummy.type_ref == "historisk"
 
 
 def test_employment_date_as_engagement_start_date_disabled_per_default():
