@@ -79,11 +79,46 @@ class TestSdToMoTerminationDate:
 
 @parameterized.expand(
     [
-        (datetime(2020, 1, 1), datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2020, 1, 1)),
-        (datetime(2001, 1, 1), datetime(2021, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2021, 1, 1)),
-        (datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2022, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2022, 1, 1)),
-        (datetime(2001, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2023, 1, 1), datetime(2004, 1, 1), datetime(2023, 1, 1)),
-        (datetime(2020, 1, 1), datetime(2002, 1, 1), datetime(2003, 1, 1), datetime(2004, 1, 1), datetime(2024, 1, 1), datetime(2024, 1, 1)),
+        (
+            datetime(2020, 1, 1),
+            datetime(2001, 1, 1),
+            datetime(2002, 1, 1),
+            datetime(2003, 1, 1),
+            datetime(2004, 1, 1),
+            datetime(2020, 1, 1),
+        ),
+        (
+            datetime(2001, 1, 1),
+            datetime(2021, 1, 1),
+            datetime(2002, 1, 1),
+            datetime(2003, 1, 1),
+            datetime(2004, 1, 1),
+            datetime(2021, 1, 1),
+        ),
+        (
+            datetime(2001, 1, 1),
+            datetime(2002, 1, 1),
+            datetime(2022, 1, 1),
+            datetime(2003, 1, 1),
+            datetime(2004, 1, 1),
+            datetime(2022, 1, 1),
+        ),
+        (
+            datetime(2001, 1, 1),
+            datetime(2002, 1, 1),
+            datetime(2003, 1, 1),
+            datetime(2023, 1, 1),
+            datetime(2004, 1, 1),
+            datetime(2023, 1, 1),
+        ),
+        (
+            datetime(2020, 1, 1),
+            datetime(2002, 1, 1),
+            datetime(2003, 1, 1),
+            datetime(2004, 1, 1),
+            datetime(2024, 1, 1),
+            datetime(2024, 1, 1),
+        ),
     ]
 )
 def test_get_from_date_return_max_date(
@@ -97,10 +132,19 @@ def test_get_from_date_return_max_date(
     employment = OrderedDict(
         [
             ("EmploymentDate", format_date(emp_date)),
-            ("EmploymentDepartment", OrderedDict([("ActivationDate", format_date(emp_dep_date))])),
-            ("EmploymentStatus", OrderedDict([("ActivationDate", format_date(emp_status_date))])),
+            (
+                "EmploymentDepartment",
+                OrderedDict([("ActivationDate", format_date(emp_dep_date))]),
+            ),
+            (
+                "EmploymentStatus",
+                OrderedDict([("ActivationDate", format_date(emp_status_date))]),
+            ),
             ("Profession", OrderedDict([("ActivationDate", format_date(prof_date))])),
-            ("WorkingTime", OrderedDict([("ActivationDate", format_date(working_time_date))])),
+            (
+                "WorkingTime",
+                OrderedDict([("ActivationDate", format_date(working_time_date))]),
+            ),
         ]
     )
 
@@ -136,7 +180,6 @@ def test_get_employment_from_date_when_status_is_leave(
     }
 
     date_from, date_to = get_employment_dates(employment)
-    print(date_from, date_to)
 
     assert date_from == exp_date
 
@@ -271,6 +314,8 @@ def test_date_tuples(datetimes):
         (datetime(1960, 1, 1), "1960-01-01", False),
     ]
 )
-def test_is_engagement_older_than_org_unit(eng_start_date, org_unit_start_date, expected):
+def test_is_engagement_older_than_org_unit(
+    eng_start_date, org_unit_start_date, expected
+):
     org_unit = attrdict({"date_from": org_unit_start_date})
     assert is_engagement_older_than_org_unit(eng_start_date, org_unit) == expected

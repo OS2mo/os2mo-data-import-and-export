@@ -661,7 +661,9 @@ class SdImport:
             # is older than the start date of the corresponding org unit
             # (see https://redmine.magenta-aps.dk/issues/51898)
             if is_engagement_older_than_org_unit(date_from, self.nodes[unit]):
-                dummy_eng_date_to = parse_date(self.nodes[unit].date_from) - datetime.timedelta(days=1)
+                dummy_eng_date_to = parse_date(
+                    self.nodes[unit].date_from
+                ) - datetime.timedelta(days=1)
                 dummy_eng_date_to_str = format_date(dummy_eng_date_to)
                 self.importer.add_engagement(
                     employee=cpr,
@@ -669,7 +671,7 @@ class SdImport:
                     job_function_ref=job_func_ref,
                     engagement_type_ref="historisk",
                     date_from=date_from_str,
-                    date_to=dummy_eng_date_to_str
+                    date_to=dummy_eng_date_to_str,
                 )
 
             if status == EmploymentStatus.Orlov:

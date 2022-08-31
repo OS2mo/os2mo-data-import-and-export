@@ -55,17 +55,25 @@ def _get_employment_from_date(employment: Dict) -> datetime:
     MIN_DATE = "000" + format_date(datetime.min)
 
     employment_date = employment.get("EmploymentDate", MIN_DATE)
-    employment_department_date = employment.get("EmploymentDepartment", dict()).get("ActivationDate", MIN_DATE)
-    employment_status_date = employment.get("EmploymentStatus", dict()).get("ActivationDate", MIN_DATE)
-    profession_date = employment.get("Profession", dict()).get("ActivationDate", MIN_DATE)
-    working_time_date = employment.get("WorkingTime", dict()).get("ActivationDate", MIN_DATE)
+    employment_department_date = employment.get("EmploymentDepartment", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    employment_status_date = employment.get("EmploymentStatus", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    profession_date = employment.get("Profession", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    working_time_date = employment.get("WorkingTime", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
 
     return max(
         parse_date(employment_date),
         parse_date(employment_department_date),
         parse_date(employment_status_date),
         parse_date(profession_date),
-        parse_date(working_time_date)
+        parse_date(working_time_date),
     )
 
 
@@ -138,7 +146,9 @@ def is_midnight(dt: datetime) -> bool:
     return dt == to_midnight(dt)
 
 
-def is_engagement_older_than_org_unit(employment_start_date: datetime, org_unit: attrdict) -> bool:
+def is_engagement_older_than_org_unit(
+    employment_start_date: datetime, org_unit: attrdict
+) -> bool:
     return employment_start_date < parse_date(org_unit.date_from)
 
 

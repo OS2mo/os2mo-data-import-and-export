@@ -131,7 +131,9 @@ def test_create_employee(create_associations: bool):
             "sd_importer_create_associations": create_associations,
         }
     )
-    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
+    sd.nodes["org_unit_uuid"] = attrdict(
+        {"name": "org_unit", "date_from": "1900-01-01"}
+    )
 
     original_classes = set(sd.importer.klasse_objects.keys())
 
@@ -406,7 +408,9 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
-    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
+    sd.nodes["org_unit_uuid"] = attrdict(
+        {"name": "org_unit", "date_from": "1900-01-01"}
+    )
 
     cpr_no = "0101709999"
     sd.importer.add_employee(
