@@ -14,6 +14,7 @@ from more_itertools import pairwise
 from more_itertools import tabulate
 
 from .sd_common import EmploymentStatus
+from ra_utils.attrdict import attrdict
 
 # TODO: move constants elsewhere
 # TODO: set back to "infinity" when MO can handle this
@@ -137,7 +138,7 @@ def is_midnight(dt: datetime) -> bool:
     return dt == to_midnight(dt)
 
 
-def is_engagement_older_than_org_unit(employment_start_date: datetime, org_unit: Dict) -> bool:
+def is_engagement_older_than_org_unit(employment_start_date: datetime, org_unit: attrdict) -> bool:
     return employment_start_date < parse_date(org_unit.date_from)
 
 
