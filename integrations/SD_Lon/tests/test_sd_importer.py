@@ -54,7 +54,6 @@ def get_sd_importer(
         create_defaults=True,
         mox_base=mox_base,
         mora_base=mora_base,
-        store_integration_data=False,
         seperate_names=True,
     )
 
@@ -91,7 +90,6 @@ def get_sd_importer(
     assert sd.importer.organisation[1].municipality_code == str(municipality_code)
     assert sd.importer.organisation[1].date_from == "1930-01-01"
     assert sd.importer.organisation[1].date_to == "infinity"
-    assert sd.importer.organisation[1].integration_data == {}
 
     assert sd.importer.klassifikation is not None
     assert sd.importer.klassifikation[0] == municipality_name
@@ -101,7 +99,6 @@ def get_sd_importer(
     assert sd.importer.klassifikation[1].description == "umbrella"
     assert sd.importer.klassifikation[1].date_from == "1930-01-01"
     assert sd.importer.klassifikation[1].date_to == "infinity"
-    assert sd.importer.klassifikation[1].integration_data == {}
 
     # 29 classes exist hardcoded within sd_importer.py
     assert len(sd.importer.klasse_objects) == 30
@@ -184,7 +181,6 @@ def test_create_employee(create_associations: bool):
     job_id = new_classes["job_id_123"]
     assert engagement_type.date_from == job_id.date_from == "1930-01-01"
     assert engagement_type.date_to == job_id.date_to == "infinity"
-    assert engagement_type.integration_data == job_id.integration_data == {}
     assert engagement_type.description == job_id.description is None
     assert engagement_type.scope == job_id.scope == "TEXT"
     assert engagement_type.example == job_id.example is None
@@ -294,7 +290,6 @@ def test_create_ou_tree(
 
     assert afdelings_niveau.date_from == ny5_niveau.date_from == "1930-01-01"
     assert afdelings_niveau.date_to == ny5_niveau.date_to == "infinity"
-    assert afdelings_niveau.integration_data == ny5_niveau.integration_data == {}
     assert afdelings_niveau.description == ny5_niveau.description is None
     assert afdelings_niveau.scope == ny5_niveau.scope == "TEXT"
     assert afdelings_niveau.example == ny5_niveau.example is None

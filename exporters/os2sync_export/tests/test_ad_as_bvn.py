@@ -222,10 +222,6 @@ mo_employee_engagement = [
         "extension_8": None,
         "extension_9": None,
         "fraction": None,
-        "integration_data": {
-            "Artificial import": '"be8300fe7fda60be2c1e57634dd56'
-            '7d8cb8977aa5a065cace7d0a1ae03910981"STOP_DUMMY'
-        },
         "is_primary": None,
         "job_function": {
             "example": None,

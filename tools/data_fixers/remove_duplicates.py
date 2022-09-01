@@ -64,7 +64,6 @@ def delete_indexes(connector: connection) -> None:
         DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugervendtnoegle;
         DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugernavn;
         DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugertype;
-        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_integrationsdata;
         DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_virkning_aktoerref;
         DROP INDEX IF EXISTS bruger_attr_egenskaber_pat_virkning_notetekst;
         DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_virkning_aktoertypekode;
@@ -217,7 +216,6 @@ table_and_equivalence_keys = {
         "brugervendtnoegle",
         "brugernavn",
         "brugertype",
-        "integrationsdata",
     ),
     "bruger_attr_udvidelser": (
         "fornavn",

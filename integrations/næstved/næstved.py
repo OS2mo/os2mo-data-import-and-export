@@ -13,9 +13,6 @@ importer = ImportHelper(
     create_defaults=True,
     mox_base=MOX_BASE,
     mora_base=MORA_BASE,
-    system_name='Opus-Import',
-    end_marker='OPUS_STOP!',
-    store_integration_data=True
 )
 
 # importer.new_itsystem(

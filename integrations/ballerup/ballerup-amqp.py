@@ -12,9 +12,6 @@ importer = ImportHelper(
     create_defaults=True,
     mox_base=settings["mox.base"],
     mora_base=settings["mora.base"],
-    system_name='SD-Import',
-    end_marker='SDSTOP',
-    store_integration_data=True,
     seperate_names=False
 )
 

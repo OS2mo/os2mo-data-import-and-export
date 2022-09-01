@@ -7,16 +7,13 @@
 #
 import hashlib
 import logging
-from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 logger = logging.getLogger("moImporterMoraTypes")
 
 
 # TODO: This should be in some sort of global config
-def mora_type_config(mox_base, system_name, end_marker):
+def mora_type_config(mox_base):
     MoType.mox_base = mox_base
-    MoType.system_name = system_name
-    MoType.end_marker = end_marker
 
 
 class MoType():
@@ -50,10 +47,6 @@ class MoType():
     """
 
     def __init__(self):
-        self.ia = IntegrationAbstraction(self.mox_base,
-                                         self.system_name,
-                                         self.end_marker)
-
         self.type_id = None
 
         self.payload = {}
@@ -259,12 +252,7 @@ class EngagementType(MoType):
 
         # Reference the parent org unit uuid
         if not self.org_unit_uuid:
-            ou_res = 'organisation/organisationenhed'
-            uuid = self.ia.find_object(ou_res, self.org_unit_ref)
-            if uuid:
-                self.org_unit_uuid = uuid
-            else:
-                raise ReferenceError("Reference to parent org unit is missing")
+            raise ValueError("empty org_unit_uuid")
 
         self.payload["org_unit"] = {
               "uuid": self.org_unit_uuid
@@ -287,12 +275,6 @@ class EngagementType(MoType):
             hash_value.update(self.date_from.encode('ascii'))
         if self.date_to:
             hash_value.update(self.date_to.encode('ascii'))
-
-        self.payload['integration_data'] = self.ia.integration_data_payload(
-            resource,
-            hash_value.hexdigest(),
-            encode=False
-        )
 
         if self.primary_uuid:
             self.payload['primary'] = {
@@ -320,7 +302,7 @@ class EngagementType(MoType):
 
         # Todo: Consider a check for the value of the keys.
         self.payload.update(self.extentions)
-        
+
         return self._build_payload()
 
 
@@ -401,12 +383,7 @@ class AssociationType(MoType):
         """
 
         if not self.org_unit_uuid:
-            ou_res = 'organisation/organisationenhed'
-            uuid = self.ia.find_object(ou_res, self.org_unit_ref)
-            if uuid:
-                self.org_unit_uuid = uuid
-            else:
-                raise ReferenceError("Reference to org_unit_uuid is missing")
+            raise ValueError("empty org_unit_uuid")
 
         self.payload = {
             "user_key": self.user_key,
@@ -743,12 +720,7 @@ class OrganisationUnitType(MoType):
             raise ReferenceError("UUID of the parent organisation is missing")
 
         if not self.type_ref_uuid:
-            klasse_res = 'klassifikation/klasse'
-            uuid = self.ia.find_object(klasse_res, self.type_ref)
-            if uuid:
-                self.type_ref_uuid = uuid
-            else:
-                raise ReferenceError("UUID of the unit type is missing")
+            raise ValueError("empty type_ref_uuid")
 
         self.payload = {
             "user_key": self.user_key,

@@ -19,7 +19,6 @@ def create_new_root_and_it(settings=None) -> None:
     # Init
     os2mo = ImportHelper(
         create_defaults=True,
-        store_integration_data=True,
         mox_base=mox_base,
         mora_base=mora_base,
     )

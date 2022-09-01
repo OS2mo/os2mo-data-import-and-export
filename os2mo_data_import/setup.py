@@ -12,7 +12,6 @@ setup(
     entry_points={},
     packages=[
         "os2mo_data_import",
-        "integration_abstraction",
         "os2mo_helpers",
         "mox_helpers",
         "kle",

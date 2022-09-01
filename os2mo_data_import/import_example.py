@@ -13,8 +13,7 @@ def example_import(mox_base, mora_base):
     """
 
     # Init
-    os2mo = ImportHelper(create_defaults=True, store_integration_data=True,
-                         mox_base=mox_base, mora_base=mora_base)
+    os2mo = ImportHelper(create_defaults=True, mox_base=mox_base, mora_base=mora_base)
 
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
