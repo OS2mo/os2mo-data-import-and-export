@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.44.1 - 2022-09-01
+-------------------
+
+[#52103] Bump os2mo-data-import version.
+
 2.44.0 - 2022-08-29
 -------------------
 
