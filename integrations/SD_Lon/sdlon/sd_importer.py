@@ -139,9 +139,7 @@ class SdImport:
             "leave_type": [
                 ("Orlov", "Orlov"),
             ],
-            "engagement_job_function": [
-                (HISTORIC, "Ukendt")
-            ],
+            "engagement_job_function": [(HISTORIC, "Ukendt")],
             "engagement_type": [
                 ("månedsløn", "Medarbejder (månedsløn)"),
                 ("timeløn", "Medarbejder (timeløn)"),
@@ -498,7 +496,8 @@ class SdImport:
 
         # Create historic dummy org unit
         historic_org_unit_date_to = format_date(
-            date_to_datetime(self.settings.sd_global_from_date) - datetime.timedelta(days=1)
+            date_to_datetime(self.settings.sd_global_from_date)
+            - datetime.timedelta(days=1)
         )
         self._add_klasse(HISTORIC, "Historisk Enhed", "org_unit_type")
         self.importer.add_organisation_unit(
