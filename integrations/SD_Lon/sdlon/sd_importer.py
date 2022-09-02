@@ -18,12 +18,13 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
 
 from .config import get_importer_settings
 from .config import ImporterSettings
-from .date_utils import format_date
+from .date_utils import format_date, date_to_datetime
 from .date_utils import get_employment_dates
+from .date_utils import is_engagement_older_than_org_unit
+from .date_utils import parse_date
 from .models import JobFunction
 from .sd_common import calc_employment_id
 from .sd_common import EmploymentStatus
@@ -36,6 +37,8 @@ from .sd_common import skip_fictional_users
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
+
+HISTORIC = "historic"
 
 logger = logging.getLogger("sdImport")
 
@@ -87,6 +90,8 @@ class SdImport:
             self.settings.sd_importer_employment_date_as_engagement_start_date
         )
 
+        self.historic_org_unit_uuid = str(uuid.uuid4())
+
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
         self.employee_forced_uuids = employee_mapping
@@ -134,6 +139,7 @@ class SdImport:
             "leave_type": [
                 ("Orlov", "Orlov"),
             ],
+            "engagement_job_function": [(HISTORIC, "Ukendt")],
             "engagement_type": [
                 ("månedsløn", "Medarbejder (månedsløn)"),
                 ("timeløn", "Medarbejder (timeløn)"),
@@ -487,6 +493,24 @@ class SdImport:
                 date_to=None,
                 parent_ref=None,
             )
+
+        # Create historic dummy org unit
+        historic_org_unit_date_to = format_date(
+            date_to_datetime(self.settings.sd_global_from_date)
+            - datetime.timedelta(days=1)
+        )
+        self._add_klasse(HISTORIC, "Historisk Enhed", "org_unit_type")
+        self.importer.add_organisation_unit(
+            identifier=self.historic_org_unit_uuid,
+            uuid=self.historic_org_unit_uuid,
+            name="Tidligere ansættelser",
+            user_key=HISTORIC,
+            type_ref=HISTORIC,
+            date_from="1930-01-01",
+            date_to=historic_org_unit_date_to,
+            parent_ref=None,
+        )
+
         params = {
             "ActivationDate": self.import_date,
             "DeactivationDate": self.import_date,
@@ -596,10 +620,7 @@ class SdImport:
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            date_from, date_to = get_employment_dates(
-                employment,
-                self.settings.sd_importer_employment_date_as_engagement_start_date,
-            )
+            date_from, date_to = get_employment_dates(employment)
 
             date_from_str = format_date(date_from)
             date_to_str = format_date(date_to)
@@ -658,12 +679,30 @@ class SdImport:
                 date_to=date_to_str,
                 **extention,
             )
+
+            # Add historic dummy engagement if the start date of the engagement
+            # is older than the start date of the corresponding org unit
+            # (see https://redmine.magenta-aps.dk/issues/51898)
+            if is_engagement_older_than_org_unit(date_from, self.nodes[unit]):
+                dummy_eng_date_to = parse_date(
+                    self.nodes[unit].date_from
+                ) - datetime.timedelta(days=1)
+                dummy_eng_date_to_str = format_date(dummy_eng_date_to)
+                self.importer.add_engagement(
+                    employee=cpr,
+                    organisation_unit=self.historic_org_unit_uuid,
+                    job_function_ref=HISTORIC,
+                    engagement_type_ref="historisk",
+                    date_from=date_from_str,
+                    date_to=dummy_eng_date_to_str,
+                )
+
             if status == EmploymentStatus.Orlov:
                 self.importer.add_leave(
                     employee=cpr,
                     engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
-                    date_from=employment["EmploymentStatus"]["ActivationDate"],
+                    date_from=date_from_str,
                     date_to=date_to_str,
                 )
 
@@ -678,7 +717,7 @@ class SdImport:
                     manager_type_ref="leder_type",
                     responsibility_list=["Lederansvar"],
                     date_from=date_from_str,
-                    date_to=date_to_str,
+                    date_to=employment["Profession"]["DeactivationDate"],
                 )
 
 

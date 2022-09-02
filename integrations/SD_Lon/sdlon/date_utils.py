@@ -14,6 +14,7 @@ from more_itertools import pairwise
 from more_itertools import tabulate
 
 from .sd_common import EmploymentStatus
+from ra_utils.attrdict import attrdict
 
 # TODO: move constants elsewhere
 # TODO: set back to "infinity" when MO can handle this
@@ -31,6 +32,8 @@ def date_to_datetime(d: date) -> datetime:
 
 
 def format_date(date: datetime) -> str:
+    # Note: the value for year is not zero padded!
+    # Bug in Python? (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior)
     return date.strftime("%Y-%m-%d")
 
 
@@ -38,29 +41,48 @@ def parse_date(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def _get_employment_from_date(
-    employment: Dict, employment_date_as_engagement_start_date: bool
-) -> datetime:
-    # Make sure we do not have multiple EmploymentStatuses
-    assert isinstance(employment["EmploymentStatus"], Dict)
+def _get_employment_from_date(employment: Dict) -> datetime:
+    """
+    Get the latest date of all the dates in the payload from the SD
+    GetEmployment endpoint (see https://redmine.magenta-aps.dk/issues/51898)
 
-    date = employment["EmploymentStatus"]["ActivationDate"]
-    if employment_date_as_engagement_start_date:
-        date = employment["EmploymentDate"]
-    return parse_date(date)
+    Args:
+        employment: the SD employment
+
+    Returns: the maximum of all the date in the SD payload
+
+    """
+    MIN_DATE = "000" + format_date(datetime.min)
+
+    employment_date = employment.get("EmploymentDate", MIN_DATE)
+    employment_department_date = employment.get("EmploymentDepartment", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    employment_status_date = employment.get("EmploymentStatus", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    profession_date = employment.get("Profession", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+    working_time_date = employment.get("WorkingTime", dict()).get(
+        "ActivationDate", MIN_DATE
+    )
+
+    return max(
+        parse_date(employment_date),
+        parse_date(employment_department_date),
+        parse_date(employment_status_date),
+        parse_date(profession_date),
+        parse_date(working_time_date),
+    )
 
 
-def get_employment_dates(
-    employment: Dict, employment_date_as_engagement_start_date: bool
-) -> Tuple[datetime, datetime]:
+def get_employment_dates(employment: Dict) -> Tuple[datetime, datetime]:
     """
     Get the "from" and "to" date from the SD employment
 
     Args:
         employment: The SD employment
-        employment_date_as_engagement_start_date: Use EmploymentDate as
-            start engagement start date if True and use the activation date
-            if False.
 
     Returns:
         Tuple containing the "from" and "to" dates.
@@ -74,19 +96,10 @@ def get_employment_dates(
             sd_to_mo_termination_date(employment["EmploymentStatus"]["ActivationDate"])
         )
         date_to = parse_date(termination_date)
-    elif status == EmploymentStatus.Orlov:
-        # We have seen examples where a leave begins BEFORE the SD
-        # EmploymentDate which will cause the "assert" below to break
-        # (see https://redmine.magenta-aps.dk/issues/48067#note-20)
-        employment_date = _get_employment_from_date(employment, True)
-        leave_activation_date = _get_employment_from_date(employment, False)
-        date_from = min(employment_date, leave_activation_date)
-        date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
-    else:
-        date_from = _get_employment_from_date(
-            employment, employment_date_as_engagement_start_date
-        )
-        date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
+        return date_from, date_to
+
+    date_from = _get_employment_from_date(employment)
+    date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
 
     return date_from, date_to
 
@@ -131,6 +144,12 @@ def to_midnight(dt: datetime) -> datetime:
 def is_midnight(dt: datetime) -> bool:
     """Check if datetime is at midnight."""
     return dt == to_midnight(dt)
+
+
+def is_engagement_older_than_org_unit(
+    employment_start_date: datetime, org_unit: attrdict
+) -> bool:
+    return employment_start_date < parse_date(org_unit.date_from)
 
 
 def gen_cut_dates(from_datetime: datetime, to_datetime: datetime) -> Iterator[datetime]:
