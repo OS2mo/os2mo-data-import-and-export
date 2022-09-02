@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.0.0 - 2022-09-02
+------------------
+
+[#51898] Use latest SD date for engagement creation in SD importer and create historic dummy if engagement start date older than org unit start date
+
 2.44.1 - 2022-09-01
 -------------------
 
