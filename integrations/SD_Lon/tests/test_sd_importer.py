@@ -103,7 +103,7 @@ def get_sd_importer(
     assert sd.importer.klassifikation[1].integration_data == {}
 
     # 29 classes exist hardcoded within sd_importer.py
-    assert len(sd.importer.klasse_objects) == 29
+    assert len(sd.importer.klasse_objects) == 30
 
     # 18 facets in os2mo_data_import/defaults.py
     assert len(sd.importer.facet_objects) == 18
@@ -326,7 +326,7 @@ def test_create_ou_tree(
     assert len(sd.importer.employee_details) == 0
 
     # But some of these
-    assert len(sd.importer.organisation_units) == 4
+    assert len(sd.importer.organisation_units) == 5
     department1 = sd.importer.organisation_units[department1_uuid]
     sub_department1 = sd.importer.organisation_units[sub_department1_uuid]
     department2 = sd.importer.organisation_units[department2_uuid]
@@ -368,9 +368,10 @@ def test_create_ou_tree(
     assert sub_department2.org_unit_level_ref == "NY5-niveau"
     UUID(sub_department2.uuid)
 
-    assert len(sd.importer.organisation_unit_details) == 4
+    assert len(sd.importer.organisation_unit_details) == 5
     details = list(sd.importer.organisation_unit_details.values())
     (
+        historic_details,
         department1_details,
         sub_department1_details,
         department2_details,
@@ -535,7 +536,7 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     # Arrange
 
-    mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
+    mock_uuid4.side_effect = ["historic_org_unit_uuid", "engagement_uuid"]
     sd = get_sd_importer()
     sd.nodes["org_unit_uuid"] = attrdict(
         {
@@ -584,6 +585,8 @@ def test_create_historic_dummy_engagement(mock_uuid4):
     details = sd.importer.employee_details[cpr_no]
     engagement, engagement_historic_dummy = details
 
+    assert mock_uuid4.call_count == 2
+
     # Two engagements are expected - one active and one historic dummy
     assert len(details) == 2
     assert engagement.type_id == "engagement"
@@ -591,7 +594,7 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     assert engagement_historic_dummy.date_from == "1970-01-01"
     assert engagement_historic_dummy.date_to == "1999-12-31"
-    assert engagement_historic_dummy.org_unit_ref == "org_unit_uuid"
+    assert engagement_historic_dummy.org_unit_ref == "historic_org_unit_uuid"
     assert engagement_historic_dummy.type_ref == "historisk"
 
 
