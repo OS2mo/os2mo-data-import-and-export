@@ -255,6 +255,12 @@ Test OPUS Helpers:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py
 
+Test OS2mo Data Import:
+  extends: .test-python
+  script:
+    - cd os2mo_data_import/os2mo_data_import
+    - pytest tests/
+
 Test RunDB Integration:
   extends: .test-python
   script:
