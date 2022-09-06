@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.1.0 - 2022-09-06
+------------------
+
+[#51898] Call MO 10 times on insert errors before giving up
+
 3.0.0 - 2022-09-02
 ------------------
 
