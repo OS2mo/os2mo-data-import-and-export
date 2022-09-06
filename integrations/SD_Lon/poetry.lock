@@ -395,7 +395,7 @@ cli = ["click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.10.2)", "clevercsv (==0
 
 [[package]]
 name = "dipex"
-version = "2.37.1"
+version = "3.1.0"
 description = "OS2mo-data-import-and-export"
 category = "main"
 optional = false
@@ -436,7 +436,7 @@ mimesis = ">=5.3.0,<6.0.0"
 more-itertools = ">=8.12.0,<9.0.0"
 mysqlclient = ">=2.1.0,<3.0.0"
 os2mo-dar-client = ">=1,<2"
-os2mo-data-import = ">=2.22.1,<3.0.0"
+os2mo-data-import = ">=2.44.0,<3.0.0"
 packaging = ">=19.0,<20.0"
 pandas = ">=1.4.0,<2.0.0"
 parameterized = "0.7.4"
@@ -1118,7 +1118,7 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "2.22.2"
+version = "2.44.1"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
@@ -1427,20 +1427,20 @@ pyasn1 = "*"
 
 [[package]]
 name = "pyspnego"
-version = "0.5.2"
+version = "0.6.0"
 description = "Windows Negotiate Authentication Client and Server"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 cryptography = "*"
-gssapi = {version = ">=1.5.0", optional = true, markers = "sys_platform != \"win32\" and extra == \"kerberos\""}
+gssapi = {version = ">=1.6.0", optional = true, markers = "sys_platform != \"win32\" and extra == \"kerberos\""}
 krb5 = {version = ">=0.3.0", optional = true, markers = "sys_platform != \"win32\" and extra == \"kerberos\""}
 
 [package.extras]
-kerberos = ["gssapi (>=1.5.0)", "krb5 (>=0.3.0)"]
 yaml = ["ruamel.yaml"]
+kerberos = ["krb5 (>=0.3.0)", "gssapi (>=1.6.0)"]
 
 [[package]]
 name = "pytest"
@@ -2034,7 +2034,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "881f1e22664a35fba64f9f8f0d0fe7fc3191bb218f5153c33c8cd8b0b44d674f"
+content-hash = "a68de170fbc64c46e79c3bd2a71e29545285110e9bc08838aa7a0a6c652634d8"
 
 [metadata.files]
 aiohttp = [
@@ -2351,10 +2351,7 @@ deepdiff = [
     {file = "deepdiff-5.7.0-py3-none-any.whl", hash = "sha256:1ffb38c3b5d9174eb2df95850c93aee55ec00e19396925036a2e680f725079e0"},
     {file = "deepdiff-5.7.0.tar.gz", hash = "sha256:838766484e323dcd9dec6955926a893a83767dc3f3f94542773e6aa096efe5d4"},
 ]
-dipex = [
-    {file = "DIPEX-2.37.1-py3-none-any.whl", hash = "sha256:6a203d30f9134600ea7d16725fc3d4fa45bbb5b034caceb45b6c4c82bfc60ae4"},
-    {file = "DIPEX-2.37.1.tar.gz", hash = "sha256:aeb0ab6fadc3a33ef6dd5f96d7a81cd9b33f4cc55c7f29d59e3e090d09081118"},
-]
+dipex = []
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
     {file = "distlib-0.3.4.zip", hash = "sha256:e4b58818180336dc9c529bfb9a0b58728ffc09ad92027a3f30b7cd91e3458579"},
@@ -2924,10 +2921,7 @@ os2mo-dar-client = [
     {file = "os2mo-dar-client-1.0.0.tar.gz", hash = "sha256:75f0234ecc5b490d6eeb2770119fb474693176a5e16163bdb61a97d6fab87ba2"},
     {file = "os2mo_dar_client-1.0.0-py3-none-any.whl", hash = "sha256:976a96b2dff34bc30b379956ae2dc9e5a8bdab8b7b1c4a7e3ef3a3dc59e581ef"},
 ]
-os2mo-data-import = [
-    {file = "os2mo_data_import-2.22.2-py3-none-any.whl", hash = "sha256:013b71f940939af4fba547fab5e0a660ab27d871d889698464c308abc456c621"},
-    {file = "os2mo_data_import-2.22.2.tar.gz", hash = "sha256:85c2e7f7b27caf2488ad6d5ecf4fd35e024e988e13213bb0241693e566aeba54"},
-]
+os2mo-data-import = []
 packaging = [
     {file = "packaging-19.2-py2.py3-none-any.whl", hash = "sha256:d9551545c6d761f3def1677baf08ab2a3ca17c56879e70fecba2fc4dde4ed108"},
     {file = "packaging-19.2.tar.gz", hash = "sha256:28b924174df7a2fa32c1953825ff29c61e2f5e082343165438812f00d3a7fc47"},
@@ -3269,20 +3263,7 @@ pyrsistent = [
 pysmb = [
     {file = "pysmb-1.2.7.zip", hash = "sha256:298605b8f467ce15b412caaf9af331c135e88fa2172333af14b1b2916361cb6b"},
 ]
-pyspnego = [
-    {file = "pyspnego-0.5.2-cp310-cp310-win32.whl", hash = "sha256:9c5bdb9f0207e2ce9e5410ee2205bf016755712018534c711ae6c1daff7fa7db"},
-    {file = "pyspnego-0.5.2-cp310-cp310-win_amd64.whl", hash = "sha256:4b9bda51bd964f40322aa1b33dcfc5d68f23b0680b4b5158175f2e9a04119aa9"},
-    {file = "pyspnego-0.5.2-cp36-cp36m-win32.whl", hash = "sha256:bd95633e7dce69e267579bdbe992fc081a14310236b4e84c3d179b1cf6439ca5"},
-    {file = "pyspnego-0.5.2-cp36-cp36m-win_amd64.whl", hash = "sha256:7562bc640bf402bb2849f325b0bb41260bd2c0cb06e38b9a8c6f7021b452c873"},
-    {file = "pyspnego-0.5.2-cp37-cp37m-win32.whl", hash = "sha256:3b1ff3c1d5588b66f8e4ebafa3079a7bf0bdcc6fb144b944c5a101e688a5a280"},
-    {file = "pyspnego-0.5.2-cp37-cp37m-win_amd64.whl", hash = "sha256:25fbc90fc6bd16881480316739bab820cc91364765e46340da17f861f89691f1"},
-    {file = "pyspnego-0.5.2-cp38-cp38-win32.whl", hash = "sha256:274b3a2d37e45ad4567bc5754be04b5fefad3f7cdea7d205f739d8a26b5a9189"},
-    {file = "pyspnego-0.5.2-cp38-cp38-win_amd64.whl", hash = "sha256:5d6d91e35ee63a5de30eb70716bf25274bf16c2c472b046dd21fad60fe63b0b6"},
-    {file = "pyspnego-0.5.2-cp39-cp39-win32.whl", hash = "sha256:36db7ec38023a23a545114dfd23825639571f135c72fb4b13a1ed559a0a4d93c"},
-    {file = "pyspnego-0.5.2-cp39-cp39-win_amd64.whl", hash = "sha256:a5c135d20819db3c48f65054d648317f369a61b7b22dc17b9e5ec9c0169541a0"},
-    {file = "pyspnego-0.5.2-py2.py3-none-any.whl", hash = "sha256:eb41b970dbda0dfe07b1da6fc83fe9f534a66d8dea38c06c0155377697407d9a"},
-    {file = "pyspnego-0.5.2.tar.gz", hash = "sha256:1fed228edc4b1730844da8237b90489be28c55681cf3934cd04fceb2253e55bf"},
-]
+pyspnego = []
 pytest = [
     {file = "pytest-6.2.5-py3-none-any.whl", hash = "sha256:7310f8d27bc79ced999e760ca304d69f6ba6c6649c0b60fb0e04a4a77cacc134"},
     {file = "pytest-6.2.5.tar.gz", hash = "sha256:131b36680866a76e6781d13f101efb86cf674ebb9762eb70d3082b6f29889e89"},
