@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from hypothesis import given
+from hypothesis import settings
 from hypothesis.strategies import datetimes
 from hypothesis.strategies import text
 from hypothesis.strategies import uuids
@@ -161,6 +162,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @patch("integrations.dawa_helper.dawa_lookup")
+    @settings(deadline=None)
     @given(datetimes())
     def test_update_unit(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
@@ -183,6 +185,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                 )
 
     @patch("integrations.dawa_helper.dawa_lookup")
+    @settings(deadline=None)
     @given(datetimes())
     def test_update_employee(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
@@ -253,6 +256,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         ]
     )
     @patch("integrations.dawa_helper.dawa_lookup")
+    @settings(deadline=None)
     @given(datetimes())
     def test_update_username(
         self,
