@@ -23,6 +23,7 @@ from os2mo_data_import.utilities import ImportUtility
 def test_retrying_mo_data_insertion_should_pass_in_less_max_10_tries(retries):
     # Arrange
     import_utility = ImportUtility("System name", None, "http://mox.base", "http://mora.base", False)
+    import_utility.mo_request_retry_delay = 0.05
 
     r = Response()
     r.status_code = 200
@@ -44,6 +45,7 @@ def test_retrying_mo_data_insertion_should_pass_in_less_max_10_tries(retries):
 def test_retrying_mo_data_insertion_should_fail_after_10_retries():
     # Arrange
     import_utility = ImportUtility("System name", None, "http://mox.base", "http://mora.base", False)
+    import_utility.mo_request_retry_delay = 0.05
 
     mora_helper = MagicMock()
     mora_helper._mo_post.side_effect = 10*[HTTPError()]

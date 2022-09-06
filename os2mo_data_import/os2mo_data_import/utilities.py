@@ -75,6 +75,10 @@ class ImportUtility(object):
         self.inserted_org_unit_map = {}
         self.inserted_employee_map = {}
 
+        # Hard-coded for now
+        self.mo_request_retries = 10
+        self.mo_request_retry_delay = 3  # seconds
+
         # Deprecated
         self.dry_run = dry_run
 
@@ -757,7 +761,9 @@ class ImportUtility(object):
         # Try calling MO 10 times one second apart before giving up
         # This is necessary due to sporadic and temporary failures on the network
         try:
-            for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(1)):
+            for attempt in Retrying(
+                stop=stop_after_attempt(self.mo_request_retries), wait=wait_fixed(self.mo_request_retry_delay)
+            ):
                 with attempt:
 
                     response = self.mh._mo_post(
