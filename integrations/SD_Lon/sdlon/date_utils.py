@@ -12,10 +12,8 @@ from typing import Tuple
 
 from more_itertools import pairwise
 from more_itertools import tabulate
-from os2mo_data_import.mora_data_types import OrganisationUnitType
 
 from .sd_common import EmploymentStatus
-from ra_utils.attrdict import attrdict
 
 # TODO: move constants elsewhere
 # TODO: set back to "infinity" when MO can handle this
