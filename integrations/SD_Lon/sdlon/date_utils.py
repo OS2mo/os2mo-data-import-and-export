@@ -12,6 +12,7 @@ from typing import Tuple
 
 from more_itertools import pairwise
 from more_itertools import tabulate
+from os2mo_data_import.mora_data_types import OrganisationUnitType
 
 from .sd_common import EmploymentStatus
 from ra_utils.attrdict import attrdict
@@ -144,12 +145,6 @@ def to_midnight(dt: datetime) -> datetime:
 def is_midnight(dt: datetime) -> bool:
     """Check if datetime is at midnight."""
     return dt == to_midnight(dt)
-
-
-def is_engagement_older_than_org_unit(
-    employment_start_date: datetime, org_unit: attrdict
-) -> bool:
-    return employment_start_date < parse_date(org_unit.date_from)
 
 
 def gen_cut_dates(from_datetime: datetime, to_datetime: datetime) -> Iterator[datetime]:
