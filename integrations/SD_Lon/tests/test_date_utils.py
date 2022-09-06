@@ -8,7 +8,6 @@ from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import pairwise
 from parameterized import parameterized
-from ra_utils.attrdict import attrdict
 
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
@@ -16,7 +15,6 @@ from sdlon.date_utils import format_date
 from sdlon.date_utils import gen_cut_dates
 from sdlon.date_utils import gen_date_intervals
 from sdlon.date_utils import get_employment_dates
-from sdlon.date_utils import is_engagement_older_than_org_unit
 from sdlon.date_utils import is_midnight
 from sdlon.date_utils import sd_to_mo_termination_date
 from sdlon.date_utils import to_midnight
@@ -305,17 +303,3 @@ def test_date_tuples(datetimes):
         assert type(to_datetime) == datetime
         assert num_days_apart == 1
         assert (to_datetime - from_datetime).total_seconds() == 86400
-
-
-@parameterized.expand(
-    [
-        (datetime(1960, 1, 1), "1970-01-01", True),
-        (datetime(1970, 1, 1), "1960-01-01", False),
-        (datetime(1960, 1, 1), "1960-01-01", False),
-    ]
-)
-def test_is_engagement_older_than_org_unit(
-    eng_start_date, org_unit_start_date, expected
-):
-    org_unit = attrdict({"date_from": org_unit_start_date})
-    assert is_engagement_older_than_org_unit(eng_start_date, org_unit) == expected

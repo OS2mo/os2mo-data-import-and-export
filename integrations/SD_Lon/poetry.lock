@@ -395,7 +395,7 @@ cli = ["click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.10.2)", "clevercsv (==0
 
 [[package]]
 name = "dipex"
-version = "3.1.0"
+version = "3.1.1"
 description = "OS2mo-data-import-and-export"
 category = "main"
 optional = false
@@ -436,7 +436,7 @@ mimesis = ">=5.3.0,<6.0.0"
 more-itertools = ">=8.12.0,<9.0.0"
 mysqlclient = ">=2.1.0,<3.0.0"
 os2mo-dar-client = ">=1,<2"
-os2mo-data-import = ">=2.44.0,<3.0.0"
+os2mo-data-import = ">=3.1.0,<4.0.0"
 packaging = ">=19.0,<20.0"
 pandas = ">=1.4.0,<2.0.0"
 parameterized = "0.7.4"
@@ -1118,7 +1118,7 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "2.44.1"
+version = "3.1.1"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
@@ -2034,7 +2034,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "a68de170fbc64c46e79c3bd2a71e29545285110e9bc08838aa7a0a6c652634d8"
+content-hash = "c3642798546d61d379661b0aa9f4431134870212f0547579eb56a64f7e39b06e"
 
 [metadata.files]
 aiohttp = [

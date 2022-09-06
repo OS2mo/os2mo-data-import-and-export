@@ -23,7 +23,6 @@ from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date, date_to_datetime
 from .date_utils import get_employment_dates
-from .date_utils import is_engagement_older_than_org_unit
 from .date_utils import parse_date
 from .models import JobFunction
 from .sd_common import calc_employment_id
@@ -683,10 +682,11 @@ class SdImport:
             # Add historic dummy engagement if the start date of the engagement
             # is older than the start date of the corresponding org unit
             # (see https://redmine.magenta-aps.dk/issues/51898)
-            if is_engagement_older_than_org_unit(date_from, self.nodes[unit]):
-                dummy_eng_date_to = parse_date(
-                    self.nodes[unit].date_from
-                ) - datetime.timedelta(days=1)
+            org_unit_date_from = parse_date(
+                self.importer.organisation_units[unit].date_from
+            )
+            if date_from < org_unit_date_from:
+                dummy_eng_date_to = org_unit_date_from - datetime.timedelta(days=1)
                 dummy_eng_date_to_str = format_date(dummy_eng_date_to)
                 self.importer.add_engagement(
                     employee=cpr,

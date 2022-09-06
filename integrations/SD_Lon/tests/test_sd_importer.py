@@ -11,6 +11,7 @@ import pytest
 from hypothesis import given
 from hypothesis import settings
 from os2mo_data_import import ImportHelper
+from os2mo_data_import.mora_data_types import OrganisationUnitType
 from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
@@ -131,8 +132,14 @@ def test_create_employee(create_associations: bool):
             "sd_importer_create_associations": create_associations,
         }
     )
+
     sd.nodes["org_unit_uuid"] = attrdict(
         {"name": "org_unit", "date_from": "1900-01-01"}
+    )
+    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+        name="org_unit",
+        type_ref="type_ref",
+        date_from="1900-01-01",
     )
 
     original_classes = set(sd.importer.klasse_objects.keys())
@@ -200,10 +207,10 @@ def test_create_employee(create_associations: bool):
     # None of these objects
     assert len(sd.importer.addresses) == 0
     assert len(sd.importer.itsystems) == 0
-    assert len(sd.importer.organisation_units) == 0
     assert len(sd.importer.organisation_unit_details) == 0
 
     # But one of these
+    assert len(sd.importer.organisation_units) == 1
     assert len(sd.importer.employees) == 1
     employee = sd.importer.employees[cpr_no]
     assert employee.givenname == "given_name"
@@ -409,8 +416,14 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
+
     sd.nodes["org_unit_uuid"] = attrdict(
         {"name": "org_unit", "date_from": "1900-01-01"}
+    )
+    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+        name="org_unit",
+        type_ref="type_ref",
+        date_from="1900-01-01",
     )
 
     cpr_no = "0101709999"
@@ -538,11 +551,18 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     mock_uuid4.side_effect = ["historic_org_unit_uuid", "engagement_uuid"]
     sd = get_sd_importer()
+
     sd.nodes["org_unit_uuid"] = attrdict(
         {
             "name": "org_unit",
             "date_from": "2000-01-01",  # Later than 1970-01-01 (see below)
         }
+    )
+
+    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+        name="org_unit",
+        type_ref="type_ref",
+        date_from="2000-01-01",  # Later than 1970-01-01 (see below)
     )
 
     cpr_no = "0101709999"
