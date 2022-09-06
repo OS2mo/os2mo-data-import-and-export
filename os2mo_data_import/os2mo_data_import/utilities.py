@@ -29,6 +29,7 @@ from os2mo_data_import.mox_data_types import (
     Itsystem
 )
 from os2mo_helpers.mora_helpers import MoraHelper
+from tenacity import stop_after_attempt, wait_fixed, RetryError, Retrying
 
 logger = logging.getLogger("moImporterUtilities")
 
@@ -753,34 +754,43 @@ class ImportUtility(object):
             uuid = uuid4()
             return str(uuid)
 
-        response = self.mh._mo_post(
-            url=resource,
-            payload=data,
-            force=True,
-        )
+        # Try calling MO 10 times one second apart before giving up
+        # This is necessary due to sporadic and temporary failures on the network
+        try:
+            for attempt in Retrying(stop=stop_after_attempt(10), wait=wait_fixed(1)):
+                with attempt:
 
-        if response.status_code == 400:
-            error = response.json()['description']
-            if error.find('does not give raise to a new registration') > 0:
-                uuid_start = error.find('with id [')
-                uuid = error[uuid_start+9:uuid_start+45]
-                try:
-                    UUID(uuid, version=4)
-                except ValueError:
-                    raise Exception('Unable to read uuid')
-            else:
-                logger.error(
-                    'MO post. Error: {}, data: {}'.format(error, data)
-                )
-                raise HTTPError("Inserting mora data failed")
-        elif response.status_code not in (200, 201):
-            logger.error(
-                'MO post. Response: {}, data: {}'.format(response.text, data)
-            )
-            raise HTTPError("Inserting mora data failed")
-        else:
-            uuid = response.json()
-        return uuid
+                    response = self.mh._mo_post(
+                        url=resource,
+                        payload=data,
+                        force=True,
+                    )
+
+                    if response.status_code == 400:
+                        error = response.json()['description']
+                        if error.find('does not give raise to a new registration') > 0:
+                            uuid_start = error.find('with id [')
+                            uuid = error[uuid_start+9:uuid_start+45]
+                            try:
+                                UUID(uuid, version=4)
+                            except ValueError:
+                                raise Exception('Unable to read uuid')
+                        else:
+                            logger.error(
+                                'MO post. Error: {}, data: {}'.format(error, data)
+                            )
+                            raise HTTPError("Inserting mora data failed")
+                    elif response.status_code not in (200, 201):
+                        logger.error(
+                            'MO post. Response: {}, data: {}'.format(response.text, data)
+                        )
+                        raise HTTPError("Inserting mora data failed")
+                    else:
+                        uuid = response.json()
+                    return uuid
+
+        except RetryError as retry_error:
+            retry_error.reraise()
 
     def _terminate_employee(self, uuid, date_from=None):
         endpoint = 'e/{}/terminate'
