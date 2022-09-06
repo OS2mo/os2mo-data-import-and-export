@@ -140,7 +140,11 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
 def merge_dynamic_classes(
     data_df: pd.DataFrame, association_dynamic_classes: Dict[str, str]
 ) -> pd.DataFrame:
-    """Merges information on dynamic classes into the dataframe."""
+    """Merges information on dynamic classes into the dataframe.
+    This creates a new column on the given dataframe data_df called "Hovedorganisation / Faglig organisation".
+    It is merged with a left join between the dataframe and the given association_dynamic_classes mapping using
+    the association uuid as key. This ensures the information is added where relevant without altering the rest.
+    """
     # Create a new pandas dataframe with uuid on associations and their dynamic class.
     association_df = pd.DataFrame(
         association_dynamic_classes.items(),
