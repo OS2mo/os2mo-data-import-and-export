@@ -6,6 +6,7 @@
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
 from typing import Dict
+from typing import List
 
 import jmespath
 import numpy as np
@@ -19,13 +20,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
 from reports.XLSXExporter import XLSXExporter
 
 
@@ -90,7 +89,7 @@ def map_dynamic_class(result: list) -> Dict[str, str]:
     }
 
 
-def fetch_dynamic_class(association_uuids: list[str]) -> Dict[str, str]:
+def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
     """Reads dynamic class for the associations with uuids from the given list
 
     Returns a map of association_uuids to dynamic class name
@@ -115,7 +114,7 @@ def fetch_dynamic_class(association_uuids: list[str]) -> Dict[str, str]:
           }
         }
         """
-        )
+    )
 
     with GraphQLClient(
         url=f"{settings.mora_base}/graphql",
