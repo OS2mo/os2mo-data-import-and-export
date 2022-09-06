@@ -134,7 +134,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
             },
         )
 
-    return map_dynamic_class(r)
+    return map_dynamic_class(r["associations"])
 
 
 def merge_dynamic_classes(
