@@ -795,6 +795,8 @@ class ImportUtility(object):
                         uuid = response.json()
                     return uuid
 
+                logger.debug("Error inserting data to MO... trying again")
+
         except RetryError as retry_error:
             retry_error.reraise()
 
