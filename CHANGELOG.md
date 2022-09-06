@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.1.2 - 2022-09-06
+------------------
+
+[#51898] Fixed SD importer date_from bug
+
 3.1.1 - 2022-09-06
 ------------------
 
