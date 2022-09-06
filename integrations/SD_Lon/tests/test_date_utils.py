@@ -303,4 +303,3 @@ def test_date_tuples(datetimes):
         assert type(to_datetime) == datetime
         assert num_days_apart == 1
         assert (to_datetime - from_datetime).total_seconds() == 86400
-

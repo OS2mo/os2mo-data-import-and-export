@@ -682,7 +682,9 @@ class SdImport:
             # Add historic dummy engagement if the start date of the engagement
             # is older than the start date of the corresponding org unit
             # (see https://redmine.magenta-aps.dk/issues/51898)
-            org_unit_date_from = parse_date(self.importer.organisation_units[unit].date_from)
+            org_unit_date_from = parse_date(
+                self.importer.organisation_units[unit].date_from
+            )
             if date_from < org_unit_date_from:
                 dummy_eng_date_to = org_unit_date_from - datetime.timedelta(days=1)
                 dummy_eng_date_to_str = format_date(dummy_eng_date_to)
