@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.1.1 - 2022-09-06
+------------------
+
+[#51898] Dependency bumping and Poetry gymnastics
+
 3.1.0 - 2022-09-06
 ------------------
 
