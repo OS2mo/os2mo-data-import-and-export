@@ -15,9 +15,6 @@ from requests import Response
 
 from os2mo_data_import.utilities import ImportUtility
 
-# Note: the two tests below are slow since each of them approximately
-# takes 10 sec to run
-
 
 @parameterized.expand([(0,), (9,)])
 def test_retrying_mo_data_insertion_should_pass_in_less_max_10_tries(retries):
