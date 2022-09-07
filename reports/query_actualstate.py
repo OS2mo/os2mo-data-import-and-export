@@ -157,6 +157,20 @@ def merge_dynamic_classes(
     return data_df.replace({np.nan: None})  # Replace nan values with None
 
 
+def rearrange(data_df: pd.DataFrame) -> pd.DataFrame:
+    """Rearranges the columns in the dataframe.
+    The column "Tilknytningsuuid" is dropped as it is only used for joining data.
+    "Hovedorganisation / Faglig organisation" is moved from the last column to 5th.
+    """
+
+    data_df = data_df.drop(columns="Tilknytningsuuid")
+    columns = list(data_df.columns)
+    columns.remove("Hovedorganisation / Faglig organisation")
+    columns.insert(4, "Hovedorganisation / Faglig organisation")
+
+    return data_df.reindex(columns, axis=1)
+
+
 def list_MED_members(session, org_names: dict) -> list:
     """Lists all "tilknyntninger" to an organisation.
 
@@ -241,8 +255,9 @@ def list_MED_members(session, org_names: dict) -> list:
     association_dynamic_class = fetch_dynamic_class(list(data_df.Tilknytningsuuid))
 
     data_df = merge_dynamic_classes(data_df, association_dynamic_class)
+
+    data_df = rearrange(data_df)
     # Return data as a list of tuples with columns as the first element
-    data_df = data_df.drop(columns="Tilknytningsuuid")
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
 
     return parsed_data

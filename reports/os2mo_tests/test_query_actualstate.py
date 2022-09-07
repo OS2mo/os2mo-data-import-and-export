@@ -18,9 +18,58 @@ from reports.query_actualstate import (
     list_MED_members,
     map_dynamic_class,
     merge_dynamic_classes,
+    rearrange,
     sessionmaker,
     set_of_org_units,
 )
+
+
+def test_rearrange():
+    columns_before = [
+        "Tilknytningsuuid",
+        "Navn",
+        "Email",
+        "Telefonnummer",
+        "Tilknytningstype",
+        "Tilknytningsenhed",
+        "Ansættelsesenhed",
+        "Enhed1",
+        "Enhed2",
+        "Enhed3",
+        "Hovedorganisation / Faglig organisation",
+    ]
+    columns_after = [
+        "Navn",
+        "Email",
+        "Telefonnummer",
+        "Tilknytningstype",
+        "Hovedorganisation / Faglig organisation",
+        "Tilknytningsenhed",
+        "Ansættelsesenhed",
+        "Enhed1",
+        "Enhed2",
+        "Enhed3",
+    ]
+    data_df = pd.DataFrame(
+        [
+            (
+                "testuuid",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+            )
+        ],
+        columns=columns_before,
+    )
+    data_df = rearrange(data_df)
+    assert list(data_df.columns) == columns_after
 
 
 def test_map_dynamic_class():
@@ -219,11 +268,11 @@ class Tests_db(unittest.TestCase):
                 "Email",
                 "Telefonnummer",
                 "Tilknytningstype",
+                "Hovedorganisation / Faglig organisation",
                 "Tilknytningsenhed",
                 "Ansættelsesenhed",
                 "Enhed 1",
                 "Enhed 2",
-                "Hovedorganisation / Faglig organisation",
             ),
         )
 
@@ -234,11 +283,11 @@ class Tests_db(unittest.TestCase):
                 "AD-email@email.dk",
                 "12345678",
                 "titel",
+                "Tilknytningsorganisation",
                 "Under-MED",
                 "Under-Enhed",
                 "LØN-org",
                 "Under-Enhed",
-                "Tilknytningsorganisation",
             ),
         )
 
@@ -249,11 +298,11 @@ class Tests_db(unittest.TestCase):
                 None,
                 None,
                 "titel2",
+                None,
                 "Under-under-MED",
                 "Under-Enhed",
                 "LØN-org",
                 "Under-Enhed",
-                None,
             ),
         )
 
