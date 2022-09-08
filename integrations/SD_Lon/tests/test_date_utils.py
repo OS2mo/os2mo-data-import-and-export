@@ -196,15 +196,19 @@ def test_get_employment_to_date_when_status_is_leave(
     deactivation_date,
     exp_date,
 ):
-    employment = {
-        "EmploymentDate": "1970-01-01",
-        "AnniversaryDate": "2004-08-15",
-        "EmploymentStatus": {
-            "EmploymentStatusCode": "3",
-            "ActivationDate": "1975-01-01",
-            "DeactivationDate": deactivation_date,
-        },
-    }
+    employment = OrderedDict(
+        [
+            ("EmploymentDate", "1970-01-01",),
+            ("AnniversaryDate", "2004-08-15",),
+            ("EmploymentStatus", OrderedDict(
+                [
+                    ("EmploymentStatusCode", "3",),
+                    ("ActivationDate", "1975-01-01",),
+                    ("DeactivationDate", deactivation_date,),
+                ]
+            ))
+        ]
+    )
 
     date_from, date_to = get_employment_dates(employment)
 
