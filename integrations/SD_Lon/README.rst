@@ -5,7 +5,7 @@ Integration til SD Løn
 Indledning
 ==========
 Denne integration gør det muligt at hente og opdatere organisations- og
-medarbejderoplysninger fra SD Løn til OS2MO. 
+medarbejderoplysninger fra SD Løn til OS2MO.
 
 .. _SD løn opsætning:
 
@@ -73,7 +73,7 @@ Udtræk fra SD Løn foregår som udgangspunkt via disse webservices:
  * ``GetDepartment20111201``
  * ``GetPerson20111201``
  * ``GetEmployment20111201``
-  
+
 Det er desuden muligt at køre et udtræk som synkroniserer ændringer som er meldt ind
 til SD Løn, men endnu ikke har nået sin virkningsdato:
 
@@ -302,7 +302,7 @@ Overordnet foregår opstart af en ny SD import efter dette mønster:
 3. Kør sd_changed_at.py periodisk (eksempelvis dagligt).
 4. Eventuelt synkronisering af stillingsbetegnelser.
 5. Eventuelt synkronisering fra AD.
-   
+
 1. Kør importværktøjet
 ----------------------
 En indledende import køres ved at oprette en instans af ImportHelper_ ImportHelper
@@ -313,12 +313,8 @@ En indledende import køres ved at oprette en instans af ImportHelper_ ImportHel
         create_defaults=True,
         mox_base=MOX_BASE,
         mora_base=MORA_BASE,
-        store_integration_data=False,
         seperate_names=True
     )
-			       
-Hverken importen eller efterfølgende synkronisering med ChangedAt anvender
-integrationsdata, og det er derfor valgfrit om vil anvende dette.
 
 Importen kan derefter køres med disse trin:
 

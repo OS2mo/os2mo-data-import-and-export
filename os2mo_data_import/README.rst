@@ -41,7 +41,7 @@ which functions as a wrapper for all the sub classes.
     from os2mo_data_import import ImportHelper
 
     # Init helper
-    os2mo = ImportHelper(create_defaults=True, store_integration_data=True)
+    os2mo = ImportHelper(create_defaults=True)
 
     # Add organisation
     os2mo.add_organisation(
@@ -421,15 +421,6 @@ object, eg:
         user_key="0A929060-3392-4C07-8F4E-EF5F9B6AFDE2",
         title="Betale løn"
     )
-
-
-Continuous integration
-======================
-It is possible to run the importer in a mode where the internal identifiers will
-be stored in the special field 'integration_data' in LoRa. This identifier will
-be recognized upon the next import and the object will be re-imported in contrast to
-being created again. In effect this will turn the importer into a one-way integration
-of the imported system.
 
 
 Example

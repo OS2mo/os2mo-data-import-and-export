@@ -790,7 +790,6 @@ def full_import(
         create_defaults=True,
         mox_base=settings.mox_base,
         mora_base=settings.mora_base,
-        store_integration_data=False,
         seperate_names=True,
     )
     sd = SdImport(importer, settings=settings, org_only=org_only, ad_info=None)

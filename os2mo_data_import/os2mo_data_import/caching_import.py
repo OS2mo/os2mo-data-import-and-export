@@ -29,12 +29,9 @@ class CachingImportUtility(ImportUtility):
 
     def __init__(
         self,
-        system_name,
-        end_marker,
         mox_base,
         mora_base,
         demand_consistent_uuids,
-        store_integration_data=False,
         dry_run=False,
     ):
         # Global validity
@@ -42,12 +39,9 @@ class CachingImportUtility(ImportUtility):
         self.date_to = "infinity"
 
         super().__init__(
-            system_name,
-            end_marker,
             mox_base,
             mora_base,
             demand_consistent_uuids,
-            store_integration_data,
             dry_run,
         )
 

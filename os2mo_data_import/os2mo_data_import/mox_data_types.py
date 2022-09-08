@@ -14,8 +14,6 @@ class Base(object):
     """
     Base class for all MOX type objects
 
-    :param str/json integration_data: Custom json encoded data
-
     .. note::
         An arbitrary json string with relationships between
         user defined identifiers and the actual object uuids (str)
@@ -30,23 +28,6 @@ class Base(object):
 
         self.date_from = "1930-01-01"
         self.date_to = "infinity"
-        self.integration_data = {}
-
-    def validate_integration_data(self):
-        """
-        Apply integration data to the payload.
-
-        :return: Integration data
-        :rtype: dict
-        """
-
-        if not isinstance(self.integration_data, dict):
-            raise TypeError("Integration data must be passed as dict")
-
-        if "integration_data" not in self.integration_data:
-            return str()
-
-        return self.integration_data['integration_data']
 
     def create_validity(self):
         """
@@ -76,7 +57,6 @@ class Facet(Base):
     no other types than default values should be needed.
 
     :param uuid: The object uuid
-    :param integration_data: Custom json encoded data
     :param str date_from: Start date e.g. "1982-01-01"
     :param str date_to: End date e.g. "infinity"
     """
@@ -106,7 +86,6 @@ class Facet(Base):
 
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
 
@@ -255,7 +234,6 @@ class Klasse(Base):
 
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "titel": self.title,
             "virkning": self.create_validity()
         }
@@ -338,7 +316,6 @@ class Itsystem(Base):
         """
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "itsystemnavn": self.system_name,
             "virkning": self.create_validity()
         }
@@ -413,7 +390,6 @@ class Klassifikation(Base):
         """
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "beskrivelse": self.description,
             "kaldenavn": self.parent_name,
             "virkning": self.create_validity()
@@ -497,7 +473,6 @@ class Organisation(Base):
         """
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "organisationsnavn": self.name,
             "virkning": self.create_validity()
         }
