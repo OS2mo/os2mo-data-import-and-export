@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.2.0 - 2022-09-08
+------------------
+
+[#50727] Remove all references to `integrationsdata`, as well as `IntegrationAbstraction`, etc.
+
 3.1.2 - 2022-09-06
 ------------------
 
