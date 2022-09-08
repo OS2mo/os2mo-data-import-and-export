@@ -316,6 +316,43 @@ def ensure_static_classes(mox_base, dry_run):
                     f"No new registration for class with uuid={c['id']} and name={first(properties)['brugervendtnoegle']}"
                 )
 
+@cli.command()
+@click.option(
+    "--mox-base",
+    help="URL for MOX",
+    type=click.STRING,
+    default=load_setting("mox.base", "http://localhost:8080/"),
+)
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+def ensure_single_owner(mox_base, dry_run):
+    session = requests.Session()
+    # Read all classes (historic)
+    for c in read_classes(session, mox_base, historic=True):
+        # Read `one` registration which can include more than one "klasseegenskaber"
+        owners = only(c["registreringer"])["relationer"].get("ejer")
+        if owners and len(owners) > 1:
+            # Sort by from-date to be able to choose the newest value
+            owners.sort(key=lambda x: x["virkning"]["from"], reverse=True)
+            try:
+                asyncio.run(
+                    ensure_class_value_helper(
+                        mox_base=mox_base,
+                        uuid=c["id"],
+                        variable="ejer",
+                        new_value=first(owners)["uuid"],
+                        dry_run=dry_run,
+                    )
+                )
+            except ClientResponseError:
+                click.echo(
+                    f"No new registration for class with uuid={c['id']} and name={first(owners)['brugervendtnoegle']}"
+                )
+
 
 if __name__ == "__main__":
     cli()
