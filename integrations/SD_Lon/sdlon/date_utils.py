@@ -5,7 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import takewhile
-from typing import Dict
+from typing import Dict, OrderedDict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -30,17 +30,17 @@ def date_to_datetime(d: date) -> datetime:
     return datetime(d.year, d.month, d.day)
 
 
-def format_date(date: datetime) -> str:
+def format_date(date_time: datetime) -> str:
     # Note: the value for year is not zero padded!
     # Bug in Python? (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior)
-    return date.strftime("%Y-%m-%d")
+    return date_time.strftime("%Y-%m-%d")
 
 
 def parse_date(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def _get_employment_from_date(employment: Dict) -> datetime:
+def _get_employment_from_date(employment: OrderedDict) -> datetime:
     """
     Get the latest date of all the dates in the payload from the SD
     GetEmployment endpoint (see https://redmine.magenta-aps.dk/issues/51898)
