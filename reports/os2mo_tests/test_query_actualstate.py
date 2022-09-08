@@ -1,5 +1,8 @@
 # import tempfile
 import unittest
+from unittest.mock import patch
+
+import pandas as pd
 
 from exporters.sql_export.sql_table_defs import (
     Adresse,
@@ -13,14 +16,115 @@ from reports.query_actualstate import (
     get_engine,
     list_employees,
     list_MED_members,
+    map_dynamic_class,
+    merge_dynamic_classes,
+    rearrange,
     sessionmaker,
     set_of_org_units,
 )
 
-# import xlsxwriter
-# from openpyxl import load_workbook
-# from sqlalchemy import create_engine
-# from reports.XLSXExporter import XLSXExporter
+
+def test_rearrange():
+    columns_before = [
+        "Tilknytningsuuid",
+        "Navn",
+        "Email",
+        "Telefonnummer",
+        "Tilknytningstype",
+        "Tilknytningsenhed",
+        "Ansættelsesenhed",
+        "Enhed1",
+        "Enhed2",
+        "Enhed3",
+        "Hovedorganisation / Faglig organisation",
+    ]
+    columns_after = [
+        "Navn",
+        "Email",
+        "Telefonnummer",
+        "Tilknytningstype",
+        "Hovedorganisation / Faglig organisation",
+        "Tilknytningsenhed",
+        "Ansættelsesenhed",
+        "Enhed1",
+        "Enhed2",
+        "Enhed3",
+    ]
+    data_df = pd.DataFrame(
+        [
+            (
+                "testuuid",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+            )
+        ],
+        columns=columns_before,
+    )
+    data_df = rearrange(data_df)
+    assert list(data_df.columns) == columns_after
+
+
+def test_map_dynamic_class():
+    returned_data = [
+        {
+            "uuid": "03d133d8-656a-4c8e-bffe-867b30e088a2",
+            "objects": [
+                {
+                    "dynamic_class": {
+                        "name": "Testorganisation",
+                        "parent": {"name": "Hovedorganisation"},
+                    }
+                }
+            ],
+        },
+        {
+            "uuid": "00bffb5f-9975-4b72-a6f2-afb3ff6e5295",
+            "objects": [
+                {"dynamic_class": {"name": "Testorganisation", "parent": None}}
+            ],
+        },
+        {
+            "uuid": "022e7717-a023-4577-b6ee-1eec5dee63c1",
+            "objects": [{"dynamic_class": None}],
+        },
+    ]
+    expected = {
+        "03d133d8-656a-4c8e-bffe-867b30e088a2": "Hovedorganisation / Testorganisation",
+        "00bffb5f-9975-4b72-a6f2-afb3ff6e5295": "Testorganisation",
+        "022e7717-a023-4577-b6ee-1eec5dee63c1": None,
+    }
+
+    result = map_dynamic_class(returned_data)
+    assert result == expected
+
+
+def test_merge_dynamic_classes():
+    data_df = pd.DataFrame(
+        [("testuuid", "test", "test", "test", "test", "test", "test", "test")],
+        columns=[
+            "Tilknytningsuuid",
+            "Navn",
+            "Email",
+            "Telefonnummer",
+            "Tilknytningstype",
+            "Tilknytningsenhed",
+            "Ansættelsesenhed",
+            "Sti",
+        ],
+    )
+    association_map = {"testuuid": "TestTilknytning"}
+    data_df = merge_dynamic_classes(
+        data_df=data_df, association_dynamic_classes=association_map
+    )
+    assert data_df["Hovedorganisation / Faglig organisation"][0] == "TestTilknytning"
 
 
 class Tests_db(unittest.TestCase):
@@ -149,7 +253,12 @@ class Tests_db(unittest.TestCase):
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
-    def test_MED_data(self):
+    # dynamic classes are fetched from graphql, here we just mock the return to check the resulting list.
+    @patch(
+        "reports.query_actualstate.fetch_dynamic_class",
+        return_value={"t1": "Tilknytningsorganisation"},
+    )
+    def test_MED_data(self, _):
         # hoved_enhed = self.session.query(Enhed).all()
         data = list_MED_members(self.session, {"løn": "LØN-org", "MED": "Hoved-MED"})
         self.assertEqual(
@@ -159,6 +268,7 @@ class Tests_db(unittest.TestCase):
                 "Email",
                 "Telefonnummer",
                 "Tilknytningstype",
+                "Hovedorganisation / Faglig organisation",
                 "Tilknytningsenhed",
                 "Ansættelsesenhed",
                 "Enhed 1",
@@ -173,6 +283,7 @@ class Tests_db(unittest.TestCase):
                 "AD-email@email.dk",
                 "12345678",
                 "titel",
+                "Tilknytningsorganisation",
                 "Under-MED",
                 "Under-Enhed",
                 "LØN-org",
@@ -187,6 +298,7 @@ class Tests_db(unittest.TestCase):
                 None,
                 None,
                 "titel2",
+                None,
                 "Under-under-MED",
                 "Under-Enhed",
                 "LØN-org",
