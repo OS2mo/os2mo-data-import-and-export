@@ -310,7 +310,9 @@ async def ensure_class_value_helper(
         else:
             try:
                 old_owner = owner[0].get("uuid")
-                changed = old_owner != new_value
+                changed = any([old_owner != new_value, 
+                    owner[0]["virkning"]["from"] != virkning["from"],
+                    owner[0]["virkning"]["to"] != virkning["to"]])
             except IndexError:
                 changed = True
 
