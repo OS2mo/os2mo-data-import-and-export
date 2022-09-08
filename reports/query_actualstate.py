@@ -5,9 +5,16 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
+from typing import Dict, List
+
+import jmespath
+import numpy as np
 import pandas as pd
 import xlsxwriter
+from gql import gql
 from more_itertools import prepend
+from pydantic import BaseSettings
+from raclients.graph.client import GraphQLClient
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
@@ -60,6 +67,110 @@ def set_of_org_units(session, org_name: str) -> set:
     return alle_enheder
 
 
+class Settings(BaseSettings):
+    mora_base: str = "http://localhost:5000"
+    client_id: str = "dipex"
+    client_secret: str
+    auth_realm: str = "mo"
+    auth_server: str = "http://localhost:5000/auth"
+
+
+def map_dynamic_class(result: list) -> Dict[str, str]:
+    """Transforms a list of associations from graphql into a dict.
+    Uses jmes to search the results for names of classes parent classes.
+    If there is a parent output as "parent name / class name"
+    """
+    dynamic_classes = jmespath.compile("objects[0].dynamic_class.name")
+    dynamic_class_parents = jmespath.compile("objects[0].dynamic_class.parent.name")
+    return {
+        e["uuid"]: f"{dynamic_class_parents.search(e)} / {dynamic_classes.search(e)}"
+        if dynamic_class_parents.search(e)
+        else dynamic_classes.search(e)
+        for e in result
+    }
+
+
+def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
+    """Reads dynamic class for the associations with uuids from the given list
+
+    Returns a map of association_uuids to dynamic class name
+    including parent class if there is one.
+
+    """
+
+    settings = Settings()
+    query = gql(
+        """
+        query employeeDynamicClasses($uuids: [UUID!]) {
+          associations(uuids: $uuids) {
+            uuid
+            objects {
+              dynamic_class {
+                name
+                parent {
+                  name
+                }
+              }
+            }
+          }
+        }
+        """
+    )
+
+    with GraphQLClient(
+        url=f"{settings.mora_base}/graphql",
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        auth_realm=settings.auth_realm,
+        auth_server=settings.auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    ) as session:
+
+        r = session.execute(
+            query,
+            variable_values={
+                # UUIDs are not JSON serializable, so they are converted to strings
+                "uuids": association_uuids,
+            },
+        )
+
+    return map_dynamic_class(r["associations"])
+
+
+def merge_dynamic_classes(
+    data_df: pd.DataFrame, association_dynamic_classes: Dict[str, str]
+) -> pd.DataFrame:
+    """Merges information on dynamic classes into the dataframe.
+    This creates a new column on the given dataframe data_df called "Hovedorganisation / Faglig organisation".
+    It is merged with a left join between the dataframe and the given association_dynamic_classes mapping using
+    the association uuid as key. This ensures the information is added where relevant without altering the rest.
+    """
+    # Create a new pandas dataframe with uuid on associations and their dynamic class.
+    association_df = pd.DataFrame(
+        association_dynamic_classes.items(),
+        columns=["Tilknytningsuuid", "Hovedorganisation / Faglig organisation"],
+    )
+    # Merge (left join) on uuids.
+    data_df = data_df.merge(association_df, on="Tilknytningsuuid", how="left")
+
+    return data_df.replace({np.nan: None})  # Replace nan values with None
+
+
+def rearrange(data_df: pd.DataFrame) -> pd.DataFrame:
+    """Rearranges the columns in the dataframe.
+    The column "Tilknytningsuuid" is dropped as it is only used for joining data.
+    "Hovedorganisation / Faglig organisation" is moved from the last column to 5th.
+    """
+
+    data_df = data_df.drop(columns="Tilknytningsuuid")
+    columns = list(data_df.columns)
+    columns.remove("Hovedorganisation / Faglig organisation")
+    columns.insert(4, "Hovedorganisation / Faglig organisation")
+
+    return data_df.reindex(columns, axis=1)
+
+
 def list_MED_members(session, org_names: dict) -> list:
     """Lists all "tilknyntninger" to an organisation.
 
@@ -106,6 +217,7 @@ def list_MED_members(session, org_names: dict) -> list:
 
     query = (
         session.query(
+            Tilknytning.uuid,
             Bruger.fornavn + " " + Bruger.efternavn,
             Emails.c.værdi,
             Phonenr.c.værdi,
@@ -128,6 +240,7 @@ def list_MED_members(session, org_names: dict) -> list:
     data_df = pd.DataFrame(
         data,
         columns=[
+            "Tilknytningsuuid",
             "Navn",
             "Email",
             "Telefonnummer",
@@ -138,8 +251,15 @@ def list_MED_members(session, org_names: dict) -> list:
         ],
     )
     data_df = expand_org_path(data_df, "Sti")
+    # Add dynamic class info:
+    association_dynamic_class = fetch_dynamic_class(list(data_df.Tilknytningsuuid))
+
+    data_df = merge_dynamic_classes(data_df, association_dynamic_class)
+
+    data_df = rearrange(data_df)
     # Return data as a list of tuples with columns as the first element
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
+
     return parsed_data
 
 
