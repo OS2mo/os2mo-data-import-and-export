@@ -20,7 +20,6 @@ importer = ImportHelper(
     create_defaults=True,
     mox_base=settings['mox.base'],
     mora_base=settings['mora.base'],
-    store_integration_data=False,
     seperate_names=True
 )
 

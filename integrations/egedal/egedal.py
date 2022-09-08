@@ -15,7 +15,6 @@ importer = ImportHelper(
     mox_base=MOX_BASE,
     mora_base=MORA_BASE,
     seperate_names=True,
-    store_integration_data=False,
     ImportUtility=CachingImportUtility,
 )
 

@@ -28,9 +28,6 @@ with open(ean_file) as csvfile:
 importer = ImportHelper(create_defaults=True,
                         mox_base=MOX_BASE,
                         mora_base=MORA_BASE,
-                        system_name='APOS-Import',
-                        end_marker='APOSSTOP',
-                        store_integration_data=False,
                         seperate_names=True)
 
 

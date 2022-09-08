@@ -20,7 +20,6 @@ importer = ImportHelper(
     create_defaults=True,
     mox_base=settings['mox.base'],
     mora_base=settings['mora.base'],
-    store_integration_data=False,
     seperate_names=True
 )
 
@@ -31,9 +30,8 @@ sd = sd_importer.SdImport(
     ad_info=ad_info_reader,
     employee_mapping=employee_mapping
 )
-        
+
 sd.create_ou_tree(create_orphan_container=True)
 sd.create_employees()
 
 importer.import_all()
-

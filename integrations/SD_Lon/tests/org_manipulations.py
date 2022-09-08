@@ -54,9 +54,6 @@ class IntegrationDataTests(unittest.TestCase):
             create_defaults=True,
             mox_base=MOX_BASE,
             mora_base=MORA_BASE,
-            system_name="SD-Import",
-            end_marker="SDSTOP",
-            store_integration_data=False,
         )
 
     @classmethod

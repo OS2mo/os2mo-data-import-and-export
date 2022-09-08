@@ -24,7 +24,7 @@ Exporters
 Import tool
 ###########
 .. include:: ../../os2mo_data_import/README.rst
-.. include:: ../../os2mo_data_import/integration_abstraction/README.rst
+
 
 ###########
 Reports

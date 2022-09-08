@@ -6,8 +6,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import logging
-from os2mo_helpers.mora_helpers import MoraHelper
-from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 from os2mo_data_import.utilities import ImportUtility
 from os2mo_data_import.defaults import facet_defaults
@@ -47,49 +45,12 @@ class ImportHelper:
 
         os2mo = ImportHelper(
             create_defaults=True,
-            store_integration_data=True
         )
 
         os2mo.import_all()
 
-
-    :param str system_name: An identifier for import and/or integration
-
-    It will be stored as the main identifier for integration data,
-    allowing for consecutive imports without causing conflicts in the database.
-
-    :param str end_marker: A semi unique marker
-
-    This marks the end of the system name value.
-
-    .. note::
-        Consider the following example,
-        where the system name is "Import" and the value is "ACME TM".
-        The endmarker defaults to "_|-STOP".
-
-        The data (integration data) is stored as a json string:
-
-        .. code-block:: text
-            :emphasize-lines: 5
-
-            {
-                "organisationegenskaber": [
-                    {
-                      ...
-                      "integrationsdata": "{\"Import\": \"ACME TM_|-STOP\"}",
-                      ...
-                  ]
-            }
-
-        This is an attempt to eliminate collisions with "common" values.
-
     :param str mox_base: The base url of the mox backend
     :param str mora_base: The base url of the mora backend
-
-    :param bool store_integration_data: Store the integration data in the database
-
-    Any integration should only import store_integration_data=True.
-
     :param bool create_defaults: Create the default set of "facet" types
 
     .. note::
@@ -105,31 +66,23 @@ class ImportHelper:
         :class:`os2mo_data_import.utilities.ImportUtility`
     """
 
-    def __init__(self, system_name="Import", end_marker="_|-STOP",
-                 mox_base="http://localhost:8080", mora_base="http://localhost:5000",
-                 store_integration_data=False, create_defaults=True,
-                 seperate_names=False, demand_consistent_uuids=True,
+    def __init__(self,
+                 mox_base="http://localhost:8080",
+                 mora_base="http://localhost:5000",
+                 create_defaults=True,
+                 seperate_names=False,
+                 demand_consistent_uuids=True,
                  ImportUtility=ImportUtility):
 
         self.seperate_names = seperate_names
-        mora_type_config(mox_base=mox_base,
-                         system_name=system_name,
-                         end_marker=end_marker)
+        mora_type_config(mox_base=mox_base)
         self.mox_base = mox_base
         # Import Utility
         self.store = ImportUtility(
             mox_base=mox_base,
             mora_base=mora_base,
-            system_name=system_name,
-            end_marker=end_marker,
             demand_consistent_uuids=demand_consistent_uuids,
-            store_integration_data=store_integration_data
         )
-        # TODO: store_integration_data could be passed to ImportUtility by passing
-        # the actual self.ia object
-        if store_integration_data:
-            self.morah = MoraHelper(use_cache=False)
-            self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
 
         self.organisation = None
         self.klassifikation = None
@@ -586,53 +539,6 @@ class ImportHelper:
             details=details
         )
 
-    def _import_unit_from_integration_data(self, reference):
-        ou_res = 'organisation/organisationenhed'
-        klasse_res = 'klassifikation/klasse'
-        uuid = self.ia.find_object(ou_res, reference)
-        # TODO: Should this include more than just present time?
-        unit = self.morah.read_ou(uuid)
-
-        type_uuid = unit['org_unit_type']['uuid']
-        parent = unit['parent']
-        date_from = unit['validity']['from']
-        date_to = unit['validity']['to']
-        type_ref = self.ia.read_integration_data(klasse_res, type_uuid)
-
-        if parent:
-            parent_uuid = parent['uuid']
-            parent_ref = self.ia.read_integration_data(ou_res, parent_uuid)
-        else:
-            parent_ref = None
-
-        self.add_organisation_unit(
-            identifier=reference,
-            parent_ref=parent_ref,
-            type_ref=type_ref,
-            uuid=unit['uuid'],
-            date_from=date_from,
-            date_to=date_to
-        )
-
-    def test_org_unit_refs(self, reference, org_unit):
-        """
-        Test if the parent ref to an org unit is already added to the importer map.
-        If it is not, the parent will be imported to make the map self-consistent.
-        :param reference: importer reference to the org unit to be tested.
-        :param org_unit: Actual org unit object - used to identify the parent.
-        :return: True if the parent was not found, indicating that the imporer
-        map is not yet complete. False if the parent was already in place.
-        """
-        parent_unit = self.organisation_units.get(org_unit.parent_ref)
-
-        if org_unit.parent_ref and (not parent_unit):
-            re_run = True
-            self._import_unit_from_integration_data(org_unit.parent_ref)
-            logger.info('Importing {} from integration data'.format(org_unit.parent_ref))
-        else:
-            re_run = False
-        return re_run
-
     def _import_organisation(self):
         self.store.import_organisation(*self.organisation)
 
@@ -652,18 +558,9 @@ class ImportHelper:
             self.store.import_itsystem(identifier, itsystem)
 
     def _import_org_units(self):
-        re_run = True
-        while re_run:
-            re_run = False
-            identifiers = list(self.organisation_units.keys())
-            for identifier in identifiers:
-                org_unit = self.organisation_units[identifier]
-                # Test if the parent unit is in the map, if it is not, perform
-                # an integration data based import from MO.
-                # If the parent was not there, run once more to check if higher
-                # levels of parents also needs to be imported.
-                if self.test_org_unit_refs(identifier, org_unit):
-                    re_run = True
+        identifiers = list(self.organisation_units.keys())
+        for identifier in identifiers:
+            org_unit = self.organisation_units[identifier]
 
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)

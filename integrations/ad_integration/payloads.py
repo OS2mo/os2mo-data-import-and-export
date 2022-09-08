@@ -64,7 +64,6 @@ def terminate_engagement(uuid, terminate_date):
 def klasse(bvn, navn, org, facet_uuid):
     validity = {"from": "1930-01-01", "to": "infinity"}
 
-    # "integrationsdata":
     properties = {
         "brugervendtnoegle": bvn,
         "titel": navn,

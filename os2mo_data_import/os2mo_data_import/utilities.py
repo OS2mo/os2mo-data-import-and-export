@@ -12,8 +12,6 @@ from urllib.parse import urljoin
 from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
-from integration_abstraction.integration_abstraction import IntegrationAbstraction
-
 from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
     TerminationType,
@@ -42,15 +40,10 @@ class ImportUtility(object):
     needed.
     """
 
-    def __init__(self, system_name, end_marker, mox_base, mora_base,
-                 demand_consistent_uuids, store_integration_data=False,
-                 dry_run=False):
+    def __init__(self, mox_base, mora_base, demand_consistent_uuids, dry_run=False):
 
         # Import Params
         self.demand_consistent_uuids = demand_consistent_uuids
-        self.store_integration_data = store_integration_data
-        if store_integration_data:
-            self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
 
         # Service endpoint base
         self.mox_base = mox_base
@@ -99,20 +92,10 @@ class ImportUtility(object):
 
         resource = "organisation/organisation"
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        organisation.integration_data = integration_data
-
         payload = organisation.build()
 
         if organisation.uuid is not None:
             organisation_uuid = organisation.uuid
-        else:
-            organisation_uuid = integration_data.get('uuid', None)
 
         self.organisation_uuid = self.insert_mox_data(
             resource=resource,
@@ -143,21 +126,11 @@ class ImportUtility(object):
 
         klassifikation.organisation_uuid = self.organisation_uuid
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        klassifikation.integration_data = integration_data
         payload = klassifikation.build()
-
-        klassifikation_uuid = integration_data.get('uuid', None)
 
         self.klassifikation_uuid = self.insert_mox_data(
             resource=resource,
             data=payload,
-            uuid=klassifikation_uuid
         )
 
         return self.klassifikation_uuid
@@ -185,21 +158,11 @@ class ImportUtility(object):
         facet.date_from = self.date_from
         facet.date_to = self.date_to
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        facet.integration_data = integration_data
         payload = facet.build()
-
-        facet_uuid = integration_data.get('uuid', None)
 
         self.inserted_facet_map[reference] = self.insert_mox_data(
             resource=resource,
             data=payload,
-            uuid=facet_uuid
         )
 
         return self.inserted_facet_map[reference]
@@ -232,29 +195,16 @@ class ImportUtility(object):
             logger.error(error_message)
             raise KeyError(error_message)
 
-        resource = "klassifikation/klasse"
-
         klasse.organisation_uuid = self.organisation_uuid
         klasse.facet_uuid = facet_uuid
         klasse.date_from = self.date_from
         klasse.date_to = self.date_to
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        if 'uuid' in integration_data:
-            klasse_uuid = integration_data['uuid']
-            assert(uuid is None or klasse_uuid == uuid)
+        if uuid is None:
+            klasse_uuid = None
         else:
-            if uuid is None:
-                klasse_uuid = None
-            else:
-                klasse_uuid = uuid
+            klasse_uuid = uuid
 
-        klasse.integration_data = integration_data
         payload = klasse.build()
 
         import_uuid = self.insert_mox_data(
@@ -287,24 +237,11 @@ class ImportUtility(object):
         itsystem.date_from = self.date_from
         itsystem.date_to = self.date_to
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        if 'uuid' in integration_data:
-            itsystem_uuid = integration_data['uuid']
-        else:
-            itsystem_uuid = None
-
-        itsystem.integration_data = integration_data
         payload = itsystem.build()
 
         self.inserted_itsystem_map[reference] = self.insert_mox_data(
             resource=resource,
             data=payload,
-            uuid=itsystem_uuid
         )
 
         return self.inserted_itsystem_map[reference]
@@ -358,12 +295,6 @@ class ImportUtility(object):
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         payload = organisation_unit.build()
-        payload = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload=payload,
-            encode_integration=False
-        )
 
         if 'uuid' in payload:
             if payload['uuid'] in self.existing_uuids:
@@ -462,13 +393,6 @@ class ImportUtility(object):
         payload = employee.build()
         mox_resource = 'organisation/bruger'
 
-        integration_data = self._integration_data(
-            resource=mox_resource,
-            reference=reference,
-            payload=payload,
-            encode_integration=False
-        )
-
         if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
             logger.info('Re-import employee {}'.format(payload['uuid']))
             re_import = 'NO'
@@ -481,11 +405,7 @@ class ImportUtility(object):
         mora_resource = "e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
-            data=integration_data
         )
-
-        if 'uuid' in integration_data:
-            assert (uuid == integration_data['uuid'])
 
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
@@ -618,14 +538,6 @@ class ImportUtility(object):
                 getattr(detail, check_value)
             )
 
-            if not uuid:
-                if self.store_integration_data:
-                    klasse_res = 'klassifikation/klasse'
-                    uuid = self.ia.find_object(klasse_res, getattr(detail, check_value))
-                else:
-                    # print('Detail: {}, check_value: {}'.format(detail, check_value))
-                    pass
-
             setattr(detail, set_value, uuid)
 
         # Uncommon attributes
@@ -659,57 +571,6 @@ class ImportUtility(object):
             ]
 
         return detail.build()
-
-    def _integration_data(self, resource, reference, payload={},
-                          encode_integration=True):
-        """
-        Update the payload with integration data. Checks if an object with this
-        integration data already exists. In this case the uuid of the exisiting
-        object is put into the payload. If a supplied uuid is inconsistent with the
-        uuid found from integration data, an exception is raised.
-
-        :param resource:
-        LoRa resource URL.
-
-        :param referece:
-        Unique label that will be stored in the integration data to identify the
-        object on re-import.
-
-        :param payload:
-        The supplied payload will be updated with values for integration and uuid (if
-        the integration data was found from an earlier import). For MO objects,
-        payload will typically be pre-populated and will then be ready for import
-        when returned. For MOX objects, the initial payload  will typically be empty,
-        and the returned values can be fed to the relevant adapter.
-
-        :param encode_integration:
-        If True, the integration data will be returned in json-encoded form.
-
-        :return:
-        The original payload updated with integration data and object uuid, if the
-        object was already imported.
-        """
-        # TODO: We need to have a list of all objects with integration data to
-        # be able to make a list of objects that has disappeared
-
-        if self.store_integration_data:
-            uuid = self.ia.find_object(resource, reference)
-            if uuid:
-                if 'uuid' in payload:
-                    if self.demand_consistent_uuids:
-                        assert(payload['uuid'] == uuid)
-                    else:
-                        payload['uuid'] = uuid
-                payload['uuid'] = uuid
-                self.existing_uuids.append(uuid)
-
-            payload['integration_data'] = self.ia.integration_data_payload(
-                resource,
-                reference,
-                uuid,
-                encode_integration
-            )
-        return payload
 
     def insert_mox_data(self, resource, data, uuid=None):
 
