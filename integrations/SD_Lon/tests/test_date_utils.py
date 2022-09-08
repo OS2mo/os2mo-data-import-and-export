@@ -303,3 +303,15 @@ def test_date_tuples(datetimes):
         assert type(to_datetime) == datetime
         assert num_days_apart == 1
         assert (to_datetime - from_datetime).total_seconds() == 86400
+
+
+@parameterized.expand(
+    [
+        (datetime(2022, 1, 1), "2022-01-01"),
+        (datetime(100, 10, 1), "0100-10-01"),
+        (datetime(10, 1, 10), "0010-01-10"),
+        (datetime(1, 1, 1), "0001-01-01"),
+    ]
+)
+def test_format_date_zero_fill(date_time: datetime, expected: str):
+    assert format_date(date_time) == expected

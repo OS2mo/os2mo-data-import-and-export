@@ -31,9 +31,7 @@ def date_to_datetime(d: date) -> datetime:
 
 
 def format_date(date_time: datetime) -> str:
-    # Note: the value for year is not zero padded!
-    # Bug in Python? (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior)
-    return date_time.strftime("%Y-%m-%d")
+    return date_time.strftime("%Y-%m-%d").zfill(10)
 
 
 def parse_date(date_str: str) -> datetime:
@@ -51,7 +49,7 @@ def _get_employment_from_date(employment: OrderedDict) -> datetime:
     Returns: the maximum of all the date in the SD payload
 
     """
-    MIN_DATE = "000" + format_date(datetime.min)
+    MIN_DATE = format_date(datetime.min)
 
     employment_date = employment.get("EmploymentDate", MIN_DATE)
     employment_department_date = employment.get("EmploymentDepartment", dict()).get(
