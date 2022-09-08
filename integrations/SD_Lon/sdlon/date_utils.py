@@ -74,7 +74,7 @@ def _get_employment_from_date(employment: OrderedDict) -> datetime:
     )
 
 
-def get_employment_dates(employment: Dict) -> Tuple[datetime, datetime]:
+def get_employment_dates(employment: OrderedDict) -> Tuple[datetime, datetime]:
     """
     Get the "from" and "to" date from the SD employment
 
