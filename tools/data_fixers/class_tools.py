@@ -316,6 +316,7 @@ def ensure_static_classes(mox_base, dry_run):
                     f"No new registration for class with uuid={c['id']} and name={first(properties)['brugervendtnoegle']}"
                 )
 
+
 @cli.command()
 @click.option(
     "--mox-base",
