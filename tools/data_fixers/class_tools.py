@@ -336,23 +336,25 @@ def ensure_single_owner(mox_base, dry_run):
     for c in read_classes(session, mox_base, historic=True):
         # Read `one` registration which can include more than one "klasseegenskaber"
         owners = only(c["registreringer"])["relationer"].get("ejer")
-        if owners and len(owners) > 1:
-            # Sort by from-date to be able to choose the newest value
-            owners.sort(key=lambda x: x["virkning"]["from"], reverse=True)
-            try:
-                asyncio.run(
-                    ensure_class_value_helper(
-                        mox_base=mox_base,
-                        uuid=c["id"],
-                        variable="ejer",
-                        new_value=first(owners)["uuid"],
-                        dry_run=dry_run,
-                    )
+        if (not owners) or len(owners) <= 1:
+            continue
+
+        # Choose newest value for owner
+        owner = max(owners, key=lambda x: x["virkning"]["from"])
+        try:
+            asyncio.run(
+                ensure_class_value_helper(
+                    mox_base=mox_base,
+                    uuid=c["id"],
+                    variable="ejer",
+                    new_value=owner["uuid"],
+                    dry_run=dry_run,
                 )
-            except ClientResponseError:
-                click.echo(
-                    f"No new registration for class with uuid={c['id']} and name={first(owners)['brugervendtnoegle']}"
-                )
+            )
+        except ClientResponseError:
+            click.echo(
+                f"No new registration for class with uuid={c['id']} and name={first(owners)['brugervendtnoegle']}"
+            )
 
 
 if __name__ == "__main__":
