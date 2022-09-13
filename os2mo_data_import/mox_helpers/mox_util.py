@@ -10,7 +10,7 @@ from typing import Tuple
 import click
 from more_itertools import bucket
 from more_itertools import flatten
-from more_itertools import unzip
+from more_itertools import unzip, only
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.payloads import lora_facet
 from mox_helpers.payloads import lora_klasse
@@ -303,17 +303,18 @@ async def ensure_class_value_helper(
             return o, False
 
     if variable == "ejer":
-        owner = klasse.get("relationer").get("ejer")
+        owner = klasse.get("relationer").get("ejer", [])
         changed = False
-        if not owner:
+        old_owner = only(owner)
+        if not old_owner:
             changed = True
         else:
-            try:
-                old_owner = owner[0].get("uuid")
-                changed = old_owner != new_value
-            except IndexError:
-                changed = True
-
+            #Check if anything is changed, either the owner value, or if the validity is not -infinity->infinity 
+            # as this is invalid according to MOs datamodels, (Redmine: #52422)
+            changed = any([old_owner.get("uuid") != new_value, 
+            owner[0]["virkning"]["from"] != virkning["from"],
+            owner[0]["virkning"]["to"] != virkning["to"]])
+            
         if changed:
             klasse["relationer"]["ejer"] = [
                 {
