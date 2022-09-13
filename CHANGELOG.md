@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+3.3.0 - 2022-09-13
+------------------
+
+[#52422] Add tool to ensure classes only have one valid owner.
+
 3.2.0 - 2022-09-08
 ------------------
 
