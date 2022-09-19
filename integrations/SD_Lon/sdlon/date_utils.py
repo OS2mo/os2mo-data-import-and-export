@@ -5,7 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import takewhile
-from typing import Dict
+from typing import OrderedDict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -30,17 +30,15 @@ def date_to_datetime(d: date) -> datetime:
     return datetime(d.year, d.month, d.day)
 
 
-def format_date(date: datetime) -> str:
-    # Note: the value for year is not zero padded!
-    # Bug in Python? (https://docs.python.org/3/library/datetime.html#strftime-and-strptime-behavior)
-    return date.strftime("%Y-%m-%d")
+def format_date(date_time: datetime) -> str:
+    return date_time.strftime("%Y-%m-%d").zfill(10)
 
 
 def parse_date(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def _get_employment_from_date(employment: Dict) -> datetime:
+def _get_employment_from_date(employment: OrderedDict) -> datetime:
     """
     Get the latest date of all the dates in the payload from the SD
     GetEmployment endpoint (see https://redmine.magenta-aps.dk/issues/51898)
@@ -51,7 +49,7 @@ def _get_employment_from_date(employment: Dict) -> datetime:
     Returns: the maximum of all the date in the SD payload
 
     """
-    MIN_DATE = "000" + format_date(datetime.min)
+    MIN_DATE = format_date(datetime.min)
 
     employment_date = employment.get("EmploymentDate", MIN_DATE)
     employment_department_date = employment.get("EmploymentDepartment", dict()).get(
@@ -76,7 +74,7 @@ def _get_employment_from_date(employment: Dict) -> datetime:
     )
 
 
-def get_employment_dates(employment: Dict) -> Tuple[datetime, datetime]:
+def get_employment_dates(employment: OrderedDict) -> Tuple[datetime, datetime]:
     """
     Get the "from" and "to" date from the SD employment
 

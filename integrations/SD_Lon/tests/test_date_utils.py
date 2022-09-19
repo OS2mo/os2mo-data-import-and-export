@@ -167,15 +167,37 @@ def test_get_employment_from_date_when_status_is_leave(
     act_date,
     exp_date,
 ):
-    employment = {
-        "EmploymentDate": emp_date,
-        "AnniversaryDate": "2004-08-15",
-        "EmploymentStatus": {
-            "EmploymentStatusCode": "3",
-            "ActivationDate": act_date,
-            "DeactivationDate": "9999-12-31",
-        },
-    }
+    employment = OrderedDict(
+        [
+            (
+                "EmploymentDate",
+                emp_date,
+            ),
+            (
+                "AnniversaryDate",
+                "2004-08-15",
+            ),
+            (
+                "EmploymentStatus",
+                OrderedDict(
+                    [
+                        (
+                            "EmploymentStatusCode",
+                            "3",
+                        ),
+                        (
+                            "ActivationDate",
+                            act_date,
+                        ),
+                        (
+                            "DeactivationDate",
+                            "9999-12-31",
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
 
     date_from, date_to = get_employment_dates(employment)
 
@@ -192,15 +214,37 @@ def test_get_employment_to_date_when_status_is_leave(
     deactivation_date,
     exp_date,
 ):
-    employment = {
-        "EmploymentDate": "1970-01-01",
-        "AnniversaryDate": "2004-08-15",
-        "EmploymentStatus": {
-            "EmploymentStatusCode": "3",
-            "ActivationDate": "1975-01-01",
-            "DeactivationDate": deactivation_date,
-        },
-    }
+    employment = OrderedDict(
+        [
+            (
+                "EmploymentDate",
+                "1970-01-01",
+            ),
+            (
+                "AnniversaryDate",
+                "2004-08-15",
+            ),
+            (
+                "EmploymentStatus",
+                OrderedDict(
+                    [
+                        (
+                            "EmploymentStatusCode",
+                            "3",
+                        ),
+                        (
+                            "ActivationDate",
+                            "1975-01-01",
+                        ),
+                        (
+                            "DeactivationDate",
+                            deactivation_date,
+                        ),
+                    ]
+                ),
+            ),
+        ]
+    )
 
     date_from, date_to = get_employment_dates(employment)
 
@@ -303,3 +347,15 @@ def test_date_tuples(datetimes):
         assert type(to_datetime) == datetime
         assert num_days_apart == 1
         assert (to_datetime - from_datetime).total_seconds() == 86400
+
+
+@parameterized.expand(
+    [
+        (datetime(2022, 1, 1), "2022-01-01"),
+        (datetime(100, 10, 1), "0100-10-01"),
+        (datetime(10, 1, 10), "0010-01-10"),
+        (datetime(1, 1, 1), "0001-01-01"),
+    ]
+)
+def test_format_date_zero_fill(date_time: datetime, expected: str):
+    assert format_date(date_time) == expected
