@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "os2mo_data_import"
-version = "3.1.3"
+version = "0.0.0"  # versioning handled by conventional commits
 description = "A set of tools for OS2MO data import and export"
 authors = ["Magenta <info@magenta.dk>"]
 license = "MPL-2.0"
