@@ -604,8 +604,11 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     # Two engagements are expected - one active and one historic dummy
     assert len(details) == 2
+
     assert engagement.type_id == "engagement"
     assert engagement_historic_dummy.type_id == "engagement"
+    assert engagement.date_from == "2000-01-01"
+    assert engagement.date_to is None
 
     assert engagement_historic_dummy.date_from == "1970-01-01"
     assert engagement_historic_dummy.date_to == "1999-12-31"
