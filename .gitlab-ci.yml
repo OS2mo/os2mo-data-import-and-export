@@ -30,34 +30,38 @@ variables:
   IMAGE_VERSION: ${RELEASE_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
   IMAGE_LATEST: ${RELEASE_REGISTRY_IMAGE}:latest
 
+# Conditions
+#############
+.if-default-branch-refs: &if-default-branch-refs
+  if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+.if-tag: &if-tag
+  if: '$CI_COMMIT_TAG'
+
+.if-merge-request: &if-merge-request
+  if: '$CI_MERGE_REQUEST_IID'
+
+# Workflow
+###########
+workflow:
+  rules:
+    - <<: *if-tag
+    - <<: *if-default-branch-refs
+    - <<: *if-merge-request
+
 include:
   - project: 'labs/salt-automation'
-    ref: 'master'
-    file: '/gitlab-ci-templates/common/autopub.v1.yml'
+    file: '/gitlab-ci-templates/common/conventional-commits.v1.yml'
   - project: 'labs/salt-automation'
-    ref: 'master'
     file: '/gitlab-ci-templates/common/docker-build-meta.v1.yml'
   - project: 'labs/salt-automation'
-    ref: 'master'
     file: '/gitlab-ci-templates/common/docker-release.v1.yml'
   - project: "labs/salt-automation"
-    ref: "master"
     file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
   - project: "labs/salt-automation"
-    ref: "master"
     file: "/gitlab-ci-templates/common/rules.v1.yml"
   - local: "integrations/SD_Lon/.gitlab-ci.yml"
   - local: "exporters/os2sync_export/.gitlab-ci.yml"
-
-
-# Only run pipeline when pushing a tag or a branch.
-# This is a workaround for a bug causing detached pipelines on MRs
-# See: https://gitlab.com/gitlab-org/gitlab/-/issues/34756
-#      https://docs.gitlab.com/ee/ci/yaml/#workflowrules-templates
-workflow:
-  rules:
-    - if: $CI_COMMIT_TAG
-    - if: $CI_COMMIT_BRANCH
 
 .manual-rules: &manual-rules
   rules:
