@@ -333,10 +333,14 @@ Release to Prod:
     ENDPOINT: os2mo/flux/dipex/update-prod
 
 Release DIPEX to PyPI:
+  variables:
+    PYPI_TOKEN: ${DIPEX_PYPI_TOKEN}
   extends:
     - .release_to_pypi_cc
 
 Release OS2mo-data-import to PyPI:
+  variables:
+    PYPI_TOKEN: ${OS2MO_DATA_IMPORT_PYPI_TOKEN}
   extends:
     - .release_to_pypi_cc
   before_script:
