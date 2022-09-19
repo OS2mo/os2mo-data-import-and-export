@@ -12,6 +12,7 @@
 # RELEASE_REGISTRY_PASSWORD
 #
 stages:
+  - sync
   - lint
   - build
   - test
@@ -60,6 +61,12 @@ include:
     file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
   - project: "labs/salt-automation"
     file: "/gitlab-ci-templates/common/rules.v1.yml"
+  - project: 'labs/salt-automation'
+    ref: feature/xxxxx_fix_dipex_cc_pypi
+    file: "/gitlab-ci-templates/common/no-interrupt.v1.yml"
+  - project: 'labs/salt-automation'
+    ref: feature/xxxxx_fix_dipex_cc_pypi
+    file: "/gitlab-ci-templates/python/pypi-meta.v1.yml"
   - local: "integrations/SD_Lon/.gitlab-ci.yml"
   - local: "exporters/os2sync_export/.gitlab-ci.yml"
 
@@ -329,33 +336,13 @@ Release to Prod:
 
 Release DIPEX to PyPI:
   extends:
-    - .rules:semver-core
-  stage: release
-  needs: []
-  image: python:3.8-slim
-  variables:
-    POETRY_VERSION: "1.1.11"
-    POETRY_VIRTUALENVS_CREATE: "true"
-    POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  script: poetry publish --build -u __token__ -p $PYPI_TOKEN
-  before_script:
-    - pip install --no-cache-dir poetry==${POETRY_VERSION}
+    - .release_to_pypi_cc
 
 Release OS2mo-data-import to PyPI:
   extends:
-    - .rules:semver-core
-  stage: release
-  needs: []
-  image: python:3.8-slim
-  variables:
-    POETRY_VERSION: "1.1.11"
-    POETRY_VIRTUALENVS_CREATE: "true"
-    POETRY_VIRTUALENVS_IN_PROJECT: "true"
-  script: poetry publish --build -u __token__ -p $PYPI_DATA_IMPORT_TOKEN
+    - .release_to_pypi_cc
   before_script:
     - cd os2mo_data_import/
-    - sed -i "s/version = .*/version = \"$CI_COMMIT_TAG\"/" pyproject.toml
-    - pip install --no-cache-dir poetry==${POETRY_VERSION}
 
 Release SDChangedAt to Flux dev:
   extends: .release-to-dev
