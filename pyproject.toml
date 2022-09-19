@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "DIPEX"
-version = "3.3.0"
+version = "0.0.0"  # versioning handled by conventional commits
 authors = ["Magenta ApS <info@magenta.dk>"]
 description = "OS2mo-data-import-and-export"
 license = "MPL-2.0"
@@ -89,10 +89,6 @@ lora-utils = "^0.1.0"
 os2mo-data-import = {path = "os2mo_data_import", develop = true}
 python-dateutil = "^2.8.2"
 glom = "^22.1.0"
-
-[tool.autopub]
-git-username = "MagentaBot"
-git-email = "info@magenta.dk"
 
 [build-system]
 requires = ["setuptools>=40.8.0", "wheel"]
