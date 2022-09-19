@@ -5,7 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 from itertools import chain
 from itertools import takewhile
-from typing import Dict, OrderedDict
+from typing import OrderedDict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
