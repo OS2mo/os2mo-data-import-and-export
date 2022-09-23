@@ -109,7 +109,7 @@ class TestManagerImporter(HelperMixin):
                 with self._mock_edit_details() as mock_edit_details:
                     orgfunk_uuid = importer._generate_rel_uuid(instance)
                     with self._mock_lookup_organisationfunktion(
-                        return_value=set([str(orgfunk_uuid)])
+                        return_value={str(orgfunk_uuid)}
                     ):
                         self._run_until_complete(
                             importer.handle_edit("unused_filename.csv", filedate)

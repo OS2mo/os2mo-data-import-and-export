@@ -3,7 +3,6 @@ from datetime import date
 from datetime import datetime
 from functools import partial
 from itertools import chain
-from operator import itemgetter
 from typing import Iterable
 from typing import List
 from typing import Union
@@ -49,14 +48,7 @@ class ManagerImporter:
     def cache_cpr(self):
         """Read all employees from OS2mo and cache them based on their CPR no."""
         print("Caching employees")
-        employees = util.lookup_employees()
-        # Not really a cache - but a mapping from the CPR found in the CSV file
-        # to the MO user's UUID. Needed in `generate_manager_payload`.
-        cache = map(
-            itemgetter("cpr_no", "uuid"),
-            filter(lambda employee: employee.get("cpr_no"), employees),
-        )
-        self.cpr_cache = dict(cache)
+        self.cpr_cache = util.build_cpr_map()
 
     def generate_manager_payload(
         self, manager: Union[ManagerCreate, ManagerEdit]
