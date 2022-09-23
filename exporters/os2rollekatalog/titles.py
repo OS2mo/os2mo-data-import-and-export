@@ -93,7 +93,7 @@ def export_titles(
     dry_run: bool,
 ) -> None:
     with GraphQLClient(
-        url=f"{mora_base}/graphql",
+        url=f"{mora_base}/graphql/v2",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
