@@ -47,6 +47,23 @@ class PersonImporter:
     def __init__(self):
         self.uuid_generator = uuid_generator("AAK")
         self.settings = config.get_config()
+        # Get all existing CPRs in MO
+        self._cpr_map = util.build_cpr_map()
+
+    def _get_person_mo_uuid(self, person: Person) -> uuid.UUID:
+        if person.cpr in self._cpr_map:
+            # Re-use existing person UUID
+            return self._cpr_map[person.cpr]
+        else:
+            # Create a new person UUID based on the CPR
+            return self.uuid_generator(person.cpr)
+
+    def generate_employee_payload(self, person: Person):
+        return mo_payloads.create_employee(
+            name=person.name,
+            cpr_no=person.cpr,
+            uuid=self._get_person_mo_uuid(person),
+        )
 
     def generate_employee_email_payload(self, person: Person, filedate: str):
         # For creation of Employee address/IT details we always
@@ -56,11 +73,11 @@ class PersonImporter:
             person.start_time.date(), person.end_time.date()
         )
         return mo_payloads.create_address(
+            person_uuid=self._get_person_mo_uuid(person),
             uuid=self.uuid_generator(person.cpr + "email"),
             value=person.email,
             from_date=filedate,
             to_date=to_date,
-            person_uuid=self.uuid_generator(person.cpr),
             address_type_uuid=uuids.PERSON_EMAIL,
         )
 
@@ -72,9 +89,9 @@ class PersonImporter:
             person.start_time.date(), person.end_time.date()
         )
         return mo_payloads.create_it_rel(
+            person_uuid=self._get_person_mo_uuid(person),
             uuid=self.uuid_generator(person.cpr + "azid"),
             user_key=person.az_id,
-            person_uuid=self.uuid_generator(person.cpr),
             itsystem_uuid=self.settings.azid_it_system_uuid,
             from_date=filedate,
             to_date=to_date,
@@ -84,24 +101,17 @@ class PersonImporter:
         from_date, to_date = util.convert_validities(
             person.start_time.date(), person.end_time.date()
         )
-
         primary_uuids = {"Nej": uuids.NOT_PRIMARY, "Ja": uuids.PRIMARY}
         return mo_payloads.create_engagement(
+            person_uuid=self._get_person_mo_uuid(person),
             uuid=person.person_uuid,
             org_unit_uuid=person.org_unit_uuid,
-            person_uuid=self.uuid_generator(person.cpr),
             job_function_uuid=person.job_function_uuid,
             engagement_type_uuid=person.engagement_type_uuid,
             primary_uuid=primary_uuids[person.primary],
             user_key=person.bvn,
             from_date=from_date,
             to_date=to_date,
-        )
-
-    def generate_employee_payload(self, person: Person):
-        # Same person info in every row
-        return mo_payloads.create_employee(
-            name=person.name, cpr_no=person.cpr, uuid=self.uuid_generator(person.cpr)
         )
 
     @staticmethod
@@ -113,9 +123,8 @@ class PersonImporter:
         )
 
     def create_employee_payloads(self, persons):
-        cpr_buckets = bucket(persons, key=lambda x: x.cpr)
-
         # Every person row contains the same info, so we just pick one
+        cpr_buckets = bucket(persons, key=lambda x: x.cpr)
         unique_persons = map(lambda key: first(cpr_buckets[key]), cpr_buckets)
         return map(self.generate_employee_payload, unique_persons)
 

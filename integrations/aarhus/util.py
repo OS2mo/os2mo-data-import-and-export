@@ -1,5 +1,8 @@
 import asyncio
 from datetime import date
+from functools import lru_cache
+from operator import itemgetter
+from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
@@ -73,7 +76,7 @@ async def raise_on_unhandled_mo_error(
     endpoint: str,
     doc: Iterable[dict],
     response: ClientResponse,
-    ignored_mo_error_keys: tuple[str] = ("V_DUPLICATED_IT_USER",),
+    ignored_mo_error_keys: Tuple[str] = ("V_DUPLICATED_IT_USER",),
 ) -> None:
     """Raise an exception on any MO errors that we do not know to handle.
 
@@ -157,6 +160,16 @@ def lookup_employees():
     settings = config.get_config()
     mh = MoraHelper(hostname=settings.mora_base, export_ansi=True)
     return mh.read_all_users()
+
+
+@lru_cache(maxsize=0)
+def build_cpr_map() -> Dict[str, str]:
+    employees = lookup_employees()
+    cache = map(
+        itemgetter("cpr_no", "uuid"),
+        filter(lambda employee: employee.get("cpr_no"), employees),
+    )
+    return dict(cache)
 
 
 def convert_validities(from_time: date, to_time: date) -> Tuple[str, Optional[str]]:
