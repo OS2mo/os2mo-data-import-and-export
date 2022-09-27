@@ -619,7 +619,13 @@ class SdImport:
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            date_from, date_to = get_employment_dates(employment)
+            date_from_engagement, date_to = get_employment_dates(employment)
+            # Use org unit start date if engagement starts *before*
+            # the org unit start date
+            org_unit_date_from = parse_date(
+                self.importer.organisation_units[unit].date_from
+            )
+            date_from = max(date_from_engagement, org_unit_date_from)
 
             date_from_str = format_date(date_from)
             date_to_str = format_date(date_to)
@@ -665,11 +671,6 @@ class SdImport:
             # creating a leave below
             engagement_uuid = str(uuid.uuid4())
 
-            # Use org unit start date if engagement starts *before*
-            # the org unit start date
-            org_unit_date_from = parse_date(
-                self.importer.organisation_units[unit].date_from
-            )
             self.importer.add_engagement(
                 employee=cpr,
                 uuid=engagement_uuid,
@@ -679,7 +680,7 @@ class SdImport:
                 fraction=int(occupation_rate * 1000000),
                 primary_ref=primary_type_ref,
                 engagement_type_ref=engagement_type_ref,
-                date_from=format_date(max(date_from, org_unit_date_from)),
+                date_from=date_from_str,
                 date_to=date_to_str,
                 **extention,
             )
@@ -687,7 +688,7 @@ class SdImport:
             # Add historic dummy engagement if the start date of the engagement
             # is older than the start date of the corresponding org unit
             # (see https://redmine.magenta-aps.dk/issues/51898)
-            if date_from < org_unit_date_from:
+            if date_from_engagement < org_unit_date_from:
                 dummy_eng_date_to = org_unit_date_from - datetime.timedelta(days=1)
                 dummy_eng_date_to_str = format_date(dummy_eng_date_to)
                 self.importer.add_engagement(
@@ -695,7 +696,7 @@ class SdImport:
                     organisation_unit=self.historic_org_unit_uuid,
                     job_function_ref=HISTORIC,
                     engagement_type_ref="historisk",
-                    date_from=date_from_str,
+                    date_from=format_date(date_from_engagement),
                     date_to=dummy_eng_date_to_str,
                 )
 

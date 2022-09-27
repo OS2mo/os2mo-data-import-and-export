@@ -12,6 +12,7 @@ from hypothesis import given
 from hypothesis import settings
 from os2mo_data_import import ImportHelper
 from os2mo_data_import.mora_data_types import OrganisationUnitType
+from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
@@ -614,6 +615,68 @@ def test_create_historic_dummy_engagement(mock_uuid4):
     assert engagement_historic_dummy.date_to == "1999-12-31"
     assert engagement_historic_dummy.org_unit_ref == "historic_org_unit_uuid"
     assert engagement_historic_dummy.type_ref == "historisk"
+
+
+@parameterized.expand([("7",), ("8",), ("9",)])
+def test_skip_creating_status_let_go_engagement_when_date_from_older_than_org_unit(
+    status_code: str,
+):
+
+    # Arrange
+
+    sd = get_sd_importer()
+
+    sd.nodes["org_unit_uuid"] = attrdict(
+        {
+            "name": "org_unit",
+            "date_from": "2022-06-01",  # Later than EmploymentDate (see below)
+        }
+    )
+
+    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+        name="org_unit",
+        type_ref="type_ref",
+        date_from="2022-06-01",  # Later than EmploymentDate (see below)
+    )
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    sd.importer.add_employee = MagicMock()
+
+    # Act
+
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "EmploymentDate": "2021-05-01",
+                    "AnniversaryDate": "2000-08-15",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": status_code,
+                        "ActivationDate": "2022-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+    sd.importer.add_employee.assert_not_called()
 
 
 def test_employment_date_as_engagement_start_date_disabled_per_default():
