@@ -12,6 +12,7 @@ from hypothesis import given
 from hypothesis import settings
 from os2mo_data_import import ImportHelper
 from os2mo_data_import.mora_data_types import OrganisationUnitType
+from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
@@ -616,7 +617,10 @@ def test_create_historic_dummy_engagement(mock_uuid4):
     assert engagement_historic_dummy.type_ref == "historisk"
 
 
-def test_skip_creating_status_8_engagement_when_date_from_older_than_org_unit():
+@parameterized.expand([("7",), ("8",), ("9",)])
+def test_skip_creating_status_let_go_engagement_when_date_from_older_than_org_unit(
+    status_code: str,
+):
 
     # Arrange
 
@@ -648,7 +652,6 @@ def test_skip_creating_status_8_engagement_when_date_from_older_than_org_unit():
 
     # Act
 
-    # Create an employee on leave (SD EmploymentStatusCode = 3)
     sd.create_employee(
         {
             "PersonCivilRegistrationIdentifier": cpr_no,
@@ -658,7 +661,7 @@ def test_skip_creating_status_8_engagement_when_date_from_older_than_org_unit():
                     "AnniversaryDate": "2000-08-15",
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
                     "EmploymentStatus": {
-                        "EmploymentStatusCode": "8",
+                        "EmploymentStatusCode": status_code,
                         "ActivationDate": "2022-01-01",
                         "DeactivationDate": "9999-12-31",
                     },
