@@ -1,3 +1,4 @@
+import string
 import unittest
 from typing import Any
 from unittest import mock
@@ -17,6 +18,7 @@ from ..ad_exceptions import ImproperlyConfigured
 from ..user_names import UserNameGen
 from ..user_names import UserNameGenMethod2
 from ..user_names import UserNameGenPermutation
+from ..user_names import UserNameGenSvendborg
 from ..user_names import UserNameSet
 from ..user_names import UserNameSetCSVFile
 from ..user_names import UserNameSetInAD
@@ -841,6 +843,35 @@ class TestUserNameGenPermutation(unittest.TestCase):
         second_username = self.instance.create_username(name)
         # Assert new username is different, even when case is ignored
         self.assertNotEqual(first_username.lower(), second_username.lower())
+
+
+class TestUserNameGenSvendborg(unittest.TestCase):
+    _letters = tuple(string.ascii_letters + "ÆØÅæøå")
+
+    @given(
+        st.one_of(
+            st.lists(st.text(min_size=2, alphabet=_letters), min_size=3),
+            st.lists(st.text(min_size=3, alphabet=_letters), min_size=2),
+        ),
+    )
+    def test_valid_input(self, name):
+        instance = UserNameGenSvendborg()
+        username = instance.create_username(name)
+        self.assertEqual(len(username), 6)
+        self.assertTrue(all(ch.isupper() for ch in username))
+        self.assertTrue(all(ch in string.ascii_uppercase for ch in username))
+
+    @parameterized.expand(
+        [
+            (["Aaa"],),  # only one name part
+            (["Aaa", "Bb"],),  # not enough letters in total
+            (["Aa", "Bb", "C"],),  # not enough letters in total
+        ]
+    )
+    def test_raises_exception_on_invalid_input(self, name):
+        instance = UserNameGenSvendborg()
+        with self.assertRaises(ValueError):
+            instance.create_username(name)
 
 
 class TestUserNameSet(unittest.TestCase):
