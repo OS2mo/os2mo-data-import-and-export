@@ -861,17 +861,21 @@ class TestUserNameGenSvendborg(unittest.TestCase):
         self.assertTrue(all(ch.isupper() for ch in username))
         self.assertTrue(all(ch in string.ascii_uppercase for ch in username))
 
-    @parameterized.expand(
-        [
-            (["Aaa"],),  # only one name part
-            (["Aaa", "Bb"],),  # not enough letters in total
-            (["Aa", "Bb", "C"],),  # not enough letters in total
-        ]
-    )
-    def test_raises_exception_on_invalid_input(self, name):
+    def test_raises_exception_on_only_one_name_part(self):
         instance = UserNameGenSvendborg()
         with self.assertRaises(ValueError):
-            instance.create_username(name)
+            instance.create_username(["Aa"])
+
+    @parameterized.expand(
+        [
+            (["Aa", "Bb"], "AAXBBX"),  # two name parts
+            (["A", "B", "C"], "AXXCXX"),  # three name parts
+        ]
+    )
+    def test_input_shorter_than_six_chars_is_padded(self, name, expected_username):
+        instance = UserNameGenSvendborg()
+        username = instance.create_username(name)
+        self.assertEqual(username, expected_username)
 
 
 class TestUserNameSet(unittest.TestCase):

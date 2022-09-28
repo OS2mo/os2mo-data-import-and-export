@@ -346,7 +346,7 @@ class UserNameGenSvendborg(UserNameGen):
 
         for p1, p2 in bits:
             if (len(parts[0]) < p1) or (len(parts[1]) < p2):
-                continue
+                parts = [parts[0].ljust(p1, "X"), parts[1].ljust(p2, "X")]
             new_username = "".join([parts[0][:p1], parts[1][:p2]])
             if not self.is_username_occupied(new_username):
                 self.occupied_names.add(new_username)
@@ -366,7 +366,11 @@ class UserNameGenSvendborg(UserNameGen):
 
         for p1, p2, p3 in bits:
             if (len(parts[0]) < p1) or (len(parts[1]) < p2) or (len(parts[-1]) < p3):
-                continue
+                parts = [
+                    parts[0].ljust(p1, "X"),
+                    parts[1].ljust(p2, "X"),
+                    parts[-1].ljust(p3, "X"),
+                ]
             new_username = "".join([parts[0][:p1], parts[1][:p2], parts[-1][:p3]])
             if not self.is_username_occupied(new_username):
                 self.occupied_names.add(new_username)
