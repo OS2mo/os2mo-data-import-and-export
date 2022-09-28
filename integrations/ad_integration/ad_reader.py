@@ -179,6 +179,16 @@ class ADParameterReader(AD):
         all_users = self._run_ps_script(cmd)
         return set(map(itemgetter("SamAccountName"), all_users))
 
+    def get_all_email_values(self):
+        """Retrieve *all* AD email addresses, including emails of AD users without a CPR
+        or MO user UUID.
+        """
+        server = self.all_settings["global"]["servers"][0]
+        cmd = f"""{self._build_user_credential()}
+        Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties EmailAddress | ConvertTo-Json"""
+        all_users = self._run_ps_script(cmd)
+        return set(map(itemgetter("EmailAddress"), all_users))
+
 
 if __name__ == "__main__":
     ad_reader = ADParameterReader()
