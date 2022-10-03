@@ -38,6 +38,10 @@ def parse_date(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
+def datetime_to_sd_date(date_time: datetime) -> str:
+    return date_time.strftime("%d.%m.%Y")
+
+
 def _get_employment_from_date(employment: OrderedDict) -> datetime:
     """
     Get the latest date of all the dates in the payload from the SD
