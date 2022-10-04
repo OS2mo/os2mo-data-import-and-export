@@ -326,14 +326,11 @@ class UserNameGenSvendborg(UserNameGen):
         # ["FirstName", "MiddleName LastName"] -> ["FirstName", "MiddleName", "LastName"]
         # ["FirstName", "MiddleName-LastName"] -> ["FirstName", "MiddleName", "LastName"]
         parts = flatten(map(partial(re.split, r"[\-\s+]"), name))
-
         # Uppercase each name part
-        parts = list(map(str.upper, parts))
-
+        parts = map(str.upper, parts)
         # "Unaccent" any accented letters in each name part
-        parts = list(map(unidecode, parts))
-
-        return parts
+        parts = map(unidecode, parts)
+        return list(parts)
 
     def _get_username_for_case_a(self, parts: NameType) -> str:
         bits = (
@@ -345,6 +342,8 @@ class UserNameGenSvendborg(UserNameGen):
         )
 
         for p1, p2 in bits:
+            # Pad name parts with one or more 'X' characters if name part is too short
+            # for the given values of `p1` and `p2`.
             if (len(parts[0]) < p1) or (len(parts[1]) < p2):
                 parts = [parts[0].ljust(p1, "X"), parts[1].ljust(p2, "X")]
             new_username = "".join([parts[0][:p1], parts[1][:p2]])
@@ -365,6 +364,8 @@ class UserNameGenSvendborg(UserNameGen):
         )
 
         for p1, p2, p3 in bits:
+            # Pad name parts with one or more 'X' characters if name part is too short
+            # for the given values of `p1`, `p2` and `p3`.
             if (len(parts[0]) < p1) or (len(parts[1]) < p2) or (len(parts[-1]) < p3):
                 parts = [
                     parts[0].ljust(p1, "X"),
