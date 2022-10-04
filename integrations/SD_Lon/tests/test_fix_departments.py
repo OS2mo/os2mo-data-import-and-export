@@ -1,9 +1,12 @@
 from copy import deepcopy
 from datetime import date
+from datetime import datetime
 from typing import Dict
 from typing import Optional
 from unittest import mock
 from unittest import TestCase
+from unittest.mock import call
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -22,6 +25,8 @@ def mock_sd_lookup(service_name, expected_params, response):
                     "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
                     "DepartmentIdentifier": _TestableFixDepartments.SD_DEPARTMENT_SHORTNAME,
                     "DepartmentName": _TestableFixDepartments.SD_DEPARTMENT_NAME,
+                    "ActivationDate": "2019-01-01",
+                    "DeactivationDate": "9999-12-31",
                 }
             ],
         },
@@ -96,11 +101,11 @@ class TestFixDepartmentsRootSetting(TestCase):
         self.assertEqual(instance.org_uuid, expected_root)
 
 
-class TestFixDepartmentAtSingleDate(TestCase):
+class TestFixDepartment(TestCase):
     def test_run(self):
         instance = _TestableFixDepartments.get_instance()
         with mock_sd_lookup("GetDepartment20111201", {}, {}):
-            instance.fix_department_at_single_date("uuid", date(2020, 1, 1))
+            instance.fix_department("uuid", date(2020, 1, 1))
             instance.helper._mo_post.assert_called_with(
                 "details/edit",
                 {
@@ -112,7 +117,83 @@ class TestFixDepartmentAtSingleDate(TestCase):
                         "parent": {"uuid": instance.SD_DEPARTMENT_PARENT_UUID},
                         "org_unit_level": {"uuid": instance.MO_CLASS_UUID},
                         "org_unit_type": {"uuid": instance.MO_CLASS_UUID},
-                        "validity": {"from": "1930-01-01", "to": None},
+                        "validity": {"from": "2019-01-01", "to": None},
                     },
                 },
             )
+
+    def test_multiple_sd_department_registrations(self):
+        instance = _TestableFixDepartments.get_instance()
+        sd_response = {
+            "Department": [
+                {
+                    "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+                    "DepartmentIdentifier": _TestableFixDepartments.SD_DEPARTMENT_SHORTNAME,
+                    "DepartmentName": _TestableFixDepartments.SD_DEPARTMENT_NAME,
+                    "ActivationDate": "2019-01-01",
+                    "DeactivationDate": "2023-12-31",
+                },
+                {
+                    "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+                    "DepartmentIdentifier": _TestableFixDepartments.SD_DEPARTMENT_SHORTNAME,
+                    "DepartmentName": "new name",
+                    "ActivationDate": "2024-01-01",
+                    "DeactivationDate": "9999-12-31",
+                },
+            ]
+        }
+        with mock_sd_lookup("GetDepartment20111201", dict(), sd_response):
+            instance.fix_department("uuid", date(2020, 1, 1))
+
+        call_list = instance.helper._mo_post.mock_calls
+
+        first_mo_call = call(
+            "details/edit",
+            {
+                "type": "org_unit",
+                "data": {
+                    "uuid": "uuid",
+                    "user_key": instance.SD_DEPARTMENT_SHORTNAME,
+                    "name": instance.SD_DEPARTMENT_NAME,
+                    "parent": {"uuid": instance.SD_DEPARTMENT_PARENT_UUID},
+                    "org_unit_level": {"uuid": instance.MO_CLASS_UUID},
+                    "org_unit_type": {"uuid": instance.MO_CLASS_UUID},
+                    "validity": {"from": "2019-01-01", "to": "2023-12-31"},
+                },
+            },
+        )
+        second_mo_call = call(
+            "details/edit",
+            {
+                "type": "org_unit",
+                "data": {
+                    "uuid": "uuid",
+                    "user_key": instance.SD_DEPARTMENT_SHORTNAME,
+                    "name": "new name",
+                    "parent": {"uuid": instance.SD_DEPARTMENT_PARENT_UUID},
+                    "org_unit_level": {"uuid": instance.MO_CLASS_UUID},
+                    "org_unit_type": {"uuid": instance.MO_CLASS_UUID},
+                    "validity": {"from": "2024-01-01", "to": None},
+                },
+            },
+        )
+
+        assert first_mo_call in call_list
+        assert second_mo_call in call_list
+
+
+def test_lookup_parent_at_correct_effective_date():
+    instance = _TestableFixDepartments.get_instance()
+    instance.get_parent = MagicMock()
+
+    department = {
+        "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+        "DepartmentIdentifier": _TestableFixDepartments.SD_DEPARTMENT_SHORTNAME,
+        "DepartmentName": _TestableFixDepartments.SD_DEPARTMENT_NAME,
+        "ActivationDate": "2025-01-01",
+        "DeactivationDate": "9999-12-31",
+    }
+
+    instance._update_org_unit_for_single_sd_dep_registration("unit_uuid", department)
+
+    instance.get_parent.assert_called_once_with("unit_uuid", datetime(2025, 1, 1))

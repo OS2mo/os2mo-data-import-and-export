@@ -28,7 +28,9 @@ def create_single_org_unit(department, unit_type, unit_level, parent):
     return payload
 
 
-def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, ou_type, from_date):
+def edit_org_unit(
+    user_key, name, unit_uuid, parent, ou_level, ou_type, from_date, to_date=None
+):
     payload = {
         "type": "org_unit",
         "data": {
@@ -38,7 +40,7 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, ou_type, from_dat
             "parent": {"uuid": parent},
             "org_unit_level": {"uuid": ou_level},
             "org_unit_type": {"uuid": ou_type},
-            "validity": {"from": from_date, "to": None},
+            "validity": {"from": from_date, "to": to_date},
         },
     }
     return payload

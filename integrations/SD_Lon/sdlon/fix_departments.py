@@ -3,11 +3,15 @@ import json
 import logging
 from functools import partial
 from itertools import chain
+from typing import Any
+from typing import List
+from typing import OrderedDict
 
 import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from .date_utils import datetime_to_sd_date, parse_date, SD_INFINITY, MO_INFINITY
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -136,47 +140,35 @@ class FixDepartments:
         logger.info("Created unit {}".format(department["DepartmentIdentifier"]))
         logger.debug("Create response status: {}".format(response.status_code))
 
-    def fix_department_at_single_date(self, unit_uuid, validity_date):
-        """
-        Synchronize the state of a MO unit to the current state in SD.
-        The updated validity of the MO unit will extend from 1930-01-01 to infinity
-        and any existing validities will be overwritten.
-        :param unit_uuid: uuid of the unit to be updated.
-        :param validity_date: The validity date to read the departent info from SD.
-        """
-        msg = "Set department {} to state as of {}"
-        logger.info(msg.format(unit_uuid, validity_date))
-        validity = {
-            "from_date": validity_date.strftime("%d.%m.%Y"),
-            "to_date": validity_date.strftime("%d.%m.%Y"),
-        }
+    def _update_org_unit_for_single_sd_dep_registration(self, unit_uuid, department):
 
-        department = self.get_department(validity, uuid=unit_uuid)[0]
+        # Get SD department data
+        name = department["DepartmentName"]
+        shortname = department["DepartmentIdentifier"]
+        department_level_identifier = department["DepartmentLevelIdentifier"]
+        from_date = department["ActivationDate"]
+        to_date = department["DeactivationDate"]
+        to_date = MO_INFINITY if to_date == SD_INFINITY else to_date
 
         unit_level_uuid = None
         for unit_level in self.level_types:
-            if unit_level["user_key"] == department["DepartmentLevelIdentifier"]:
+            if unit_level["user_key"] == department_level_identifier:
                 unit_level_uuid = unit_level["uuid"]
         if unit_level_uuid is None:
             msg = "Unknown department level {}!!"
-            logger.error(msg.format(department["DepartmentLevelIdentifier"]))
-            raise Exception(msg.format(department["DepartmentLevelIdentifier"]))
+            logger.error(msg.format(department_level_identifier))
+            raise Exception(msg.format(department_level_identifier))
 
+        effective_date = parse_date(from_date)
         try:
-            parent = self.get_parent(unit_uuid, validity_date)
+            parent = self.get_parent(unit_uuid, effective_date)
             if parent is None:
                 parent = self.org_uuid
-            department = self.get_department(validity, uuid=unit_uuid)[0]
-            name = department["DepartmentName"]
-            shortname = department["DepartmentIdentifier"]
         except NoCurrentValdityException:
             msg = "Attempting to fix unit with no parent at {}!"
-            logger.error(msg.format(validity_date))
-            raise Exception(msg.format(validity_date))
+            logger.error(msg.format(effective_date))
+            raise Exception(msg.format(effective_date))
 
-        # SD has a challenge with the internal validity-consistency, extend
-        # validity indefinitely
-        from_date = "1930-01-01"
         msg = "Unit parent at {} is {}"
         print(msg.format(from_date, parent))
         logger.info(msg.format(from_date, parent))
@@ -188,7 +180,8 @@ class FixDepartments:
             parent=parent,
             ou_level=unit_level_uuid,
             ou_type=self.unit_type["uuid"],
-            from_date=from_date,  # End date is always infinity
+            from_date=from_date,
+            to_date=to_date,
         )
         logger.debug("Edit payload to fix unit: {}".format(payload))
         response = self.helper._mo_post("details/edit", payload)
@@ -198,7 +191,26 @@ class FixDepartments:
         else:
             response.raise_for_status()
 
-    def get_department(self, validity, shortname=None, uuid=None):
+    def fix_department(self, unit_uuid, validity_date) -> None:
+        """
+        Synchronize the state of a MO unit to the current and future state(s) in SD.
+        :param unit_uuid: uuid of the unit to be updated.
+        :param validity_date: The validity date to read the department info from SD.
+        """
+        msg = "Set department {} to state as of {}"
+        logger.info(msg.format(unit_uuid, validity_date))
+        validity = {
+            "from_date": validity_date.strftime("%d.%m.%Y"),
+            "to_date": datetime_to_sd_date(parse_date(SD_INFINITY)),
+        }
+
+        departments = self.get_department(validity, uuid=unit_uuid)
+        for department in departments:
+            self._update_org_unit_for_single_sd_dep_registration(unit_uuid, department)
+
+    def get_department(
+        self, validity, shortname=None, uuid=None
+    ) -> List[OrderedDict[str, Any]]:
         """
         Read department information from SD.
         NOTICE: Shortnames are not universally unique in SD, and even a request
@@ -233,7 +245,7 @@ class FixDepartments:
         department = department_info.get("Department")
         if department is None:
             raise NoCurrentValdityException()
-        if isinstance(department, dict):
+        if isinstance(department, OrderedDict):
             department = [department]
         return department
 
@@ -443,7 +455,7 @@ class FixDepartments:
         :param leaf_uuid: The starting point of the chain, this does not stictly need
         to be a leaf node.
         :validity_date: The validity date of the fix.
-        :return: A list of unit uuids sorted from leaf to root.
+        :return: A list of tuples containing short names and unit uuids sorted from leaf to root.
         """
         validity = {
             "from_date": validity_date.strftime("%d.%m.%Y"),
@@ -492,7 +504,7 @@ class FixDepartments:
                 self.create_single_department(unit[1], date)
 
         for unit in reversed(branch):
-            self.fix_department_at_single_date(unit[1], date)
+            self.fix_department(unit[1], date)
 
     def sd_uuid_from_short_code(self, validity_date, shortname):
         validity = {

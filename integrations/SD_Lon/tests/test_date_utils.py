@@ -12,6 +12,7 @@ from parameterized import parameterized
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
 from sdlon.date_utils import format_date
+from sdlon.date_utils import datetime_to_sd_date
 from sdlon.date_utils import gen_cut_dates
 from sdlon.date_utils import gen_date_intervals
 from sdlon.date_utils import get_employment_dates
@@ -359,3 +360,16 @@ def test_date_tuples(datetimes):
 )
 def test_format_date_zero_fill(date_time: datetime, expected: str):
     assert format_date(date_time) == expected
+
+
+@parameterized.expand(
+    [
+        (datetime(2022, 1, 1), "01.01.2022"),
+        (datetime(2100, 10, 1), "01.10.2100"),
+        (datetime(1000, 1, 10), "10.01.1000"),
+        (datetime(3000, 10, 10), "10.10.3000"),
+        (datetime(9999, 12, 31), "31.12.9999"),
+    ]
+)
+def test_datetime_to_sd_date(date_time: datetime, expected: str):
+    assert datetime_to_sd_date(date_time) == expected
