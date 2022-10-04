@@ -7,7 +7,7 @@ from unittest import mock
 from unittest import TestCase
 from unittest.mock import call
 from unittest.mock import MagicMock
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
@@ -41,11 +41,11 @@ def mock_sd_lookup(service_name, expected_params, response):
 class _TestableFixDepartments(FixDepartments):
     MO_ORG_ROOT = "00000000-0000-0000-0000-000000000000"
     MO_CLASS_USER_KEY = "Enhed"
-    MO_CLASS_UUID = uuid4()
-    SD_INSTITUTION_UUID = uuid4()
+    MO_CLASS_UUID = str(uuid4())
+    SD_INSTITUTION_UUID = str(uuid4())
     SD_DEPARTMENT_NAME = "some department name"
     SD_DEPARTMENT_SHORTNAME = "some department short name"
-    SD_DEPARTMENT_PARENT_UUID = uuid4()
+    SD_DEPARTMENT_PARENT_UUID = str(uuid4())
 
     @classmethod
     def get_instance(cls, settings_dict: Optional[Dict] = None):
@@ -180,6 +180,163 @@ class TestFixDepartment(TestCase):
 
         assert first_mo_call in call_list
         assert second_mo_call in call_list
+
+    def test_create_parent_org_unit_return_none_for_sd_root_unit(self):
+        # Arrange
+        instance = _TestableFixDepartments.get_instance()
+        instance.get_parent = MagicMock()
+        instance.get_parent.return_value = None
+
+        # Act + Assert
+        assert (
+            instance._create_parent_org_unit_if_missing_in_mo(
+                "unit_uuid", datetime.today()
+            )
+            is None
+        )
+
+    def test_create_parent_org_unit_return_none_if_unit_exists_in_mo(self):
+        # Arrange
+        instance = _TestableFixDepartments.get_instance()
+
+        instance.get_parent = MagicMock()
+        instance.get_parent.return_value = "parent_uuid"
+
+        instance.helper.read_ou = MagicMock()
+        # The return value dict does not have a {"status": 404,...}
+        instance.helper.read_ou.return_value = dict()
+
+        # Act + Assert
+        assert (
+            instance._create_parent_org_unit_if_missing_in_mo(
+                "unit_uuid", datetime.today()
+            )
+            is None
+        )
+
+    def test_create_parent_org_unit_if_unit_does_not_exists_in_mo(self):
+        # Arrange
+        instance = _TestableFixDepartments.get_instance()
+        parent_parents_uuid = str(uuid4())
+        sd_dep_response = {
+            "Department": [
+                {
+                    "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+                    "DepartmentIdentifier": "Parent shortname",
+                    "DepartmentUUIDIdentifier": _TestableFixDepartments.SD_DEPARTMENT_PARENT_UUID,
+                    "DepartmentName": "Parent",
+                    "ActivationDate": "2019-01-01",
+                    "DeactivationDate": "9999-12-31",
+                }
+            ]
+        }
+
+        with mock_sd_lookup("GetDepartment20111201", dict(), sd_dep_response):
+            instance.get_parent = MagicMock()
+            instance.get_parent.return_value = parent_parents_uuid
+
+            instance.helper.read_ou = MagicMock()
+            instance.helper.read_ou.return_value = {"status": 404}
+
+            # Act
+            r = instance._create_parent_org_unit_if_missing_in_mo(
+                "unit_uuid", datetime.today()
+            )
+
+        # Assert
+        instance.helper._mo_post.assert_called_once_with(
+            "ou/create",
+            {
+                "uuid": _TestableFixDepartments.SD_DEPARTMENT_PARENT_UUID,
+                "user_key": "Parent shortname",
+                "name": "Parent",
+                "parent": {"uuid": parent_parents_uuid},
+                "org_unit_type": {"uuid": _TestableFixDepartments.MO_CLASS_UUID},
+                "org_unit_level": {"uuid": _TestableFixDepartments.MO_CLASS_UUID},
+                "validity": {
+                    "from": "2019-01-01",
+                    "to": None,
+                },
+            },
+        )
+
+    def test_fix_department_called_recursively_when_parent_does_not_exists(self):
+        # Arrange
+        instance = _TestableFixDepartments.get_instance()
+
+        unit_uuid = "11111111-1111-1111-1111-111111111111"
+        parent_uuid = "22222222-2222-2222-2222-222222222222"
+
+        instance.get_department = MagicMock(
+            side_effect=[
+                [
+                    {
+                        "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+                        "DepartmentIdentifier": _TestableFixDepartments.SD_DEPARTMENT_SHORTNAME,
+                        "DepartmentUUIDIdentifier": unit_uuid,
+                        "DepartmentName": _TestableFixDepartments.SD_DEPARTMENT_NAME,
+                        "ActivationDate": "2019-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    }
+                ],
+                [
+                    {
+                        "DepartmentLevelIdentifier": _TestableFixDepartments.MO_CLASS_USER_KEY,
+                        "DepartmentIdentifier": "Parent shortname",
+                        "DepartmentUUIDIdentifier": parent_uuid,
+                        "DepartmentName": "Parent",
+                        "ActivationDate": "2019-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    }
+                ],
+            ]
+        )
+
+        instance._create_parent_org_unit_if_missing_in_mo = MagicMock(
+            side_effect=[UUID(parent_uuid), None]
+        )
+        instance._update_org_unit_for_single_sd_dep_registration = MagicMock()
+
+        # Act
+        instance.fix_department(str(unit_uuid), date(2020, 1, 1))
+
+        # Assert
+        create_parent_calls = (
+            instance._create_parent_org_unit_if_missing_in_mo.mock_calls
+        )
+        update_calls = (
+            instance._update_org_unit_for_single_sd_dep_registration.mock_calls
+        )
+
+        assert create_parent_calls == [
+            call("11111111-1111-1111-1111-111111111111", datetime(2019, 1, 1, 0, 0)),
+            call("22222222-2222-2222-2222-222222222222", datetime(2019, 1, 1, 0, 0)),
+        ]
+
+        assert update_calls == [
+            call(
+                "22222222-2222-2222-2222-222222222222",
+                {
+                    "DepartmentLevelIdentifier": "Enhed",
+                    "DepartmentIdentifier": "Parent shortname",
+                    "DepartmentUUIDIdentifier": parent_uuid,
+                    "DepartmentName": "Parent",
+                    "ActivationDate": "2019-01-01",
+                    "DeactivationDate": "9999-12-31",
+                },
+            ),
+            call(
+                "11111111-1111-1111-1111-111111111111",
+                {
+                    "DepartmentLevelIdentifier": "Enhed",
+                    "DepartmentIdentifier": "some department short name",
+                    "DepartmentUUIDIdentifier": unit_uuid,
+                    "DepartmentName": "some department name",
+                    "ActivationDate": "2019-01-01",
+                    "DeactivationDate": "9999-12-31",
+                },
+            ),
+        ]
 
 
 def test_lookup_parent_at_correct_effective_date():

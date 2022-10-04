@@ -4,14 +4,22 @@ import logging
 from functools import partial
 from itertools import chain
 from typing import Any
+from typing import Optional
 from typing import List
 from typing import OrderedDict
+from uuid import UUID
 
 import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from .date_utils import datetime_to_sd_date, parse_date, SD_INFINITY, MO_INFINITY
+from .date_utils import (
+    datetime_to_sd_date,
+    parse_date,
+    SD_INFINITY,
+    MO_INFINITY,
+    format_date,
+)
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -140,6 +148,27 @@ class FixDepartments:
         logger.info("Created unit {}".format(department["DepartmentIdentifier"]))
         logger.debug("Create response status: {}".format(response.status_code))
 
+    def _create_parent_org_unit_if_missing_in_mo(
+        self, unit_uuid: str, creation_datetime: datetime.datetime
+    ) -> Optional[UUID]:
+        """
+        Create org unit parent if it is missing in MO.
+
+        Args:
+            unit_uuid: The UUID of the org unit to create the parent for
+            creation_datetime: The parent unit creation date
+
+        Returns: UUID of the parent if it was created or None otherwise.
+        """
+        parent_uuid = self.get_parent(unit_uuid, creation_datetime)
+        if parent_uuid is not None:
+            mo_response = self.helper.read_ou(
+                parent_uuid, at=format_date(creation_datetime)
+            )
+            if mo_response.get("status") == 404:
+                self.create_single_department(parent_uuid, creation_datetime)
+                return UUID(parent_uuid)
+
     def _update_org_unit_for_single_sd_dep_registration(self, unit_uuid, department):
 
         # Get SD department data
@@ -170,7 +199,6 @@ class FixDepartments:
             raise Exception(msg.format(effective_date))
 
         msg = "Unit parent at {} is {}"
-        print(msg.format(from_date, parent))
         logger.info(msg.format(from_date, parent))
 
         payload = sd_payloads.edit_org_unit(
@@ -206,6 +234,15 @@ class FixDepartments:
 
         departments = self.get_department(validity, uuid=unit_uuid)
         for department in departments:
+            # Create parent unit if missing in MO
+            parent_uuid = self._create_parent_org_unit_if_missing_in_mo(
+                unit_uuid, parse_date(department["ActivationDate"])
+            )
+
+            # ... and fix the parent before updating the unit itself
+            if parent_uuid is not None:
+                self.fix_department(str(parent_uuid), validity_date)
+
             self._update_org_unit_for_single_sd_dep_registration(unit_uuid, department)
 
     def get_department(
@@ -295,7 +332,6 @@ class FixDepartments:
         department = self.get_department(sd_validity, uuid=unit_uuid)[0]
         if not department["DepartmentLevelIdentifier"] in too_deep:
             msg = "{} regnes ikke som et SD afdelingsniveau"
-            print(msg.format(unit_uuid))
             logger.info(msg.format(unit_uuid))
             return {}
 
@@ -418,7 +454,7 @@ class FixDepartments:
                     response = self.helper._mo_post("details/edit", payload)
                     mora_assert(response)
 
-    def get_parent(self, unit_uuid, validity_date):
+    def get_parent(self, unit_uuid, validity_date) -> Optional[str]:
         """
         Return the parent of a given department at at given point in time.
         Notice that the query is perfomed against SD, not against MO.
@@ -483,29 +519,6 @@ class FixDepartments:
             logger.debug(msg.format(shortname, uuid, level))
         return department_branch
 
-    def fix_or_create_branch(self, leaf_uuid, date):
-        """
-        Run through all units up to the top of the tree and synchroize the state of
-        MO to the state of SD. This includes reanming of MO units, moving MO units
-        and creating units that currently does not exist in MO. The updated validity
-        of the MO units will extend from 1930-01-01 to infinity and any existing
-        validities will be overwritten.
-        :param leaf_uuid: The starting point of the fix, this does not stictly need
-        to be a leaf node.
-        :date: The validity date of the fix.
-        """
-        # This is a question to SD, units will not need to exist in MO
-        branch = self.get_all_parents(leaf_uuid, date)
-
-        for unit in branch:
-            mo_unit = self.helper.read_ou(unit[1])
-            if "status" in mo_unit:  # Unit does not exist in MO
-                logger.warning("Unknown unit {}, will create".format(unit))
-                self.create_single_department(unit[1], date)
-
-        for unit in reversed(branch):
-            self.fix_department(unit[1], date)
-
     def sd_uuid_from_short_code(self, validity_date, shortname):
         validity = {
             "from_date": validity_date.strftime("%d.%m.%Y"),
@@ -538,19 +551,16 @@ def unit_fixer(short_names, uuids):
     unit_fixer = FixDepartments(settings)
 
     today = datetime.datetime.today()
-    # Use a future date to be sure that the unit exists in SD.
-    # XXX: Why 80 weeks instead of 1 day?
-    fix_date = today + datetime.timedelta(weeks=80)
 
     # Translate short_names to uuids
     short_name_uuids = map(
-        partial(unit_fixer.sd_uuid_from_short_code, fix_date), short_names
+        partial(unit_fixer.sd_uuid_from_short_code, today), short_names
     )
     # Convert UUIDs to strings
     department_uuids = map(str, uuids)
 
     for department_uuid in chain(short_name_uuids, department_uuids):
-        unit_fixer.fix_or_create_branch(department_uuid, fix_date)
+        unit_fixer.fix_department(department_uuid, today)
         unit_fixer.fix_NY_logic(department_uuid, today)
 
 

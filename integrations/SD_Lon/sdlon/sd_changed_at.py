@@ -718,7 +718,7 @@ class ChangeAtSD:
             # This unit does not exist, read its state in the not-too
             # distant future.
             fix_date = today + datetime.timedelta(weeks=80)
-            self.department_fixer.fix_or_create_branch(org_unit, fix_date)
+            self.department_fixer.fix_department(org_unit, fix_date)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
 
         if ou_info["org_unit_level"]["user_key"] in too_deep:
