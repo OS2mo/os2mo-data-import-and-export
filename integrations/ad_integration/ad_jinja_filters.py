@@ -22,6 +22,13 @@ def first_address_of_type(value: List[dict], address_type_uuid: str) -> Optional
     )
 
 
+def location_element(value, index, sep="\\"):
+    try:
+        return value.split(sep)[index]
+    except IndexError:
+        return None
+
+
 @contextfilter
 def name_to_email_address(ctx, value):
     upn_end = ctx["_upn_end"]
