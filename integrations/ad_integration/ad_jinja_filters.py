@@ -90,7 +90,7 @@ def name_to_email_address(ctx, value):
                 if new not in taken:
                     return new
 
-        return "%s.%d" % (prefix, next_suffix())
+        return f"{prefix:s}.{next_suffix():d}"
 
     def _gen_email(name: str) -> Optional[str]:
         parts = _split_and_normalize(name)
