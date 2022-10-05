@@ -807,7 +807,7 @@ class ADWriter(AD):
 
         @lru_cache
         def get_all_ad_emails():
-            reader = ADParameterReader()
+            reader = ADParameterReader(all_settings=self.all_settings)
             return reader.get_all_email_values()
 
         # Add globally available vars

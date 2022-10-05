@@ -82,14 +82,18 @@ class TestNameToEmailAddressIntegration(_TestRealADWriter):
         self, taken_emails: Set[str], expected_result: str
     ):
         with patch(
-            "integrations.ad_integration.ad_reader.ADParameterReader.get_all_email_values",
-            return_value=taken_emails,
+            "integrations.ad_integration.ad_reader.ADParameterReader.__init__",
+            return_value=None,
         ):
-            ad_writer = self._prepare_adwriter(
-                template_to_ad_fields=self._template_to_ad_fields,
-                get_all_email_values=taken_emails,
-            )
-            create_cmd, _ = ad_writer._preview_create_command(MO_UUID)
+            with patch(
+                "integrations.ad_integration.ad_reader.ADParameterReader"
+                ".get_all_email_values",
+                return_value=taken_emails,
+            ):
+                ad_writer = self._prepare_adwriter(
+                    template_to_ad_fields=self._template_to_ad_fields,
+                )
+                create_cmd, _ = ad_writer._preview_create_command(MO_UUID)
 
         self.assertIn(f'"someAdField"="{expected_result}"', create_cmd)
 
