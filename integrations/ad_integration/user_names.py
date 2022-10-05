@@ -324,6 +324,14 @@ class UserNameSetCSVFile(UserNameSet):
             self._usernames = set(row[self._column_name] for row in reader)
 
 
+class UserNameSetCSVFileSubstring(UserNameSetCSVFile):
+    def __contains__(self, username: str) -> bool:
+        for taken in self._usernames:
+            if taken.lower() in username.lower():
+                return True
+        return False
+
+
 class UserNameSetInAD(UserNameSet):
     def __init__(self):
         reader = ADParameterReader()
