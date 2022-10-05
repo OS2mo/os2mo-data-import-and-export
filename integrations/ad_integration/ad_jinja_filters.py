@@ -83,8 +83,8 @@ def name_to_email_address(ctx, value):
 
         def next_suffix():
             # Find next available suffix higher than or equal to `serial_start`.
-            # E.g. if `taken_suffixes` is `[0, 1, 3, 4]`, the next available suffix is
-            # 5.
+            # E.g. if `taken_suffixes` is `{0, 1, 3, 4, 6}`, the next available suffix
+            # is 5 - and not 2, as that would be below `serial_start` (which is 3.)
             taken = taken_suffixes()
             for new, curr in enumerate(taken + [sys.maxsize], serial_start):
                 if new not in taken:
