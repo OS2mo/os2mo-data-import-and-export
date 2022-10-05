@@ -18,6 +18,7 @@ def create_user(employee, org_uuid, uuid=None):
         "surname": employee["lastName"],
         "cpr_no": cpr,
         "org": {"uuid": org_uuid},
+        "validity": {"from": None},
     }
     if uuid is not None:
         payload["uuid"] = uuid
