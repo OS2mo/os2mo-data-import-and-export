@@ -1,33 +1,34 @@
 import json
 from collections import defaultdict
 from datetime import date
-from itertools import chain
 from itertools import groupby
-from itertools import starmap
 from operator import itemgetter
 from typing import Callable
+from typing import Dict
 from typing import Iterator
+from typing import Optional
+from typing import Tuple
 from typing import TypeVar
 from uuid import UUID
 
 import click
-# app here is adguidsync
-from app.config import Settings
-from app.ldap import configure_ad_connection
 from asciitree import LeftAligned
 from ra_utils.async_to_sync import async_to_sync
 from raclients.modelclient.mo import ModelClient
 from ramodels.mo import OrganisationUnit
 
+from .config import get_ldap_settings
+from .ldap import configure_ad_connection
+
 CallableReturnType = TypeVar("CallableReturnType")
-OrgTree = dict[UUID, dict]
+OrgTree = Dict[UUID, Dict]
 
 ORG_UNIT_TYPE_UUID = UUID("3a895052-dabb-4fad-8e45-3154330d0203")
 # RADataModels must be changed to allow None for level in writing
-ORG_UNIT_LEVEL_UUID = None # UUID("00000000-0000-0000-0000-000000000000")
+ORG_UNIT_LEVEL_UUID = None  # UUID("00000000-0000-0000-0000-000000000000")
 
 
-def parse_distinguished_name(dn: str) -> tuple[str]:
+def parse_distinguished_name(dn: str) -> Tuple[str]:
     # Convert "\\," to "|"
     dn = dn.replace("\\,", "|")
     # Split on "," and replace "|" with ","
@@ -36,12 +37,12 @@ def parse_distinguished_name(dn: str) -> tuple[str]:
     categorized = map(lambda s: s.split("="), split)
     # [("OU", "Foo"), ("DC", "Bar")] -> ["Foo"]
     relevant = [value for (category, value) in categorized if category == "OU"]
-    return tuple(reversed(relevant))
+    return tuple(reversed(relevant))  # type: ignore
 
 
-def load_ad_tree(settings, ad_connection) -> dict[UUID, tuple[str]]:
+def load_ad_tree(settings, ad_connection) -> Dict[UUID, Tuple[str]]:
     ad_connection.search(
-        search_base=settings.ad_search_base,
+        search_base=settings["search_base"],
         search_filter="(objectclass=organizationalUnit)",
         # Search in the entire subtree of search_base
         search_scope="SUBTREE",
@@ -65,8 +66,8 @@ def load_ad_tree(settings, ad_connection) -> dict[UUID, tuple[str]]:
 
 
 def strip_users_and_computers(
-    ad_tree: dict[UUID, tuple[str]]
-) -> dict[UUID, tuple[str]]:
+    ad_tree: Dict[UUID, Tuple[str]]
+) -> Dict[UUID, Tuple[str]]:
     return {
         key: value
         for key, value in ad_tree.items()
@@ -74,16 +75,16 @@ def strip_users_and_computers(
     }
 
 
-def naive_transpose(ad_tree: dict[UUID, tuple[str]]) -> dict[tuple[str], UUID]:
+def naive_transpose(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[Tuple[str], UUID]:
     return {value: key for key, value in ad_tree.items()}
 
 
-def build_parent_map(ad_tree: dict[UUID, tuple[str]]) -> dict[UUID, UUID | None]:
+def build_parent_map(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[UUID, Optional[UUID]]:
     mapping_tree = naive_transpose(ad_tree)
-    return {key: mapping_tree.get(value[:-1]) for key, value in ad_tree.items()}
+    return {key: mapping_tree.get(value[:-1]) for key, value in ad_tree.items()}  # type: ignore
 
 
-def build_name_map(ad_tree: dict[UUID, tuple[str]]) -> dict[UUID, str]:
+def build_name_map(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[UUID, str]:
     return {key: value[-1] for key, value in ad_tree.items()}
 
 
@@ -164,7 +165,7 @@ def construct_org_unit(parent_map, name_map, uuid: UUID) -> OrganisationUnit:
     )
 
 
-def build_model_map(ad_tree) -> dict[UUID, OrganisationUnit]:
+def build_model_map(ad_tree) -> Dict[UUID, OrganisationUnit]:
     parent_map = build_parent_map(ad_tree)
     name_map = build_name_map(ad_tree)
     org_units = set(ad_tree.keys())
@@ -188,7 +189,7 @@ def tree_visitor(
         yield from tree_visitor(children, yield_func, level + 1)
 
 
-def build_ad_tree(settings):
+def build_ad_tree(settings: dict):
     ad_connection = configure_ad_connection(settings)
     with ad_connection:
         ad_tree = load_ad_tree(settings, ad_connection)
@@ -204,7 +205,7 @@ def build_org_tree(ad_tree):
 
 @click.command()
 def print_adtree():
-    settings = Settings()
+    settings = get_ldap_settings()
     ad_tree = build_ad_tree(settings)
     tree = build_org_tree(ad_tree)
     model_map = build_model_map(ad_tree)
@@ -218,12 +219,12 @@ def print_adtree():
 @click.command()
 @async_to_sync
 async def upload_adtree():
-    settings = Settings()
+    settings = get_ldap_settings()
     ad_tree = build_ad_tree(settings)
     tree = build_org_tree(ad_tree)
     model_map = build_model_map(ad_tree)
 
-    def visitor(uuid: UUID, level: int) -> tuple[int, OrganisationUnit]:
+    def visitor(uuid: UUID, level: int) -> Tuple[int, OrganisationUnit]:
         return level, model_map[uuid]
 
     model_tree = list(tree_visitor(tree, visitor))
