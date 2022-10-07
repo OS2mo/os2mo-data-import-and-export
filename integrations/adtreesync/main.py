@@ -13,6 +13,7 @@ from uuid import UUID
 
 import click
 from asciitree import LeftAligned
+from os2mo_helpers.settings import get_settings as get_mora_settings
 from ra_utils.async_to_sync import async_to_sync
 from raclients.modelclient.mo import ModelClient
 from ramodels.mo import OrganisationUnit
@@ -228,31 +229,27 @@ async def upload_adtree():
         return level, model_map[uuid]
 
     model_tree = list(tree_visitor(tree, visitor))
-    # for level, org_unit in model_tree:
-    #   print("  " * (level - 1), org_unit.name)
-
     model_layers = groupby(sorted(model_tree, key=itemgetter(0)), itemgetter(0))
     layers = [
         list(map(itemgetter(1), model_layer)) for level, model_layer in model_layers
     ]
-    # level = 0
-    # for layer in layers:
-    #    for entity in layer:
-    #        print("  " * level, entity)
-    #    level += 1
 
     # TODO: Root should be renamed 'Administrativ organisation'
 
+    mora_settings = get_mora_settings()
+
     client = ModelClient(
-        base_url=settings.fastramqpi.mo_url,
-        client_id=settings.fastramqpi.client_id,
-        client_secret=settings.fastramqpi.client_secret.get_secret_value(),
-        auth_server=settings.fastramqpi.auth_server,
-        auth_realm=settings.fastramqpi.auth_realm,
+        base_url="http://localhost:5000",
+        client_id=mora_settings.client_id,
+        client_secret=mora_settings.client_secret,
+        auth_server=mora_settings.auth_server,
+        auth_realm=mora_settings.auth_realm,
     )
     async with client:
         for layer in layers:
-            await client.upload(layer)
+            result = await client.upload(layer)
+            print(layer)
+            print(result)
 
 
 if __name__ == "__main__":
