@@ -1,10 +1,13 @@
+import csv
 import json
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date
 from itertools import groupby
 from operator import itemgetter
 from typing import Callable
 from typing import Dict
+from typing import IO
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -25,7 +28,18 @@ CallableReturnType = TypeVar("CallableReturnType")
 OrgTree = Dict[UUID, Dict]
 
 
-def parse_distinguished_name(dn: str) -> Tuple[str]:
+@dataclass(eq=True, frozen=True)
+class ParsedDN:
+    dn: str
+    parsed_dn: Tuple[str]
+
+
+ADTree = Dict[UUID, ParsedDN]
+
+MOOrganisationUnitMap = Dict[UUID, OrganisationUnit]
+
+
+def parse_distinguished_name(dn: str) -> ParsedDN:
     # Convert "\\," to "|"
     dn = dn.replace("\\,", "|")
     # Split on "," and replace "|" with ","
@@ -34,10 +48,10 @@ def parse_distinguished_name(dn: str) -> Tuple[str]:
     categorized = map(lambda s: s.split("="), split)
     # [("OU", "Foo"), ("DC", "Bar")] -> ["Foo"]
     relevant = [value for (category, value) in categorized if category == "OU"]
-    return tuple(reversed(relevant))  # type: ignore
+    return ParsedDN(dn, tuple(reversed(relevant)))  # type: ignore
 
 
-def load_ad_tree(settings, ad_connection) -> Dict[UUID, Tuple[str]]:
+def load_ad_tree(settings, ad_connection) -> ADTree:
     ad_connection.search(
         search_base=settings["search_base"],
         search_filter="(objectclass=organizationalUnit)",
@@ -50,8 +64,9 @@ def load_ad_tree(settings, ad_connection) -> Dict[UUID, Tuple[str]]:
     ad_response = json.loads(json_str)
     org_units = list(map(itemgetter("attributes"), ad_response["entries"]))
     distinguished_names = map(itemgetter("distinguishedName"), org_units)
-    parsed_names = map(parse_distinguished_name, distinguished_names)
-
+    parsed_names: Iterator[ParsedDN] = map(
+        parse_distinguished_name, distinguished_names
+    )
     guids = map(
         lambda guid_str: UUID(guid_str.strip("{}")),
         map(itemgetter("objectGUID"), org_units),
@@ -62,27 +77,28 @@ def load_ad_tree(settings, ad_connection) -> Dict[UUID, Tuple[str]]:
     return result
 
 
-def strip_users_and_computers(
-    ad_tree: Dict[UUID, Tuple[str]]
-) -> Dict[UUID, Tuple[str]]:
+def strip_users_and_computers(ad_tree: ADTree) -> ADTree:
     return {
         key: value
         for key, value in ad_tree.items()
-        if value[-1] not in ("Brugere", "Computere", "Computer")
+        if value.parsed_dn[-1] not in ("Brugere", "Computere", "Computer")
     }
 
 
-def naive_transpose(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[Tuple[str], UUID]:
-    return {value: key for key, value in ad_tree.items()}
+def build_parent_map(ad_tree: ADTree) -> Dict[UUID, Optional[UUID]]:
+    def naive_transpose(ad_tree: ADTree):
+        return {value.parsed_dn: key for key, value in ad_tree.items()}
 
-
-def build_parent_map(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[UUID, Optional[UUID]]:
     mapping_tree = naive_transpose(ad_tree)
-    return {key: mapping_tree.get(value[:-1]) for key, value in ad_tree.items()}  # type: ignore
+
+    return {
+        key: mapping_tree.get(value.parsed_dn[:-1])  # type: ignore
+        for key, value in ad_tree.items()
+    }
 
 
-def build_name_map(ad_tree: Dict[UUID, Tuple[str]]) -> Dict[UUID, str]:
-    return {key: value[-1] for key, value in ad_tree.items()}
+def build_name_map(ad_tree: ADTree) -> Dict[UUID, str]:
+    return {key: value.parsed_dn[-1] for key, value in ad_tree.items()}
 
 
 def build_children_map(parent_map):
@@ -171,8 +187,8 @@ def construct_org_unit(
 
 
 def build_model_map(
-    ad_tree, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
-) -> Dict[UUID, OrganisationUnit]:
+    ad_tree: ADTree, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
+) -> MOOrganisationUnitMap:
     parent_map = build_parent_map(ad_tree)
     name_map = build_name_map(ad_tree)
     org_units = set(ad_tree.keys())
@@ -200,7 +216,7 @@ def tree_visitor(
         yield from tree_visitor(children, yield_func, level + 1)
 
 
-def build_ad_tree(settings: dict):
+def build_ad_tree(settings: dict) -> ADTree:
     ad_connection = configure_ad_connection(settings)
     with ad_connection:
         ad_tree = load_ad_tree(settings, ad_connection)
@@ -208,10 +224,33 @@ def build_ad_tree(settings: dict):
         return ad_tree
 
 
-def build_org_tree(ad_tree):
+def build_org_tree(ad_tree: ADTree):
     parent_map = build_parent_map(ad_tree)
     tree = build_tree(parent_map)
     return tree
+
+
+def build_model_layers(tree, model_map: MOOrganisationUnitMap):
+    def visitor(uuid: UUID, level: int) -> Tuple[int, OrganisationUnit]:
+        return level, model_map[uuid]
+
+    model_tree = list(tree_visitor(tree, visitor))
+    model_layers = groupby(sorted(model_tree, key=itemgetter(0)), itemgetter(0))
+    layers = [
+        list(map(itemgetter(1), model_layer)) for level, model_layer in model_layers
+    ]
+
+    return layers
+
+
+def dump_csv(ad_tree: ADTree, writable: IO):
+    writer = csv.DictWriter(
+        writable, delimiter=";", fieldnames=["UUID", "DistinguishedName"]
+    )
+    writer.writeheader()
+    writer.writerows(
+        {"UUID": key, "DistinguishedName": value.dn} for key, value in ad_tree.items()
+    )
 
 
 @click.command()
@@ -240,26 +279,28 @@ def print_adtree():
     type=click.UUID,
     help="UUID of `org_unit_level` to use when creating organisation units",
 )
+@click.option(
+    "--csv-path",
+    default="./adtreesync.csv",
+    type=click.Path(),
+    help="Path of CSV file to output",
+)
 @async_to_sync
-async def upload_adtree(org_unit_type_uuid: UUID, org_unit_level_uuid: UUID):
+async def upload_adtree(
+    org_unit_type_uuid: UUID,
+    org_unit_level_uuid: UUID,
+    csv_path: str,
+):
     settings = get_ldap_settings()
     ad_tree = build_ad_tree(settings)
+    dump_csv(ad_tree, open(csv_path, "w"))
     tree = build_org_tree(ad_tree)
     model_map = build_model_map(ad_tree, org_unit_type_uuid, org_unit_level_uuid)
-
-    def visitor(uuid: UUID, level: int) -> Tuple[int, OrganisationUnit]:
-        return level, model_map[uuid]
-
-    model_tree = list(tree_visitor(tree, visitor))
-    model_layers = groupby(sorted(model_tree, key=itemgetter(0)), itemgetter(0))
-    layers = [
-        list(map(itemgetter(1), model_layer)) for level, model_layer in model_layers
-    ]
+    layers = build_model_layers(tree, model_map)
 
     # TODO: Root should be renamed 'Administrativ organisation'
 
     mora_settings = get_mora_settings()
-
     client = ModelClient(
         base_url="http://localhost:5000",
         client_id=mora_settings.client_id,
@@ -269,9 +310,7 @@ async def upload_adtree(org_unit_type_uuid: UUID, org_unit_level_uuid: UUID):
     )
     async with client:
         for layer in layers:
-            result = await client.upload(layer)
-            print(layer)
-            print(result)
+            await client.upload(layer)
 
 
 if __name__ == "__main__":
