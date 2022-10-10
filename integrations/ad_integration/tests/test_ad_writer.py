@@ -1310,31 +1310,6 @@ class TestPreview(_TestRealADWriter):
         self.assertEqual("<nonexistent AD user>", rename_cmd_target)
 
 
-class TestJinjaEnv(_TestRealADWriter):
-    _template_to_ad_fields = {
-        "someAdField": "{{ mo_values['employee_addresses']|first_address_of_type('address-type-uuid') }}"
-    }
-    _expected_fragment = '"someAdField"="address-value"'
-
-    def test_jinja_env_has_template_filter_first_address_of_type(self):
-        ad_writer = self._prepare_adwriter()
-        self.assertIn("first_address_of_type", ad_writer._environment.filters)
-
-    def test_first_address_of_type_in_create_user_command(self):
-        ad_writer = self._prepare_adwriter(
-            template_to_ad_fields=self._template_to_ad_fields
-        )
-        create_cmd, _ = ad_writer._preview_create_command(MO_UUID)
-        self.assertIn(self._expected_fragment, create_cmd)
-
-    def test_first_address_of_type_in_sync_user_command(self):
-        ad_writer = self._prepare_adwriter(
-            template_to_ad_fields=self._template_to_ad_fields
-        )
-        sync_cmd, _, _ = ad_writer._preview_sync_command(MO_UUID, "user_sam")
-        self.assertIn(self._expected_fragment, sync_cmd)
-
-
 class TestReadADInformationFromMO(_TestRealADWriter):
     @parameterized.expand(
         [
