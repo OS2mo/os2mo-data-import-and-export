@@ -77,7 +77,7 @@ class TestLocationElement:
         # Arrange
         ad_writer = _TestableADWriter(location)
         settings = deepcopy(_base_settings)
-        settings["primary_write"]["template_to_ad_fields"] = self._template_to_ad_fields
+        settings["primary_write"]["template_to_ad_fields"] = self._template_to_ad_fields  # type: ignore
         # Act
         result = template_powershell(
             context={
