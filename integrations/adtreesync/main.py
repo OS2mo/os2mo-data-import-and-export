@@ -24,10 +24,6 @@ from .ldap import configure_ad_connection
 CallableReturnType = TypeVar("CallableReturnType")
 OrgTree = Dict[UUID, Dict]
 
-ORG_UNIT_TYPE_UUID = UUID("3a895052-dabb-4fad-8e45-3154330d0203")
-# RADataModels must be changed to allow None for level in writing
-ORG_UNIT_LEVEL_UUID = None  # UUID("00000000-0000-0000-0000-000000000000")
-
 
 def parse_distinguished_name(dn: str) -> Tuple[str]:
     # Convert "\\," to "|"
@@ -151,7 +147,13 @@ def build_tree(parent_map):
     return recursive_build_tree(children_map)
 
 
-def construct_org_unit(parent_map, name_map, uuid: UUID) -> OrganisationUnit:
+def construct_org_unit(
+    parent_map,
+    name_map,
+    uuid: UUID,
+    org_unit_type_uuid: UUID,
+    org_unit_level_uuid: UUID,
+) -> OrganisationUnit:
     parent_uuid = parent_map[uuid]
     name = name_map[uuid]
 
@@ -160,18 +162,26 @@ def construct_org_unit(parent_map, name_map, uuid: UUID) -> OrganisationUnit:
         parent_uuid=parent_uuid,
         user_key=name,
         name=name,
-        org_unit_type_uuid=ORG_UNIT_TYPE_UUID,
-        org_unit_level_uuid=ORG_UNIT_LEVEL_UUID,
+        org_unit_type_uuid=org_unit_type_uuid,
+        # MO does *not* require specifying `org_unit_level_uuid` - but `ra-data-models`
+        # *does* require it (which should be changed to reflect MO.)
+        org_unit_level_uuid=org_unit_level_uuid,
         from_date=str(date.today()),
     )
 
 
-def build_model_map(ad_tree) -> Dict[UUID, OrganisationUnit]:
+def build_model_map(
+    ad_tree, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
+) -> Dict[UUID, OrganisationUnit]:
     parent_map = build_parent_map(ad_tree)
     name_map = build_name_map(ad_tree)
     org_units = set(ad_tree.keys())
-
-    return {key: construct_org_unit(parent_map, name_map, key) for key in org_units}
+    return {
+        key: construct_org_unit(
+            parent_map, name_map, key, org_unit_type_uuid, org_unit_level_uuid
+        )
+        for key in org_units
+    }
 
 
 def print_tree(tree, formatter):
@@ -218,12 +228,24 @@ def print_adtree():
 
 
 @click.command()
+@click.option(
+    "--org-unit-type-uuid",
+    required=True,
+    type=click.UUID,
+    help="UUID of `org_unit_type` to use when creating organisation units",
+)
+@click.option(
+    "--org-unit-level-uuid",
+    required=True,
+    type=click.UUID,
+    help="UUID of `org_unit_level` to use when creating organisation units",
+)
 @async_to_sync
-async def upload_adtree():
+async def upload_adtree(org_unit_type_uuid: UUID, org_unit_level_uuid: UUID):
     settings = get_ldap_settings()
     ad_tree = build_ad_tree(settings)
     tree = build_org_tree(ad_tree)
-    model_map = build_model_map(ad_tree)
+    model_map = build_model_map(ad_tree, org_unit_type_uuid, org_unit_level_uuid)
 
     def visitor(uuid: UUID, level: int) -> Tuple[int, OrganisationUnit]:
         return level, model_map[uuid]
