@@ -57,10 +57,21 @@ class TestLocationElement:
     def test_location(self, elems: List[str]) -> None:
         # Construct input variables based on Hypothesis data
         location: str = "\\".join(elems)
-        expected = dict(
+        # Construct dictionary of expected field names and values in PowerShell output
+        expected_field_names = self._template_to_ad_fields.keys()
+        expected_elements = elems[self._offset :]
+        # Construct dictionary by zipping keys and values
+        expected_pairs = dict(
             zip(
-                self._template_to_ad_fields.keys(),
-                chain(elems[self._offset :], repeat(None)),
+                # Take dictionary keys from `expected_field_names`, which are all the
+                # keys in `_template_to_ad_fields`.
+                expected_field_names,
+                # Take dictionary values from `expected_elements`, padding the list of
+                # values with `None` if there are not enough values in
+                # `expected_elements` to match every key.
+                # Paddding with `None` means that we will test that "unmapped" field
+                # names will *not* be written by the generated PowerShell code.
+                chain(expected_elements, repeat(None)),
             )
         )
         # Arrange
@@ -77,7 +88,7 @@ class TestLocationElement:
             environment=ad_writer._get_jinja_environment(),
         )
         # Assert
-        self._assert_matches(result, expected)
+        self._assert_matches(result, expected_pairs)
 
     def _assert_matches(self, result: str, expected: dict):
         for name, expected_value in expected.items():
