@@ -8,6 +8,7 @@ from abc import ABC
 from abc import abstractmethod
 from datetime import date
 from datetime import datetime
+from functools import lru_cache
 from functools import partial
 from operator import itemgetter
 
@@ -34,7 +35,10 @@ from .ad_exceptions import NoPrimaryEngagementException
 from .ad_exceptions import ReplicationFailedException
 from .ad_exceptions import SamAccountNameNotUnique
 from .ad_exceptions import UserNotFoundException
+from .ad_jinja_filters import first_address_of_type
+from .ad_jinja_filters import name_to_email_address
 from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
 from .ad_template_engine import INVALID
 from .ad_template_engine import prepare_field_templates
 from .ad_template_engine import template_powershell
@@ -795,18 +799,21 @@ class ADWriter(AD):
         return mismatch
 
     def _get_jinja_environment(self):
-        def first_address_of_type(value, address_type_uuid):
-            return first(
-                (
-                    addr["value"]
-                    for addr in value
-                    if addr["address_type"]["uuid"] == address_type_uuid
-                ),
-                None,
-            )
-
         environment = Environment(undefined=StrictUndefined)
+
+        # Add custom filters
         environment.filters["first_address_of_type"] = first_address_of_type
+        environment.filters["name_to_email_address"] = name_to_email_address
+
+        @lru_cache
+        def get_all_ad_emails():
+            reader = ADParameterReader(all_settings=self.all_settings)
+            return reader.get_all_email_values()
+
+        # Add globally available vars
+        environment.globals["_upn_end"] = self.settings["primary_write"]["upn_end"]
+        environment.globals["_get_all_ad_emails"] = get_all_ad_emails
+
         return environment
 
     def _render_field_template(self, context, template):
