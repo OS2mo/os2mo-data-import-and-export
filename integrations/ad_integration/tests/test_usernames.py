@@ -21,6 +21,7 @@ from ..user_names import UserNameGenPermutation
 from ..user_names import UserNameGenSvendborg
 from ..user_names import UserNameSet
 from ..user_names import UserNameSetCSVFile
+from ..user_names import UserNameSetCSVFileSubstring
 from ..user_names import UserNameSetInAD
 from ..user_names import UserNameSetInDatabase
 from .mocks import MockADParameterReader
@@ -886,7 +887,7 @@ class TestUserNameSet(unittest.TestCase):
         self.assertIn("bbb", username_set)
 
 
-class TestUserNameSetCSVFile(unittest.TestCase):
+class _UserNameCSVFileHelperMixin:
     csv_path = "some/fs/path"
     csv_lines = [
         "%s,foo" % UserNameSetCSVFile._column_name,
@@ -894,8 +895,19 @@ class TestUserNameSetCSVFile(unittest.TestCase):
         "efgh5678",
     ]
 
+    def _get_instance(self, cls):
+        load_setting_path = "integrations.ad_integration.user_names.load_setting"
+        with mock.patch(load_setting_path, return_value=lambda: self.csv_path):
+            with mock.patch("io.open") as mock_open:
+                mock_open.return_value.__enter__.return_value = self.csv_lines
+                instance = cls()
+                instance._mock_open = mock_open
+                return instance
+
+
+class TestUserNameSetCSVFile(_UserNameCSVFileHelperMixin, unittest.TestCase):
     def test_can_read_csv(self):
-        instance = self._get_instance()
+        instance = self._get_instance(UserNameSetCSVFile)
         instance._mock_open.assert_called_once_with(
             self.csv_path,
             "r",
@@ -904,22 +916,24 @@ class TestUserNameSetCSVFile(unittest.TestCase):
         self.assertEqual(instance._usernames, {"abcd1234", "efgh5678"})
 
     def test_contains(self):
-        instance = self._get_instance()
+        instance = self._get_instance(UserNameSetCSVFile)
         self.assertIn("abcd1234", instance)
         self.assertNotIn("abc123", instance)
 
     def test_iter(self):
-        instance = self._get_instance()
+        instance = self._get_instance(UserNameSetCSVFile)
         self.assertSetEqual(instance._usernames, set(instance))
 
-    def _get_instance(self):
-        load_setting_path = "integrations.ad_integration.user_names.load_setting"
-        with mock.patch(load_setting_path, return_value=lambda: self.csv_path):
-            with mock.patch("io.open") as mock_open:
-                mock_open.return_value.__enter__.return_value = self.csv_lines
-                instance = UserNameSetCSVFile()
-                instance._mock_open = mock_open
-                return instance
+
+class TestUserNameCSVFileSubstring(_UserNameCSVFileHelperMixin, unittest.TestCase):
+    def test_contains(self):
+        instance = self._get_instance(UserNameSetCSVFileSubstring)
+        # List of taken names contains an exact match for the new username
+        self.assertIn("abcd1234", instance)
+        # List of taken names contains a substring match for the new username
+        self.assertIn("abcd12345678", instance)
+        # New username is not a substring of any of the taken names
+        self.assertNotIn("abcd", instance)
 
 
 Base = declarative_base()  # type: Any
