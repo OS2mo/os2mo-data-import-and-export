@@ -40,10 +40,11 @@ MOOrganisationUnitMap = Dict[UUID, OrganisationUnit]
 
 
 def parse_distinguished_name(dn: str) -> ParsedDN:
+    dn_copy = dn[:]
     # Convert "\\," to "|"
-    dn = dn.replace("\\,", "|")
+    dn_copy = dn_copy.replace("\\,", "|")
     # Split on "," and replace "|" with ","
-    split = [s.replace("|", ",") for s in dn.split(",")]
+    split = [s.replace("|", ",") for s in dn_copy.split(",")]
     # ["OU=Foo", "DC="Bar"] -> [("OU", "Foo"), ("DC", "Bar")]
     categorized = map(lambda s: s.split("="), split)
     # [("OU", "Foo"), ("DC", "Bar")] -> ["Foo"]
