@@ -36,6 +36,7 @@ from .ad_exceptions import ReplicationFailedException
 from .ad_exceptions import SamAccountNameNotUnique
 from .ad_exceptions import UserNotFoundException
 from .ad_jinja_filters import first_address_of_type
+from .ad_jinja_filters import location_element
 from .ad_jinja_filters import name_to_email_address
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
@@ -804,6 +805,7 @@ class ADWriter(AD):
         # Add custom filters
         environment.filters["first_address_of_type"] = first_address_of_type
         environment.filters["name_to_email_address"] = name_to_email_address
+        environment.filters["location_element"] = location_element
 
         @lru_cache
         def get_all_ad_emails():
