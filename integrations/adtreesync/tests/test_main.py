@@ -1,10 +1,13 @@
+import json
 from csv import DictReader
 from io import StringIO
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 from ..main import build_model_map
 from ..main import build_org_tree
 from ..main import dump_csv
+from ..main import load_ad_tree
 from ..main import parse_distinguished_name
 
 
@@ -19,6 +22,28 @@ _AD_TREE = {
         "OU=Niveau 3,OU=Niveau 2,OU=Niveau 1,DC=Kommune"
     ),
 }
+
+
+def test_load_ad_tree():
+    dn = "OU=Niveau 1,DC=Kommune"
+    mock_settings = MagicMock()
+    mock_ad_connection = MagicMock()
+    mock_ad_connection.response_to_json = MagicMock(
+        return_value=json.dumps(
+            {
+                "entries": [
+                    {
+                        "attributes": {
+                            "objectGUID": "{%s}" % _TOP_UUID,
+                            "distinguishedName": dn,
+                        }
+                    }
+                ]
+            }
+        )
+    )
+    ad_tree = load_ad_tree(mock_settings, mock_ad_connection)
+    assert ad_tree[_TOP_UUID] == parse_distinguished_name(dn)
 
 
 def test_build_model_map_uses_org_unit_type_and_org_unit_level():
