@@ -135,6 +135,11 @@ def generate_uuid(value):
     return value_uuid
 
 
+def gen_unit_uuid(unit):
+    """generate uuids for given units."""
+    return str(generate_uuid(unit["@id"]))
+
+
 def parser(target_file: str, opus_id: Optional[int] = None) -> Tuple[List, List]:
     """Read an opus file and return units and employees"""
     text_input = get_opus_filereader().read_file(target_file)
