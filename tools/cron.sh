@@ -20,7 +20,7 @@ BACKUP_SCRIPT=${BACKUP_SCRIPT:-${DIR}/backup.sh}
 RUN_DB_BACKUP=true
 
 # Unix service account to run job-runner.sh under
-RUNAS=${RUNAS:-svc_os2mo}
+RUNAS=${RUNAS:-sys_magenta_dipex}
 
 # Installation type for backup (docker, legacy or none)
 INSTALLATION_TYPE=${INSTALLATION_TYPE:-docker}
@@ -75,22 +75,4 @@ fi
 
 # Run script
 #-----------
-SCRIPT_OUTPUT=$(su --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
-EXIT_CODE=$?
-
-
-EVENT_NAMESPACE=magenta/project/os2mo/integration/script
-
-JSON_FRIENDLY_SCRIPT_OUTPUT=$(echo "${SCRIPT_OUTPUT}" | jq -aRs .)
-DATA="{\"script_executed\": \"${SCRIPT}\", \"exit_code\": ${EXIT_CODE}, \"output\": ${JSON_FRIENDLY_SCRIPT_OUTPUT}}"
-echo "Sending event with payload: ${DATA}"
-
-if [ "${EXIT_CODE}" -eq 0 ]; then
-    echo "Script ran succesfully"
-    salt-call event.send ${EVENT_NAMESPACE}/complete data="${DATA}"
-    exit 0
-else
-    echo "Script has failed to execute"
-    salt-call event.send ${EVENT_NAMESPACE}/failed data="${DATA}"
-    exit ${EXIT_CODE}
-fi
+su --shell /bin/bash --command "${SCRIPT}" ${RUNAS}

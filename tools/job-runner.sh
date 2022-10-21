@@ -27,8 +27,6 @@ export PYTHONPATH=$PWD:$PYTHONPATH
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
     ${DIPEXAR}/mo_integrations.log
-    # if the json-log-tee file is present - take that too
-    ${CRON_LOG_JSON}
 )
 
 # files that need to be backed up BEFORE running the jobs
@@ -822,38 +820,11 @@ post_backup(){
     echo backup done # do not remove this line
 }
 
-show_status(){
-    echo IMPORTS_OK=${IMPORTS_OK}
-    echo EXPORTS_OK=${EXPORTS_OK}
-    echo REPORTS_OK=${REPORTS_OK}
-    if [ "${1}" = "post_backup" ]; then
-        echo BACKUP_OK=${BACKUP_OK}
-        echo
-        [ "${IMPORTS_OK}" = "true" -a "${EXPORTS_OK}" = "true" -a "${REPORTS_OK}" = "true" -a "${BACKUP_OK}" = "true" ] && TOTAL_STATUS=success || TOTAL_STATUS=failed
-        run-job-log job job-runner total-status ! job-status $TOTAL_STATUS \
-            ! imports-ok ${IMPORTS_OK} ! exports-ok ${EXPORTS_OK} \
-            ! reports-ok ${REPORTS_OK} ! backup-ok ${BACKUP_OK}
-        return
-    fi
-    echo
-    echo Hvilke jobs er slået til/fra/X-ede/udkommenterede :
-    echo
-    enabled_jobs=$(grep 'crontab.*RUN_.*' settings/settings.json | tr "#\",:" "X ! ")
-    run-job-log job job-runner enabled-jobs ! job-status info ! ${enabled_jobs} 
-    echo ${enabled_jobs} | sed 's/! */\n/g'
-    echo
-    run-job-log job job-runner version-info ! job-status info ! git-commit $(git show -s --format=%H)
-}
-
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
         # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
 
-        if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
-            REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
-            echo ${REASON}
-        fi
 
         if [ ! -d "${VENV}" ]; then
             REASON="FATAL: python env not found"
@@ -862,49 +833,20 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             exit 2 # error
         fi
 
-        if [ ! -n "${SVC_USER}" ]; then
-            REASON="WARNING: Service user not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
 
-        if [ ! -n "${SVC_KEYTAB}" ]; then
-            REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
 
-        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-            REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
 
-        if [ ! -n "${CRON_LOG_FILE}" ]; then
-            REASON="FATAL: Cron log file not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
 
-        if [ ! -n "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
+
 
         if [ ! -d "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
 
         if [[ ${RUN_DB_BACKUP} == "true" ]] && [[ ! -f "${SNAPSHOT_LORA}" ]]; then
             REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
@@ -914,12 +856,10 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 
             kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
                 REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
                 echo ${REASON}
             )
         else
             REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
             echo ${REASON}
         fi
 
@@ -934,19 +874,13 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         else
             echo "Skipping MO data sanity check"
         fi
-        run-job imports && IMPORTS_OK=true
-        run-job exports && EXPORTS_OK=true
-        run-job reports && REPORTS_OK=true
+        imports && IMPORTS_OK=true
+        exports && EXPORTS_OK=true
+        reports && REPORTS_OK=true
         echo
-        show_status
+        
         post_backup
-        show_status post_backup > ${CRON_LOG_FILE}_status
     ) > ${CRON_LOG_FILE} 2>&1
-
-    # write directly on stdout for mail-log
-    cat ${CRON_LOG_FILE}_status
-    cat ${CRON_LOG_FILE}
-    exit $TOTAL_STATUS
      
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
