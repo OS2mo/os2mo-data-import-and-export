@@ -826,12 +826,17 @@ class OpusDiffImport(object):
 
     def find_unterminated_filtered_units(self, units):
         """Check if units are in MO."""
-        ids = map(itemgetter("@id"), units)
-        uuids = map(opus_helpers.generate_uuid, ids)
-        uuid_strs = map(str, uuids)
-        mo_units = map(self.helper.read_ou, uuid_strs)
-        # Filter those that currently have a MO uuid - which means are not terminated yet.
-        mo_units = filter(lambda unit: unit.get("uuid"), mo_units)
+
+        # Read all active MO org_units under the opus root org_unit
+        mo_units = self.helper.read_ou_root(
+            org=self.helper.read_organisation(),
+            root=str(opus_helpers.find_opus_root_unit_uuid()),
+        )
+        current_uuids = set(map(itemgetter("uuid"), mo_units))
+        # return the units that are active in os2mo, but should be terminated
+        mo_units = filter(
+            lambda unit: opus_helpers.gen_unit_uuid(unit) in current_uuids, units
+        )
         return mo_units
 
     def handle_filtered_units(self, units, dry_run=False):
@@ -840,17 +845,18 @@ class OpusDiffImport(object):
         If a unit is filtered from the Opus file it means it cannot be deleted in Opus, but should not appear in MO.
         Any units that exists in MO, but are later moved in Opus to be below one of the filtered units should be terminated in MO.
         """
+        unfiltered_units = list(map(opus_helpers.gen_unit_uuid, units))
         if dry_run:
-            units = list(units)
-            print(f"There are {len(units)} units that should have been terminated.")
+            print(
+                f"There are {len(unfiltered_units)} units that should have been terminated."
+            )
             if units:
-                print(list(map(itemgetter("uuid"), units)))
+                print(unfiltered_units)
             return
 
-        for mo_unit in units:
-            self.terminate_detail(
-                mo_unit["uuid"], detail_type="org_unit", end_date=self.xml_date
-            )
+        for uuid in tqdm(unfiltered_units, desc="Terminating filtered org_units"):
+            # TODO: Use actual org_unit terminate endpoint for this.
+            self.terminate_detail(uuid, detail_type="org_unit", end_date=self.xml_date)
 
     def start_import(self, units, employees, terminated_employees):
         """
