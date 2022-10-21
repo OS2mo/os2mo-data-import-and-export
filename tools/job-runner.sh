@@ -249,9 +249,6 @@ imports_aak_los(){
     "${VENV}/bin/python3" integrations/aarhus/los_import.py
 }
 
-imports_dummy(){
-    echo "Running imports_dummy"
-}
 
 
 exports_mox_rollekatalog(){
@@ -495,10 +492,6 @@ exports_historic_skip_past_cache_loracache() {
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --skip-past --resolve-dar
 }
 
-exports_dummy(){
-    echo "Running exports_dummy"
-}
-
 
 reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
@@ -521,10 +514,6 @@ reports_opus_db_overview(){
     tail -3 ${outfile}
     rm ${outfile}
     return $STATUS
-}
-
-reports_dummy(){
-    echo "Running reports_dummy"
 }
 
 
@@ -602,9 +591,6 @@ imports(){
         run-job imports_aak_los || return 2
     fi
 
-    if [ "${RUN_IMPORTS_DUMMY}" == "true" ]; then
-        run-job imports_dummy || return 2
-    fi
 }
 
 # exports may also be interdependent: -e
@@ -698,9 +684,6 @@ exports(){
         run-job exports_test || return 2
     fi
 
-    if [ "${RUN_EXPORTS_DUMMY}" == "true" ]; then
-        run-job exports_dummy || return 2
-    fi
 }
 
 # reports are typically not interdependent
@@ -734,9 +717,6 @@ reports(){
         run-job reports_csv || return 2
     fi
 
-    if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then
-        run-job reports_dummy || return 2
-    fi
 }
 
 pre_truncate_logfiles(){
