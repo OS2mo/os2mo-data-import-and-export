@@ -827,10 +827,9 @@ class OpusDiffImport(object):
     def find_unterminated_filtered_units(self, units):
         """Check if units are in MO."""
 
-        # Read all active MO org_units under the opus root org_unit
+        # Read all active MO org_units
         mo_units = self.helper.read_ou_root(
             org=self.helper.read_organisation(),
-            root=str(opus_helpers.find_opus_root_unit_uuid()),
         )
         current_uuids = set(map(itemgetter("uuid"), mo_units))
         # return the units that are active in os2mo, but should be terminated
