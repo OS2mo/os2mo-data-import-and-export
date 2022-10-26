@@ -8,12 +8,6 @@ readme = "README.rst"
 homepage = "https://magenta.dk/"
 repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
 keywords = ["DIPEX", "OS2mo-data-import-and-export"]
-packages = [
-    { include = "integrations/*.py" },
-    { include = "integrations/**/*.py" },
-    { include = "exporters/sql_export/*.py" },
-    { include = "exporters/utils/*.py" },
-]
 
 [tool.poetry.dependencies]
 python = "^3.8"
