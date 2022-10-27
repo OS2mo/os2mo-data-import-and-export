@@ -18,6 +18,8 @@ services:
     volumes:
       - runs:/opt/dipex
       - .:/code/
+      - ./pyproject.toml:/code/pyproject.toml:rw
+      - ./poetry.lock:/code/poetry.lock:rw
 networks:
   os2mo:
     name: os2mo_default
