@@ -22,3 +22,9 @@ repos:
     rev: v2.5.0
     hooks:
       - id: reorder-python-imports
+
+  - repo: https://github.com/magenta-aps/pre-commit-hooks
+    rev: 477acf0d
+    hooks:
+      - id: auto-ticket-prepare-commit
+      - id: auto-ticket-commit
