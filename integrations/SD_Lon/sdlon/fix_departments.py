@@ -528,25 +528,8 @@ class FixDepartments:
         return department["DepartmentUUIDIdentifier"]
 
 
-@click.command()
-@click.option(
-    "--department-short-name",
-    "short_names",
-    multiple=True,
-    type=click.STRING,
-    help="Shortname of the department to update",
-)
-@click.option(
-    "--department-uuid",
-    "uuids",
-    multiple=True,
-    type=click.UUID,
-    help="UUID of the department to update",
-)
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
-    setup_logging()
-
     settings = get_changed_at_settings()
     unit_fixer = FixDepartments(settings)
 
@@ -564,5 +547,26 @@ def unit_fixer(short_names, uuids):
         unit_fixer.fix_NY_logic(department_uuid, today)
 
 
+@click.command()
+@click.option(
+    "--department-short-name",
+    "short_names",
+    multiple=True,
+    type=click.STRING,
+    help="Shortname of the department to update",
+)
+@click.option(
+    "--department-uuid",
+    "uuids",
+    multiple=True,
+    type=click.UUID,
+    help="UUID of the department to update",
+)
+def unit_fixer_facade(short_names, uuids):
+    """Sync SD department information to MO."""
+    setup_logging()
+    unit_fixer(short_names, uuids)
+
+
 if __name__ == "__main__":
-    unit_fixer()
+    unit_fixer_facade()
