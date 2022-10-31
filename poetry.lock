@@ -328,7 +328,7 @@ optional = false
 python-versions = "*"
 
 [package.extras]
-test = ["hypothesis (==3.55.3)", "flake8 (==3.7.8)"]
+test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "cryptography"
@@ -957,7 +957,7 @@ optional = false
 python-versions = ">=2.6,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
 
 [package.extras]
-cryptography = ["cryptography", "cryptography (<2.2)"]
+cryptography = ["cryptography (<2.2)", "cryptography"]
 
 [[package]]
 name = "numpy"
@@ -1047,14 +1047,14 @@ python-versions = ">=3.8"
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
     {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
 ]
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.1"
 
 [package.extras]
-test = ["pytest-xdist (>=1.31)", "pytest (>=6.0)", "hypothesis (>=5.5.3)"]
+test = ["hypothesis (>=5.5.3)", "pytest (>=6.0)", "pytest-xdist (>=1.31)"]
 
 [[package]]
 name = "parameterized"
@@ -1104,9 +1104,9 @@ optional = false
 python-versions = ">=3.4"
 
 [package.extras]
-twisted = ["twisted"]
-tornado = ["tornado"]
 gevent = ["gevent"]
+tornado = ["tornado"]
+twisted = ["twisted"]
 
 [[package]]
 name = "pkgutil-resolve-name"
@@ -1137,8 +1137,8 @@ optional = false
 python-versions = ">=3.6"
 
 [package.extras]
-testing = ["pytest-benchmark", "pytest"]
-dev = ["tox", "pre-commit"]
+dev = ["pre-commit", "tox"]
+testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
 name = "protobuf"
@@ -1297,8 +1297,8 @@ gssapi = {version = ">=1.6.0", optional = true, markers = "sys_platform != \"win
 krb5 = {version = ">=0.3.0", optional = true, markers = "sys_platform != \"win32\" and extra == \"kerberos\""}
 
 [package.extras]
+kerberos = ["gssapi (>=1.6.0)", "krb5 (>=0.3.0)"]
 yaml = ["ruamel.yaml"]
-kerberos = ["krb5 (>=0.3.0)", "gssapi (>=1.6.0)"]
 
 [[package]]
 name = "pytest"
@@ -1384,8 +1384,8 @@ winkerberos = {version = ">=0.5.0", optional = true, markers = "sys_platform == 
 xmltodict = "*"
 
 [package.extras]
-kerberos = ["winkerberos (>=0.5.0)", "pykerberos (>=1.2.1,<2.0.0)"]
 credssp = ["requests-credssp (>=1.0.0)"]
+kerberos = ["pykerberos (>=1.2.1,<2.0.0)", "winkerberos (>=0.5.0)"]
 
 [[package]]
 name = "pyyaml"
@@ -1408,12 +1408,12 @@ more-itertools = ">=8.13.0,<9.0.0"
 structlog = ">=21.5.0,<22.0.0"
 
 [package.extras]
-frozendict = ["frozendict (==2.1.0)"]
-all = ["frozendict (==2.1.0)", "sentry-sdk (>=1.5.12,<2.0.0)", "types-requests (>=2.25.0,<3.0.0)", "requests (>=2.26.0,<3.0.0)", "pydantic (>=1.8.2,<2.0.0)", "Jinja2 (>=3.0.1,<4.0.0)"]
-sentry = ["sentry-sdk (>=1.5.12,<2.0.0)", "pydantic (>=1.8.2,<2.0.0)"]
-headers = ["types-requests (>=2.25.0,<3.0.0)", "requests (>=2.26.0,<3.0.0)", "pydantic (>=1.8.2,<2.0.0)"]
-pydantic = ["pydantic (>=1.8.2,<2.0.0)"]
 jinja = ["Jinja2 (>=3.0.1,<4.0.0)"]
+all = ["Jinja2 (>=3.0.1,<4.0.0)", "pydantic (>=1.8.2,<2.0.0)", "requests (>=2.26.0,<3.0.0)", "types-requests (>=2.25.0,<3.0.0)", "sentry-sdk (>=1.5.12,<2.0.0)", "frozendict (==2.1.0)"]
+pydantic = ["pydantic (>=1.8.2,<2.0.0)"]
+sentry = ["pydantic (>=1.8.2,<2.0.0)", "sentry-sdk (>=1.5.12,<2.0.0)"]
+headers = ["pydantic (>=1.8.2,<2.0.0)", "requests (>=2.26.0,<3.0.0)", "types-requests (>=2.25.0,<3.0.0)"]
+frozendict = ["frozendict (==2.1.0)"]
 
 [[package]]
 name = "raclients"
@@ -1613,7 +1613,7 @@ docutils = "<0.18"
 sphinx = ">=1.6"
 
 [package.extras]
-dev = ["bump2version", "sphinxcontrib-httpdomain", "transifex-client"]
+dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version"]
 
 [[package]]
 name = "sphinxcontrib-serializinghtml"
@@ -1811,9 +1811,9 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.extras]
-test = ["pytest-cov", "pytest"]
+build = ["wheel", "twine"]
 docs = ["sphinx"]
-build = ["twine", "wheel"]
+test = ["pytest", "pytest-cov"]
 
 [[package]]
 name = "xlsxwriter"
@@ -1858,7 +1858,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "88081e4613db88858b9d5d9cdd3e2614ba12b60ab7edf83f2a102b000d0530a4"
+content-hash = "6d451cfcfdc5aa840c9e1710149740f64f23e77b7c760fbd2c67eea8ccb40591"
 
 [metadata.files]
 aiohttp = []

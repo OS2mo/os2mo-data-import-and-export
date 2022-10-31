@@ -11,7 +11,7 @@ from uuid import UUID
 import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from more_itertools import only
+from more_itertools import one
 from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -50,7 +50,7 @@ class ADMOImporter(object):
 
     def _get_ad_it_system(self) -> UUID:
         it_systems = self.helper.read_it_systems()
-        ad_it_systems = only(
+        ad_it_systems: dict = one(
             filter(lambda x: x["name"] == constants.AD_it_system, it_systems)
         )
         return ad_it_systems["uuid"]

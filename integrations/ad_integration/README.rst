@@ -937,8 +937,8 @@ ad_fix_enddate.py
 +++++++++++++++++
 Hvis ad_writer skal skrive `end_date` kan dette job være nødvendigt at sætte op også fordi
 ad_writer ikke læser engagementer i MO i fortiden. Dette job tjekker alle engagementer i AD
-som har slutdatoen 9999-12-31 i AD og tjekker deres slutdato i MO. Hvis engagementet allerede 
-er afsluttet i MO opdateres det i AD.
+og tjekker deres slutdato i MO. Hvis engagementet allerede har en `end_date` i MO opdateres
+det i AD.
 
 For at sætte det som en del af job-runneren sættes:
 
