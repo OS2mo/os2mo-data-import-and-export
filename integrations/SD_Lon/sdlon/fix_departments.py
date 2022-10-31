@@ -158,16 +158,20 @@ class FixDepartments:
             unit_uuid: The UUID of the org unit to create the parent for
             creation_datetime: The parent unit creation date
 
-        Returns: UUID of the parent if it was created or None otherwise.
+        Returns: UUID of the parent or None if there is no parent (in which
+                 case the unit is a root SD unit).
         """
         parent_uuid = self.get_parent(unit_uuid, creation_datetime)
-        if parent_uuid is not None:
-            mo_response = self.helper.read_ou(
-                parent_uuid, at=format_date(creation_datetime)
-            )
-            if mo_response.get("status") == 404:
-                self.create_single_department(parent_uuid, creation_datetime)
-                return UUID(parent_uuid)
+        if parent_uuid is None:
+            return
+
+        mo_response = self.helper.read_ou(
+            parent_uuid, at=format_date(creation_datetime)
+        )
+        if mo_response.get("status") == 404:
+            self.create_single_department(parent_uuid, creation_datetime)
+
+        return UUID(parent_uuid)
 
     def _update_org_unit_for_single_sd_dep_registration(self, unit_uuid, department):
 

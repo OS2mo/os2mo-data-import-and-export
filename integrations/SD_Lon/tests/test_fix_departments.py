@@ -104,6 +104,7 @@ class TestFixDepartmentsRootSetting(TestCase):
 class TestFixDepartment(TestCase):
     def test_run(self):
         instance = _TestableFixDepartments.get_instance()
+        instance._create_parent_org_unit_if_missing_in_mo = MagicMock(return_value=None)
         with mock_sd_lookup("GetDepartment20111201", {}, {}):
             instance.fix_department("uuid", date(2020, 1, 1))
             instance.helper._mo_post.assert_called_with(
@@ -124,6 +125,7 @@ class TestFixDepartment(TestCase):
 
     def test_multiple_sd_department_registrations(self):
         instance = _TestableFixDepartments.get_instance()
+        instance._create_parent_org_unit_if_missing_in_mo = MagicMock(return_value=None)
         sd_response = {
             "Department": [
                 {
@@ -195,25 +197,6 @@ class TestFixDepartment(TestCase):
             is None
         )
 
-    def test_create_parent_org_unit_return_none_if_unit_exists_in_mo(self):
-        # Arrange
-        instance = _TestableFixDepartments.get_instance()
-
-        instance.get_parent = MagicMock()
-        instance.get_parent.return_value = "parent_uuid"
-
-        instance.helper.read_ou = MagicMock()
-        # The return value dict does not have a {"status": 404,...}
-        instance.helper.read_ou.return_value = dict()
-
-        # Act + Assert
-        assert (
-            instance._create_parent_org_unit_if_missing_in_mo(
-                "unit_uuid", datetime.today()
-            )
-            is None
-        )
-
     def test_create_parent_org_unit_if_unit_does_not_exists_in_mo(self):
         # Arrange
         instance = _TestableFixDepartments.get_instance()
@@ -232,18 +215,24 @@ class TestFixDepartment(TestCase):
         }
 
         with mock_sd_lookup("GetDepartment20111201", dict(), sd_dep_response):
-            instance.get_parent = MagicMock()
-            instance.get_parent.return_value = parent_parents_uuid
+            instance.get_parent = MagicMock(
+                side_effect=[
+                    _TestableFixDepartments.SD_DEPARTMENT_PARENT_UUID,
+                    parent_parents_uuid,
+                ]
+            )
 
             instance.helper.read_ou = MagicMock()
             instance.helper.read_ou.return_value = {"status": 404}
 
             # Act
-            r = instance._create_parent_org_unit_if_missing_in_mo(
+            expected_uuid = instance._create_parent_org_unit_if_missing_in_mo(
                 "unit_uuid", datetime.today()
             )
 
         # Assert
+        assert expected_uuid == UUID(_TestableFixDepartments.SD_DEPARTMENT_PARENT_UUID)
+
         instance.helper._mo_post.assert_called_once_with(
             "ou/create",
             {
@@ -260,7 +249,7 @@ class TestFixDepartment(TestCase):
             },
         )
 
-    def test_fix_department_called_recursively_when_parent_does_not_exists(self):
+    def test_fix_department_called_recursively(self):
         # Arrange
         instance = _TestableFixDepartments.get_instance()
 
