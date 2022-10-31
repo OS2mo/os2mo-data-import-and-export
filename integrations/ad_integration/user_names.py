@@ -259,7 +259,7 @@ class UserNameGenPermutation(UserNameGen):
     def _extract_letters(self, name: NameType):
         # Convert ["Firstname", "Last Name"] -> ["Firstname", "Last", "Name"]
         # and ["First-Name", "Last-Name"] -> ["First", "Name", "Last", "Name"]
-        name = flatten(map(partial(re.split, r"[\-\s+]"), name))
+        name = list(flatten(map(partial(re.split, r"[\-\s+]"), name)))
 
         # Convert all name parts to lowercase
         name = list(map(str.lower, name))
