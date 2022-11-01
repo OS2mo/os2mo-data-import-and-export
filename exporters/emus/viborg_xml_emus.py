@@ -12,22 +12,21 @@ These are specfic for Viborg
 import collections
 import datetime
 import io
-import json
 import logging
 import os
-import pathlib
 import time
 import uuid
+from uuid import UUID
 from xml.sax.saxutils import escape
 
 import requests
+from more_itertools import first
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 
 import exporters.common_queries as cq
 from exporters.utils.priority_by_class import choose_public_address
 from helpers import tqdm
-
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get("LOG_LEVEL", "WARNING"), 20)
 logging.basicConfig(
@@ -51,7 +50,6 @@ EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", "emus_filename.xml")
 EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions", [])
 EMUS_ALLOWED_ENGAGEMENT_TYPES = settings.get("emus.engagement_types", [])
-
 
 engagement_counter = collections.Counter()
 
@@ -177,6 +175,53 @@ def get_e_address(e_uuid, scope, mh):
         return address
     else:
         return {}  # like mora_helpers
+
+
+def get_filtered_phone_addresses(
+    e_uuid: UUID or str, mh: MoraHelper, priority_list: list[UUID or str]
+) -> filter or dict:
+    """
+    Takes UUID of a person and returns a list object with only eligible numbers through a filter.
+    Returns first element in the list.
+
+    args:
+    uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
+
+    returns:
+    An eligible phone number or an empty dict if none.
+    """
+
+    phone_addresses = mh.get_e_addresses(e_uuid, "PHONE")
+
+    address = first(
+        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses)
+    )
+    if address is not None:
+        return address
+    else:
+        return {}
+
+
+def get_email_addresses(
+    e_uuid: UUID or str, mh: MoraHelper, priority_list: list[UUID or str]
+) -> list or dict:
+    """
+    Takes UUID of a person and returns a list object with eligible emails through a priority list.
+
+    args:
+    uuid of a person, the lookup-helper from mh, a priority list of uuid(s).
+
+    returns:
+    A list of eligible emails or an empty dict if none.
+    """
+
+    email_addresses = mh.get_e_addresses(e_uuid, "EMAIL")
+
+    address = choose_public_address(email_addresses, priority_list)
+    if address is not None:
+        return address
+    else:
+        return {}
 
 
 """
