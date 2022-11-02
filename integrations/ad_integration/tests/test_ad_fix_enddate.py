@@ -1,6 +1,7 @@
 import datetime
 from unittest.mock import patch
 
+import pytest as pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from raclients.graph.client import GraphQLClient
@@ -54,22 +55,41 @@ def test_to_enddate(date):
     assert c.to_enddate("9999-12-31") is None
 
 
-@patch(
-    "gql.client.SyncClientSession.execute",
-    return_value={
-        "engagements": [
-            {"objects": [{"validity": {"to": "2021-09-02T00:00:00+02:00"}}]},
-            {"objects": [{"validity": {"to": "2022-09-02T00:00:00+02:00"}}]},
-            {"objects": [{"validity": {"to": "2023-09-02T00:00:00+02:00"}}]},
-        ]
-    },
+@pytest.mark.parametrize(
+    "eng",
+    [
+        {
+            "engagements": [
+                {"objects": [{"validity": {"to": "2021-09-02T00:00:00+02:00"}}]},
+                {"objects": [{"validity": {"to": "2022-09-02T00:00:00+02:00"}}]},
+                {"objects": [{"validity": {"to": "2023-09-02T00:00:00+02:00"}}]},
+            ]
+        },
+        {
+            "engagements": [
+                {
+                    "objects": [
+                        {"validity": {"to": "2021-09-02T00:00:00+02:00"}},
+                        {"validity": {"to": "2022-09-02T00:00:00+02:00"}},
+                        {"validity": {"to": "2023-09-02T00:00:00+02:00"}},
+                    ]
+                }
+            ]
+        },
+    ],
 )
-def test_get_employee_end_date(mock_execute):
-    c = get_c()
-    known_latest_date = datetime.date(2023, 9, 2)
-    found_latest_date = c.get_employee_end_date("e5e28d11-0513-4db8-8487-39d0b1102376")
-    print(found_latest_date)
-    assert found_latest_date == known_latest_date
+def test_get_employee_end_date(eng):
+    with patch(
+        "gql.client.SyncClientSession.execute",
+        return_value=eng,
+    ):
+        c = get_c()
+        known_latest_date = datetime.date(2023, 9, 2)
+        found_latest_date = c.get_employee_end_date(
+            "e5e28d11-0513-4db8-8487-39d0b1102376"
+        )
+        print(found_latest_date)
+        assert found_latest_date == known_latest_date
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
