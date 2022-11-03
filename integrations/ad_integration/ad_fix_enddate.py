@@ -5,7 +5,6 @@ from datetime import datetime as dt
 
 import click
 import dateutil.parser
-import more_itertools
 from fastapi.encoders import jsonable_encoder
 from gql import gql
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -73,8 +72,9 @@ class CompareEndDate(ADParameterReader):
             raise KeyError("User not found in mo")
 
         end_dates = [
-            self.to_enddate(more_itertools.one(engagement["objects"])["validity"]["to"])
+            self.to_enddate(obj["validity"]["to"])
             for engagement in result["engagements"]
+            for obj in engagement["objects"]
         ]
 
         if None in end_dates:
@@ -90,6 +90,12 @@ class CompareEndDate(ADParameterReader):
         end_dates_to_fix = {}
         print("Compare to MO engagement data per user")
         for ad_user in tqdm(ad_users, unit="user"):
+            if not (self.uuid_field in ad_user):
+                click.echo(
+                    f"User with {ad_user.ObjectGUID=} does not have an UUID field, and will be skipped"
+                )
+                continue
+
             uuid = ad_user[self.uuid_field]
 
             if not (self.enddate_field in ad_user):
