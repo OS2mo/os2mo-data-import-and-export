@@ -39,8 +39,6 @@ from exporters.sql_export.sql_url import generate_engine_settings
 
 
 class SqlExportSettings(JobSettings):
-    log_filename: str = "sql_export.log"
-
     class Config:
         settings_json_prefix = "exporters.actual_state"
 
