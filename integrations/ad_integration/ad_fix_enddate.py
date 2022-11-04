@@ -92,7 +92,7 @@ class CompareEndDate(ADParameterReader):
         for ad_user in tqdm(ad_users, unit="user"):
             if not (self.uuid_field in ad_user):
                 click.echo(
-                    f"User with {ad_user.ObjectGUID=} does not have an UUID field, and will be skipped"
+                    f"User with {ad_user['ObjectGuid']=} does not have an {self.uuid_field} field, and will be skipped"
                 )
                 continue
 
