@@ -5,6 +5,7 @@ from typing import Tuple
 import click
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 from sqlalchemy import Index
@@ -35,10 +36,9 @@ from exporters.sql_export.sql_table_defs import Tilknytning
 from exporters.sql_export.sql_url import DatabaseFunction
 from exporters.sql_export.sql_url import generate_connection_url
 from exporters.sql_export.sql_url import generate_engine_settings
-from shared import IntegrationSettings
 
 
-class SqlExportSettings(IntegrationSettings):
+class SqlExportSettings(JobSettings):
     log_filename: str = "sql_export.log"
 
     class Config:

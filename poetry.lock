@@ -168,7 +168,7 @@ cryptography = ">=3.2"
 
 [[package]]
 name = "babel"
-version = "2.10.3"
+version = "2.11.0"
 description = "Internationalization utilities"
 category = "main"
 optional = false
@@ -332,7 +332,7 @@ test = ["flake8 (==3.7.8)", "hypothesis (==3.55.3)"]
 
 [[package]]
 name = "cryptography"
-version = "38.0.2"
+version = "38.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
 category = "main"
 optional = false
@@ -389,7 +389,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "exceptiongroup"
-version = "1.0.0rc9"
+version = "1.0.1"
 description = "Backport of PEP 654 (exception groups)"
 category = "main"
 optional = false
@@ -464,7 +464,7 @@ scandir = ["scandir (>=1.5,<2.0)"]
 
 [[package]]
 name = "fs.smbfs"
-version = "1.0.5"
+version = "1.0.6"
 description = "Pyfilesystem2 over SMB using pysmb"
 category = "main"
 optional = false
@@ -512,7 +512,7 @@ grpcio-gcp = ["grpcio-gcp (>=0.2.2,<1.0dev)"]
 
 [[package]]
 name = "google-auth"
-version = "2.13.0"
+version = "2.14.0"
 description = "Google Authentication Library"
 category = "main"
 optional = false
@@ -636,14 +636,15 @@ python-versions = ">=3.6,<4"
 
 [[package]]
 name = "greenlet"
-version = "1.1.3.post0"
+version = "2.0.0.post0"
 description = "Lightweight in-process concurrent programming"
 category = "main"
 optional = false
 python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*"
 
 [package.extras]
-docs = ["sphinx"]
+docs = ["sphinx", "docutils (<0.18)"]
+test = ["objgraph", "faulthandler"]
 
 [[package]]
 name = "gssapi"
@@ -705,7 +706,7 @@ socks = ["socksio (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "hypothesis"
-version = "6.56.3"
+version = "6.56.4"
 description = "A library for property-based testing"
 category = "main"
 optional = false
@@ -713,7 +714,7 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 attrs = ">=19.2.0"
-exceptiongroup = {version = ">=1.0.0rc8", markers = "python_version < \"3.11\""}
+exceptiongroup = {version = ">=1.0.0", markers = "python_version < \"3.11\""}
 sortedcontainers = ">=2.1.0,<3.0.0"
 
 [package.extras]
@@ -824,7 +825,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "jsonschema"
-version = "4.16.0"
+version = "4.17.0"
 description = "An implementation of JSON Schema validation for Python"
 category = "main"
 optional = false
@@ -1006,7 +1007,7 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "3.12.1"
+version = "3.15.4"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
@@ -1266,7 +1267,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "pyrsistent"
-version = "0.18.1"
+version = "0.19.2"
 description = "Persistent/Functional/Immutable data structures"
 category = "main"
 optional = false
@@ -1285,7 +1286,7 @@ pyasn1 = "*"
 
 [[package]]
 name = "pyspnego"
-version = "0.6.2"
+version = "0.6.3"
 description = "Windows Negotiate Authentication Client and Server"
 category = "main"
 optional = false
@@ -1397,23 +1398,23 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "ra-utils"
-version = "1.2.0"
+version = "1.3.2"
 description = "Utilities for OS2mo/LoRa"
 category = "main"
 optional = false
 python-versions = ">=3.8,<4.0"
 
 [package.dependencies]
-more-itertools = ">=8.13.0,<9.0.0"
-structlog = ">=21.5.0,<22.0.0"
+more-itertools = ">=8.14.0,<9.0.0"
+structlog = ">=21.2.0,<22.0.0"
 
 [package.extras]
-jinja = ["Jinja2 (>=3.0.1,<4.0.0)"]
-all = ["Jinja2 (>=3.0.1,<4.0.0)", "pydantic (>=1.8.2,<2.0.0)", "requests (>=2.26.0,<3.0.0)", "types-requests (>=2.25.0,<3.0.0)", "sentry-sdk (>=1.5.12,<2.0.0)", "frozendict (==2.1.0)"]
-pydantic = ["pydantic (>=1.8.2,<2.0.0)"]
-sentry = ["pydantic (>=1.8.2,<2.0.0)", "sentry-sdk (>=1.5.12,<2.0.0)"]
-headers = ["pydantic (>=1.8.2,<2.0.0)", "requests (>=2.26.0,<3.0.0)", "types-requests (>=2.25.0,<3.0.0)"]
-frozendict = ["frozendict (==2.1.0)"]
+jinja = ["Jinja2 (>=3.1.2,<4.0.0)"]
+all = ["Jinja2 (>=3.1.2,<4.0.0)", "pydantic (>=1.10.2,<2.0.0)", "requests (>=2.28.1,<3.0.0)", "sentry-sdk (>=1.9.8,<2.0.0)", "frozendict (>=2.3.4,<3.0.0)"]
+pydantic = ["pydantic (>=1.10.2,<2.0.0)"]
+sentry = ["pydantic (>=1.10.2,<2.0.0)", "sentry-sdk (>=1.9.8,<2.0.0)"]
+headers = ["pydantic (>=1.10.2,<2.0.0)", "requests (>=2.28.1,<3.0.0)"]
+frozendict = ["frozendict (>=2.3.4,<3.0.0)"]
 
 [[package]]
 name = "raclients"
@@ -1602,18 +1603,18 @@ websupport = ["sqlalchemy (>=0.9)", "whoosh (>=2.0)"]
 
 [[package]]
 name = "sphinx-rtd-theme"
-version = "1.0.0"
+version = "1.1.0"
 description = "Read the Docs theme for Sphinx"
 category = "main"
 optional = false
-python-versions = ">=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*"
+python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 
 [package.dependencies]
 docutils = "<0.18"
-sphinx = ">=1.6"
+sphinx = ">=1.6,<6"
 
 [package.extras]
-dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version"]
+dev = ["transifex-client", "sphinxcontrib-httpdomain", "bump2version", "wheel"]
 
 [[package]]
 name = "sphinxcontrib-serializinghtml"
@@ -1858,7 +1859,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "6d451cfcfdc5aa840c9e1710149740f64f23e77b7c760fbd2c67eea8ccb40591"
+content-hash = "66c3de9d69d9c7f7eb4d368fed8cb8ff5bc2deec931a996de67cd6be14ec5bb1"
 
 [metadata.files]
 aiohttp = []
