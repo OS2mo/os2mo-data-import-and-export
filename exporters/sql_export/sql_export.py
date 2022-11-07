@@ -5,6 +5,7 @@ from typing import Tuple
 import click
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 from sqlalchemy import Index
@@ -37,10 +38,12 @@ from exporters.sql_export.sql_url import generate_connection_url
 from exporters.sql_export.sql_url import generate_engine_settings
 
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "sql_export.log"
+class SqlExportSettings(JobSettings):
+    class Config:
+        settings_json_prefix = "exporters.actual_state"
 
-logger = logging.getLogger("SqlExport")
+
+logger = logging.getLogger(__name__)
 
 
 class SqlExport:
@@ -605,6 +608,9 @@ def cli(**args):
     """
     Command line interface.
     """
+    pydantic_settings = SqlExportSettings()
+    pydantic_settings.start_logging_based_on_settings()
+
     logger.info("Command line args: %r", args)
 
     settings = load_settings()
@@ -614,26 +620,16 @@ def cli(**args):
         historic=args["historic"],
         settings=settings,
     )
+
     sql_export.perform_export(
         resolve_dar=args["resolve_dar"],
         use_pickle=args["read_from_cache"],
     )
+
     sql_export.swap_tables()
+
     logger.info("*SQL export ended*")
 
 
 if __name__ == "__main__":
-
-    for name in logging.root.manager.loggerDict:
-        if name in ("LoraCache", "SqlExport"):
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
-
     cli()

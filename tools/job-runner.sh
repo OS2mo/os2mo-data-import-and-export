@@ -74,7 +74,7 @@ show_git_commit(){
 
 sanity_check_mo_data(){
     echo Performing sanity check on data
-    ${VENV}/bin/python3 tools/check_data.py 
+    ${VENV}/bin/python3 tools/check_data.py
 }
 
 imports_mox_db_clear(){
@@ -386,7 +386,7 @@ exports_plan2learn(){
 	stillingskode
     )
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
-    
+
     (
         # get OUT_DIR and EXPORTS_DIR
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -469,7 +469,7 @@ exports_lc_for_jobs_db(){
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
-    local STATUS=$?    
+    local STATUS=$?
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
     return $STATUS
 }
@@ -520,7 +520,7 @@ reports_opus_db_overview(){
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
     #echo sourcing $module
-    source $module 
+    source $module
 done
 
 prometrics-git
@@ -667,7 +667,7 @@ exports(){
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
         run-job exports_mo_to_ad_sync || return 2
     fi
-    
+
     if [ "${RUN_AD_ENDDATE_FIXER}" == "true" ]; then
         run-job exports_ad_enddate_fixer || return 2
     fi
@@ -696,7 +696,7 @@ reports(){
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         run-job reports_sd_db_overview || return 2
     fi
-    
+
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
         run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
@@ -720,8 +720,8 @@ reports(){
 }
 
 pre_truncate_logfiles(){
-    # logfiles are truncated before each run as 
-    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log" 
+    # logfiles are truncated before each run as
+    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log"
 }
 
 pre_backup(){
@@ -858,14 +858,15 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         exports && EXPORTS_OK=true
         reports && REPORTS_OK=true
         echo
-        
+
         post_backup
     ) > ${CRON_LOG_FILE} 2>&1
-     
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
-        echo running single job function
+        echo "running single job function '$1'"
         run-job $1
+    else
+        echo "unknown job '$1'"
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
