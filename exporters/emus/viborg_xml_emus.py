@@ -178,23 +178,24 @@ def get_e_address(e_uuid, scope, mh):
 
 
 def get_filtered_phone_addresses(
-    e_uuid: UUID or str, mh: MoraHelper, priority_list: list[UUID or str]
-) -> filter or dict:
+    e_uuid: UUID, mh: MoraHelper, priority_list: list[UUID]
+) -> dict:
     """
-    Takes UUID of a person and returns a list object with only eligible numbers through a filter.
-    Returns first element in the list.
+    Takes UUID of a person and returns an object with only eligible numbers through a filter.
+    Returns first element in the list. Defaults to an empty dict, if no address is found.
 
     args:
     uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
 
     returns:
-    An eligible phone number or an empty dict if none.
+    A dict of with an eligible phone number or an empty dict if none.
     """
 
     phone_addresses = mh.get_e_addresses(e_uuid, "PHONE")
 
     address = first(
-        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses)
+        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses),
+        default={},
     )
     if address is not None:
         return address
@@ -203,8 +204,8 @@ def get_filtered_phone_addresses(
 
 
 def get_email_addresses(
-    e_uuid: UUID or str, mh: MoraHelper, priority_list: list[UUID or str]
-) -> list or dict:
+    e_uuid: UUID, mh: MoraHelper, priority_list: list[UUID]
+) -> dict:
     """
     Takes UUID of a person and returns a list object with eligible emails through a priority list.
 
@@ -212,7 +213,7 @@ def get_email_addresses(
     uuid of a person, the lookup-helper from mh, a priority list of uuid(s).
 
     returns:
-    A list of eligible emails or an empty dict if none.
+    A dict of eligible emails or an empty dict if none.
     """
 
     email_addresses = mh.get_e_addresses(e_uuid, "EMAIL")
@@ -246,8 +247,12 @@ def build_engagement_row(mh, ou, engagement):
         firstname, lastname = engagement["person"]["name"].rsplit(" ", maxsplit=1)
 
     username = mh.get_e_username(engagement["person"]["uuid"], "Active Directory")
-    _phone = get_e_address(engagement["person"]["uuid"], "PHONE", mh)
-    _email = get_e_address(engagement["person"]["uuid"], "EMAIL", mh)
+    _phone = get_filtered_phone_addresses(
+        engagement["person"]["uuid"], mh, settings["emus.phone.priority"]
+    )
+    _email = get_email_addresses(
+        engagement["person"]["uuid"], mh, settings["emus.email.priority"]
+    )
 
     row = {
         "personUUID": engagement["person"]["uuid"],
@@ -314,8 +319,10 @@ def build_manager_rows(mh, ou, manager):
 
     username = mh.get_e_username(person["uuid"], "Active Directory")
 
-    _phone = get_e_address(person["uuid"], "PHONE", mh)
-    _email = get_e_address(person["uuid"], "EMAIL", mh)
+    _phone = get_filtered_phone_addresses(
+        person["uuid"], mh, settings["emus.phone.priority"]
+    )
+    _email = get_email_addresses(person["uuid"], mh, settings["emus.email.priority"])
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
