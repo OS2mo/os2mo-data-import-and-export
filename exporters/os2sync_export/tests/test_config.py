@@ -59,7 +59,27 @@ class TestConfig:
         # Exists only in file
         assert settings.os2sync_api_url == file_api_url
 
-    def test_full_config(self):
+    @parameterized.expand(
+        [
+            ({},),
+            (
+                {
+                    "os2sync.uuid_from_it_systems": ["FK-org uuid"],
+                    "os2sync.filter_hierarchy_names": ["Linjeorganisation"],
+                },
+            ),
+            (
+                {
+                    "os2sync.uuid_from_it_systems": ["FK-org uuid", "SD UUID"],
+                    "os2sync.filter_hierarchy_names": [
+                        "Linjeorganisation",
+                        "Selvejende institutioner",
+                    ],
+                },
+            ),
+        ]
+    )
+    def test_full_config(self, optionals):
         conf = {
             "municipality.cvr": "test",
             "mora.base": "http://testos2mo.dk",
@@ -80,6 +100,7 @@ class TestConfig:
             "os2sync.templates": {"template": "test"},
             "os2sync.use_contact_for_tasks": False,
         }
+        conf.update(optionals)
         with patch("os2sync_export.config.load_settings", return_value=conf):
             get_os2sync_settings.cache_clear()
             assert get_os2sync_settings()
