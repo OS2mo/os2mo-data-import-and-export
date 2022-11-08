@@ -57,7 +57,7 @@ class FieldRenderer:
         }
 
     def render(
-        self, key: str, context: Dict[str, Any], fallback: Any = None
+        self, key: str, context: Dict[str, Any], fallback: Optional[Any] = None
     ) -> Optional[Any]:
         """Render a field template given by `key` using `context`.
 

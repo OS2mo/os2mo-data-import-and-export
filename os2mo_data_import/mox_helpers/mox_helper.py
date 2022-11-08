@@ -1,7 +1,7 @@
 import asyncio
 from functools import partial
 from itertools import product
-from typing import Any
+from typing import Optional, Any
 from typing import Sequence
 from typing import Tuple
 from uuid import UUID
@@ -45,7 +45,7 @@ class MultipleElementsFound(Exception):
 
 
 class MoxHelper:
-    def __init__(self, hostname: str, session: aiosession = None):
+    def __init__(self, hostname: str, session: Optional[aiosession] = None):
         self.hostname = hostname
         self.session = session
 
@@ -162,7 +162,7 @@ class MoxHelper:
         return result
 
     async def _read_element(
-        self, service: str, obj: str, params: Any = None, **kwargs
+        self, service: str, obj: str, params: Optional[Any] = None, **kwargs
     ) -> UUIDstr:
         params = params or {}
         params.update(**kwargs)

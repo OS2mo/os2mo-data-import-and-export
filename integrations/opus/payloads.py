@@ -2,6 +2,7 @@
 from uuid import UUID
 
 from integrations.opus import opus_helpers
+from typing import Optional
 
 
 def create_user(employee, org_uuid, uuid=None):
@@ -129,7 +130,7 @@ def create_address(
     value,
     unit_uuid=None,
     user_uuid=None,
-    visibility: UUID = None,
+    visibility: Optional[UUID] = None,
 ):
     if unit_uuid is None and user_uuid is None:
         raise Exception("Either unit or user must be specified")

@@ -12,7 +12,7 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     settings_json = load_settings() or {}
     prefix = "integrations.aarhus_los"
 
-    def _get_setting_value(key: str, default: Any = None):
+    def _get_setting_value(key: str, default: Optional[Any] = None):
         return settings_json.get(f"{prefix}.{key}", default)
 
     return dict(

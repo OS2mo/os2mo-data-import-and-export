@@ -251,8 +251,8 @@ async def ensure_class_value_helper(
     variable: str,
     new_value: str,
     mox_base: str = "localhost:8080",
-    bvn: str = None,
-    uuid: str = None,
+    bvn: Optional[str] = None,
+    uuid: Optional[str] = None,
     dry_run: bool = False,
 ):
     """Ensures a value of a class is as expected."""
