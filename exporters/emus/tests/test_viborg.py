@@ -71,7 +71,7 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
 
 
 @pytest.mark.parametrize(
-    "output_address_list, priority_list_uuid, expected_result",
+    "output_phone_address_list, priority_list_uuid, expected_result",
     [
         (  # Filters on first match on address type uuid, even with multiple uuids in priority list.
             [
@@ -102,7 +102,11 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
                     "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
                 }
             ],
-            ["05b69443-0c9f-4d57-bb4b-a8c719afff89"],
+            [
+                "f376deb8-4743-4ca6-a047-3241de8fe9d2"
+                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+            ],
             {},
         ),
         (  # No uuid is sent, so no match is found.
@@ -115,11 +119,17 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
             ["05b69443-0c9f-4d57-bb4b-a8c719afff89"],
             {},
         ),
-        (  # Two addresses of different address_types, both are in settings. Ensure we pick the first from the list.
+        (  # Several addresses of different address_types, some are in settings. Ensure we pick the first from the list.
             [
                 {
                     "address_type": {
-                        "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                        "uuid": "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+                    },
+                    "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
+                },
+                {
+                    "address_type": {
+                        "uuid": "f376deb8-4743-4ca6-a047-3241de8fe9d2",
                     },
                     "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
                 },
@@ -129,10 +139,17 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
                     },
                     "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
                 },
+                {
+                    "address_type": {
+                        "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                    },
+                    "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
+                },
             ],
             [
                 "05b69443-0c9f-4d57-bb4b-a8c719afff89",
                 "5a02f9c4-bb83-4ce5-b1ba-7289db912b0c",
+                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
             ],
             {
                 "address_type": {
@@ -141,22 +158,52 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
                 "person": {"uuid": "eff3fca2-645c-4613-90ad-5fb47db47bc7"},
             },
         ),
+        (  # Duplicates of address_type still ensures only one match in priority_list is made and one address is sent.
+            [
+                {
+                    "address_type": {
+                        "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                    },
+                    "person": {"uuid": "16d08fe1-45cf-4e21-b5af-1262002534d0"},
+                },
+                {
+                    "address_type": {
+                        "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                    },
+                    "person": {"uuid": "16d08fe1-45cf-4e21-b5af-1262002534d0"},
+                },
+                {
+                    "address_type": {
+                        "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                    },
+                    "person": {"uuid": "16d08fe1-45cf-4e21-b5af-1262002534d0"},
+                },
+            ],
+            [
+                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+            ],
+            {
+                "address_type": {
+                    "uuid": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                },
+                "person": {"uuid": "16d08fe1-45cf-4e21-b5af-1262002534d0"},
+            },
+        ),
     ],
 )
 @patch("exporters.emus.viborg_xml_emus.MoraHelper")
 def test_get_filtered_phone_addresses_sends_correct_address_from_filter_unit_test(
-    mock_mh, output_address_list, priority_list_uuid, expected_result
+    mock_mh, output_phone_address_list, priority_list_uuid, expected_result
 ):
     """
     Tests if correct address has been sent through filter.
     """
 
-    mock_mh.get_e_addresses.return_value = [
-        output_address_list[0]
-    ]  # Return type is expected to be a list.
+    mock_mh.get_e_addresses.return_value = output_phone_address_list
 
     response = get_filtered_phone_addresses(
-        UUID(output_address_list[0]["person"]["uuid"]),
+        UUID(output_phone_address_list[0]["person"]["uuid"]),
         mock_mh,
         priority_list_uuid,
     )

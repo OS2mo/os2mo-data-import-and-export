@@ -178,11 +178,12 @@ def get_e_address(e_uuid, scope, mh):
 
 
 def get_filtered_phone_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: list[UUID]
+    e_uuid: UUID, mh: MoraHelper, priority_list: list[str]
 ) -> dict:
     """
     Takes UUID of a person and returns an object with only eligible numbers through a filter.
-    Returns first element in the list. Defaults to an empty dict, if no address is found.
+    Returns if a match on only the first element in the priority list is found.
+    Defaults to an empty dict, if no address is found.
 
     args:
     uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
@@ -191,10 +192,18 @@ def get_filtered_phone_addresses(
     A dict of with an eligible phone number or an empty dict if none.
     """
 
+    # Retrieve all phone addresses.
     phone_addresses = mh.get_e_addresses(e_uuid, "PHONE")
 
+    # Filter through all addresses, and only return the ones existing in priority_list.
+    addresses = list(
+        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses)
+    )
+
+    # Sort addresses according to the address_types placement in priority_list to only return the address that matches
+    # the first element in priority_list.
     address = first(
-        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses),
+        sorted(addresses, key=lambda a: priority_list.index(a["address_type"]["uuid"])),
         default={},
     )
     if address is not None:
@@ -204,7 +213,7 @@ def get_filtered_phone_addresses(
 
 
 def get_email_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: list[UUID]
+    e_uuid: UUID, mh: MoraHelper, priority_list: list[str]
 ) -> dict:
     """
     Takes UUID of a person and returns a list object with eligible emails through a priority list.
@@ -216,7 +225,7 @@ def get_email_addresses(
     A dict of eligible emails or an empty dict if none.
     """
 
-    email_addresses = mh.get_e_addresses(e_uuid, "EMAIL")
+    email_addresses = mh.get_e_addresses(str(e_uuid), "EMAIL")
 
     address = choose_public_address(email_addresses, priority_list)
     if address is not None:
