@@ -111,49 +111,49 @@ Lint Customers files:
 Lint LoraCache Integration:
   extends: .lint-python
   script:
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-python-dateutil
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests types-python-dateutil
     - pre-commit run --files exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
 
 Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-freezegun types-python-dateutil
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests types-freezegun types-python-dateutil
     - pre-commit run --files tests/*.py *.py
 
 Lint Calculate Primary:
   extends: .lint-python
   script:
     - cd integrations/calculate_primary/
-    - pip install mypy pre-commit types-requests
+    - pip install mypy==0.982 pre-commit types-requests
     - pre-commit run --files tests/*.py *.py
 
 Lint RunDB Integration:
   extends: .lint-python
   script:
     - cd integrations/rundb/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
 Lint Opus Integration:
   extends: .lint-python
   script:
     - cd integrations/opus/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
 Lint Rollekatalog Exporter:
   extends: .lint-python
   script:
     - cd exporters/os2rollekatalog/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files *.py
 
 Lint CPR UUID Exporter:
   extends: .lint-python
   script:
     - cd exporters/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy==0.982 pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files cpr_uuid.py
 
 Lint OPUS Org Tree Print:
@@ -167,14 +167,14 @@ Lint AAK LOS Integration:
   extends: .lint-python
   script:
     - cd integrations/aarhus/
-    - pip install mypy pre-commit types-python-dateutil
+    - pip install mypy==0.982 pre-commit types-python-dateutil
     - pre-commit run --files *.py
 
 Lint FK-org uuid-import:
   extends: .lint-python
   script:
     - cd integrations/fkorg_it_systems/
-    - pip install mypy pre-commit types-python-dateutil
+    - pip install mypy==0.982 pre-commit types-python-dateutil
     - pre-commit run --files *.py
 
 Lint Reports:
