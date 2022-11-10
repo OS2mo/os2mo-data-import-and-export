@@ -21,9 +21,8 @@ EOF
 }
 
 prometrics-git(){
-    
     git_version=$(git describe --tags)
-    
+
     [ -z "${CRON_LOG_PROM_API}" ] && return 0
     cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/git/git_version/${git_version}"
     # TYPE git_info gauge
