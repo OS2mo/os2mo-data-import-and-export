@@ -34,19 +34,19 @@ class CompareEndDate(ADParameterReader):
         self.graph_ql_session: SyncClientSession = graph_ql_session
         self.ad_null_date = datetime.date(9999, 12, 31)
 
-    def to_enddate(self, date_str: typing.Optional[str]) -> typing.Optional[date]:
+    def to_enddate(self, date_str: typing.Optional[str]) -> date:
         """
         Takes a string and converts it to a date, also takes into consideration that when an engagement does not have
         an end date, MO handles it as None, while AD handles it as 9999-12-31
         """
         if not date_str:
-            return None
+            return self.ad_null_date
         end_date = dateutil.parser.parse(date_str).date()
-        if end_date == self.ad_null_date:
-            return None
+        if end_date.year == self.ad_null_date.year:
+            return self.ad_null_date
         return end_date
 
-    def get_employee_end_date(self, uuid: str) -> typing.Optional[date]:
+    def get_employee_end_date(self, uuid: str) -> date:
         query = gql(
             """
             query Get_mo_engagements($to_date: DateTime, $employees: [UUID!]) {
@@ -77,10 +77,7 @@ class CompareEndDate(ADParameterReader):
             for obj in engagement["objects"]
         ]
 
-        if None in end_dates:
-            return None
-
-        return max(typing.cast(typing.List[date], end_dates))
+        return max(end_dates)
 
     def get_end_dates_to_fix(self) -> dict:
 
@@ -116,7 +113,9 @@ class CompareEndDate(ADParameterReader):
             if ad_end_date == mo_end_date:
                 continue
 
-            end_dates_to_fix[uuid] = mo_end_date
+            end_dates_to_fix[uuid] = datetime.datetime.strftime(
+                mo_end_date, "%Y-%m-%dT%H:%M:%S%z"
+            )
 
         return end_dates_to_fix
 
