@@ -22,7 +22,7 @@ from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import Tilknytning
 
 
-class FakeLC:
+class FakeLC(LoraCache):
     """Fake version of LoraCache, presenting the empty member dicts.
 
     LoraCache's interface is essentially just these dictionaries.
@@ -73,7 +73,7 @@ class _TestableSqlExport(SqlExport):
     def _get_export_cpr_setting(self) -> bool:
         return True
 
-    def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
+    def _get_lora_cache(self, resolve_dar, use_pickle) -> FakeLC:
         lc = FakeLC()
         if self.inject_lc:
             for key, values in self.inject_lc.items():
