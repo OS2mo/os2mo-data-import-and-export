@@ -26,6 +26,7 @@ client_id = "dipex"
 client_secret = "603f1c82-d012-4d04-9382-dbe659c533fb"
 auth_realm = "mo"
 auth_server = "http://keycloak:8080/auth"
+ad_null_date = datetime.date(9999, 12, 31)
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
@@ -51,8 +52,8 @@ def get_c(mock_session):
 def test_to_enddate(date):
     c = get_c()
     assert c.to_enddate(str(date)) == date.date()
-    assert c.to_enddate(None) is None
-    assert c.to_enddate("9999-12-31") is None
+    assert c.to_enddate(None) == ad_null_date
+    assert c.to_enddate("9999-12-31") == ad_null_date
 
 
 @pytest.mark.parametrize(
