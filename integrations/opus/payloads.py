@@ -1,8 +1,8 @@
 # from collections import OrderedDict
+from typing import Optional
 from uuid import UUID
 
 from integrations.opus import opus_helpers
-from typing import Optional
 
 
 def create_user(employee, org_uuid, uuid=None):
