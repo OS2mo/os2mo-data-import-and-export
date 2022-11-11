@@ -725,11 +725,11 @@ pre_truncate_logfiles(){
 }
 
 pre_backup(){
-    temp_report=$(mktemp)
+    prometrics-job-start "pre_backup"
 
+    temp_report=$(mktemp)
     # deduplicate
     BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
-
     for f in ${BACK_UP_BEFORE_JOBS[@]}
     do
         FILE_FAILED=false
@@ -737,30 +737,34 @@ pre_backup(){
         tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
-            run-job-log job pre-backup file ! job-status failed ! file $f
             echo BACKUP ERROR
             cat ${temp_report}
         fi
     done
     rm ${temp_report}
+
     if [[ ${RUN_DB_BACKUP} == "true" ]]; then
         declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
         if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
             BACKUP_OK=false
-            run-job-log job pre-backup lora ! job-status failed ! age $age
             echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+            # Report failed execution of `pre_backup`
+            prometrics-job-end "pre_backup" 1
             return 1
         fi
     fi
+
+    # Report successful execution of `pre_backup`
+    prometrics-job-end "pre_backup" 0
 }
 
 post_backup(){
-    temp_report=$(mktemp)
+    prometrics-job-start "post_backup"
 
+    temp_report=$(mktemp)
     # deduplicate
     BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
     BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
-
     for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     do
         FILE_FAILED=false
@@ -768,7 +772,6 @@ post_backup(){
         tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
-            run-job-log job post-backup file ! job-status failed ! file $f
             echo BACKUP ERROR
             cat ${temp_report}
         fi
@@ -798,26 +801,24 @@ post_backup(){
         )
     done
     echo backup done # do not remove this line
-}
 
+    # Report execution of `post_backup`
+    if [ "${BACKUP_OK}" = "true" ]; then
+        prometrics-job-end "post_backup" 0
+    else
+        prometrics-job-end "post_backup" 1
+    fi
+}
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
         # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
 
-
         if [ ! -d "${VENV}" ]; then
             REASON="FATAL: python env not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2 # error
         fi
-
-
-
-
-
-
 
         if [ ! -d "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory non existing"
@@ -830,10 +831,9 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             echo ${REASON}
             exit 2
         fi
+
         if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-
             [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-
             kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
                 REASON="WARNING: not able to refresh kerberos auth - authentication failure"
                 echo ${REASON}
@@ -849,6 +849,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
+
         if [[ ${RUN_MO_DATA_SANITY_CHECK} == "true" ]]; then
             run-job sanity_check_mo_data || echo Sanity check failed
         else
