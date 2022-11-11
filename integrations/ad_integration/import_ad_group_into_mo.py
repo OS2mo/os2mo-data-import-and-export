@@ -148,7 +148,7 @@ class ADMOImporter(object):
         logger.debug("Added AD account info to {}".format(username))
 
     def _create_engagement(
-        self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: UUID = None
+        self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: Optional[UUID] = None
     ) -> None:
         """Create the engagement in MO"""
         # TODO: Check if we have start/end date of engagements in AD

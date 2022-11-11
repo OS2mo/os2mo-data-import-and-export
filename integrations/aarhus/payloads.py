@@ -70,8 +70,8 @@ def create_address(
     uuid: UUID,
     value: Optional[str],
     address_type_uuid: UUID,
-    person_uuid: UUID = None,
-    org_unit_uuid: UUID = None,
+    person_uuid: Optional[UUID] = None,
+    org_unit_uuid: Optional[UUID] = None,
     from_date: str,
     to_date: Optional[str],
 ):
@@ -96,7 +96,7 @@ def create_it_rel(
     person_uuid: UUID,
     itsystem_uuid: Optional[UUID],
     from_date: str,
-    to_date: str = None,
+    to_date: Optional[str] = None,
 ):
     payload = {
         "type": "it",
@@ -118,7 +118,7 @@ def create_manager(
     manager_level_uuid: UUID,
     responsibility_uuid: UUID,
     from_date: str,
-    to_date: str = None,
+    to_date: Optional[str] = None,
 ):
     payload = {
         "type": "manager",
@@ -134,7 +134,7 @@ def create_manager(
     return payload
 
 
-def convert_create_to_edit(payload: dict, from_date: str = None):
+def convert_create_to_edit(payload: dict, from_date: Optional[str] = None):
     """Convert an existing create payload to an edit payload"""
     edit_payload = {
         "data": {**payload},

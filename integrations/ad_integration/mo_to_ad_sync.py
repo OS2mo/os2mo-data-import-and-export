@@ -130,8 +130,8 @@ def run_preview_command_for_uuid(
     reader: ADParameterReader,
     writer: ADWriter,
     mo_uuid: uuid.UUID,
-    sync_username: str = None,
-    sync_cpr: str = None,
+    sync_username: Optional[str] = None,
+    sync_cpr: Optional[str] = None,
 ) -> Tuple[str]:
     ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
     sync_cmd, rename_cmd, rename_cmd_target = writer._preview_sync_command(

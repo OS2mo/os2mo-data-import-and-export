@@ -13,7 +13,6 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import Base
 from exporters.sql_export.sql_table_defs import Bruger
@@ -73,7 +72,7 @@ class _TestableSqlExport(SqlExport):
     def _get_export_cpr_setting(self) -> bool:
         return True
 
-    def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
+    def _get_lora_cache(self, resolve_dar, use_pickle):
         lc = FakeLC()
         if self.inject_lc:
             for key, values in self.inject_lc.items():

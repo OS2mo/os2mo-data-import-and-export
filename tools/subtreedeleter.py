@@ -4,7 +4,7 @@ import sys
 import typing
 import urllib.parse
 from queue import Queue
-from typing import List
+from typing import Optional, List
 
 import aiohttp
 import click
@@ -52,7 +52,7 @@ class SubtreeDeleter:
             return await r.json()
 
     async def get_associated_org_func(
-        self, org_unit_uuid: str, funktionsnavn: str = None
+        self, org_unit_uuid: str, funktionsnavn: Optional[str] = None
     ):
         url = f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}&virkningfra=-infinity&virkningtil=infinity"
         if funktionsnavn:
