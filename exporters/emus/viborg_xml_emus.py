@@ -16,6 +16,7 @@ import logging
 import os
 import time
 import uuid
+from typing import List
 from uuid import UUID
 from xml.sax.saxutils import escape
 
@@ -178,7 +179,7 @@ def get_e_address(e_uuid, scope, mh):
 
 
 def get_filtered_phone_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: list[str]
+    e_uuid: UUID, mh: MoraHelper, priority_list: List[UUID]
 ) -> dict:
     """
     Takes UUID of a person and returns an object with only eligible numbers through a filter.
@@ -213,7 +214,7 @@ def get_filtered_phone_addresses(
 
 
 def get_email_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: list[str]
+    e_uuid: UUID, mh: MoraHelper, priority_list: List[UUID]
 ) -> dict:
     """
     Takes UUID of a person and returns a list object with eligible emails through a priority list.
