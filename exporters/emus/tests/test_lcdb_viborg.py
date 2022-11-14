@@ -4,7 +4,7 @@ from uuid import UUID
 import pytest
 from more_itertools import first
 
-from exporters.emus.viborg_xml_emus import get_filtered_phone_addresses
+from exporters.emus.lcdb_viborg_xml_emus import get_filtered_phone_addresses
 
 
 @pytest.mark.parametrize(
@@ -38,9 +38,9 @@ from exporters.emus.viborg_xml_emus import get_filtered_phone_addresses
         ),
     ],
 )
-@patch("exporters.emus.viborg_xml_emus.MoraHelper")
+@patch("exporters.emus.lcdb_viborg_xml_emus.get_e_address")
 def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
-    mock_mh, address_type_uuid, person_uuid, priority_list_uuid
+    mock_session, address_type_uuid, person_uuid, priority_list_uuid
 ):
     """
     Tests if filter works with multiple uuid(s) in priority list.
@@ -53,15 +53,11 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
         "person": {"uuid": person_uuid},
     }
 
-    mock_mh.get_e_addresses.return_value = [
-        output_dict
-    ]  # Return type is expected to be a list.
+    mock_session.return_value = [output_dict]  # Return type is expected to be a list.
 
     # Make the call matching on the persons uuid, with a mocked helper, and a list of uuid(s) as the priority list.
     response = get_filtered_phone_addresses(
-        UUID(output_dict["person"]["uuid"]),
-        mock_mh,
-        priority_list_uuid,
+        UUID(output_dict["person"]["uuid"]), priority_list_uuid, mock_session
     )
 
     assert output_dict == response
@@ -192,20 +188,19 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
         ),
     ],
 )
-@patch("exporters.emus.viborg_xml_emus.MoraHelper")
+@patch("exporters.emus.lcdb_viborg_xml_emus.get_e_address")
 def test_get_filtered_phone_addresses_sends_correct_address_from_filter_unit_test(
-    mock_mh, output_phone_address_list, priority_list_uuid, expected_result
+    mock_session, output_phone_address_list, priority_list_uuid, expected_result
 ):
     """
     Tests if correct address has been sent through filter.
     """
 
-    mock_mh.get_e_addresses.return_value = output_phone_address_list
+    mock_session.return_value = output_phone_address_list
 
     response = get_filtered_phone_addresses(
         UUID(output_phone_address_list[0]["person"]["uuid"]),
-        mock_mh,
         priority_list_uuid,
+        mock_session,
     )
-
     assert response == expected_result
