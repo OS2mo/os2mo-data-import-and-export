@@ -141,7 +141,7 @@ def move_all_to_new_parent(ctx):
 
     client = GraphQLClient(
         sync=True,
-        url=ctx.obj["BASE_URL"] + "/graphql/v2",
+        url=ctx.obj["BASE_URL"] + "/graphql/v3",
         client_id=ctx.obj["CLIENT_ID"],
         client_secret=ctx.obj["CLIENT_SECRET"],
         auth_server=ctx.obj["AUTH_SERVER"],

@@ -176,7 +176,7 @@ def cli(
     """
 
     graph_ql_client = GraphQLClient(
-        url=f"{mora_base}/graphql",
+        url=f"{mora_base}/graphql/v3",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
