@@ -105,8 +105,9 @@ include:
 Lint Customers files:
   extends: .lint-python
   script:
-    - python -m black --diff --check customers/
-    - python -m isort --profile black --diff --check-only customers/
+    - cd customers
+    - pip install mypy pre-commit types-requests types-python-dateutil
+    - pre-commit run --files $(find . -name "*.py")
 
 Lint LoraCache Integration:
   extends: .lint-python

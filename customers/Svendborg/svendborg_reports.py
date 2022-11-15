@@ -8,7 +8,8 @@
 # --------------------------------------------------------------------------------------
 from ra_utils.load_settings import load_settings
 
-from reports.query_actualstate import list_org_units, run_report
+from reports.query_actualstate import list_org_units
+from reports.query_actualstate import run_report
 
 # --------------------------------------------------------------------------------------
 # Code

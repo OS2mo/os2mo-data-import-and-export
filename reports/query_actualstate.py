@@ -5,7 +5,9 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
-from typing import Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
 import jmespath
 import numpy as np
@@ -19,13 +21,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
 from reports.XLSXExporter import XLSXExporter
 
 
@@ -348,7 +348,7 @@ def list_employees(session, org_name: str) -> list:
     return parsed_data
 
 
-def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
+def run_report(reporttype, sheetname: str, org_name: Any, xlsx_file: str):
 
     # Make a sqlalchemy session - Name of database is read from settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()

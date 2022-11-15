@@ -1,6 +1,7 @@
 import asyncio
 import json
 from operator import itemgetter
+from typing import Any
 from typing import Dict
 from typing import List
 from typing import Set
@@ -57,9 +58,9 @@ def delete_class(session, base: str, uuid: UUID) -> None:
 def switch_class(
     session,
     base: str,
-    payload: str,
+    payload: Dict[str, Any],
     new_uuid: UUID,
-    uuid_set: Set[str],
+    uuid_set: Set[UUID],
     copy: bool = False,
     relation_type: str = "organisation/organisationfunktion",
 ) -> None:
@@ -137,7 +138,7 @@ def filter_duplicates(
     duplicate_bvn_facet = filter(
         lambda x: x[1] in dup_bvn_facets, bvn_map_lower.items()
     )
-    duplicate_bvn_facet = dict(duplicate_bvn_facet)
+    duplicate_bvn_facet = dict(duplicate_bvn_facet)  # type: ignore
 
     # Transpose the dict to be able to iterate over duplicates
     transposed = transpose_dict(duplicate_bvn_facet)
@@ -175,7 +176,7 @@ def cli():
     type=click.STRING,
     default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
 )
-def remove_dup_classes(delete: bool, mox_base: click.STRING):
+def remove_dup_classes(delete: bool, mox_base: str):
     """Tool to help remove classes from MO that are duplicates.
 
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
@@ -194,7 +195,7 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
         return
 
     for dup_class in tqdm(
-        duplicate_bvn_facet.values(), desc="Deleting duplicate classes"
+        duplicate_bvn_facet.values(), desc="Deleting duplicate classes"  # type: ignore
     ):
         uuids, titles = unzip(dup_class)
         uuid_set = set(uuids)
@@ -207,7 +208,7 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
             # Generate a prompt to display
             msg = "\n".join(f"  {i}: {x[1]}" for i, x in enumerate(dup_class, start=1))
             click.echo(msg)
-            keep = click.prompt("Choose the one to keep", type=int, default=1)
+            keep = click.prompt("Choose the one to keep", type=int, default="1")
         kept_uuid, _ = dup_class[keep - 1]
         for i, obj in enumerate(dup_class, start=1):
             if i == keep:
@@ -220,8 +221,8 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
 
 
 def move_class_helper(
-    old_uuid: click.UUID,
-    new_uuid: click.UUID,
+    old_uuid: UUID,
+    new_uuid: UUID,
     copy: bool,
     mox_base: str,
     relation_type: str = "organisation/organisationfunktion",
@@ -270,7 +271,7 @@ def move_class_helper(
     type=click.STRING,
     default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
 )
-def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str):
+def move_class(old_uuid: UUID, new_uuid: UUID, copy: bool, mox_base: str):
     """Switches class, or copies to a new class for all objects using this class given two UUIDs.
     if --copy is supplied a new UUID will be generated for each object so that no objects are moved, only copied.
     """

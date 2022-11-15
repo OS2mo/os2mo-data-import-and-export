@@ -47,7 +47,7 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
     groups = groupby(org_unit_types, key=lambda x: x["name"])
 
     split_classes = map(split, groups)
-    split_classes = filter(is_duplicate, split_classes)
+    split_classes = filter(is_duplicate, split_classes)  # type: ignore
     if dry_run:
         click.echo(
             f"Dry-run: Found {len(list(split_classes))} duplicated classes to fix."
