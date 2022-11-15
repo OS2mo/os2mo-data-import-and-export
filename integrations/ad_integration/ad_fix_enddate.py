@@ -105,15 +105,17 @@ class CompareEndDate(ADParameterReader):
                 continue
 
             try:
-                mo_end_date = self.get_employee_end_date(uuid)
+                mo_end_date = self.get_employee_end_date(uuid).strftime("%Y-%m-%d")
             except KeyError:
                 continue
 
-            ad_end_date = self.to_enddate(ad_user[self.enddate_field])
+            ad_end_date = self.to_enddate(ad_user[self.enddate_field]).strftime(
+                "%Y-%m-%d"
+            )
             if ad_end_date == mo_end_date:
                 continue
 
-            end_dates_to_fix[uuid] = mo_end_date.strftime("%Y-%m-%d")
+            end_dates_to_fix[uuid] = mo_end_date
 
         return end_dates_to_fix
 
