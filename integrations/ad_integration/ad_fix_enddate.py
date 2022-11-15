@@ -113,9 +113,7 @@ class CompareEndDate(ADParameterReader):
             if ad_end_date == mo_end_date:
                 continue
 
-            end_dates_to_fix[uuid] = datetime.datetime.strftime(
-                mo_end_date, "%Y-%m-%dT%H:%M:%S%z"
-            )
+            end_dates_to_fix[uuid] = mo_end_date.strftime("%Y-%m-%d")
 
         return end_dates_to_fix
 
