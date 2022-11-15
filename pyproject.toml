@@ -94,6 +94,8 @@ ldap3 = "^2.9.1"
 
 [tool.poetry.dev-dependencies]
 types-python-dateutil = "^2.8.19"
+types-mock = "^4.0.15"
+types-PyYAML = "^6.0.12"
 [build-system]
 requires = ["setuptools>=40.8.0", "wheel"]
 build-backend = "setuptools.build_meta:__legacy__"
