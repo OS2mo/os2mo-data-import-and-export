@@ -1,6 +1,5 @@
 from operator import itemgetter
 
-import xlsxwriter
 import xlsxwriter.worksheet
 
 

@@ -181,8 +181,9 @@ Lint FK-org uuid-import:
 Lint Reports:
   extends: .lint-python
   script:
-    - python -m black --diff --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
-    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+    - cd reports/
+    - pip install mypy pre-commit types-requests types-python-dateutil types-mock
+    - pre-commit run --files $(find . -name "*.py")
 
 Lint Exporter Utils:
   extends: .lint-python
