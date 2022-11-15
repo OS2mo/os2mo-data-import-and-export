@@ -918,7 +918,7 @@ def import_one(
         employees,
         terminated_employees,
     ) = opus_helpers.read_and_transform_data(
-        latest_path, xml_path, filter_ids, opus_id=opus_id
+        latest_path, xml_path, filter_ids, opus_id=opus_id  # type: ignore
     )
     if rundb_write:
         opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))

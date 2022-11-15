@@ -5,11 +5,10 @@ import pprint
 
 import click
 import pandas as pd
-
 from os2mo_helpers.mora_helpers import MoraHelper
 
 
-class UserComparison():
+class UserComparison:
     def __init__(
         self, settings, mora_helper: MoraHelper, mapping_file_path, user_file_path
     ):
@@ -21,17 +20,17 @@ class UserComparison():
     def get_mo_users(self):
         users = self.mora_helper.read_all_users()
 
-        return {user['name']: user['uuid'] for user in users}
+        return {user["name"]: user["uuid"] for user in users}
 
     def get_csv_mapping(self):
-        with open(self.mapping_file_path, 'r') as f:
+        with open(self.mapping_file_path, "r") as f:
             csv_reader = csv.DictReader(f, delimiter=";")
             mapping = {line["mo_uuid"]: line["ad_guid"] for line in csv_reader}
         return mapping
 
     def get_file_users(self) -> set:
         with pd.ExcelFile(self.user_file_path) as xlsx_file:
-            sheet = xlsx_file.parse('Rettighedstildelinger')
+            sheet = xlsx_file.parse("Rettighedstildelinger")
             xlsx_users = {row.Bruger for index, row in sheet.iterrows()}
         return xlsx_users
 
@@ -64,17 +63,19 @@ def load_settings():
 
 
 @click.command()
-@click.argument('user_file_path', type=click.File('rb'))
+@click.argument("user_file_path", type=click.File("rb"))
 def main(**args):
-    user_file_path = args['user_file_path']
+    user_file_path = args["user_file_path"]
     mapping_file_path = "cpr_mo_ad_map.csv"
 
     settings = load_settings()
-    mora_helper = MoraHelper(settings['mora.base'])
+    mora_helper = MoraHelper(settings["mora.base"])
 
-    comparison = UserComparison(settings, mora_helper, mapping_file_path, user_file_path)
+    comparison = UserComparison(
+        settings, mora_helper, mapping_file_path, user_file_path
+    )
     comparison.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

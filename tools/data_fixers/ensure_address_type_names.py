@@ -1,10 +1,9 @@
-import asyncio
-
 import click
-import constants
 from mox_helpers.mox_util import ensure_class_value_helper
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.load_settings import load_settings
+
+import constants
 
 settings = load_settings()
 # Mapped of settings (which has an uuid associated to it in the settings file)

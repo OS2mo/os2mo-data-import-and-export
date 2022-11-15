@@ -14,20 +14,19 @@
 # der tidligere stod i org_unit_type.
 #
 # Forvent ikke at du kan genbruge andet end strukturen (gennemløb/opretning)
-
 import json
 import logging
 import pathlib
 from functools import partial
-from pprint import pprint
+from typing import Any
+from typing import Dict
+
+from os2mo_helpers.mora_helpers import MoraHelper
+from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import Klasse
-from integrations.opus import payloads
-from os2mo_helpers.mora_helpers import MoraHelper
-from sqlalchemy.orm import sessionmaker
+
 
 settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
 
@@ -47,7 +46,7 @@ def get_session(engine):
     return sessionmaker(bind=engine, autoflush=False)()
 
 
-type_to_level = {}
+type_to_level: Dict[Any, Any] = {}
 
 
 class SnurreBasse:

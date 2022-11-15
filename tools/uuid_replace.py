@@ -72,9 +72,7 @@ def transform(input, jsonmap, output):
 
         This version runs faster than the regex version, which is why it is used.
         """
-        return reduce(
-            lambda text, change: text.replace(*change), changes.items(), line
-        )
+        return reduce(lambda text, change: text.replace(*change), changes.items(), line)
 
     click.echo("Starting multistring replacement and output writing...")
     input_lines = tqdm(input_lines)

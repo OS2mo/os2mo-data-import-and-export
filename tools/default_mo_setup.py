@@ -1,10 +1,11 @@
 import logging
 
-import constants
-from os2mo_data_import import ImportHelper
 from mox_helpers import mox_util
 from ra_utils.load_settings import load_settings
+
+import constants
 from integrations.opus import opus_helpers
+from os2mo_data_import import ImportHelper  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,7 @@ def ensure_default_classes():
     ]
     for klasse in default_classes:
         mox_util.ensure_class_in_lora(**klasse)
+
 
 if __name__ == "__main__":
     create_new_root_and_it()

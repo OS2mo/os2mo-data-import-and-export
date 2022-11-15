@@ -17,9 +17,9 @@ class MetricCleaner:
 
     def filter_metrics(self, all_metrics: list, prefix: str) -> set:
         """Filters metrics based on the prefix input"""
-        pattern = re.compile(f'job="({prefix}\w*)')
+        pattern = re.compile(rf'job="({prefix}\w*)')
         filtered_metrics = filter(pattern.findall, all_metrics)
-        filtered_metrics = map(pattern.findall, filtered_metrics)
+        filtered_metrics = map(pattern.findall, filtered_metrics)  # type: ignore
         return set(flatten(filtered_metrics))
 
     def delete_metric(self, metric: str) -> None:

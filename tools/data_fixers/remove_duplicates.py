@@ -143,7 +143,7 @@ def collapse_table(
     delete_rows: List[int] = []
     update_rows: Dict[int, str] = {}
 
-    for l, r in pairwise(rows):
+    for l, r in pairwise(rows):  # noqa: E741
         equal = all(l[key] == r[key] for key in equivalence_keys)
         if equal:
             # We are merging left into right, left should be deleted and not updated.
@@ -179,8 +179,8 @@ def effectuate_table(
             """,
         )
     for id, virkning in update_rows.items():
-        if virkning._upper.year == 9999:
-            virkning._upper = "infinity"  # lol
+        if virkning._upper.year == 9999:  # type: ignore
+            virkning._upper = "infinity"  # type: ignore
         cursor.execute(
             f"""
             UPDATE {table}

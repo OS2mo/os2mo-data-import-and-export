@@ -195,10 +195,8 @@ Lint Tools:
   extends: .lint-python
   script:
     - cd tools/
-    - python -m black --diff --line-length 85 --check uuid_replace.py
-    - python -m isort --diff --check-only uuid_replace.py
-    - python -m black --diff --check data_fixers
-    - python -m isort --profile black --diff --check-only --force-single-line-imports data_fixers
+    - pip install mypy pre-commit types-requests types-python-dateutil types-PyYAML
+    - pre-commit run --files $(find . -name "*.py")
 
 # Build stage
 #############

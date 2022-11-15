@@ -1,8 +1,6 @@
 import asyncio
 import csv
 import json
-import random
-import string
 from datetime import date
 from functools import wraps
 from operator import itemgetter

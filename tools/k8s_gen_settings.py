@@ -1,14 +1,15 @@
-from os import listdir
-from os.path import isfile, join
+import json
 from functools import partial
 from itertools import compress
+from os import listdir
+from os.path import isfile
+from os.path import join
 from typing import Tuple
-import json
 
 import click
 
 
-def list_files(path: str) -> Tuple[str]:
+def list_files(path: str) -> Tuple[str, ...]:
     """Return a tuple of filenames under path."""
     subpaths = listdir(path)
     # Add prefix to subpaths, and check if they are files or not
@@ -25,7 +26,7 @@ def consume_file(path: str) -> str:
 
 
 @click.command()
-@click.argument('paths', nargs=-1, required=True)
+@click.argument("paths", nargs=-1, required=True)
 def generate(paths: Tuple[str]):
     """Script to generate settings.json from Kubernetes mounted ConfigMap."""
     dicty = {}
@@ -38,5 +39,5 @@ def generate(paths: Tuple[str]):
     print(json.dumps(dicty, indent=4, sort_keys=True))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     generate()

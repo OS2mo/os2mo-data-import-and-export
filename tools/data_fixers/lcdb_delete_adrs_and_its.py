@@ -14,20 +14,19 @@
 # der tidligere stod i org_unit_type.
 #
 # Forvent ikke at du kan genbruge andet end strukturen (gennemløb/opretning)
-
 import json
 import logging
 import pathlib
-from pprint import pprint
+from typing import Any
+from typing import Dict
+
+from os2mo_helpers.mora_helpers import MoraHelper
+from sqlalchemy import and_
+from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_table_defs import ItForbindelse
-from integrations.opus import payloads
-from os2mo_helpers.mora_helpers import MoraHelper
-from sqlalchemy import and_
-from sqlalchemy import or_
-from sqlalchemy.orm import sessionmaker
 
 settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
 
@@ -47,7 +46,7 @@ def get_session(engine):
     return sessionmaker(bind=engine, autoflush=False)()
 
 
-type_to_level = {}
+type_to_level: Dict[Any, Any] = {}
 
 
 class SnurreBasse:
@@ -68,27 +67,30 @@ class SnurreBasse:
     def run_it(self):
         for i in (
             session.query(ItForbindelse.uuid)
-            .filter(and_(ItForbindelse.bruger_uuid != None))
+            .filter(and_(ItForbindelse.bruger_uuid != None))  # noqa: E711
             .all()
         ):
             try:
                 print(i)
                 self.terminate("it", i[0])
-            except:
+            except:  # noqa: E722
                 pass
 
     def run_adresse(self):
         for i in (
             session.query(Adresse.uuid)
             .filter(
-                and_(Adresse.adressetype_scope == "E-mail", Adresse.bruger_uuid != None)
+                and_(
+                    Adresse.adressetype_scope == "E-mail",
+                    Adresse.bruger_uuid != None,  # noqa: E711
+                )
             )
             .all()
         ):
             try:
                 print(i)
                 self.terminate("address", i[0])
-            except:
+            except:  # noqa: E722
                 pass
 
 

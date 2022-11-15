@@ -15,5 +15,5 @@ def test_credentials(mora_base):
     print("Organisation UUID: " + mh.read_organisation())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_credentials()

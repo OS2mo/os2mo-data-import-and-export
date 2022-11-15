@@ -6,10 +6,11 @@ from operator import attrgetter
 
 import click
 import requests
-from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import ItForbindelse
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
+
+from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_table_defs import ItForbindelse
 
 
 def get_settings():

@@ -7,7 +7,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 
 
-def check_duplicate_cpr(mora_base: str) -> list:
+def check_duplicate_cpr(mora_base: str) -> dict:
 
     helper = MoraHelper(hostname=mora_base)
     users = helper.read_all_users()
