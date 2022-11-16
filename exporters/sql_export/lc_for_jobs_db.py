@@ -40,19 +40,20 @@ def cli():
 def sql_export(resolve_dar):
 
     # Load settings file
-    org_settings = load_settings()
+    settings = load_settings()
 
     # Override settings
-    settings = {
+    overrides = {
         "exporters.actual_state.type": "SQLite",
         "exporters.actual_state_historic.type": "SQLite",
-        "exporters.actual_state.db_name": org_settings.get(
+        "exporters.actual_state.db_name": settings.get(
             "lc-for-jobs.actual_db_name", "ActualState"
         ),
-        "exporters.actual_state.manager_responsibility_class": org_settings[
+        "exporters.actual_state.manager_responsibility_class": settings[
             "exporters.actual_state.manager_responsibility_class"
         ],
     }
+    settings.update(overrides)
 
     sql_export = SqlExport(force_sqlite=True, historic=False, settings=settings)
     sql_export.perform_export(resolve_dar=resolve_dar)
