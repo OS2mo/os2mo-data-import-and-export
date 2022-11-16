@@ -12,6 +12,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseSettings
 from pydantic import Field
 
+from .sql_export import SqlExportSettings
 from .trigger import trigger_router
 
 build_information = Info("build_information", "Build information")
@@ -60,6 +61,9 @@ def create_app(**kwargs: Any) -> FastAPI:
     Returns:
         FastAPI application.
     """
+    pydantic_settings = SqlExportSettings()
+    pydantic_settings.start_logging_based_on_settings()
+
     settings = Settings(**kwargs)
 
     app = FastAPI(
