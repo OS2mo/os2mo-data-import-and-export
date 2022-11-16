@@ -33,12 +33,12 @@ Lint SQL Exporter:
 
 # Build
 ########
-#Build SQL Exporter image:
-#  extends: .build-docker
-#  variables:
-#    CONTEXT: ${CI_PROJECT_DIR}/exporters/sql_export
-#    DOCKERFILE: ${CI_PROJECT_DIR}/exporters/sql_export/Dockerfile
-#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+Build SQL Exporter image:
+  extends: .build-docker
+  variables:
+    CONTEXT: ${CI_PROJECT_DIR}/exporters/sql_export/
+    DOCKERFILE: ${CI_PROJECT_DIR}/exporters/sql_export/Dockerfile
+    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
 
 # Test
 ######
@@ -54,14 +54,14 @@ Test LoraCache Exporter:
 
 # Release
 ##########
-#Release SQL Exporter master image:
-#  extends: .release-master
-#  variables:
-#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
-#    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}
-#
-#Release SQL Exporter version image:
-#  extends: .release-version
-#  variables:
-#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
-#    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}
+Release SQL Exporter master image:
+  extends: .release-master
+  variables:
+    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}
+
+Release SQL Exporter version image:
+  extends: .release-version
+  variables:
+    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}

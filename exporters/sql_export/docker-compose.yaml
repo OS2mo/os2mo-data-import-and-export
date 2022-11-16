@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+services:
+  sql_export:
+    build: .
+    command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
+    ports:
+      - 8000:8000/tcp
+    volumes:
+      - ./:/opt/sql_export/
