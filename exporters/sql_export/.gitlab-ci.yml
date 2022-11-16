@@ -23,7 +23,7 @@ variables:
 Lint SQL Exporter:
   stage: lint
   needs: []
-  image: python:3
+  image: python:3.10
   script:
     - cd exporters/sql_export
     - pip install pre-commit
