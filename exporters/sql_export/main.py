@@ -12,6 +12,8 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseSettings
 from pydantic import Field
 
+from .trigger import trigger_router
+
 build_information = Info("build_information", "Build information")
 
 
@@ -77,6 +79,8 @@ def create_app(**kwargs: Any) -> FastAPI:
     @app.get("/")
     async def index() -> dict[str, str]:
         return {"name": "sql_export"}
+
+    app.include_router(trigger_router)
 
     if settings.enable_metrics:
         # Update metrics info
