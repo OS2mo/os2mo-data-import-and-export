@@ -29,8 +29,6 @@ Lint SQL Exporter:
   image: python:3
   script:
     - cd exporters/sql_export
-    - pip install mypy pre-commit
-    - pip install types-requests types-python-dateutil
     - pre-commit run --files tests/*.py *.py
 
 # Build
