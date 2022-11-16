@@ -14,28 +14,28 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from exporters.sql_export.lora_cache import LoraCache
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import DARAdresse
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Enhedssammenkobling
-from exporters.sql_export.sql_table_defs import Facet
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import ItSystem
-from exporters.sql_export.sql_table_defs import Klasse
-from exporters.sql_export.sql_table_defs import KLE
-from exporters.sql_export.sql_table_defs import Kvittering
-from exporters.sql_export.sql_table_defs import Leder
-from exporters.sql_export.sql_table_defs import LederAnsvar
-from exporters.sql_export.sql_table_defs import Orlov
-from exporters.sql_export.sql_table_defs import Rolle
-from exporters.sql_export.sql_table_defs import Tilknytning
-from exporters.sql_export.sql_url import DatabaseFunction
-from exporters.sql_export.sql_url import generate_connection_url
-from exporters.sql_export.sql_url import generate_engine_settings
+from .lora_cache import LoraCache
+from .sql_table_defs import Adresse
+from .sql_table_defs import Base
+from .sql_table_defs import Bruger
+from .sql_table_defs import DARAdresse
+from .sql_table_defs import Engagement
+from .sql_table_defs import Enhed
+from .sql_table_defs import Enhedssammenkobling
+from .sql_table_defs import Facet
+from .sql_table_defs import ItForbindelse
+from .sql_table_defs import ItSystem
+from .sql_table_defs import Klasse
+from .sql_table_defs import KLE
+from .sql_table_defs import Kvittering
+from .sql_table_defs import Leder
+from .sql_table_defs import LederAnsvar
+from .sql_table_defs import Orlov
+from .sql_table_defs import Rolle
+from .sql_table_defs import Tilknytning
+from .sql_url import DatabaseFunction
+from .sql_url import generate_connection_url
+from .sql_url import generate_engine_settings
 
 
 class SqlExportSettings(JobSettings):

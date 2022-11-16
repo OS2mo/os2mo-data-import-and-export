@@ -9,7 +9,7 @@ import click
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 
-from exporters.sql_export.sql_export import SqlExport
+from .sql_export import SqlExport
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "lc-for-jobs.log"
