@@ -1,0 +1,69 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+
+stages:
+  - lint
+  - build
+  - test
+  - release
+
+include:
+  - project: 'labs/salt-automation'
+    ref: 'master'
+    file: '/gitlab-ci-templates/common/docker-build-meta.v1.yml'
+  - project: 'labs/salt-automation'
+    ref: 'master'
+    file: '/gitlab-ci-templates/common/docker-release-meta.v1.yml'
+  - project: 'labs/salt-automation'
+    ref: 'master'
+    file: '/gitlab-ci-templates/python/pytest-meta.v1.yml'
+
+variables:
+  SQL_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sql_export
+  SQL_EXPORT_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-sql_export:${CI_COMMIT_SHA}
+
+
+Lint SQL Exporter:
+  stage: lint
+  needs: []
+  image: python:3
+  script:
+    - cd exporters/sql_export
+    - pip install mypy pre-commit
+    - pip install types-requests types-python-dateutil
+    - pre-commit run --files tests/*.py *.py
+
+# Build
+########
+#Build SQL Exporter image:
+#  extends: .build-docker
+#  variables:
+#    CONTEXT: ${CI_PROJECT_DIR}/exporters/sql_export
+#    DOCKERFILE: ${CI_PROJECT_DIR}/exporters/sql_export/Dockerfile
+#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+
+# Test
+######
+#Test SQL Exporter:
+#  extends: .pytest
+#  variables:
+#    PYPROJECT_PREFIX: exporters/sql_export/
+
+Test LoraCache Exporter:
+  extends: .test-python
+  script:
+    - pytest exporters/sql_export/tests/
+
+# Release
+##########
+#Release SQL Exporter master image:
+#  extends: .release-master
+#  variables:
+#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}
+#
+#Release SQL Exporter version image:
+#  extends: .release-version
+#  variables:
+#    CI_IMAGE: ${SQL_EXPORT_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SQL_EXPORT_RELEASE_REGISTRY_IMAGE}

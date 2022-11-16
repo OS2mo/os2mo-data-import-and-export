@@ -67,6 +67,8 @@ include:
     file: "/gitlab-ci-templates/python/pypi-meta.v1.yml"
   - local: "integrations/SD_Lon/.gitlab-ci.yml"
   - local: "exporters/os2sync_export/.gitlab-ci.yml"
+  - local: "exporters/sql_export/.gitlab-ci.yml"
+
 
 .manual-rules: &manual-rules
   rules:
@@ -107,12 +109,6 @@ Lint Customers files:
   script:
     - python -m black --diff --check customers/
     - python -m isort --profile black --diff --check-only customers/
-
-Lint LoraCache Integration:
-  extends: .lint-python
-  script:
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-python-dateutil
-    - pre-commit run --files exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
 
 Lint AD Integration:
   extends: .lint-python
@@ -224,11 +220,6 @@ Build TestImage:
   before_script:
     - cd /code
 
-
-Test LoraCache Exporter:
-  extends: .test-python
-  script:
-    - pytest exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
   extends: .test-python
