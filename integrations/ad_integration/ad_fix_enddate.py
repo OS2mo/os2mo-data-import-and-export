@@ -79,7 +79,7 @@ class CompareEndDate(ADParameterReader):
 
         return max(end_dates)
 
-    def get_end_dates_to_fix(self) -> dict:
+    def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
 
         # Compare AD users to MO users
         print("Find users from AD")
@@ -105,15 +105,27 @@ class CompareEndDate(ADParameterReader):
                 continue
 
             try:
-                mo_end_date = self.get_employee_end_date(uuid)
+                mo_end_date = self.get_employee_end_date(uuid).strftime("%Y-%m-%d")
             except KeyError:
                 continue
 
-            ad_end_date = self.to_enddate(ad_user[self.enddate_field])
-            if ad_end_date == mo_end_date:
+            if ad_user[self.enddate_field] == mo_end_date:
                 continue
 
-            end_dates_to_fix[uuid] = mo_end_date.strftime("%Y-%m-%d")
+            end_dates_to_fix[uuid] = mo_end_date
+
+        if show_date_diffs:
+            for ad_user in ad_users:
+                if not (self.uuid_field in ad_user) or not (
+                    self.enddate_field in ad_user
+                ):
+                    continue
+                uuid = ad_user[self.uuid_field]
+                if uuid in end_dates_to_fix:
+                    ad_end = ad_user[self.enddate_field]
+                    print(
+                        f"User with id: {uuid} has AD end date: {ad_end} and MO end date: {end_dates_to_fix[uuid]}"
+                    )
 
         return end_dates_to_fix
 
@@ -151,6 +163,7 @@ class UpdateEndDate(AD):
 )
 @click.option("--uuid-field", default=load_setting("integrations.ad.write.uuid_field"))
 @click.option("--dry-run", is_flag=True)
+@click.option("--show-date-diffs", is_flag=True)
 @click.option("--print-commands", is_flag=True)
 @click.option("--mora-base", envvar="MORA_BASE", default="http://mo")
 @click.option("--client-id", envvar="CLIENT_ID", default="dipex")
@@ -161,6 +174,7 @@ def cli(
     enddate_field,
     uuid_field,
     dry_run,
+    show_date_diffs,
     print_commands,
     mora_base: str,
     client_id: str,
@@ -189,7 +203,7 @@ def cli(
             uuid_field=uuid_field,
             graph_ql_session=session,
         )
-        end_dates_to_fix = c.get_end_dates_to_fix()
+        end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs=show_date_diffs)
 
     u = UpdateEndDate(
         enddate_field=enddate_field,
