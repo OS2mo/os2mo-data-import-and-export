@@ -301,7 +301,7 @@ Test rollekatalog:
     - pip install -r exporters/os2rollekatalog/requirements.txt
     - pytest exporters/os2rollekatalog/tests/
 
-Test viborg_emus:
+Test lcdb_viborg_emus:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json

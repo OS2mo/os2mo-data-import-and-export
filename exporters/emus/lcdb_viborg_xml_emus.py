@@ -41,7 +41,6 @@ from exporters.sql_export.sql_table_defs import LederAnsvar
 from exporters.utils.priority_by_class import lcdb_choose_public_address
 from helpers import tqdm
 
-
 logging.basicConfig(
     format=config.logformat,
     filename=config.logfile,
@@ -267,32 +266,27 @@ def get_filtered_phone_addresses(
     Defaults to an empty dict, if no address is found.
 
     args:
-    uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
+    uuid of a person, a list of uuid(s) to filter on, a session on which a query is made through SQLalchemy.
 
     returns:
-    A dict of with an eligible phone number or an empty dict if none.
+    A dict with an eligible phone number or an empty dict if none.
     """
 
     # Retrieve all phone addresses.
-    phone_addresses = get_e_address(e_uuid, "Telefon", session)
+    phone_addresses = get_e_address(str(e_uuid), "Telefon", session)
 
     # Filter through all addresses, and only return the ones existing in priority_list.
     addresses = list(
-        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses)
+        filter(lambda p: p.adressetype_uuid in priority_list, phone_addresses)
     )
 
     # Sort addresses according to the address_types placement in priority_list to only return the address that matches
     # the first element in priority_list.
     address = first(
-        sorted(addresses, key=lambda a: priority_list.index(a["address_type"]["uuid"])),
+        sorted(addresses, key=lambda a: priority_list.index(a.adressetype_uuid)),
         default={},
     )
 
-    print("\nTHIS IS THE SESSION", session)
-    print("\nTHESE ARE THE PHONE ADDRESSES:", phone_addresses)
-    print("\nTHESE ARE THE ADDRESSES:", addresses)
-    print("\nTHIS IS THE ADDRESS:", address)
-    print("\nTHIS IS THE PRIORITY LIST FROM FUNCTION", priority_list)
     if address is not None:
         return address
     else:
@@ -304,7 +298,7 @@ def get_email_addresses(e_uuid: UUID, priority_list: List[UUID], session) -> dic
     Takes UUID of a person and returns a list object with eligible emails through a priority list.
 
     args:
-    uuid of a person, the lookup-helper from mh, a priority list of uuid(s).
+    uuid of a person, a priority list of uuid(s), a session on which a query is made through SQLalchemy.
 
     returns:
     A dict of eligible emails or an empty dict if none.
@@ -344,14 +338,14 @@ def build_engagement_row(session, settings, ou, engagement):
     )
     _phone = None
     if _phone_obj:
-        _phone = _phone_obj["value"]
+        _phone = _phone_obj.værdi
 
     _email_obj = get_email_addresses(
         engagement.bruger_uuid, settings["EMUS_EMAIL_PRIORITY"], session
     )
     _email = None
     if _email_obj:
-        _email = _email_obj["value"]
+        _email = _email_obj.værdi
 
     row = {
         "personUUID": engagement.bruger_uuid,
@@ -441,14 +435,14 @@ def build_manager_rows(session, settings, ou, manager):
     )
     _phone = None
     if _phone_obj:
-        _phone = _phone_obj["value"]
+        _phone = _phone_obj.værdi
 
     _email_obj = get_email_addresses(
         bruger.uuid, settings["EMUS_EMAIL_PRIORITY"], session
     )
     _email = None
     if _email_obj:
-        _email = _email_obj["value"]
+        _email = _email_obj.værdi
 
     # manipulate each responsibility row into a manager row
     # empty a couple of fields, change client and employee_id
