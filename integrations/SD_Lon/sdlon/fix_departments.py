@@ -7,7 +7,6 @@ from typing import Any
 from typing import Optional
 from typing import List
 from typing import OrderedDict
-from uuid import UUID
 
 import click
 import requests
@@ -107,75 +106,73 @@ class FixDepartments:
         institution_uuid = institution["InstitutionUUIDIdentifier"]
         return institution_uuid
 
-    def create_single_department(self, unit_uuid, validity_date):
+    def create_single_department(
+        self, department: OrderedDict, parent_uuid: str
+    ) -> None:
         """
-        Create a single department by reading the state of the department from SD.
-        The unit will be created with validity from the creation date returned by SD
-        to infinity. Notice that this validity is not necessarily correct and a
-        call to fix_department_at_single_date might be needed to ensure internal
-        consistency of the organisation.
-        :param unit_uuid: The uuid of the unit to be created, this uuid is also used
-        for the new unit in MO.
-        :param validity_date: The validity_date to use when reading the properties of
-        the unit from SD.
+        Create an organization unit in MO based on the corresponding department info
+        from SD.
+
+        Args:
+            department: The SD department
+            parent_uuid: The parent UUID of the department in SD
         """
-        logger.info("Create department: {}, at {}".format(unit_uuid, validity_date))
-        validity = {
-            "from_date": validity_date.strftime("%d.%m.%Y"),
-            "to_date": validity_date.strftime("%d.%m.%Y"),
-        }
-        # We ask for a single date, and will always get a single element.
-        department = self.get_department(validity, uuid=unit_uuid)[0]
-        logger.debug("Department info to create from: {}".format(department))
-        print("Department info to create from: {}".format(department))
-        parent = self.get_parent(department["DepartmentUUIDIdentifier"], validity_date)
-        if parent is None:  # This is a root unit.
-            parent = self.org_uuid
+        logger.info(
+            f"""Create department with SD UUID: {department["DepartmentUUIDIdentifier"]}"""
+        )
+
+        effective_parent_uuid = (
+            parent_uuid if parent_uuid is not None else self.org_uuid
+        )
 
         for unit_level in self.level_types:
             if unit_level["user_key"] == department["DepartmentLevelIdentifier"]:
                 unit_level_uuid = unit_level["uuid"]
 
+        logger.debug("SD department info to create from: {}".format(department))
         payload = sd_payloads.create_single_org_unit(
             department=department,
             unit_type=self.unit_type["uuid"],
             unit_level=unit_level_uuid,
-            parent=parent,
+            parent=effective_parent_uuid,
         )
-        logger.debug("Create department payload: {}".format(payload))
+        logger.debug("Create department MO payload: {}".format(payload))
         response = self.helper._mo_post("ou/create", payload)
         response.raise_for_status()
         logger.info("Created unit {}".format(department["DepartmentIdentifier"]))
         logger.debug("Create response status: {}".format(response.status_code))
 
-    def _create_parent_org_unit_if_missing_in_mo(
-        self, unit_uuid: str, creation_datetime: datetime.datetime
-    ) -> Optional[UUID]:
+    def _create_org_unit_if_missing_in_mo(
+        self, department: OrderedDict, parent_uuid: Optional[str]
+    ) -> bool:
         """
-        Create org unit parent if it is missing in MO.
+        Create SD department in MO if it is missing.
 
         Args:
-            unit_uuid: The UUID of the org unit to create the parent for
-            creation_datetime: The parent unit creation date
+            department: the SD department
+            parent_uuid: UUID of the parent unit
 
-        Returns: UUID of the parent or None if there is no parent (in which
-                 case the unit is a root SD unit).
+        Returns:
+            Boolean indicating whether the unit was created in MO or not.
         """
-        parent_uuid = self.get_parent(unit_uuid, creation_datetime)
-        if parent_uuid is None:
-            return
 
         mo_response = self.helper.read_ou(
-            parent_uuid, at=format_date(creation_datetime)
+            department["DepartmentUUIDIdentifier"], at=department["ActivationDate"]
         )
+
+        ou_created = False
         if mo_response.get("status") == 404:
-            self.create_single_department(parent_uuid, creation_datetime)
+            # TODO: create_single_department should return the boolean value of ou_created
+            self.create_single_department(department, parent_uuid)
+            ou_created = True
 
-        return UUID(parent_uuid)
+        return ou_created
 
-    def _update_org_unit_for_single_sd_dep_registration(self, unit_uuid, department):
-
+    def _update_org_unit_for_single_sd_dep_registration(
+        self, department: OrderedDict, parent_uuid: Optional[str]
+    ) -> None:
         # Get SD department data
+        unit_uuid = department["DepartmentUUIDIdentifier"]
         name = department["DepartmentName"]
         shortname = department["DepartmentIdentifier"]
         department_level_identifier = department["DepartmentLevelIdentifier"]
@@ -192,15 +189,7 @@ class FixDepartments:
             logger.error(msg.format(department_level_identifier))
             raise Exception(msg.format(department_level_identifier))
 
-        effective_date = parse_date(from_date)
-        try:
-            parent = self.get_parent(unit_uuid, effective_date)
-            if parent is None:
-                parent = self.org_uuid
-        except NoCurrentValdityException:
-            msg = "Attempting to fix unit with no parent at {}!"
-            logger.error(msg.format(effective_date))
-            raise Exception(msg.format(effective_date))
+        parent = parent_uuid if parent_uuid is not None else self.org_uuid
 
         msg = "Unit parent at {} is {}"
         logger.info(msg.format(from_date, parent))
@@ -238,16 +227,22 @@ class FixDepartments:
 
         departments = self.get_department(validity, uuid=unit_uuid)
         for department in departments:
-            # Create parent unit if missing in MO
-            parent_uuid = self._create_parent_org_unit_if_missing_in_mo(
+            # Get the UUID of the parent unit
+            parent_uuid = self.get_parent(
                 unit_uuid, parse_date(department["ActivationDate"])
             )
 
+            # Create org unit if missing in MO
+            ou_created = self._create_org_unit_if_missing_in_mo(department, parent_uuid)
+
             # ... and fix the parent before updating the unit itself
             if parent_uuid is not None:
-                self.fix_department(str(parent_uuid), validity_date)
+                self.fix_department(parent_uuid, validity_date)
 
-            self._update_org_unit_for_single_sd_dep_registration(unit_uuid, department)
+            if not ou_created:
+                self._update_org_unit_for_single_sd_dep_registration(
+                    department, parent_uuid
+                )
 
     def get_department(
         self, validity, shortname=None, uuid=None
