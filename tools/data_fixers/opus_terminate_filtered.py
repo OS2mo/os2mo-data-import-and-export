@@ -2,11 +2,11 @@ from operator import itemgetter
 
 import click
 import httpx
+
+from helpers import tqdm
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
 from ra_utils.load_settings import load_settings
-from tqdm import tqdm
-
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
 

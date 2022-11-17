@@ -5,7 +5,8 @@ from uuid import UUID
 
 import click
 from more_itertools import flatten
-from tqdm import tqdm
+
+from helpers import tqdm
 
 
 # TODO: Consider moving this to exporters/utils/uuid_test.py

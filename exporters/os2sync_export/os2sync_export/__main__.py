@@ -17,7 +17,8 @@ from os2sync_export import config
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
-from tqdm import tqdm
+
+from helpers import tqdm
 
 logger = None  # set in main()
 

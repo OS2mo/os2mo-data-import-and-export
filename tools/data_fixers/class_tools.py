@@ -20,7 +20,8 @@ from mox_helpers.mox_util import ensure_class_value_helper
 from ra_utils.load_settings import load_setting
 from ra_utils.load_settings import load_settings
 from ra_utils.transpose_dict import transpose_dict
-from tqdm import tqdm
+
+from helpers import tqdm
 
 jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"

@@ -9,7 +9,6 @@ from typing import Optional
 from typing import Tuple
 
 import config
-import tqdm
 from aiohttp import ClientResponse
 from aiohttp import ClientSession
 from aiohttp import ClientTimeout
@@ -19,6 +18,8 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.headers import TokenSettings
+
+from helpers import tqdm
 
 
 def get_tcp_connector():
@@ -142,7 +143,7 @@ async def submit_payloads(
     if len(tasks) == 0:
         return
 
-    for f in tqdm.tqdm(
+    for f in tqdm(
         asyncio.as_completed(tasks), total=len(tasks), unit="chunk", desc=description
     ):
         await f

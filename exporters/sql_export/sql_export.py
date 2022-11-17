@@ -12,7 +12,6 @@ from sqlalchemy import Index
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
-from tqdm import tqdm
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_table_defs import Adresse
@@ -36,6 +35,7 @@ from exporters.sql_export.sql_table_defs import Tilknytning
 from exporters.sql_export.sql_url import DatabaseFunction
 from exporters.sql_export.sql_url import generate_connection_url
 from exporters.sql_export.sql_url import generate_engine_settings
+from helpers import tqdm
 
 
 class SqlExportSettings(JobSettings):

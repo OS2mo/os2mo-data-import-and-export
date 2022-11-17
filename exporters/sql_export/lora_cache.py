@@ -26,7 +26,9 @@ from os2mo_dar_client import DARClient
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from retrying import retry
-from tqdm import tqdm
+
+from helpers import tqdm
+
 
 logger = logging.getLogger("LoraCache")
 

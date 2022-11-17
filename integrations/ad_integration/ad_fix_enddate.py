@@ -11,8 +11,8 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 from raclients.graph.client import GraphQLClient
 from raclients.graph.client import SyncClientSession
-from tqdm import tqdm
 
+from helpers import tqdm
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
 

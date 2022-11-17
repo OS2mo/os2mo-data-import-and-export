@@ -23,10 +23,10 @@ from xml.sax.saxutils import escape
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
-from tqdm import tqdm
 
 import exporters.common_queries as cq
 from exporters.utils.priority_by_class import choose_public_address
+from helpers import tqdm
 
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get("LOG_LEVEL", "WARNING"), 20)

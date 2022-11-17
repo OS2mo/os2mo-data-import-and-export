@@ -23,7 +23,6 @@ from anytree import Node
 from anytree import PreOrderIter
 from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker
-from tqdm import tqdm
 
 from exporters.emus import config
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
@@ -36,6 +35,7 @@ from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import Leder
 from exporters.sql_export.sql_table_defs import LederAnsvar
 from exporters.utils.priority_by_class import lcdb_choose_public_address
+from helpers import tqdm
 
 
 logging.basicConfig(

@@ -13,7 +13,8 @@ from more_itertools import pairwise
 from psycopg2 import connect
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
-from tqdm import tqdm
+
+from helpers import tqdm
 
 
 def get_connection(

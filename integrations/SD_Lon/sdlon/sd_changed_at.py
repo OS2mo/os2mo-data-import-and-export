@@ -34,7 +34,6 @@ from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
-from tqdm import tqdm
 
 from . import sd_payloads
 from .config import ChangedAtSettings
@@ -61,6 +60,7 @@ from .sd_common import sd_lookup
 from .sd_common import skip_fictional_users
 from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
+from helpers import tqdm
 
 
 LOG_LEVEL = logging.DEBUG
