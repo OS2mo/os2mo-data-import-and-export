@@ -50,6 +50,11 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 
 class Settings(BaseSettings):
     # common:
+    client_id: str = "dipex"
+    client_secret: str
+    auth_realm: str = "mo"
+    auth_server: str = "http://localhost:5000/auth"
+
     municipality: str  # Called "municipality.cvr" in settings.json
     mora_base: AnyHttpUrl = cast(
         AnyHttpUrl, "http://localhost:5000"
