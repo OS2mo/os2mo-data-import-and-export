@@ -16,7 +16,9 @@ class MockUnitWParent:
 
 class TestGetOrgUnit:
     testsettings = get_os2sync_settings(
-        os2sync_top_unit_uuid=top_level_uuid, municipality=1
+        os2sync_top_unit_uuid=top_level_uuid,
+        municipality=1,
+        client_secret="603f1c82-d012-4d04-9382-dbe659c533fb",
     )
 
     @patch("os2sync_export.os2mo.os2mo_get", return_value=MockUnitWParent())
