@@ -45,7 +45,7 @@ def get_rel_uuid_or_none(uuid, rel, item_name) -> Optional[str]:
     except IndexError:
         logger.error(f"Empty rel['{item_name}'] ({uuid=}), was {rel}")
     except KeyError:
-        logger.info(f"No {item_name} found for {uuid=}, was {rel}")
+        logger.debug(f"No {item_name} found for {uuid=}, was {rel}")
     return None
 
 
