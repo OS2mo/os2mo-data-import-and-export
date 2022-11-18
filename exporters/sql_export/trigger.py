@@ -46,6 +46,18 @@ class DatabaseSettings(BaseSettings):
     historic_state: DatabaseConfiguration | None
 
     def to_old_settings(self) -> dict[str, Any]:
+        """Convert our DatabaseSettings to a settings.json format.
+
+        This serves to implement the adapter pattern, adapting from pydantic and its
+        corresponding 12-factor configuration paradigm with environmental variables, to
+        the current functionality of the program, based on the settings format from
+        settings.json.
+
+        Eventually the entire settings-processing within the program should be
+        rewritten with a process similar to what has been done for the SD integration,
+        but it was out of scope for the change when this code was introduces.
+        """
+
         def secret_val_or_none(value: SecretStr | None) -> str | None:
             if value is None:
                 return None
