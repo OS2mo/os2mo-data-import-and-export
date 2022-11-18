@@ -160,25 +160,25 @@ class SqlExport:
         tables = list(map(gen_table_names, tables))
 
         # Drop any left-over old tables that may exist
-        actual_tables = self.get_actual_tables()
         with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
             for _, _, old_table in tables:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
         # Rename current to old and write to current
-        actual_tables = self.get_actual_tables()
-        for write_table, current_table, old_table in tables:
-            with ctx.begin_transaction():
+        with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
+            for write_table, current_table, old_table in tables:
                 if current_table in actual_tables:
                     op.rename_table(current_table, old_table)
                 # Rename write table to current table
                 op.rename_table(write_table, current_table)
 
         # Drop any old tables that may exist
-        actual_tables = self.get_actual_tables()
-        for _, _, old_table in tables:
-            with ctx.begin_transaction():
+        with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
+            for _, _, old_table in tables:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
