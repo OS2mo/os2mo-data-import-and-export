@@ -227,9 +227,8 @@ def get_fk_org_uuid(
     # Sort the relevant it-systems based on their position in the given list
     it.sort(key=lambda name: uuid_from_it_systems.index(name["itsystem"]["name"]))
     it_uuids = list(map(itemgetter("user_key"), it))
-    # Append mo_uuid to return it if no matches were found in it-accounts
-    it_uuids.append(mo_uuid)
-    return first(it_uuids)
+    # Use first matching it_system uuid or return mo_uuid if no matches were found in it-accounts
+    return first(it_uuids, mo_uuid)
 
 
 def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
