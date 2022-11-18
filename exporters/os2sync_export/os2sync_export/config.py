@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     os2sync_user_key_it_system_name: str = "Active Directory"
 
     os2sync_filter_hierarchy_names: Tuple = tuple()  # Title in MO
+    os2sync_filter_users_by_it_system: bool = False
 
     class Config:
 

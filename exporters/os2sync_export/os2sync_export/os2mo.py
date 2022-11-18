@@ -170,7 +170,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
             )
 
 
-def try_get_ad_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
+def try_get_it_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
     """
     fetches all it-systems related to a user and return the ad-user_key if exists
     """
@@ -262,21 +262,26 @@ def get_org_unit_hierarchy(titles: Tuple):
     return map(itemgetter("uuid"), filtered_hierarchies)
 
 
-def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
+def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
-
+    it_system_user_key = try_get_it_user_key(
+        uuid, user_key_it_system_name=settings.os2sync_user_key_it_system_name
+    )
     user = User(
         dict(
             uuid=uuid,
-            candidate_user_id=try_get_ad_user_key(
-                uuid, user_key_it_system_name=settings.os2sync_user_key_it_system_name
-            ),
+            candidate_user_id=it_system_user_key,
             person=Person(employee, settings=settings),
         ),
         settings=settings,
     )
 
     sts_user = user.to_json()
+
+    if settings.os2sync_filter_users_by_it_system and it_system_user_key is None:
+        # Skip user if filter is activated and there are no user_key to find in settings
+        # By returning user without any positions it will be removed from fk-org
+        return sts_user
 
     addresses_to_user(
         sts_user,
@@ -301,12 +306,17 @@ def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
             sts_user["Positions"], work_address_names
         )
 
-    if settings.os2sync_uuid_from_it_systems:
-        overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
-
     truncate_length = max(36, settings.os2sync_truncate_length)
     strip_truncate_and_warn(sts_user, sts_user, length=truncate_length)
 
+    return sts_user
+
+
+def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
+    sts_user = get_sts_user_raw(uuid, settings)
+
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
     return sts_user
 
 
