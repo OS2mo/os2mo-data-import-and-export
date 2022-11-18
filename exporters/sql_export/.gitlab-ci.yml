@@ -9,11 +9,10 @@ stages:
 
 include:
   - project: labs/salt-automation
-    file: gitlab-ci-templates/common/docker-build-meta.v1.yml
-  - project: labs/salt-automation
-    file: gitlab-ci-templates/common/docker-release-meta.v1.yml
-  - project: labs/salt-automation
-    file: gitlab-ci-templates/python/pytest-meta.v1.yml
+    file:
+      - gitlab-ci-templates/common/docker-build-meta.v1.yml
+      - gitlab-ci-templates/common/docker-release-meta.v1.yml
+      - gitlab-ci-templates/python/pytest-meta.v1.yml
 
 variables:
   SQL_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sql_export
