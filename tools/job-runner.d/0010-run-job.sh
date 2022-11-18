@@ -2,7 +2,7 @@
 run-job(){
     local JOB=$1
     prometrics-job-start ${JOB}
-
+    set -o pipefail
     # Detect if we are running from cron
     if [ "$TERM" == "dumb" ]; then
         # Capture both stdout and stderr using "|&" (requires Bash 4+.)
