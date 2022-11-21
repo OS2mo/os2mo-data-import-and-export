@@ -11,6 +11,7 @@ from uuid import UUID
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from ra_utils.apply import apply
+from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 
 
@@ -48,7 +49,7 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     return final_settings
 
 
-class Settings(BaseSettings):
+class Settings(JobSettings):
     # common:
     municipality: str  # Called "municipality.cvr" in settings.json
     mora_base: AnyHttpUrl = cast(
