@@ -52,11 +52,11 @@ def get_e_address(e_uuid, scope, lc_historic):
     lora_addresses = lc_historic.addresses.values()
     lora_addresses = flatten(lora_addresses)
     # Iterator of all addresses for the current user
-    lora_addresses = list(filter(lambda address: address["user"] == e_uuid, lora_addresses))
+    lora_addresses1 = list(filter(lambda address: address["user"] == e_uuid, lora_addresses))
     # Iterator of all addresses for current user and correct scope
-    lora_addresses = list(filter(lambda address: address["scope"] == scope, lora_addresses))
-
-    return lora_addresses
+    lora_addresses2 = list(filter(lambda address: address["scope"] == scope, lora_addresses))
+    candidates = lora_addresses1, lora_addresses2
+    return candidates
 
 
 def get_filtered_phone_addresses(
@@ -110,7 +110,6 @@ def get_email_addresses(
     email_addresses = get_e_address(str(e_uuid), "E-mail", lc_historic)
 
     address = lc_choose_public_address(email_addresses, priority_list, lc)
-    import pdb; pdb.set_trace(); pdb.pm()
     if address is not None:
         return address
     else:
