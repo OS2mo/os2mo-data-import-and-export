@@ -133,7 +133,7 @@ def export_bruger_lc(node, used_cprs, lc, lc_historic):
 
         _phone_obj = get_e_address(user_uuid, 'Telefon', lc, lc_historic, SETTINGS)
         _phone = None
-        if _phone_obj:
+        if _phone_obj["adresse_type"] == SETTINGS["plan2learn.phone.priority"]:
             _phone = _phone_obj['value']
 
         _email_obj = get_e_address(user_uuid, 'E-mail', lc, lc_historic, SETTINGS)
