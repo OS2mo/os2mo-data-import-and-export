@@ -497,7 +497,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "exceptiongroup"
-version = "1.0.2"
+version = "1.0.4"
 description = "Backport of PEP 654 (exception groups)"
 category = "main"
 optional = false
@@ -711,17 +711,17 @@ requests = ["requests (>=2.18.0,<3.0.0dev)"]
 
 [[package]]
 name = "googleapis-common-protos"
-version = "1.56.4"
+version = "1.57.0"
 description = "Common protobufs used in Google APIs"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 
 [package.dependencies]
-protobuf = ">=3.15.0,<5.0.0dev"
+protobuf = ">=3.19.5,<3.20.0 || >3.20.0,<3.20.1 || >3.20.1,<4.21.1 || >4.21.1,<4.21.2 || >4.21.2,<4.21.3 || >4.21.3,<4.21.4 || >4.21.4,<4.21.5 || >4.21.5,<5.0.0dev"
 
 [package.extras]
-grpc = ["grpcio (>=1.0.0,<2.0.0dev)"]
+grpc = ["grpcio (>=1.44.0,<2.0.0dev)"]
 
 [[package]]
 name = "gql"
@@ -826,7 +826,7 @@ socks = ["socksio (>=1.0.0,<2.0.0)"]
 
 [[package]]
 name = "hypothesis"
-version = "6.57.1"
+version = "6.58.0"
 description = "A library for property-based testing"
 category = "main"
 optional = false
@@ -855,7 +855,7 @@ zoneinfo = ["backports.zoneinfo (>=0.2.1)", "tzdata (>=2022.6)"]
 
 [[package]]
 name = "identify"
-version = "2.5.8"
+version = "2.5.9"
 description = "File identification library for Python"
 category = "dev"
 optional = false
@@ -1007,7 +1007,7 @@ source = ["Cython (>=0.29.7)"]
 
 [[package]]
 name = "mako"
-version = "1.2.3"
+version = "1.2.4"
 description = "A super-fast templating language that borrows the best ideas from the existing templating languages."
 category = "main"
 optional = false
@@ -1090,7 +1090,7 @@ cryptography = ["cryptography (<2.2)", "cryptography"]
 
 [[package]]
 name = "numpy"
-version = "1.23.4"
+version = "1.23.5"
 description = "NumPy is the fundamental package for array computing with Python."
 category = "main"
 optional = false
@@ -1372,7 +1372,7 @@ python-versions = "*"
 
 [[package]]
 name = "pymssql"
-version = "2.2.6"
+version = "2.2.7"
 description = "DB-API interface to Microsoft SQL Server for Python. (new Cython-based version)"
 category = "main"
 optional = false
@@ -1395,7 +1395,7 @@ tests = ["pytest (>=3.2.1,!=3.3.0)", "hypothesis (>=3.27.0)"]
 
 [[package]]
 name = "pyodbc"
-version = "4.0.34"
+version = "4.0.35"
 description = "DB API Module for ODBC"
 category = "main"
 optional = false
@@ -1542,7 +1542,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "ra-utils"
-version = "1.3.2"
+version = "1.4.0"
 description = "Utilities for OS2mo/LoRa"
 category = "main"
 optional = false
@@ -1904,7 +1904,7 @@ telegram = ["requests"]
 
 [[package]]
 name = "types-python-dateutil"
-version = "2.8.19.3"
+version = "2.8.19.4"
 description = "Typing stubs for python-dateutil"
 category = "main"
 optional = false
@@ -1966,7 +1966,7 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 
 [[package]]
 name = "winkerberos"
-version = "0.9.0"
+version = "0.9.1"
 description = "High level interface to SSPI for Kerberos client auth"
 category = "main"
 optional = false
@@ -2028,7 +2028,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "99940e74c2e82f88de2a95778a15491bcc939ce90ca8464701ccea7ce69f5711"
+content-hash = "1392a7c820cfac1dcac594b562a89931964a2369c3837d96091b970ba7e3a89f"
 
 [metadata.files]
 aiohttp = []
@@ -2733,23 +2733,7 @@ uvicorn = [
     {file = "uvicorn-0.17.6.tar.gz", hash = "sha256:5180f9d059611747d841a4a4c4ab675edf54c8489e97f96d0583ee90ac3bfc23"},
 ]
 virtualenv = []
-winkerberos = [
-    {file = "winkerberos-0.9.0-cp27-cp27m-win32.whl", hash = "sha256:4c26c14f17132135077eedfda53f4d517a24d9543b40e93f03864f95caa3c57c"},
-    {file = "winkerberos-0.9.0-cp27-cp27m-win_amd64.whl", hash = "sha256:b77f39220215fab5e5586602a3401726c1e751d2b7a47fa2699e59f8de1dfa45"},
-    {file = "winkerberos-0.9.0-cp310-cp310-win32.whl", hash = "sha256:53d78f100e21560bd4bf6caad9d151a4b19c9221e4024c79c05b0aad7b4eac76"},
-    {file = "winkerberos-0.9.0-cp310-cp310-win_amd64.whl", hash = "sha256:935d781229163968235289c307a64d187655fef9a520fe939ab9b07022e90df5"},
-    {file = "winkerberos-0.9.0-cp35-cp35m-win32.whl", hash = "sha256:d00b2c4197761a03db2000e2ef977aebdd12384c5214917c21b6168014c1f331"},
-    {file = "winkerberos-0.9.0-cp35-cp35m-win_amd64.whl", hash = "sha256:451bd69e55a467e5c156b2324ab98e42441105be08f7247f2465aea08da85aec"},
-    {file = "winkerberos-0.9.0-cp36-cp36m-win32.whl", hash = "sha256:b0ed44a30378db382cdbcc24dedc317b26fba08d16f4902cd05a578e33e426e6"},
-    {file = "winkerberos-0.9.0-cp36-cp36m-win_amd64.whl", hash = "sha256:8ee8dd8620dde796184b06558b75c43d00202af7e23d7f3625355ae44a5dfc2d"},
-    {file = "winkerberos-0.9.0-cp37-cp37m-win32.whl", hash = "sha256:16c4372feec133ca9909904d8a059f44c223540ccc36292e5ad5c5573f66b749"},
-    {file = "winkerberos-0.9.0-cp37-cp37m-win_amd64.whl", hash = "sha256:4b8633c371b6cc7fcf12232239c10a60ee4263234797f6bbe96eec914f7b4a5a"},
-    {file = "winkerberos-0.9.0-cp38-cp38-win32.whl", hash = "sha256:35db43bd74e0c4fc8de255da7d50d0a5171da3c5a479db0c023ac0eba34d409e"},
-    {file = "winkerberos-0.9.0-cp38-cp38-win_amd64.whl", hash = "sha256:eab514d756d3dfe3a37e52aa20ca2ce096eed619134606b1fd6709870a26a414"},
-    {file = "winkerberos-0.9.0-cp39-cp39-win32.whl", hash = "sha256:e58b3259f3e08b32d24b84f527a159422bec92b3b19780e1a7886a0da951e76d"},
-    {file = "winkerberos-0.9.0-cp39-cp39-win_amd64.whl", hash = "sha256:90f9f94a2720852a7c71b36f60dffbd905ce33f21eb2148aeee8ad92d0e91dd9"},
-    {file = "winkerberos-0.9.0.zip", hash = "sha256:be14d27ce7a3b29775dd1018b0ae06f29a4025070839ffb1465ab120e287c479"},
-]
+winkerberos = []
 xlrd = [
     {file = "xlrd-2.0.1-py2.py3-none-any.whl", hash = "sha256:6a33ee89877bd9abc1158129f6e94be74e2679636b8a205b43b85206c3f0bbdd"},
     {file = "xlrd-2.0.1.tar.gz", hash = "sha256:f72f148f54442c6b056bf931dbc34f986fd0c3b0b6b5a58d013c9aef274d0c88"},

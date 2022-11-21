@@ -19,11 +19,17 @@ def mock_env(monkeypatch):
     monkeypatch.setenv("OS2SYNC_TOP_UNIT_UUID", str(env_uuid))
 
 
+@pytest.fixture
+def client_secret_env(monkeypatch):
+    monkeypatch.setenv("CLIENT_SECRET", str(uuid4()))
+
+
 class TestConfig:
     dummy_config = {
         "municipality.cvr": file_municipality,
         "os2sync_top_unit_uuid": file_uuid,
         "os2sync.api_url": file_api_url,
+        "client_secret": uuid4(),
     }
 
     @patch("os2sync_export.config.load_settings", return_value={})
@@ -33,7 +39,7 @@ class TestConfig:
             get_os2sync_settings()
 
     @patch("os2sync_export.config.load_settings", return_value=dummy_config)
-    def test_minimal_settings_file(self, settings_mock):
+    def test_minimal_settings_file(self, settings_mock, client_secret_env):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
         assert settings.municipality == self.dummy_config["municipality.cvr"]
@@ -43,14 +49,16 @@ class TestConfig:
         assert settings.os2sync_api_url == self.dummy_config["os2sync.api_url"]
 
     @patch("os2sync_export.config.load_settings", return_value={})
-    def test_minimal_settings_env(self, mock_settings_file, mock_env):
+    def test_minimal_settings_env(
+        self, mock_settings_file, mock_env, client_secret_env
+    ):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
         assert settings.municipality == env_municipality
         assert settings.os2sync_top_unit_uuid == env_uuid
 
     @patch("os2sync_export.config.load_settings", return_value=dummy_config)
-    def test_env_overrides(self, mock_settings_file, mock_env):
+    def test_env_overrides(self, mock_settings_file, mock_env, client_secret_env):
         get_os2sync_settings.cache_clear()
         settings = get_os2sync_settings()
         # Exists in both env and file, using env
@@ -59,14 +67,15 @@ class TestConfig:
         # Exists only in file
         assert settings.os2sync_api_url == file_api_url
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "optionals",
         [
-            ({},),
+            ({}),
             (
                 {
                     "os2sync.uuid_from_it_systems": ["FK-org uuid"],
                     "os2sync.filter_hierarchy_names": ["Linjeorganisation"],
-                },
+                }
             ),
             (
                 {
@@ -75,11 +84,11 @@ class TestConfig:
                         "Linjeorganisation",
                         "Selvejende institutioner",
                     ],
-                },
+                }
             ),
-        ]
+        ],
     )
-    def test_full_config(self, optionals):
+    def test_full_config(self, optionals, client_secret_env):
         conf = {
             "municipality.cvr": "test",
             "mora.base": "http://testos2mo.dk",
