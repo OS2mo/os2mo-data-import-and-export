@@ -8,6 +8,9 @@ services:
       MUNICIPALITY: 1234
       OS2SYNC_TOP_UNIT_UUID: f06ee470-9f17-566f-acbe-e938112d46d9
       mora_base: http://mo:80
+      CLIENT_ID: "dipex"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+      AUTH_SERVER: "http://keycloak:8080/auth"
     command: "uvicorn os2sync_export.main:app --host 0.0.0.0 --reload"
     ports:
       - 8000:8000/tcp
