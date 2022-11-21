@@ -67,7 +67,7 @@ def extract_uuids(gql_response: Dict) -> Tuple[Set[UUID], Set[UUID]]:
 
 
 def remove_from_os2sync(
-    settings: Settings, dry_run
+    settings: Settings, dry_run: bool = False
 ) -> Optional[Tuple[Set[UUID], Set[UUID]]]:
 
     if not settings.os2sync_uuid_from_it_systems:
