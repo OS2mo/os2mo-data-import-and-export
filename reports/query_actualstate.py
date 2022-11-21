@@ -118,7 +118,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
     )
 
     with GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v2",
+        url=f"{settings.mora_base}/graphql/v3",
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,

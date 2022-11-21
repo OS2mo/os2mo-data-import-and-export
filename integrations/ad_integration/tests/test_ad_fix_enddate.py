@@ -32,7 +32,7 @@ ad_null_date = datetime.date(9999, 12, 31)
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 def get_c(mock_session):
     with GraphQLClient(
-        url=f"{mora_base}/graphql",
+        url=f"{mora_base}/graphql/v3",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
