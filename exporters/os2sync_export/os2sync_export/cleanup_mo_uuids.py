@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
-from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -15,7 +15,7 @@ from os2sync_export.os2sync import delete_user
 from raclients.graph.client import GraphQLClient
 
 
-def get_it_user_uuids(settings: Settings) -> Dict:
+def get_it_user_uuids(settings: Settings) -> List:
     """Read all MO uuids that have it-accounts."""
 
     query = gql(
@@ -25,7 +25,7 @@ def get_it_user_uuids(settings: Settings) -> Dict:
                   employee_uuid
                   org_unit_uuid
                   itsystem {
-                    user_key
+                    name
                   }
                 }
               }
@@ -44,15 +44,15 @@ def get_it_user_uuids(settings: Settings) -> Dict:
         r = session.execute(query)
         # Filter by it-systems
     filtered_uuids = filter(
-        lambda it: one(it["objects"])["itsystem"]["user_key"]
+        lambda it: one(it["objects"])["itsystem"]["name"]
         in settings.os2sync_uuid_from_it_systems,
         r["itusers"],
     )
 
-    return dict(filtered_uuids)
+    return list(filtered_uuids)
 
 
-def extract_uuids(gql_response: Dict) -> Tuple[Set[UUID], Set[UUID]]:
+def extract_uuids(gql_response: List) -> Tuple[Set[UUID], Set[UUID]]:
     """Split all it-user uuids into sets of org_unit uuids and employee uuids"""
 
     # Split into org_units and employees
