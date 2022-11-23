@@ -25,7 +25,7 @@ def get_it_user_uuids(settings: Settings) -> Dict:
                   employee_uuid
                   org_unit_uuid
                   itsystem {
-                    user_key
+                    name
                   }
                 }
               }
@@ -44,7 +44,7 @@ def get_it_user_uuids(settings: Settings) -> Dict:
         r = session.execute(query)
         # Filter by it-systems
     filtered_uuids = filter(
-        lambda it: one(it["objects"])["itsystem"]["user_key"]
+        lambda it: one(it["objects"])["itsystem"]["name"]
         in settings.os2sync_uuid_from_it_systems,
         r["itusers"],
     )
