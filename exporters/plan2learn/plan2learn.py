@@ -48,14 +48,21 @@ ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres
 
 
 def get_e_address(e_uuid, scope, lc_historic):
-    # Iterator of all addresses in LoRa
     lora_addresses = lc_historic.addresses.values()
+    # Retrieving all addresses and flattening the list by one link.
     lora_addresses = flatten(lora_addresses)
     # Iterator of all addresses for the current user
-    lora_addresses1 = list(filter(lambda address: address["user"] == e_uuid, lora_addresses))
+    lora_addresses = filter(
+        lambda address: address['user'] == e_uuid,
+        lora_addresses
+    )
     # Iterator of all addresses for current user and correct scope
-    lora_addresses2 = list(filter(lambda address: address["scope"] == scope, lora_addresses))
-    candidates = lora_addresses1, lora_addresses2
+    lora_addresses = filter(
+        lambda address: address['scope'] == scope,
+        lora_addresses
+    )
+    candidates = lora_addresses
+
     return candidates
 
 
@@ -78,16 +85,13 @@ def get_filtered_phone_addresses(
     phone_addresses = get_e_address(str(e_uuid), "Telefon", lc_historic)
 
     # Filter through all addresses, and only return the ones existing in priority_list.
-    addresses = list(
-        filter(lambda p: p["adresse_type"] in priority_list, phone_addresses)
-    )
+    addresses = filter(lambda p: p["adresse_type"] in priority_list, phone_addresses)
 
     # Sort addresses according to the address_types placement in priority_list to only return the address that matches
     # the first element in priority_list.
-    address = first(
-        sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])),
-        default={},
-    )
+
+    address = first(sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])), default={})
+
     if address is not None:
         return address
     else:
