@@ -185,4 +185,3 @@ def test_get_filtered_phone_addresses_sends_correct_address_from_filter_unit_tes
     )
 
     assert response == expected_result
-    assert 1 == 4

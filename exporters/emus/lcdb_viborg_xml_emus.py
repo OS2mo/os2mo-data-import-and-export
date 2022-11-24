@@ -10,21 +10,17 @@
 import collections
 import datetime
 import io
-import json
 import logging
 import sys
 import time
 from functools import partial
 from itertools import filterfalse
-from typing import List
-from uuid import UUID
 from xml.sax.saxutils import escape
 
 import click
 import requests
 from anytree import Node
 from anytree import PreOrderIter
-from more_itertools import first
 from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker
 
@@ -40,6 +36,7 @@ from exporters.sql_export.sql_table_defs import Leder
 from exporters.sql_export.sql_table_defs import LederAnsvar
 from exporters.utils.priority_by_class import lcdb_choose_public_address
 from helpers import tqdm
+
 
 logging.basicConfig(
     format=config.logformat,
@@ -242,7 +239,7 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
             emus_file.write("</orgUnit>\n")
 
 
-def get_e_address(e_uuid, scope, session):
+def get_e_address(e_uuid, scope, session, settings):
     candidates = (
         session.query(Adresse)
         .filter(
@@ -254,63 +251,18 @@ def get_e_address(e_uuid, scope, session):
         .all()
     )
 
-    return candidates
+    if scope == "Telefon":
+        priority_list = settings["EMUS_PHONE_PRIORITY"]
+    elif scope == "E-mail":
+        priority_list = settings["EMUS_EMAIL_PRIORITY"]
+    else:
+        priority_list = []
 
-
-def get_filtered_phone_addresses(
-    e_uuid: UUID, priority_list: List[UUID], session
-) -> dict:
-    """
-    Takes UUID of a person and returns an object with only eligible numbers through a filter.
-    Returns if a match on only the first element in the priority list is found.
-    Defaults to an empty dict, if no address is found.
-
-    args:
-    uuid of a person, a list of uuid(s) to filter on, a session on which a query is made through SQLalchemy.
-
-    returns:
-    A dict with an eligible phone number or an empty dict if none.
-    """
-
-    # Retrieve all phone addresses.
-    phone_addresses = get_e_address(str(e_uuid), "Telefon", session)
-
-    # Filter through all addresses, and only return the ones existing in priority_list.
-    addresses = list(
-        filter(lambda p: p.adressetype_uuid in priority_list, phone_addresses)
-    )
-
-    # Sort addresses according to the address_types placement in priority_list to only return the address that matches
-    # the first element in priority_list.
-    address = first(
-        sorted(addresses, key=lambda a: priority_list.index(a.adressetype_uuid)),
-        default={},
-    )
-
+    address = lcdb_choose_public_address(candidates, priority_list)
     if address is not None:
         return address
     else:
-        return {}
-
-
-def get_email_addresses(e_uuid: UUID, priority_list: List[UUID], session) -> dict:
-    """
-    Takes UUID of a person and returns a list object with eligible emails through a priority list.
-
-    args:
-    uuid of a person, a priority list of uuid(s), a session on which a query is made through SQLalchemy.
-
-    returns:
-    A dict of eligible emails or an empty dict if none.
-    """
-
-    email_addresses = get_e_address(str(e_uuid), "E-mail", session)
-
-    address = lcdb_choose_public_address(email_addresses, priority_list)
-    if address is not None:
-        return address
-    else:
-        return {}
+        return {}  # like mora_helpers
 
 
 def build_engagement_row(session, settings, ou, engagement):
@@ -333,16 +285,13 @@ def build_engagement_row(session, settings, ou, engagement):
         .limit(1)
         .scalar()
     )
-    _phone_obj = get_filtered_phone_addresses(
-        engagement.bruger_uuid, settings["EMUS_PHONE_PRIORITY"], session
-    )
+
+    _phone_obj = get_e_address(engagement.bruger_uuid, "Telefon", session, settings)
     _phone = None
     if _phone_obj:
         _phone = _phone_obj.værdi
 
-    _email_obj = get_email_addresses(
-        engagement.bruger_uuid, settings["EMUS_EMAIL_PRIORITY"], session
-    )
+    _email_obj = get_e_address(engagement.bruger_uuid, "E-mail", session, settings)
     _email = None
     if _email_obj:
         _email = _email_obj.værdi
@@ -430,16 +379,12 @@ def build_manager_rows(session, settings, ou, manager):
         .scalar()
     )
 
-    _phone_obj = get_filtered_phone_addresses(
-        bruger.uuid, settings["EMUS_PHONE_PRIORITY"], session
-    )
+    _phone_obj = get_e_address(bruger.uuid, "Telefon", session, settings)
     _phone = None
     if _phone_obj:
         _phone = _phone_obj.værdi
 
-    _email_obj = get_email_addresses(
-        bruger.uuid, settings["EMUS_EMAIL_PRIORITY"], session
-    )
+    _email_obj = get_e_address(bruger.uuid, "E-mail", session, settings)
     _email = None
     if _email_obj:
         _email = _email_obj.værdi

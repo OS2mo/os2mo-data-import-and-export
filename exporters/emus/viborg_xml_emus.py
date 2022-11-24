@@ -12,22 +12,22 @@ These are specfic for Viborg
 import collections
 import datetime
 import io
+import json
 import logging
 import os
+import pathlib
 import time
 import uuid
-from typing import List
-from uuid import UUID
 from xml.sax.saxutils import escape
 
 import requests
-from more_itertools import first
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 
 import exporters.common_queries as cq
 from exporters.utils.priority_by_class import choose_public_address
 from helpers import tqdm
+
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get("LOG_LEVEL", "WARNING"), 20)
 logging.basicConfig(
@@ -51,6 +51,7 @@ EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", "emus_filename.xml")
 EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions", [])
 EMUS_ALLOWED_ENGAGEMENT_TYPES = settings.get("emus.engagement_types", [])
+
 
 engagement_counter = collections.Counter()
 
@@ -178,63 +179,6 @@ def get_e_address(e_uuid, scope, mh):
         return {}  # like mora_helpers
 
 
-def get_filtered_phone_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: List[UUID]
-) -> dict:
-    """
-    Takes UUID of a person and returns an object with only eligible numbers through a filter.
-    Returns if a match on only the first element in the priority list is found.
-    Defaults to an empty dict, if no address is found.
-
-    args:
-    uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
-
-    returns:
-    A dict of with an eligible phone number or an empty dict if none.
-    """
-
-    # Retrieve all phone addresses.
-    phone_addresses = mh.get_e_addresses(e_uuid, "PHONE")
-
-    # Filter through all addresses, and only return the ones existing in priority_list.
-    addresses = list(
-        filter(lambda p: p["address_type"]["uuid"] in priority_list, phone_addresses)
-    )
-
-    # Sort addresses according to the address_types placement in priority_list to only return the address that matches
-    # the first element in priority_list.
-    address = first(
-        sorted(addresses, key=lambda a: priority_list.index(a["address_type"]["uuid"])),
-        default={},
-    )
-    if address is not None:
-        return address
-    else:
-        return {}
-
-
-def get_email_addresses(
-    e_uuid: UUID, mh: MoraHelper, priority_list: List[UUID]
-) -> dict:
-    """
-    Takes UUID of a person and returns a list object with eligible emails through a priority list.
-
-    args:
-    uuid of a person, the lookup-helper from mh, a priority list of uuid(s).
-
-    returns:
-    A dict of eligible emails or an empty dict if none.
-    """
-
-    email_addresses = mh.get_e_addresses(str(e_uuid), "EMAIL")
-
-    address = choose_public_address(email_addresses, priority_list)
-    if address is not None:
-        return address
-    else:
-        return {}
-
-
 """
 musskema adaptation
 musskema, the application receiving this export, did not have a manager
@@ -257,12 +201,8 @@ def build_engagement_row(mh, ou, engagement):
         firstname, lastname = engagement["person"]["name"].rsplit(" ", maxsplit=1)
 
     username = mh.get_e_username(engagement["person"]["uuid"], "Active Directory")
-    _phone = get_filtered_phone_addresses(
-        engagement["person"]["uuid"], mh, settings["emus.phone.priority"]
-    )
-    _email = get_email_addresses(
-        engagement["person"]["uuid"], mh, settings["emus.email.priority"]
-    )
+    _phone = get_e_address(engagement["person"]["uuid"], "PHONE", mh)
+    _email = get_e_address(engagement["person"]["uuid"], "EMAIL", mh)
 
     row = {
         "personUUID": engagement["person"]["uuid"],
@@ -329,10 +269,8 @@ def build_manager_rows(mh, ou, manager):
 
     username = mh.get_e_username(person["uuid"], "Active Directory")
 
-    _phone = get_filtered_phone_addresses(
-        person["uuid"], mh, settings["emus.phone.priority"]
-    )
-    _email = get_email_addresses(person["uuid"], mh, settings["emus.email.priority"])
+    _phone = get_e_address(person["uuid"], "PHONE", mh)
+    _email = get_e_address(person["uuid"], "EMAIL", mh)
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
