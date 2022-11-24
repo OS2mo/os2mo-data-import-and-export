@@ -52,22 +52,16 @@ def get_e_address(e_uuid, scope, lc_historic):
     # Retrieving all addresses and flattening the list by one link.
     lora_addresses = flatten(lora_addresses)
     # Iterator of all addresses for the current user
-    lora_addresses = filter(
-        lambda address: address['user'] == e_uuid,
-        lora_addresses
-    )
+    lora_addresses = filter(lambda address: address["user"] == e_uuid, lora_addresses)
     # Iterator of all addresses for current user and correct scope
-    lora_addresses = filter(
-        lambda address: address['scope'] == scope,
-        lora_addresses
-    )
+    lora_addresses = filter(lambda address: address["scope"] == scope, lora_addresses)
     candidates = lora_addresses
 
     return candidates
 
 
 def get_filtered_phone_addresses(
-        e_uuid: UUID, priority_list: List[UUID], lc_historic
+    e_uuid: UUID, priority_list: List[UUID], lc_historic
 ) -> dict:
     """
     Takes UUID of a person and returns an object with only eligible numbers through a filter.
@@ -75,22 +69,23 @@ def get_filtered_phone_addresses(
     Defaults to an empty dict, if no address is found.
 
     args:
-    uuid of a person, the lookup-helper from mh, a list of uuid(s) to filter on.
+    uuid of a person, a list of uuid(s) to filter on and LoRaCache historic.
 
     returns:
-    A dict of with an eligible phone number or an empty dict if none.
+    A dict with an eligible phone number, or an empty dict if none is found.
     """
-
-    # Retrieve all phone addresses.
+    # Retrieve all addresses with the scope of "Telefon". These appear as dicts inside a list.
     phone_addresses = get_e_address(str(e_uuid), "Telefon", lc_historic)
 
-    # Filter through all addresses, and only return the ones existing in priority_list.
+    # Filter through all addresses, on the "adresse_type" uuid, and only return the ones existing in priority_list.
     addresses = filter(lambda p: p["adresse_type"] in priority_list, phone_addresses)
 
-    # Sort addresses according to the address_types placement in priority_list to only return the address that matches
+    # Sort addresses according to the "adresse_type" placement in priority_list, to only return the address that matches
     # the first element in priority_list.
-
-    address = first(sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])), default={})
+    address = first(
+        sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])),
+        default={},
+    )
 
     if address is not None:
         return address
@@ -99,16 +94,16 @@ def get_filtered_phone_addresses(
 
 
 def get_email_addresses(
-        e_uuid: UUID, priority_list: List[UUID], lc_historic, lc
+    e_uuid: UUID, priority_list: List[UUID], lc_historic, lc
 ) -> dict:
     """
     Takes UUID of a person and returns a list object with eligible emails through a priority list.
 
     args:
-    uuid of a person, a priority list of uuid(s), a session on which a query is made through SQLalchemy.
+    uuid of a person, a priority list of uuid(s), LoRaCache historic.
 
     returns:
-    A dict of eligible emails or an empty dict if none.
+    A dict with an eligible email or an empty dict if none.
     """
 
     email_addresses = get_e_address(str(e_uuid), "E-mail", lc_historic)
@@ -317,7 +312,7 @@ def export_organisation(mh, nodes, filename, lc=None):
 
 
 def export_engagement(
-        mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
+    mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
 ):
     fieldnames = [
         "EngagementId",
