@@ -63,19 +63,19 @@ Release OS2Sync release image:
     CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
     RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
 
-Release to Dev:
+Release OS2Sync to Dev:
   extends: .release-to-dev
   needs: ["Release version"]
   variables:
     ENDPOINT: os2mo/flux/os2syncexport/update-dev
 
-Release to Test:
+Release OS2Sync to Test:
   extends: .release-to-test
   needs: []
   variables:
     ENDPOINT: os2mo/flux/os2syncexport/update-test
 
-Release to Prod:
+Release OS2Sync to Prod:
   extends: .release-to-prod
   needs: []
   variables:
