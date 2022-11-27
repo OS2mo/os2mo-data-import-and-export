@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import BackgroundTasks
@@ -9,6 +10,7 @@ from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 @app.get("/")

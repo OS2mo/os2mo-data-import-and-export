@@ -18,7 +18,6 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
-from os2sync_export import config
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -27,7 +26,7 @@ from ra_utils.headers import TokenSettings
 
 from exporters.utils.priority_by_class import choose_public_address
 
-logger = logging.getLogger(config.loggername)
+logger = logging.getLogger(__name__)
 
 
 def get_mo_session():
@@ -116,14 +115,10 @@ def os2mo_get(url, **params):
     mora_base = get_os2sync_settings().mora_base
 
     url = url.format(BASE=f"{mora_base}/service")
-    try:
-        session = get_mo_session()
-        r = session.get(url, params=params)
-        r.raise_for_status()
-        return r
-    except Exception:
-        logger.exception(url)
-        raise
+    session = get_mo_session()
+    r = session.get(url, params=params)
+    r.raise_for_status()
+    return r
 
 
 def has_kle():

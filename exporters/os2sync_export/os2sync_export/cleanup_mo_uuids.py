@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
+import logging
 from typing import List
 from typing import Optional
 from typing import Set
@@ -13,6 +14,8 @@ from os2sync_export.config import Settings
 from os2sync_export.os2sync import delete_orgunit
 from os2sync_export.os2sync import delete_user
 from raclients.graph.client import GraphQLClient
+
+logger = logging.getLogger(__name__)
 
 
 def get_it_user_uuids(settings: Settings) -> List:

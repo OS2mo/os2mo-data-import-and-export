@@ -28,7 +28,7 @@ from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
 
-logger = logging.getLogger(config.loggername)
+logger = logging.getLogger(__name__)
 
 
 def get_session(engine):

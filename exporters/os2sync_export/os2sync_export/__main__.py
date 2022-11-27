@@ -20,7 +20,7 @@ from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from tqdm import tqdm
 
-logger = None  # set in main()
+logger = logging.getLogger(__name__)
 
 
 def log_mox_config(settings):
@@ -29,10 +29,10 @@ def log_mox_config(settings):
     and end.
     """
 
-    logger.warning("-----------------------------------------")
-    logger.warning("program configuration:")
+    logger.info("-----------------------------------------")
+    logger.info("program configuration:")
     for k, v in settings:
-        logger.warning("    %s=%r", k, v)
+        logger.info("    %s=%r", k, v)
 
 
 def log_mox_counters(counter):
@@ -76,14 +76,19 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     if len(os2mo_uuids_present):
         terminated_org_units = set(os2mo_uuids_past - os2mo_uuids_present)
         for uuid in tqdm(
-            terminated_org_units, desc="Deleting terminated org_units", unit="org_unit"
+            terminated_org_units,
+            desc="Deleting terminated org_units",
+            unit="org_unit",
+            disable=None,
         ):
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(uuid)
 
-    logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
+    logger.info("sync_os2sync_orgunits upserting organisational units in os2sync")
 
-    for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
+    for i in tqdm(
+        os2mo_uuids_present, desc="Updating org_units", unit="org_unit", disable=None
+    ):
         sts_orgunit = os2mo.get_sts_orgunit(i, settings=settings)
         if sts_orgunit:
             counter["Orgenheder som opdateres i OS2Sync"] += 1
@@ -137,7 +142,7 @@ def sync_os2sync_users(settings, counter, prev_date):
     # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    for i in tqdm(os2mo_uuids_present, "Updating users", unit="user"):
+    for i in tqdm(os2mo_uuids_present, "Updating users", unit="user", disable=None):
         # medarbejdere er allerede omfattet af autowash
         # fordi de ikke får nogen 'Positions' hvis de ikke
         # har en ansættelse i en af allowed_unitids
@@ -155,21 +160,8 @@ def sync_os2sync_users(settings, counter, prev_date):
 
 
 def main(settings):
-    # set warning-level for all loggers
-    global logger
-    [
-        logging.getLogger(name).setLevel(logging.WARNING)
-        for name in logging.root.manager.loggerDict
-        if name != config.loggername
-    ]
-
-    logging.basicConfig(
-        format=config.logformat,
-        level=settings.os2sync_log_level,
-        filename=settings.os2sync_log_file,
-    )
-    logger = logging.getLogger(config.loggername)
-    logger.setLevel(settings.os2sync_log_level)
+    settings.start_logging_based_on_settings()
+    logger.warning("STARTING")
 
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
