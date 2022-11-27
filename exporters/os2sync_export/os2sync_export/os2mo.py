@@ -323,7 +323,7 @@ def organization_uuid() -> str:
 @lru_cache
 def org_unit_uuids(**kwargs: Any) -> Set[str]:
     org_uuid = organization_uuid()
-    hierarchy_uuids = kwargs.get("hierarchy_uuids")
+    hierarchy_uuids = kwargs.pop("hierarchy_uuids")
     if hierarchy_uuids:
         kwargs["hierarchy_uuids"] = tuple(str(u) for u in hierarchy_uuids)
     ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
