@@ -8,29 +8,33 @@
 import hashlib
 import json
 import logging
+from functools import lru_cache
 from typing import Dict
 
-import requests
+import httpx
 from os2sync_export import config
 
-settings = config.get_os2sync_settings()
+
+@lru_cache
+def get_os2sync_client():
+    session = httpx.Client()
+    settings = config.get_os2sync_settings()
+    if settings.os2sync_api_url == "stub":
+        from os2ysnc_export import stub
+
+        return stub.Session()
+    session.verify = settings.os2sync_ca_verify_os2sync
+    session.headers["User-Agent"] = "os2mo-data-import-and-export"
+    session.headers["CVR"] = settings.municipality
+    return session
+
+
 logger = logging.getLogger(__name__)
 hash_cache: Dict = {}
-session = requests.Session()
-
-
-if settings.os2sync_api_url == "stub":
-    from os2ysnc_export import stub
-
-    session = stub.Session()
-
-
-session.verify = settings.os2sync_ca_verify_os2sync
-session.headers["User-Agent"] = "os2mo-data-import-and-export"
-session.headers["CVR"] = settings.municipality
 
 
 def already_xferred(url, params, method):
+    settings = config.get_os2sync_settings()
     if settings.os2sync_api_url == "stub":
         params_hash = params
     else:
@@ -46,12 +50,14 @@ def already_xferred(url, params, method):
 
 def os2sync_url(url):
     """format url like {BASE}/user"""
+    settings = config.get_os2sync_settings()
     url = url.format(BASE=settings.os2sync_api_url)
     return url
 
 
 def os2sync_get(url, **params):
     url = os2sync_url(url)
+    session = get_os2sync_client()
     try:
         r = session.get(url, params=params)
         r.raise_for_status()
@@ -64,11 +70,12 @@ def os2sync_get(url, **params):
 
 def os2sync_delete(url, **params):
     url = os2sync_url(url)
+    session = get_os2sync_client()
     r = session.delete(url, **params)
     try:
         r.raise_for_status()
 
-    except requests.HTTPError as e:
+    except httpx.HTTPError as e:
         if e.response.status_code == 404:
             logger.warning("delete %r %r :404", url, params)
 
@@ -77,6 +84,7 @@ def os2sync_delete(url, **params):
 
 def os2sync_post(url, **params):
     url = os2sync_url(url)
+    session = get_os2sync_client()
     r = session.post(url, **params)
     try:
         r.raise_for_status()

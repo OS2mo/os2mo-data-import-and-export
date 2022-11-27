@@ -15,7 +15,7 @@ from typing import Set
 from typing import Tuple
 from uuid import UUID
 
-import requests
+import httpx
 from more_itertools import first
 from more_itertools import one
 from os2sync_export.config import get_os2sync_settings
@@ -29,8 +29,9 @@ from exporters.utils.priority_by_class import choose_public_address
 logger = logging.getLogger(__name__)
 
 
+@lru_cache
 def get_mo_session():
-    session = requests.Session()
+    session = httpx.Client()
     session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
     session.headers = {
         "User-Agent": "os2mo-data-import-and-export",
