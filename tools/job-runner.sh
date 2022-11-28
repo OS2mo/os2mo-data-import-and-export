@@ -786,7 +786,12 @@ post_backup(){
     echo truncating backed up logfiles
     for f in ${BACK_UP_AND_TRUNCATE[@]}
     do
-        [ -f "${f}" ] && truncate -s 0 "${f}"
+        if [ -f "${f}" ]; then
+            printf "truncating %s\n" "$f"
+            truncate -s 0 "${f}"
+        else
+            printf "not truncating %s\n" "$f"
+        fi
     done
 
     echo
