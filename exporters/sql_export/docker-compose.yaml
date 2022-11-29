@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+services:
+  sql_export:
+    build: .
+    command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
+    environment:
+      AUTH_SERVER: "http://keycloak:8080/auth"
+
+      MORA_BASE: "http://mo"
+      CLIENT_ID: "dipex"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+
+      MOX_BASE: "http://mox"
+      LORA_CLIENT_SECRET: "a091ed82-6e82-4efc-a8f0-001e2b127853"
+
+      LOG_LEVEL: INFO
+
+      ACTUAL_STATE__TYPE: Postgres
+      ACTUAL_STATE__HOST: export-db
+      ACTUAL_STATE__DB_NAME: actualstate
+      ACTUAL_STATE__USER: postgres
+      ACTUAL_STATE__PASSWORD: mysecretpassword
+    ports:
+      - 8000:8000/tcp
+    volumes:
+      - ./:/opt/sql_export/
+    networks:
+      - os2mo_default
+      - sql_export
+
+  export-db:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: actualstate
+    tmpfs:
+      - /var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - sql_export
+
+networks:
+  os2mo_default:
+    external: true
+  sql_export:

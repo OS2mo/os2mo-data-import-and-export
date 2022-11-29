@@ -2,8 +2,10 @@ import asyncio
 from datetime import date
 from functools import lru_cache
 from operator import itemgetter
+from typing import cast
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import Tuple
@@ -165,9 +167,12 @@ def lookup_employees():
 @lru_cache(maxsize=0)
 def build_cpr_map() -> Dict[str, str]:
     employees = lookup_employees()
-    cache = map(
-        itemgetter("cpr_no", "uuid"),
-        filter(lambda employee: employee.get("cpr_no"), employees),
+    cache = cast(
+        Iterator[Tuple[str, str]],
+        map(
+            itemgetter("cpr_no", "uuid"),
+            filter(lambda employee: employee.get("cpr_no"), employees),
+        ),
     )
     return dict(cache)
 

@@ -14,8 +14,10 @@ repos:
     rev: v0.812
     hooks:
       - id: mypy
-        language: system
-        types: [file, python]
+        additional_dependencies:
+          - pydantic
+          - types-requests
+          - types-python-dateutil
         args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
         exclude: integrations/opus/
 

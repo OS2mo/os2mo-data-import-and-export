@@ -13,12 +13,12 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from exporters.sql_export.sql_export import SqlExport
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import Tilknytning
+from ..sql_export import SqlExport
+from ..sql_table_defs import Base
+from ..sql_table_defs import Bruger
+from ..sql_table_defs import Enhed
+from ..sql_table_defs import ItForbindelse
+from ..sql_table_defs import Tilknytning
 
 
 class FakeLC:

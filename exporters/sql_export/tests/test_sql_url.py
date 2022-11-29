@@ -2,10 +2,10 @@ from functools import partial
 
 import pytest
 
-from exporters.sql_export.sql_url import DatabaseFunction
-from exporters.sql_export.sql_url import generate_connection_url
-from exporters.sql_export.sql_url import generate_db_type_and_name
-from exporters.sql_export.sql_url import generate_engine_settings
+from ..sql_url import DatabaseFunction
+from ..sql_url import generate_connection_url
+from ..sql_url import generate_db_type_and_name
+from ..sql_url import generate_engine_settings
 
 
 @pytest.mark.parametrize(
