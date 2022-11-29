@@ -152,11 +152,6 @@ imports_test_sd_connectivity(){
     return $EXIT_CODE
 }
 
-imports_test_opus_connectivity(){
-    echo running imports_test_ops_connectivity
-    ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
-}
-
 imports_sd_fix_departments(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/fix_sd_departments.log"
@@ -531,19 +526,6 @@ reports_sd_db_overview(){
     return $STATUS
 }
 
-reports_opus_db_overview(){
-    echo running reports_opus_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
-    local STATUS=$?
-    head -4 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
-    return $STATUS
-}
-
-
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
     #echo sourcing $module
@@ -568,10 +550,6 @@ imports(){
 
     if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_sd_connectivity || return 2
-    fi
-
-    if [ "${RUN_CHECK_OPUS_CONNECTIVITY}" == "true" ]; then
-        run-job imports_test_opus_connectivity || return 2
     fi
 
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
@@ -722,10 +700,6 @@ reports(){
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         run-job reports_sd_db_overview || return 2
-    fi
-
-    if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
@@ -903,5 +877,5 @@ elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
-    export -f pre_backup post_backup reports_opus_db_overview reports_sd_db_overview
+    export -f pre_backup post_backup reports_sd_db_overview
 fi
