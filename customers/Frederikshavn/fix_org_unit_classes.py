@@ -8,8 +8,8 @@ from more_itertools import only, partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
-from tools.data_fixers.class_tools import delete_class, move_class_helper
 from helpers import tqdm
+from tools.data_fixers.class_tools import delete_class, move_class_helper
 
 
 def split(group):

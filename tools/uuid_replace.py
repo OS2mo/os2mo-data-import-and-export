@@ -4,9 +4,8 @@ from itertools import filterfalse
 from uuid import UUID
 
 import click
-from more_itertools import flatten
-
 from helpers import tqdm
+from more_itertools import flatten
 
 
 # TODO: Consider moving this to exporters/utils/uuid_test.py

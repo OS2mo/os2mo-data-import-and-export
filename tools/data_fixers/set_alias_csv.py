@@ -9,7 +9,6 @@ from operator import itemgetter
 
 import aiohttp
 import click
-
 from helpers import tqdm
 
 

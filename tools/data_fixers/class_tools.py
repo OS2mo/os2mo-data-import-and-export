@@ -12,6 +12,7 @@ import click
 import jmespath
 import requests
 from aiohttp.client_exceptions import ClientResponseError
+from helpers import tqdm
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
@@ -20,8 +21,6 @@ from mox_helpers.mox_util import ensure_class_value_helper
 from ra_utils.load_settings import load_setting
 from ra_utils.load_settings import load_settings
 from ra_utils.transpose_dict import transpose_dict
-
-from helpers import tqdm
 
 jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
