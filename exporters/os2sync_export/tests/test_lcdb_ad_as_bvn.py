@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from os2sync_export.lcdb_os2mo import get_sts_user
-from os2sync_export.lcdb_os2mo import try_get_ad_user_key
+from os2sync_export.lcdb_os2mo import try_get_it_user_key
 from sqlalchemy.orm import sessionmaker
 from tests.helpers import dummy_settings
 
@@ -153,7 +153,7 @@ class Tests_lc_db(unittest.TestCase):
         expected = "AD-logon"
         self.assertEqual(
             expected,
-            try_get_ad_user_key(
+            try_get_it_user_key(
                 session=self.session, uuid="b1", user_key_it_system_name=AD_IT_SYSTEM
             ),
         )

@@ -53,10 +53,10 @@ scope_to_scope = {
 }
 
 
-def try_get_ad_user_key(
+def try_get_it_user_key(
     session, uuid: str, user_key_it_system_name: str
 ) -> Optional[str]:
-    ad_system_user_names = (
+    it_system_user_names = (
         session.query(ItForbindelse.brugernavn)
         .join(ItSystem, ItForbindelse.it_system_uuid == ItSystem.uuid)
         .filter(
@@ -64,11 +64,11 @@ def try_get_ad_user_key(
         )
         .all()
     )
-    ad_system_user_names = list(flatten(ad_system_user_names))
+    it_system_user_names = list(flatten(it_system_user_names))
 
-    if len(ad_system_user_names) != 1:
+    if len(it_system_user_names) != 1:
         return None
-    return ad_system_user_names[0]
+    return it_system_user_names[0]
 
 
 def to_mo_employee(employee):
@@ -138,7 +138,7 @@ def get_sts_user(session, uuid, settings: config.Settings):
     user = User(
         dict(
             uuid=uuid,
-            candidate_user_id=try_get_ad_user_key(
+            candidate_user_id=try_get_it_user_key(
                 session,
                 uuid,
                 user_key_it_system_name=settings.os2sync_user_key_it_system_name,

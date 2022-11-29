@@ -152,11 +152,6 @@ imports_test_sd_connectivity(){
     return $EXIT_CODE
 }
 
-imports_test_opus_connectivity(){
-    echo running imports_test_ops_connectivity
-    ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
-}
-
 imports_sd_fix_departments(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/fix_sd_departments.log"
@@ -423,12 +418,22 @@ exports_queries_ballerup(){
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar
+
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.sql_export --resolve-dar
+    EXIT_CODE=$?
+    cd ..
+    return $EXIT_CODE
 }
 
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar --historic
+
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.sql_export --resolve-dar --historic
+    EXIT_CODE=$?
+    cd ..
+    return $EXIT_CODE
 }
 
 exports_os2phonebook_export(){
@@ -468,8 +473,10 @@ exports_lc_for_jobs_db(){
     db_file="${actual_db_name}.db"
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.lc_for_jobs_db sql-export --resolve-dar
     local STATUS=$?
+    cd ..
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
     return $STATUS
 }
@@ -477,19 +484,34 @@ exports_lc_for_jobs_db(){
 exports_cache_loracache() {
     echo "Building cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/!(*_historic).p"  # delete old non-historic pickle files
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --no-historic --resolve-dar
+
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.lora_cache --no-historic --resolve-dar
+    EXIT_CODE=$?
+    cd ..
+    return $EXIT_CODE
 }
 
 exports_historic_cache_loracache() {
     echo "Building full historic cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic.p"  # delete old pickle files
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --resolve-dar
+
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.lora_cache --historic --resolve-dar
+    EXIT_CODE=$?
+    cd ..
+    return $EXIT_CODE
 }
 
 exports_historic_skip_past_cache_loracache() {
     echo "Building historic WITHOUT past cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic_skip_past.p"  # delete old pickle files
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --skip-past --resolve-dar
+
+    cd exporters/
+    ${POETRYPATH} run python -m sql_export.lora_cache --historic --skip-past --resolve-dar
+    EXIT_CODE=$?
+    cd ..
+    return $EXIT_CODE
 }
 
 
@@ -503,19 +525,6 @@ reports_sd_db_overview(){
     local STATUS=$?
     return $STATUS
 }
-
-reports_opus_db_overview(){
-    echo running reports_opus_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
-    local STATUS=$?
-    head -4 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
-    return $STATUS
-}
-
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
@@ -541,10 +550,6 @@ imports(){
 
     if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_sd_connectivity || return 2
-    fi
-
-    if [ "${RUN_CHECK_OPUS_CONNECTIVITY}" == "true" ]; then
-        run-job imports_test_opus_connectivity || return 2
     fi
 
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
@@ -697,10 +702,6 @@ reports(){
         run-job reports_sd_db_overview || return 2
     fi
 
-    if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
-    fi
-
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
         run-job reports_viborg_managers || return 2
     fi
@@ -786,7 +787,12 @@ post_backup(){
     echo truncating backed up logfiles
     for f in ${BACK_UP_AND_TRUNCATE[@]}
     do
-        [ -f "${f}" ] && truncate -s 0 "${f}"
+        if [ -f "${f}" ]; then
+            printf "truncating %s\n" "$f"
+            truncate -s 0 "${f}"
+        else
+            printf "not truncating %s\n" "$f"
+        fi
     done
 
     echo
@@ -871,5 +877,5 @@ elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
-    export -f pre_backup post_backup reports_opus_db_overview reports_sd_db_overview
+    export -f pre_backup post_backup reports_sd_db_overview
 fi

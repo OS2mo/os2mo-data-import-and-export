@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from fastapi import BackgroundTasks
 from fastapi import FastAPI
 from fastapi import Query
 from os2sync_export.__main__ import main
@@ -15,10 +16,10 @@ async def index() -> dict[str, str]:
     return {"name": "os2sync_export"}
 
 
-@app.post("/trigger")
-async def trigger_all() -> dict[str, str]:
+@app.post("/trigger", status_code=202)
+async def trigger_all(background_tasks: BackgroundTasks) -> dict[str, str]:
     settings = get_os2sync_settings()
-    main(settings=settings)
+    background_tasks.add_task(main, settings=settings)
     return {"triggered": "OK"}
 
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user
-from os2sync_export.os2mo import try_get_ad_user_key
+from os2sync_export.os2mo import try_get_it_user_key
 from tests.helpers import dummy_settings
 
 uuid = "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b"
@@ -366,7 +366,7 @@ class TestsMOAd(unittest.TestCase):
         expected = "SolveigK_AD_logon"
         self.assertEqual(
             expected,
-            try_get_ad_user_key(uuid, user_key_it_system_name="Active Directory"),
+            try_get_it_user_key(uuid, user_key_it_system_name="Active Directory"),
         )
 
     @patch("os2sync_export.os2mo.os2mo_get", patched_session_get)

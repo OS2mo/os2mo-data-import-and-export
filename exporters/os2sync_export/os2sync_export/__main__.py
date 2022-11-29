@@ -17,8 +17,8 @@ from os2sync_export import config
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
-
-from helpers import tqdm
+from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
+from tqdm import tqdm
 
 logger = None  # set in main()
 
@@ -193,6 +193,7 @@ def main(settings):
 
     sync_os2sync_orgunits(settings, counter, prev_date)
     sync_os2sync_users(settings, counter, prev_date)
+    remove_from_os2sync(settings)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))

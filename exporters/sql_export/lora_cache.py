@@ -52,12 +52,14 @@ def get_rel_uuid_or_none(uuid, rel, item_name) -> Optional[str]:
 
 
 class LoraCache:
-    def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
+    def __init__(
+        self, resolve_dar=True, full_history=False, skip_past=False, settings=None
+    ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = self._load_settings()
+        self.settings = settings or self._load_settings()
 
         self.additional = {"relationer": ("tilknyttedeorganisationer", "tilhoerer")}
 

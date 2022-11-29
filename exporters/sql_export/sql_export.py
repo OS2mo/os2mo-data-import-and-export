@@ -8,34 +8,33 @@ from alembic.operations import Operations
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
-from sqlalchemy import Index
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 
-from exporters.sql_export.lora_cache import LoraCache
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import DARAdresse
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Enhedssammenkobling
-from exporters.sql_export.sql_table_defs import Facet
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import ItSystem
-from exporters.sql_export.sql_table_defs import Klasse
-from exporters.sql_export.sql_table_defs import KLE
-from exporters.sql_export.sql_table_defs import Kvittering
-from exporters.sql_export.sql_table_defs import Leder
-from exporters.sql_export.sql_table_defs import LederAnsvar
-from exporters.sql_export.sql_table_defs import Orlov
-from exporters.sql_export.sql_table_defs import Rolle
-from exporters.sql_export.sql_table_defs import Tilknytning
-from exporters.sql_export.sql_url import DatabaseFunction
-from exporters.sql_export.sql_url import generate_connection_url
-from exporters.sql_export.sql_url import generate_engine_settings
-from helpers import tqdm
+from .lora_cache import LoraCache
+from .sql_table_defs import Adresse
+from .sql_table_defs import Base
+from .sql_table_defs import Bruger
+from .sql_table_defs import DARAdresse
+from .sql_table_defs import Engagement
+from .sql_table_defs import Enhed
+from .sql_table_defs import Enhedssammenkobling
+from .sql_table_defs import Facet
+from .sql_table_defs import ItForbindelse
+from .sql_table_defs import ItSystem
+from .sql_table_defs import Klasse
+from .sql_table_defs import KLE
+from .sql_table_defs import Kvittering
+from .sql_table_defs import Leder
+from .sql_table_defs import LederAnsvar
+from .sql_table_defs import Orlov
+from .sql_table_defs import Rolle
+from .sql_table_defs import Tilknytning
+from .sql_url import DatabaseFunction
+from .sql_url import generate_connection_url
+from .sql_url import generate_engine_settings
 
 
 class SqlExportSettings(JobSettings):
@@ -72,10 +71,12 @@ class SqlExport:
 
     def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
         if self.historic:
-            lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            lc = LoraCache(
+                resolve_dar=resolve_dar, full_history=True, settings=self.settings
+            )
             lc.populate_cache(dry_run=use_pickle)
         else:
-            lc = LoraCache(resolve_dar=resolve_dar)
+            lc = LoraCache(resolve_dar=resolve_dar, settings=self.settings)
             lc.populate_cache(dry_run=use_pickle)
             lc.calculate_derived_unit_data()
             lc.calculate_primary_engagements()
@@ -96,7 +97,9 @@ class SqlExport:
         trunc_tables = dict(Base.metadata.tables)
         trunc_tables.pop("kvittering")
 
+        logger.info("Dropping tables")
         Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
+        logger.info("Creating tables")
         Base.metadata.create_all(self.engine)
 
         self.session = self._get_db_session()
@@ -126,12 +129,19 @@ class SqlExport:
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
 
+    def get_actual_tables(self):
+        connection = self.engine.connect()
+        inspector = Inspector.from_engine(connection)
+        actual_tables = inspector.get_table_names()
+        return set(actual_tables)
+
     def swap_tables(self):
         """Swap tables around to present the exported data.
 
         Swaps the current tables to old tables, then swaps write tables to current.
         Finally drops the old tables leaving just the current tables.
         """
+        logger.info("Swapping tables")
         connection = self.engine.connect()
         ctx = MigrationContext.configure(connection)
         op = Operations(ctx)
@@ -150,32 +160,26 @@ class SqlExport:
 
         # Drop any left-over old tables that may exist
         with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
             for _, _, old_table in tables:
-                try:
+                if old_table in actual_tables:
                     op.drop_table(old_table)
-                except Exception:
-                    pass
 
         # Rename current to old and write to current
         with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
             for write_table, current_table, old_table in tables:
-                # Rename current table to old table
-                # No current tables is OK
-                try:
+                if current_table in actual_tables:
                     op.rename_table(current_table, old_table)
-                except Exception:
-                    pass
                 # Rename write table to current table
                 op.rename_table(write_table, current_table)
 
         # Drop any old tables that may exist
         with ctx.begin_transaction():
+            actual_tables = self.get_actual_tables()
             for _, _, old_table in tables:
-                # Drop old tables
-                try:
+                if old_table in actual_tables:
                     op.drop_table(old_table)
-                except Exception:
-                    pass
 
     def _add_classification(self, output=False):
         logger.info("Add classification")
@@ -266,14 +270,6 @@ class SqlExport:
                 )
                 self.session.add(sql_unit)
             self.session.commit()
-
-        # create supplementary index for quick toplevel lookup
-        # when rewriting whole table this is quicker than maintaining
-        # the index for every row inserted
-        organisatorisk_sti_index = Index(
-            "organisatorisk_sti_index", Enhed.organisatorisk_sti
-        )
-        organisatorisk_sti_index.create(bind=self.engine)
 
         if output:
             for result in self.engine.execute("select * from brugere limit 5"):

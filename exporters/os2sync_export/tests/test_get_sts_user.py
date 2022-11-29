@@ -69,37 +69,37 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             # Test without an AD BVN and without template
             (
                 None,  # template config
-                None,  # return value of `try_get_ad_user_key`
+                None,  # return value of `try_get_it_user_key`
                 "mock-uuid",  # expected value of `UserId` (MO UUID)
             ),
             # Test without an AD BVN, and template which uses `user_key`
             (
                 {"person.user_id": "{{ user_key }}"},  # template config
-                None,  # return value of `try_get_ad_user_key`
+                None,  # return value of `try_get_it_user_key`
                 "testtestesen",  # expected value of `UserId` (MO BVN)
             ),
             # Test without an AD BVN, and template which uses `uuid`
             (
                 {"person.user_id": "{{ uuid }}"},  # template config
-                None,  # return value of `try_get_ad_user_key`
+                None,  # return value of `try_get_it_user_key`
                 "mock-uuid",  # expected value of `UserId` (MO UUID)
             ),
             # Test with an AD BVN, but without template
             (
                 None,  # template config
-                "mock-ad-bvn",  # return value of `try_get_ad_user_key`
+                "mock-ad-bvn",  # return value of `try_get_it_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
             # Test with an AD BVN, and template which uses `user_key`
             (
                 {"person.user_id": "{{ user_key }}"},  # template config
-                "mock-ad-bvn",  # return value of `try_get_ad_user_key`
+                "mock-ad-bvn",  # return value of `try_get_it_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
             # Test with an AD BVN, and template which uses `uuid`
             (
                 {"person.user_id": "{{ uuid }}"},  # template config
-                "mock-ad-bvn",  # return value of `try_get_ad_user_key`
+                "mock-ad-bvn",  # return value of `try_get_it_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
         ]
@@ -145,7 +145,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         settings.os2sync_xfer_cpr = True
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("os2mo_get", response):
-            with self._patch("try_get_ad_user_key", ad_user_key):
+            with self._patch("try_get_it_user_key", ad_user_key):
                 return os2mo_get_sts_user(self._uuid, settings=settings)
 
     def _patch(self, name, return_value):
