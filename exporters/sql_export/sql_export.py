@@ -12,6 +12,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
+from tqdm import tqdm
 
 from .lora_cache import LoraCache
 from .sql_table_defs import Adresse
