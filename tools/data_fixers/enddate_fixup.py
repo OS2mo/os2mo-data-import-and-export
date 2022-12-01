@@ -12,11 +12,11 @@ from uuid import UUID
 
 import click
 from exporters.utils.apply import apply
+from helpers import tqdm
 from integrations.ad_integration.utils import AttrDict
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import AnyHttpUrl
-from tqdm import tqdm
 
 
 def find_bad_engagements(mora_base: AnyHttpUrl) -> Iterator[Tuple[UUID, List[UUID]]]:
