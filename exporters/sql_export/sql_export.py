@@ -7,12 +7,12 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
+from ra_utils.tqdm_wrapper import tqdm
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
-from tqdm import tqdm
 
 from .lora_cache import LoraCache
 from .sql_table_defs import Adresse
