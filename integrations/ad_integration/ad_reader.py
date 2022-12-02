@@ -22,11 +22,12 @@ def first_included(settings, users):
     if not discrim_field:
         return next(iter(users), {})
 
-    users = list(filter(lambda user: discrim_field in user, users))
+    if settings["discriminator.function"] == "include":
+        users = list(filter(lambda user: discrim_field in user, users))
 
     for value in settings.get("discriminator.values", []):
         for user in users:
-            value_found = value == user[discrim_field]
+            value_found = value == user.get(discrim_field)
             if settings["discriminator.function"] == "include" and value_found:
                 return user
             if settings["discriminator.function"] == "exclude" and not value_found:
