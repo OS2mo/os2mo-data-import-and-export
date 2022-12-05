@@ -1,5 +1,4 @@
 {
-    "crontab.RUN_MOX_DB_CLEAR": false,
     "crontab.RUN_CHECK_AD_CONNECTIVITY": false,
     "crontab.RUN_BALLERUP_APOS": false,
     "crontab.RUN_BALLERUP_UDVALG": false,

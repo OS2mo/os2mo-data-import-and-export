@@ -4,7 +4,6 @@ Tools
 Tools indeholder scripts primært beregnet til at køre natlige jobs og restore af data efter fejlede jobs.
 
 * job-runner.sh - excutable beregnet til at blive kaldt fra crontab uden parametre
-* clear_mox_tables.py - beregnet til at tømme os2mo's tabeller ved nyindlæsning
 * cron-restore.sh - beregnet til at restore OS2MO til før den kørsel, som backuppen er taget efter
 * moxklas.sh - beregnet til at oprette klasser i LORA - udenom OS2MO ved specialle behov
 * prefixed_settings.sh - beregnet til at eksportere settings fra en JSON-fil og ind i current shell environment
@@ -40,7 +39,6 @@ Konfigurationen kan se således ud:
         "crontab.SVC_KEYTAB": "/path/keytab-file",
         "crontab.CRON_BACKUP": "/path/backup-dir",
         "crontab.CRON_LOG_FILE": "/path/cron-log-file",
-        "crontab.RUN_MOX_DB_CLEAR": false,
         "crontab.RUN_CHECK_AD_CONNECTIVITY": false,
         "crontab.RUN_BALLERUP_APOS": false,
         "crontab.RUN_BALLERUP_UDVALG": false,
@@ -110,7 +108,6 @@ job-runner.sh er ikke et smart program. Dert er til gengæld simpelt.: Job-afvik
 
 I ovenstående konfiguration kan man slå jobs til med alle de tilgængeglige ``crontab.RUN_*``, som dækker over:
 
-* RUN_MOX_DB_CLEAR - Tøm OS2mo's database
 * RUN_CHECK_AD_CONNECTIVITY - Check at der er di korrekte rettigheder i AD
 * RUN_SD_FIX_DEPARTMENTS - Kør SD-fix-departments
 * RUN_SD_CHANGED_AT - Kør SD-changed-at - deltaimport af ændringer fra SD
@@ -213,12 +210,6 @@ der afvikles af job-runner. Konfigurationsværdien ``crontab.CRON_LOG_PROM_API``
 både hvorvidt denne funktionalitet er slåt til og hvor man kalder api'et, som typisk vil være igennem
 en såkaldt push-gateway på localhost.
 
-
-
-clear_mox_tables.py
-===================
-
-Dette anvendes typisk kun af cron-restore og der, hvor man hver nat genindlæser OS2mo fra APOS.
 
 cron-restore.sh
 ===============
