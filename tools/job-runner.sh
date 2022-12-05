@@ -77,11 +77,6 @@ sanity_check_mo_data(){
     ${VENV}/bin/python3 tools/check_data.py
 }
 
-imports_mox_db_clear(){
-    echo running imports_mox_db_clear
-    ${VENV}/bin/python3 tools/clear_mox_tables.py
-}
-
 move_backup_to_archive() {
     if [ -z $1 ]; then
         # This should never happen, but just in case...
@@ -539,10 +534,6 @@ imports(){
     [ "${BACKUP_OK}" == "false" ] \
         && echo ERROR: backup is in error - skipping imports \
         && return 1 # imports depend on backup
-
-    if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
-        run-job imports_mox_db_clear || return 2
-    fi
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
