@@ -20,6 +20,7 @@ from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
 from ra_utils.lazy_dict import LazyEvalBare
 from ra_utils.load_settings import load_settings
+from ra_utils.tqdm_wrapper import tqdm
 
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
@@ -28,7 +29,6 @@ from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
 from exporters.sql_export.lora_cache import LoraCache
-from helpers import tqdm
 
 logger = logging.getLogger("CreateAdUsers")
 export_logger = logging.getLogger("export")

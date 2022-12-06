@@ -9,7 +9,7 @@ from operator import itemgetter
 
 import aiohttp
 import click
-from helpers import tqdm
+from ra_utils.tqdm_wrapper import tqdm
 
 
 def async_to_sync(f):

@@ -21,6 +21,7 @@ import click
 import requests
 from anytree import Node
 from anytree import PreOrderIter
+from ra_utils.tqdm_wrapper import tqdm
 from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker
 
@@ -35,7 +36,6 @@ from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import Leder
 from exporters.sql_export.sql_table_defs import LederAnsvar
 from exporters.utils.priority_by_class import lcdb_choose_public_address
-from helpers import tqdm
 
 
 logging.basicConfig(

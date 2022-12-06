@@ -7,6 +7,7 @@ from uuid import UUID
 
 from aiohttp import ClientSession, TCPConnector
 from more_itertools import chunked
+from ra_utils.tqdm_wrapper import tqdm
 
 from os2mo_data_import.Clients.MO.model import (
     Address,
@@ -16,7 +17,6 @@ from os2mo_data_import.Clients.MO.model import (
     Manager,
     OrgUnit,
 )
-from helpers import tqdm
 from os2mo_data_import.Clients.MO.model_parts.interface import MoObj
 from os2mo_data_import.Clients.util import uuid_to_str
 
