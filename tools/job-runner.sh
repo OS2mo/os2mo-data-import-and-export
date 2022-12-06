@@ -414,20 +414,16 @@ exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
 
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.sql_export --resolve-dar
+    ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar
     EXIT_CODE=$?
-    cd ..
     return $EXIT_CODE
 }
 
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
 
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.sql_export --resolve-dar --historic
+    ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar --historic
     EXIT_CODE=$?
-    cd ..
     return $EXIT_CODE
 }
 
@@ -468,10 +464,8 @@ exports_lc_for_jobs_db(){
     db_file="${actual_db_name}.db"
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.lc_for_jobs_db sql-export --resolve-dar
+    ${POETRYPATH} run python -m exporters.sql_export.lc_for_jobs_db sql-export --resolve-dar
     local STATUS=$?
-    cd ..
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
     return $STATUS
 }
@@ -479,33 +473,24 @@ exports_lc_for_jobs_db(){
 exports_cache_loracache() {
     echo "Building cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/!(*_historic).p"  # delete old non-historic pickle files
-
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.lora_cache --no-historic --resolve-dar
+    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --no-historic --resolve-dar
     EXIT_CODE=$?
-    cd ..
     return $EXIT_CODE
 }
 
 exports_historic_cache_loracache() {
     echo "Building full historic cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic.p"  # delete old pickle files
-
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.lora_cache --historic --resolve-dar
+    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --resolve-dar
     EXIT_CODE=$?
-    cd ..
     return $EXIT_CODE
 }
 
 exports_historic_skip_past_cache_loracache() {
     echo "Building historic WITHOUT past cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic_skip_past.p"  # delete old pickle files
-
-    cd exporters/
-    ${POETRYPATH} run python -m sql_export.lora_cache --historic --skip-past --resolve-dar
+    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --skip-past --resolve-dar
     EXIT_CODE=$?
-    cd ..
     return $EXIT_CODE
 }
 
