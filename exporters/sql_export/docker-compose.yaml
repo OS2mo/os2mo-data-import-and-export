@@ -6,13 +6,11 @@ services:
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
       AUTH_SERVER: "http://keycloak:8080/auth"
-
-      MORA_BASE: "http://mo"
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
-      MOX_BASE: "http://mox"
-      LORA_CLIENT_SECRET: "a091ed82-6e82-4efc-a8f0-001e2b127853"
+      MORA_BASE: "http://mo"
+      MOX_BASE: "http://mo/lora"
 
       LOG_LEVEL: INFO
 
