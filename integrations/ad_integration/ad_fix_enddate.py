@@ -95,6 +95,11 @@ class CompareEndDate(ADParameterReader):
 
             uuid = ad_user[self.uuid_field]
 
+            try:
+                mo_end_date = self.get_employee_end_date(uuid).strftime("%Y-%m-%d")
+            except KeyError:
+                continue
+
             if not (self.enddate_field in ad_user):
                 print(
                     "User "
@@ -102,11 +107,8 @@ class CompareEndDate(ADParameterReader):
                     + " does not have the field "
                     + self.enddate_field
                 )
-                continue
-
-            try:
-                mo_end_date = self.get_employee_end_date(uuid).strftime("%Y-%m-%d")
-            except KeyError:
+                # if the user does not have an end date, give it one
+                end_dates_to_fix[uuid] = mo_end_date
                 continue
 
             if ad_user[self.enddate_field] == mo_end_date:
@@ -116,13 +118,16 @@ class CompareEndDate(ADParameterReader):
 
         if show_date_diffs:
             for ad_user in ad_users:
-                if not (self.uuid_field in ad_user) or not (
-                    self.enddate_field in ad_user
-                ):
+                if not (self.uuid_field in ad_user):
                     continue
+
                 uuid = ad_user[self.uuid_field]
+
                 if uuid in end_dates_to_fix:
-                    ad_end = ad_user[self.enddate_field]
+                    if self.enddate_field in ad_user:
+                        ad_end = ad_user[self.enddate_field]
+                    else:
+                        ad_end = "None"
                     print(
                         f"User with id: {uuid} has AD end date: {ad_end} and MO end date: {end_dates_to_fix[uuid]}"
                     )
