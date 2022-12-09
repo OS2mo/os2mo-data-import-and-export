@@ -23,6 +23,7 @@ SQLAlchemy = "^1.4.31"
 pydantic = "^1.9.0"
 fastapi = "0.75"
 uvicorn = "0.17.6"
+sentry-sdk = "^1.11.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
