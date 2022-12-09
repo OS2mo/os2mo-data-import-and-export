@@ -282,12 +282,6 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
         # By returning user without any positions it will be removed from fk-org
         return sts_user
 
-    addresses_to_user(
-        sts_user,
-        os2mo_get("{BASE}/e/" + uuid + "/details/address").json(),
-        phone_scope_classes=settings.os2sync_phone_scope_classes,
-        email_scope_classes=settings.os2sync_email_scope_classes,
-    )
     # use calculate_primary flag to get the is_primary boolean used in getting work-address
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
@@ -297,6 +291,17 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
     )
     engagements_to_user(sts_user, engagements, allowed_unitids)
+
+    if not sts_user["Positions"]:
+        # return immediately because users with no engagements are not synced.
+        return sts_user
+
+    addresses_to_user(
+        sts_user,
+        os2mo_get("{BASE}/e/" + uuid + "/details/address").json(),
+        phone_scope_classes=settings.os2sync_phone_scope_classes,
+        email_scope_classes=settings.os2sync_email_scope_classes,
+    )
 
     # Optionally find the work address of employees primary engagement.
     work_address_names = settings.os2sync_employee_engagement_address
