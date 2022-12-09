@@ -212,11 +212,17 @@ class FixDepartments:
         else:
             response.raise_for_status()
 
-    def fix_department(self, unit_uuid, validity_date) -> None:
+    def fix_department(
+        self,
+        unit_uuid: str,
+        validity_date: datetime.datetime,
+        fix_departments_recursively: bool = True
+    ) -> None:
         """
         Synchronize the state of a MO unit to the current and future state(s) in SD.
         :param unit_uuid: uuid of the unit to be updated.
         :param validity_date: The validity date to read the department info from SD.
+        :param fix_departments_recursively: if true, fix departments recursively from the given unit and up the tree
         """
         msg = "Set department {} to state as of {}"
         logger.info(msg.format(unit_uuid, validity_date))
@@ -236,7 +242,7 @@ class FixDepartments:
             ou_created = self._create_org_unit_if_missing_in_mo(department, parent_uuid)
 
             # ... and fix the parent before updating the unit itself
-            if parent_uuid is not None:
+            if fix_departments_recursively and parent_uuid is not None:
                 self.fix_department(parent_uuid, validity_date)
 
             if not ou_created:
@@ -527,7 +533,12 @@ class FixDepartments:
         return department["DepartmentUUIDIdentifier"]
 
 
-@click.command()
+@click.group()
+def cli():
+    setup_logging()
+
+
+@cli.command()
 @click.option(
     "--department-short-name",
     "short_names",
@@ -544,8 +555,6 @@ class FixDepartments:
 )
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
-    setup_logging()
-
     settings = get_changed_at_settings()
     unit_fixer = FixDepartments(settings)
 
@@ -563,5 +572,11 @@ def unit_fixer(short_names, uuids):
         unit_fixer.fix_NY_logic(department_uuid, today)
 
 
+@cli.command()
+def fix_entire_ou_tree():
+    settings = get_changed_at_settings()
+    fd = FixDepartments(settings)
+
+
 if __name__ == "__main__":
-    unit_fixer()
+    cli()

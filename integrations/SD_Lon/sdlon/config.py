@@ -139,6 +139,7 @@ class ImporterSettings(CommonSettings):
 
 class ChangedAtSettings(CommonSettings):
     sd_fix_departments_root: Optional[UUID4] = None
+    sd_fix_departments_recursively: bool = True
     sd_no_salary_minimum_id: Optional[int] = None
 
     # List of CRPs to either include OR exclude in the run
