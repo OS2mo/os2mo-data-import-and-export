@@ -311,12 +311,12 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
     return sts_user
 
 
-def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
+def get_sts_user(uuid: str, settings: Settings) -> List[Dict[str, Any]]:
     sts_user = get_sts_user_raw(uuid, settings)
 
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
-    return sts_user
+    return [sts_user]
 
 
 @lru_cache()

@@ -193,7 +193,7 @@ def get_sts_user(session, uuid, settings: Settings):
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(session, sts_user, settings.os2sync_uuid_from_it_systems)
 
-    return sts_user
+    return [sts_user]
 
 
 top_per_unit: Dict[str, Dict] = {}
