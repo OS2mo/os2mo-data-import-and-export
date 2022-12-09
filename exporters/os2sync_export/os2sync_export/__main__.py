@@ -13,12 +13,14 @@ from functools import partial
 from operator import itemgetter
 from typing import Set
 
+import sentry_sdk
 from os2sync_export import config
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from tqdm import tqdm
+
 
 logger = None  # set in main()
 
@@ -176,6 +178,9 @@ def main(settings):
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
+
+    if settings.sentry_dsn:
+        sentry_sdk.init(dsn=settings.sentry_dsn)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
