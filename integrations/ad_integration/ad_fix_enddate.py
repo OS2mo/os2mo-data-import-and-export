@@ -1,4 +1,5 @@
 import datetime
+import logging
 import typing
 from datetime import date
 from datetime import datetime as dt
@@ -8,6 +9,7 @@ import dateutil.parser
 from fastapi.encoders import jsonable_encoder
 from gql import gql
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_setting
 from raclients.graph.client import GraphQLClient
 from raclients.graph.client import SyncClientSession
@@ -15,6 +17,14 @@ from raclients.graph.client import SyncClientSession
 from helpers import tqdm
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
+
+
+class AdFixEndDateSettings(JobSettings):
+    class Config:
+        settings_json_prefix = "integrations.ad.write"
+
+
+logger = logging.getLogger(__name__)
 
 
 class CompareEndDate(ADParameterReader):
@@ -101,7 +111,7 @@ class CompareEndDate(ADParameterReader):
                 continue
 
             if not (self.enddate_field in ad_user):
-                print(
+                logger.info(
                     "User "
                     + ad_user[self.uuid_field]
                     + " does not have the field "
@@ -124,11 +134,13 @@ class CompareEndDate(ADParameterReader):
                 uuid = ad_user[self.uuid_field]
 
                 if uuid in end_dates_to_fix:
+
                     if self.enddate_field in ad_user:
                         ad_end = ad_user[self.enddate_field]
                     else:
                         ad_end = "None"
-                    print(
+
+                    logger.info(
                         f"User with id: {uuid} has AD end date: {ad_end} and MO end date: {end_dates_to_fix[uuid]}"
                     )
 
@@ -191,6 +203,22 @@ def cli(
     AD-writer does not support writing enddate of a terminated employee,
     this script finds and corrects the enddate in AD of terminated engagements.
     """
+    pydantic_settings = AdFixEndDateSettings()
+    pydantic_settings.start_logging_based_on_settings()
+
+    logger.info(
+        f"Command line args:"
+        f" end-date-field = {enddate_field},"
+        f" uuid-field = {uuid_field},"
+        f" dry-run = {dry_run},"
+        f" show-date-diffs = {show_date_diffs},"
+        f" print-commands = {print_commands},"
+        f" mora-base = {mora_base},"
+        f" client-id = {client_id},"
+        f" client-secret = not logged,"
+        f" auth-realm = {auth_realm},"
+        f" auth-server = {auth_server}",
+    )
 
     graph_ql_client = GraphQLClient(
         url=f"{mora_base}/graphql/v3",
@@ -220,17 +248,17 @@ def cli(
     ):
         cmd = u.get_update_cmd(uuid, end_date)
         if print_commands:
-            print("Command to run: ")
-            print(cmd)
+            logger.info("Command to run: ")
+            logger.info(cmd)
 
         if not dry_run:
             result = u.run(cmd)
             if result:
-                print("Result: %r" % result)
+                logger.info("Result: %r" % result)
 
-    print(f"{len(end_dates_to_fix)} users end dates corrected")
+    logger.info(f"{len(end_dates_to_fix)} users end dates corrected")
 
-    print("All end dates are fixed")
+    logger.info("All end dates are fixed")
 
 
 if __name__ == "__main__":
