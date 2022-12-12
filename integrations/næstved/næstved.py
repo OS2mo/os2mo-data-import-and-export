@@ -5,7 +5,7 @@ sys.path.append('..')
 import opus_import
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000/lora')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 XML_FILE_PATH = os.environ.get('XML_FILE_PATH', '')
 

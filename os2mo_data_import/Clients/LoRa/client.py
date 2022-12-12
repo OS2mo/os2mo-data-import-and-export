@@ -29,7 +29,7 @@ class Client:
             connector=TCPConnector(limit=20)
         ),
         chunk_size: int = 100,
-        base_mox_url="http://localhost:8080",
+        base_mox_url="http://localhost:5000/lora",
     ):
         # connection logic
         self.__chunk_size = chunk_size

@@ -13,7 +13,7 @@ import ad_reader
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000/lora')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 

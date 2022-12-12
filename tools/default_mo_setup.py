@@ -13,7 +13,7 @@ def create_new_root_and_it(settings=None) -> None:
     """Setup all necessary classes etc to perform opus-import."""
     logger.warning("'create_new_root_and_it' is deprecated. Use os2mo-init instead.")
     settings = settings or load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080")
+    mox_base = settings.get("mox.base", "http://localhost:5000/lora")
     mora_base = settings.get("mora.base", "http://localhost:5000")
 
     # Init

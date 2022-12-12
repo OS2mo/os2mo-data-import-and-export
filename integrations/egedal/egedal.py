@@ -4,7 +4,7 @@ from os2mo_data_import import ImportHelper
 from integrations.SD_Lon import sd_importer
 from os2mo_data_import.caching_import import CachingImportUtility
 
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000/lora')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 # Import of Administration

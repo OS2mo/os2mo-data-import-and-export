@@ -29,7 +29,7 @@ def is_duplicate(classes):
     "--mox-base",
     help="URL for MOX",
     type=click.STRING,
-    default=load_setting("mox.base", "http://localhost:8080/"),
+    default=load_setting("mox.base", "http://localhost:5000/lora/"),
 )
 @click.option(
     "--mora-base",

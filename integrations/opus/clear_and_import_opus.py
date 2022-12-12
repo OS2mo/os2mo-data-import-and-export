@@ -16,7 +16,7 @@ from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
-def truncate_db(MOX_BASE: str = "http://localhost:8080") -> None:
+def truncate_db(MOX_BASE: str = "http://localhost:5000/lora") -> None:
     r = requests.get(MOX_BASE + "/db/truncate")
     r.raise_for_status()
 

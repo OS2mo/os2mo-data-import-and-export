@@ -545,7 +545,7 @@ class MoraHelper:
         user_manager = None
 
         # XXX: Why is this here, this is for MOX?!
-        url = "http://localhost:8080/organisation/organisationfunktion/{}"
+        url = "http://localhost:5000/lora/organisation/organisationfunktion/{}"
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
         relationer = data[engagement_uuid][0]["registreringer"][0]["relationer"]

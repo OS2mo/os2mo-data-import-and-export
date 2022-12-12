@@ -13,7 +13,7 @@ def main():
     """Run checks on MO data"""
 
     settings = load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080/")
+    mox_base = settings.get("mox.base", "http://localhost:5000/lora/")
     mora_base = settings.get("mora.base", "http://localhost:5000/")
 
     session = requests.Session()

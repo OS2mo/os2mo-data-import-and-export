@@ -67,7 +67,7 @@ def settings_loader(ctx, settings_file: str):
 @settings_loader.group()
 @click.option(
     "--mox-base",
-    default="http://localhost:8080",
+    default="http://localhost:5000/lora",
     show_default=True,
     help="Address of the MOX host",
 )
@@ -127,7 +127,7 @@ async def ensure_class_exists_helper(
     org_uuid: Optional[str] = None,
     org_unit_uuid: Optional[str] = None,
     parent_bvn: Optional[str] = None,
-    mox_base: str = "http://localhost:8080",
+    mox_base: str = "http://localhost:5000/lora",
     dry_run: bool = False,
 ):
     """Ensure the generated class exists in MOX."""
