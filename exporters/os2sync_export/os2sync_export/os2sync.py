@@ -52,14 +52,9 @@ def os2sync_url(url):
 
 def os2sync_get(url, **params):
     url = os2sync_url(url)
-    try:
-        r = session.get(url, params=params)
-        r.raise_for_status()
-        return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
-        raise
+    r = session.get(url, params=params)
+    r.raise_for_status()
+    return r
 
 
 def os2sync_delete(url, **params):
@@ -72,22 +67,13 @@ def os2sync_delete(url, **params):
         if e.response.status_code == 404:
             logger.warning("delete %r %r :404", url, params)
             return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
-        raise
 
 
 def os2sync_post(url, **params):
     url = os2sync_url(url)
-    try:
-        r = session.post(url, **params)
-        r.raise_for_status()
-        return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
-        raise
+    r = session.post(url, **params)
+    r.raise_for_status()
+    return r
 
 
 def user_uuids():
@@ -96,18 +82,18 @@ def user_uuids():
 
 def delete_user(uuid):
     if not already_xferred("/user/" + uuid, {}, "delete"):
-        logger.info("delete user %s", uuid)
+        logger.debug("delete user %s", uuid)
         os2sync_delete("{BASE}/user/" + uuid)
     else:
-        logger.info("delete user %s - cached", uuid)
+        logger.debug("delete user %s - cached", uuid)
 
 
 def upsert_user(user):
     if not already_xferred("/user/" + user["Uuid"], user, "upsert"):
-        logger.info("upsert user %s", user["Uuid"])
+        logger.debug("upsert user %s", user["Uuid"])
         os2sync_post("{BASE}/user", json=user)
     else:
-        logger.info("upsert user %s - cached", user["Uuid"])
+        logger.debug("upsert user %s - cached", user["Uuid"])
 
 
 def orgunit_uuids():
@@ -116,15 +102,15 @@ def orgunit_uuids():
 
 def delete_orgunit(uuid):
     if not already_xferred("/orgUnit/" + uuid, {}, "delete"):
-        logger.info("delete orgunit %s", uuid)
+        logger.debug("delete orgunit %s", uuid)
         os2sync_delete("{BASE}/orgUnit/" + uuid)
     else:
-        logger.info("delete orgunit %s - cached", uuid)
+        logger.debug("delete orgunit %s - cached", uuid)
 
 
 def upsert_orgunit(org_unit):
     if not already_xferred("/orgUnit/" + org_unit["Uuid"], org_unit, "upsert"):
-        logger.info("upsert orgunit %s", org_unit["Uuid"])
+        logger.debug("upsert orgunit %s", org_unit["Uuid"])
         os2sync_post("{BASE}/orgUnit/", json=org_unit)
     else:
-        logger.info("upsert orgunit %s - cached", org_unit["Uuid"])
+        logger.debug("upsert orgunit %s - cached", org_unit["Uuid"])
