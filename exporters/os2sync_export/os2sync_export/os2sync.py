@@ -14,7 +14,7 @@ import requests
 from os2sync_export import config
 
 settings = config.get_os2sync_settings()
-logger = logging.getLogger(config.loggername)
+logger = logging.getLogger(__name__)
 hash_cache: Dict = {}
 session = requests.Session()
 

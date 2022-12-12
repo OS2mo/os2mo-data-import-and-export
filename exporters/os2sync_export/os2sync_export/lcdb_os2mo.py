@@ -12,8 +12,8 @@ from uuid import UUID
 
 from more_itertools import flatten
 from more_itertools import only
-from os2sync_export import config
 from os2sync_export import os2mo
+from os2sync_export.config import Settings
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from sqlalchemy.orm import sessionmaker
@@ -28,7 +28,7 @@ from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
 from exporters.sql_export.sql_table_defs import Leder
 
-logger = logging.getLogger(config.loggername)
+logger = logging.getLogger(__name__)
 
 
 def get_session(engine):
@@ -133,7 +133,7 @@ def overwrite_user_uuids(session, sts_user: Dict, os2sync_uuid_from_it_systems: 
         )
 
 
-def get_sts_user(session, uuid, settings: config.Settings):
+def get_sts_user(session, uuid, settings: Settings):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     user = User(
         dict(
@@ -224,7 +224,7 @@ def get_top_unit(session, lc_enhed):
     return top_unit
 
 
-def is_ignored(unit, settings: config.Settings):
+def is_ignored(unit, settings: Settings):
     """Determine if unit should be left out of transfer
 
     Args:
@@ -260,7 +260,7 @@ def overwrite_unit_uuids(
         )
 
 
-def get_sts_orgunit(session, uuid, settings: config.Settings):
+def get_sts_orgunit(session, uuid, settings: Settings):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
     if is_ignored(base, settings):

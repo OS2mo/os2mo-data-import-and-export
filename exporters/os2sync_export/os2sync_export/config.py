@@ -14,6 +14,8 @@ from ra_utils.apply import apply
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 
+logger = logging.getLogger(__name__)
+
 
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     """
@@ -114,9 +116,6 @@ class Settings(JobSettings):
 def get_os2sync_settings(*args, **kwargs) -> Settings:
     return Settings(*args, **kwargs)
 
-
-logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
-loggername = "os2sync"
 
 if __name__ == "__main__":
     print(get_os2sync_settings())
