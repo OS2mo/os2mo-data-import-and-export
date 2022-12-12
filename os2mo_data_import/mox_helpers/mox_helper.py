@@ -200,7 +200,7 @@ async def create_mox_helper(*args, generate_methods=True, **kwargs):
 if __name__ == "__main__":
 
     async def run():
-        mox = await create_mox_helper("http://localhost:8080")
+        mox = await create_mox_helper("http://localhost:5000/lora")
         print(await mox.check_connection())
 
     loop = asyncio.new_event_loop()

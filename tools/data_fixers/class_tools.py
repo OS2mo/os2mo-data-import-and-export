@@ -173,7 +173,7 @@ def cli():
     "--mox-base",
     help="URL for MOX",
     type=click.STRING,
-    default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
+    default=lambda: load_settings().get("mox.base", "http://localhost:5000/lora/"),
 )
 def remove_dup_classes(delete: bool, mox_base: click.STRING):
     """Tool to help remove classes from MO that are duplicates.
@@ -268,7 +268,7 @@ def move_class_helper(
     "--mox-base",
     help="URL for MOX",
     type=click.STRING,
-    default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
+    default=lambda: load_settings().get("mox.base", "http://localhost:5000/lora/"),
 )
 def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str):
     """Switches class, or copies to a new class for all objects using this class given two UUIDs.
@@ -284,7 +284,7 @@ def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base:
     "--mox-base",
     help="URL for MOX",
     type=click.STRING,
-    default=load_setting("mox.base", "http://localhost:8080/"),
+    default=load_setting("mox.base", "http://localhost:5000/lora/"),
 )
 @click.option(
     "--dry-run",
@@ -322,7 +322,7 @@ def ensure_static_classes(mox_base, dry_run):
     "--mox-base",
     help="URL for MOX",
     type=click.STRING,
-    default=load_setting("mox.base", "http://localhost:8080/"),
+    default=load_setting("mox.base", "http://localhost:5000/lora/"),
 )
 @click.option(
     "--dry-run",

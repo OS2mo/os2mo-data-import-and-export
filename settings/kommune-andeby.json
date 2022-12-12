@@ -34,7 +34,7 @@
     "crontab.OS2MO_COMPOSE_YML":"tmp/to/os2mo/docker-compose.yml",
     "crontab.USE_CACHED_LORACACHE": false,
 
-    "mox.base": "http://localhost:8080",
+    "mox.base": "http://localhost:5000/lora",
     "mora.admin_top_unit": "angiver roden af det organisatoriske træ, der skal overføres(emus/os2sync)",
     "mora.base": "http://localhost:5000",
     "mora.folder.query_export":"path-to-where-os2mo-reads-csv-files",

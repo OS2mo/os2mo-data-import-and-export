@@ -753,7 +753,7 @@ eksempel på sådan en fil kunne se sådan ud:
 .. code-block:: json
 
    {
-       "mox.base": "http://localhost:8080",
+       "mox.base": "http://localhost:5000/lora",
        "mora.base": "http://localhost:5000",
        "municipality.name": "Kommune Kommune",
        "municipality.code": 999,

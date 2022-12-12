@@ -1,7 +1,7 @@
 #!/bin/bash
 ## Script til opsætning til Viborgs MED-organisation
 
-MOX_URL="${MOX_URL:-http://localhost:8080}"
+MOX_URL="${MOX_URL:-http://localhost:5000/lora}"
 
 CLI="venv/bin/python os2mo_data_import/mox_helpers/mox_util.py cli --mox-base ${MOX_URL}"
 

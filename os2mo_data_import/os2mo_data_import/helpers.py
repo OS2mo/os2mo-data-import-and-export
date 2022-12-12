@@ -67,7 +67,7 @@ class ImportHelper:
     """
 
     def __init__(self,
-                 mox_base="http://localhost:8080",
+                 mox_base="http://localhost:5000/lora",
                  mora_base="http://localhost:5000",
                  create_defaults=True,
                  seperate_names=False,

@@ -56,7 +56,7 @@ def fetch_user_employments(cpr: str) -> List:
 
 
 def get_orgfunc_from_vilkaarligrel(
-    class_uuid: str, mox_base: str = "http://localhost:8080"
+    class_uuid: str, mox_base: str = "http://localhost:5000/lora"
 ) -> dict:
     url = f"{mox_base}/organisation/organisationfunktion"
     params = {"vilkaarligrel": class_uuid, "list": "true", "virkningfra": "-infinity"}
@@ -75,7 +75,7 @@ def filter_missing_data(leave: dict) -> bool:
     return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
-def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
+def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:5000/lora") -> None:
     r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
     r.raise_for_status()
 
@@ -202,7 +202,7 @@ def fixup_user(ctx, uuid):
 @cli.command()
 @click.option(
     "--mox-base",
-    default=load_setting("mox.base", "http://localhost:8080"),
+    default=load_setting("mox.base", "http://localhost:5000/lora"),
     help="URL for Lora",
 )
 @click.pass_context

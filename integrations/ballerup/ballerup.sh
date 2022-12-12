@@ -3,7 +3,7 @@ export PYTHONPATH=$PWD:$PYTHONPATH
 source venv/bin/activate
 rm tmp/*.p
 
-export MOX_BASE=http://localhost:8080
+export MOX_BASE=http://localhost:5000/lora
 export MORA_BASE=http://localhost:5000
 
 export MUNICIPALITY_NAME="Ballerup Kommune"

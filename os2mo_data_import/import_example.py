@@ -2,7 +2,7 @@
 import os
 from os2mo_data_import import ImportHelper
 
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000/lora')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 
