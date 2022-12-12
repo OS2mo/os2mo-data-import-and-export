@@ -1,7 +1,6 @@
 import logging
 import unittest
 
-from os2sync_export.config import loggername as _loggername
 from os2sync_export.templates import FieldTemplateRenderError
 from os2sync_export.templates import FieldTemplateSyntaxError
 from os2sync_export.templates import Person
@@ -27,7 +26,7 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
         settings.os2sync_xfer_cpr = flag
         person = Person(mo_employee, settings=settings)
         expected_cpr = mo_employee.get(expected_key)
-        with self.assertLogs(_loggername, expected_log_level):
+        with self.assertLogs("os2sync_export", expected_log_level):
             self.assertDictEqual(
                 person.to_json(),
                 {"Name": mo_employee["name"], "Cpr": expected_cpr},

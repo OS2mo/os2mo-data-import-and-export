@@ -14,15 +14,16 @@ from operator import itemgetter
 from typing import Set
 
 import sentry_sdk
-from os2sync_export import config
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
+from os2sync_export.config import get_os2sync_settings
+from os2sync_export.config import Settings
 from tqdm import tqdm
 
 
-logger = None  # set in main()
+logger = logging.getLogger(__name__)
 
 
 def log_mox_config(settings):
@@ -156,22 +157,9 @@ def sync_os2sync_users(settings, counter, prev_date):
     logger.info("sync_os2sync_users done")
 
 
-def main(settings):
-    # set warning-level for all loggers
-    global logger
-    [
-        logging.getLogger(name).setLevel(logging.WARNING)
-        for name in logging.root.manager.loggerDict
-        if name != config.loggername
-    ]
+def main(settings: Settings):
 
-    logging.basicConfig(
-        format=config.logformat,
-        level=settings.os2sync_log_level,
-        filename=settings.os2sync_log_file,
-    )
-    logger = logging.getLogger(config.loggername)
-    logger.setLevel(settings.os2sync_log_level)
+    settings.start_logging_based_on_settings()
 
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
@@ -187,17 +175,17 @@ def main(settings):
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
-    prev_date = prev_date.strftime("%Y-%m-%d")
+    prev_date_str = prev_date.strftime("%Y-%m-%d")
 
-    counter = collections.Counter()
+    counter: collections.Counter = collections.Counter()
     logger.info("mox_os2sync starting")
     log_mox_config(settings)
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
-    sync_os2sync_orgunits(settings, counter, prev_date)
-    sync_os2sync_users(settings, counter, prev_date)
+    sync_os2sync_orgunits(settings, counter, prev_date_str)
+    sync_os2sync_users(settings, counter, prev_date_str)
     remove_from_os2sync(settings)
 
     if hash_cache_file:
@@ -209,5 +197,5 @@ def main(settings):
 
 
 if __name__ == "__main__":
-    settings = config.get_os2sync_settings()
+    settings = get_os2sync_settings()
     main(settings)

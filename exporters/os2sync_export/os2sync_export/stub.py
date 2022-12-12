@@ -1,9 +1,8 @@
 import json
 import logging
 
-from os2sync_export.config import loggername
 
-logger = logging.getLogger(loggername)
+logger = logging.getLogger(__name__)
 
 
 class Session:
