@@ -25,7 +25,7 @@ def terminate_filtered_units(dry_run):
 def terminate_filtered_employees(dry_run):
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
-    mox_base = settings.get("mox.base", "localhost:8080")
+    mox_base = settings.get("mox.base", "localhost:5000/lora")
     latest_date, opus_dump = opus_helpers.get_latest_dump()
     file_diffs = opus_helpers.file_diff(None, opus_dump)
     # Get every id of filtered units

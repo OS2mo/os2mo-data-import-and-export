@@ -250,7 +250,7 @@ async def ensure_class_exists(
 async def ensure_class_value_helper(
     variable: str,
     new_value: str,
-    mox_base: str = "localhost:8080",
+    mox_base: str = "localhost:5000/lora",
     bvn: Optional[str] = None,
     uuid: Optional[str] = None,
     dry_run: bool = False,
