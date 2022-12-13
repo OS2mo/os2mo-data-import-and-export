@@ -44,7 +44,7 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
     "mora_base": "http://mo-service:5000",
-    "mox_base": "http://mox-service:8080",
+    "mox_base": "http://mo-service:5000/lora",
     "sd_import_too_deep": [],
     "sd_importer_create_associations": True,
     "sd_importer_create_email_addresses": True,
