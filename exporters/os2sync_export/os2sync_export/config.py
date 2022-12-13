@@ -91,8 +91,6 @@ class Settings(JobSettings):
     os2sync_filter_hierarchy_names: Tuple = tuple()  # Title in MO
     os2sync_filter_users_by_it_system: bool = False
 
-    sentry_dsn: str | None = None
-
     class Config:
 
         env_file_encoding = "utf-8"
