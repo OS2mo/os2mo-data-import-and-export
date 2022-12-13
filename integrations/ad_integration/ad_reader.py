@@ -3,8 +3,9 @@ import random
 import time
 from operator import itemgetter
 
+from ra_utils.tqdm_wrapper import tqdm
+
 from .ad_common import AD
-from helpers import tqdm
 
 logger = logging.getLogger("AdReader")
 

@@ -20,8 +20,7 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.headers import TokenSettings
-
-from helpers import tqdm
+from ra_utils.tqdm_wrapper import tqdm
 
 
 def get_tcp_connector():

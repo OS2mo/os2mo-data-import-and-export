@@ -10,10 +10,10 @@ import requests
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
+from ra_utils.tqdm_wrapper import tqdm
 from requests import Session
 
 import constants
-from helpers import tqdm
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater

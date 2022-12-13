@@ -9,9 +9,9 @@ from uuid import UUID
 
 from aiohttp import ClientSession, TCPConnector
 from more_itertools import chunked
+from ra_utils.tqdm_wrapper import tqdm
 
 from os2mo_data_import.Clients.LoRa.model import Facet, Klasse, Organisation
-from helpers import tqdm
 from os2mo_data_import.Clients.LoRa.model_parts.interface import LoraObj
 from os2mo_data_import.Clients.util import uuid_to_str
 

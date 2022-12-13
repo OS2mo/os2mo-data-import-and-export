@@ -11,8 +11,7 @@ import click
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import BaseModel
 from ra_utils.load_settings import load_setting
-
-from helpers import tqdm
+from ra_utils.tqdm_wrapper import tqdm
 
 
 logger = logging.getLogger("cpr_uuid")

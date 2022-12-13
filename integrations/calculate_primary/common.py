@@ -14,8 +14,7 @@ from more_itertools import pairwise
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.deprecation import deprecated
 from ra_utils.load_settings import load_settings
-
-from helpers import tqdm
+from ra_utils.tqdm_wrapper import tqdm
 
 
 LOGGER_NAME = "updatePrimaryEngagements"

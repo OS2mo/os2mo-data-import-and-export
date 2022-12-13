@@ -8,12 +8,12 @@ from typing import Tuple
 import click
 import psycopg2
 from click import Context
-from helpers import tqdm
 from more_itertools import one
 from more_itertools import pairwise
 from psycopg2 import connect
 from psycopg2.extensions import connection
 from psycopg2.extras import RealDictCursor
+from ra_utils.tqdm_wrapper import tqdm
 
 
 def get_connection(
