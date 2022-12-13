@@ -13,7 +13,6 @@ from functools import partial
 from operator import itemgetter
 from typing import Set
 
-import sentry_sdk
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
@@ -166,9 +165,6 @@ def main(settings: Settings):
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
-
-    if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
