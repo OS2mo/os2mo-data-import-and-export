@@ -33,7 +33,7 @@ class CommonSettings(BaseSettings):
     """
 
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
-    mox_base: AnyHttpUrl = Field("http://mox-service:8080")
+    mox_base: AnyHttpUrl = Field("http://mo-service:5000/lora")
 
     sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
     sd_global_from_date: date
