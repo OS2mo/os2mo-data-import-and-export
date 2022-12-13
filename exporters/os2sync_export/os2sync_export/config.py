@@ -117,16 +117,29 @@ def get_os2sync_settings(*args, **kwargs) -> Settings:
 
 
 @lru_cache()
-def get_gql_client(*args, **kwargs) -> GraphQLClient:
-    settings = Settings(*args, **kwargs)
+def setup_gql_client(
+    mora_base, client_id, client_secret, auth_realm, auth_server
+) -> GraphQLClient:
+
     return GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
-        client_id=settings.client_id,
-        client_secret=settings.client_secret,
-        auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        url=f"{mora_base}/graphql/v3",
+        client_id=client_id,
+        client_secret=client_secret,
+        auth_realm=auth_realm,
+        auth_server=auth_server,
         sync=True,
         httpx_client_kwargs={"timeout": None},
+    )
+
+
+def get_gql_client():
+    settings = get_os2sync_settings()
+    return setup_gql_client(
+        settings.mora_base,
+        settings.client_id,
+        settings.client_secret,
+        settings.auth_realm,
+        settings.auth_server,
     )
 
 
