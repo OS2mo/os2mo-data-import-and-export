@@ -6,6 +6,7 @@ from typing import Optional
 from typing import Tuple
 
 import click
+import sentry_sdk
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
 
@@ -180,6 +181,10 @@ def main(
     preview_command_for_uuid: Optional[uuid.UUID],
 ):
     start_logging(LOG_FILE)
+
+    settings = load_settings()
+    if "crontab.SENTRY_DSN" in settings:
+        sentry_sdk.init(dsn=settings["crontab.SENTRY_DSN"])
 
     reader = ADParameterReader()
 

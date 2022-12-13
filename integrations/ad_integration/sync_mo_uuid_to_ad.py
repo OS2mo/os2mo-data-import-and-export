@@ -3,6 +3,7 @@ import random
 from operator import itemgetter
 
 import click
+import sentry_sdk
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -221,6 +222,10 @@ def cli(**args):
     logger.debug(args)
 
     sync = SyncMoUuidToAd()
+
+    if "crontab.SENTRY_DSN" in sync.settings:
+        sentry_sdk.init(dsn=sync.settings["crontab.SENTRY_DSN"])
+
     if args.get("sync_all"):
         sync.sync_all()
     if args.get("sync_cpr"):

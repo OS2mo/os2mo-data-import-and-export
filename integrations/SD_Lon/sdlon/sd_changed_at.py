@@ -21,6 +21,7 @@ from uuid import uuid4
 
 import click
 import requests
+import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
@@ -1464,6 +1465,9 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
     setup_logging(settings.sd_log_file)
 
     run_db = settings.sd_import_run_db
+
+    if settings.sentry_dsn:
+        sentry_sdk.init(dsn=settings.sentry_dsn)
 
     logger.info("***************")
     logger.info("Program started")

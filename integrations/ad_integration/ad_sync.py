@@ -9,6 +9,7 @@ from typing import Optional
 from typing import Tuple
 
 import click
+import sentry_sdk
 from more_itertools import only
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -853,6 +854,10 @@ class AdMoSync:
 )
 def sync(sync_user):
     sync = AdMoSync()
+
+    if "crontab.SENTRY_DSN" in sync.settings:
+        sentry_sdk.init(dsn=sync.settings["crontab.SENTRY_DSN"])
+
     if sync_user:
         sync.update_single_user(str(sync_user))
     else:
@@ -861,5 +866,4 @@ def sync(sync_user):
 
 if __name__ == "__main__":
     start_logging("ad_mo_sync.log")
-
     sync()

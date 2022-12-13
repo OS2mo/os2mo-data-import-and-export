@@ -155,6 +155,8 @@ class ChangedAtSettings(CommonSettings):
     sd_use_ad_integration: bool = True
     sd_log_file: Path = Path("mo_integrations.log")
 
+    sentry_dsn: Optional[str] = None
+
     class Config:
         extra = Extra.forbid
 

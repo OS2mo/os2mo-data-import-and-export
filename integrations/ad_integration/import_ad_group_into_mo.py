@@ -9,6 +9,7 @@ from typing import Tuple
 from uuid import UUID
 
 import click
+import sentry_sdk
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from more_itertools import one
@@ -265,6 +266,9 @@ def import_ad_group(**args):
     Command line interface for the AD to MO user import.
     """
     ad_import = ADMOImporter()
+
+    if "crontab.SENTRY_DSN" in ad_import.settings:
+        sentry_sdk.init(dsn=ad_import.settings["crontab.SENTRY_DSN"])
 
     if args.get("create_or_update"):
         ad_import.create_or_update_users_in_mo()
