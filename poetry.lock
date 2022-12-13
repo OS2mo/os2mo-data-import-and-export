@@ -1398,7 +1398,7 @@ python-versions = ">=3.6"
 
 [[package]]
 name = "ra-utils"
-version = "1.5.0"
+version = "1.7.0"
 description = "Utilities for OS2mo/LoRa"
 category = "main"
 optional = false
@@ -1860,7 +1860,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "18125688281fecddea34bbf57aa8e95ec93272b967e1cf7fdeae064e2e9bb507"
+content-hash = "dfc20205f359e8f406857dbcb3aea30706f3bc6680687def908088def5231fd2"
 
 [metadata.files]
 aiohttp = []
