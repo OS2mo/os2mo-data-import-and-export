@@ -24,7 +24,7 @@ Lint os2sync Exporter:
   extends: .lint-python
   script:
     - cd exporters/os2sync_export
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-python-dateutil
+    - pip install mypy==0.812 pre-commit types-Jinja2 types-click types-requests types-python-dateutil
     - pre-commit run --files os2sync_export/*.py tests/*.py 
 
 # Build
