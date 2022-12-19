@@ -76,7 +76,10 @@ def cleanup_mo_uuids(dry_run: bool):
     """
     settings = get_os2sync_settings()
     gql_client = setup_gql_client(settings)
-    res = remove_from_os2sync(gql_client, settings, dry_run)
+    with gql_client as gql_session:
+        res = remove_from_os2sync(
+            gql_session=gql_session, settings=settings, dry_run=dry_run
+        )
     if res is None:
         click.echo("No it-system set in settings as os2sync_uuid_from_it_systems.")
         return
