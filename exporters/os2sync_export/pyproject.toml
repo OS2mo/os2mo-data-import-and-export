@@ -24,6 +24,7 @@ pydantic = "^1.9.0"
 fastapi = "0.75"
 uvicorn = "0.17.6"
 sentry-sdk = "^1.11.1"
+setuptools = "^65.6.3"
 os2mo-data-import = "^3.26.1"
 
 [tool.poetry.dev-dependencies]
