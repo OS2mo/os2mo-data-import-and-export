@@ -10,15 +10,16 @@ from uuid import UUID
 from gql import gql
 from more_itertools import one
 from more_itertools import partition
-from os2sync_export.config import get_gql_client
 from os2sync_export.config import Settings
 from os2sync_export.os2sync import delete_orgunit
 from os2sync_export.os2sync import delete_user
+from raclients.graph.client import GraphQLClient
+
 
 logger = logging.getLogger(__name__)
 
 
-def get_it_user_uuids(settings: Settings) -> List:
+def get_it_user_uuids(gql_client: GraphQLClient, settings: Settings) -> List:
     """Read all MO uuids that have it-accounts."""
 
     query = gql(
@@ -35,7 +36,7 @@ def get_it_user_uuids(settings: Settings) -> List:
             }
         """
     )
-    with get_gql_client() as session:
+    with gql_client as session:
         r = session.execute(query)
         # Filter by it-systems
     filtered_uuids = filter(
@@ -62,7 +63,7 @@ def extract_uuids(gql_response: List) -> Tuple[Set[UUID], Set[UUID]]:
 
 
 def remove_from_os2sync(
-    settings: Settings, dry_run: bool = False
+    gql_client, settings: Settings, dry_run: bool = False
 ) -> Optional[Tuple[Set[UUID], Set[UUID]]]:
 
     if not settings.os2sync_uuid_from_it_systems:
@@ -70,7 +71,7 @@ def remove_from_os2sync(
         return None
     logger.info("Checking for uuids from it-systems")
     # Read it-users
-    uuids = get_it_user_uuids(settings)
+    uuids = get_it_user_uuids(gql_client=gql_client, settings=settings)
 
     # Split into units and employees
     org_unit_uuids, employee_uuids = extract_uuids(uuids)

@@ -7,6 +7,7 @@ from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
+from os2sync_export.config import setup_gql_client
 from os2sync_export.os2mo import get_sts_orgunit
 from os2sync_export.os2mo import get_sts_user
 
@@ -74,7 +75,8 @@ def cleanup_mo_uuids(dry_run: bool):
 
     """
     settings = get_os2sync_settings()
-    res = remove_from_os2sync(settings, dry_run)
+    gql_client = setup_gql_client(settings)
+    res = remove_from_os2sync(gql_client, settings, dry_run)
     if res is None:
         click.echo("No it-system set in settings as os2sync_uuid_from_it_systems.")
         return

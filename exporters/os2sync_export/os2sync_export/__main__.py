@@ -21,6 +21,8 @@ from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
+from os2sync_export.config import setup_gql_client
+from raclients.graph.client import GraphQLClient
 from os2sync_export.os2mo import split_active_users
 from ra_utils.tqdm_wrapper import tqdm
 
@@ -161,7 +163,7 @@ def sync_os2sync_users(settings, counter, prev_date):
     logger.info("sync_os2sync_users done")
 
 
-def main(settings: Settings):
+def main(gql_client: GraphQLClient, settings: Settings):
 
     settings.start_logging_based_on_settings()
 
@@ -190,7 +192,7 @@ def main(settings: Settings):
 
     sync_os2sync_orgunits(settings, counter, prev_date_str)
     sync_os2sync_users(settings, counter, prev_date_str)
-    remove_from_os2sync(settings)
+    remove_from_os2sync(gql_client, settings)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
@@ -202,4 +204,5 @@ def main(settings: Settings):
 
 if __name__ == "__main__":
     settings = get_os2sync_settings()
-    main(settings)
+    gql_client = setup_gql_client(settings=settings)
+    main(gql_client, settings)
