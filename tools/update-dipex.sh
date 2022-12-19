@@ -1,6 +1,8 @@
 #!/bin/bash
 #Install dependencies for dipex
 
+set -e
+
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export VENV=${VENV:=${DIPEXAR}/.venv}
 export POETRYPATH=${POETRYPATH:=/home/$(whoami)/.local/bin/poetry}
