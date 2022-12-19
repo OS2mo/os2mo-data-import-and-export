@@ -1,4 +1,5 @@
 from typing import Dict
+from typing import List
 from uuid import UUID
 
 import click
@@ -10,17 +11,18 @@ from os2sync_export.os2mo import get_sts_orgunit
 from os2sync_export.os2mo import get_sts_user
 
 
-def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> Dict:
-    sts_user = get_sts_user(str(uuid), settings=settings)
+def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Dict]:
+    sts_users = get_sts_user(str(uuid), settings=settings)
 
     if dry_run:
-        return sts_user
+        return sts_users
 
-    if sts_user["Positions"]:
-        os2sync.upsert_user(sts_user)
-    else:
-        os2sync.delete_user(str(uuid))
-    return sts_user
+    for sts_user in sts_users:
+        if sts_user["Positions"]:
+            os2sync.upsert_user(sts_user)
+        else:
+            os2sync.delete_user(str(uuid))
+    return sts_users
 
 
 def update_single_orgunit(uuid: UUID, settings: Settings, dry_run: bool) -> Dict:

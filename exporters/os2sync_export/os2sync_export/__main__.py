@@ -15,13 +15,13 @@ from typing import Set
 
 import sentry_sdk
 from more_itertools import flatten
-from more_itertools import partition
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
+from os2sync_export.os2mo import split_active_users
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -148,14 +148,13 @@ def sync_os2sync_users(settings, counter, prev_date):
     sts_users = flatten(
         os2mo.get_sts_user(i, settings=settings) for i in os2mo_uuids_present
     )
+    inactive, active = split_active_users(sts_users)
 
-    to_delete, to_update = partition(lambda u: u["Positions"], sts_users)
-
-    for i in to_delete:
+    for i in inactive:
         counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
         os2sync.delete_user(i["uuid"])
 
-    for i in to_update:
+    for i in active:
         os2sync.upsert_user(i)
         counter["Medarbejdere overført til OS2SYNC"] += 1
 

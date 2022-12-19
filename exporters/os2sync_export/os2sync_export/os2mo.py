@@ -9,6 +9,7 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
@@ -18,6 +19,7 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
+from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -322,6 +324,11 @@ def get_sts_user(uuid: str, settings: Settings) -> List[Dict[str, Any]]:
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
     return [sts_user]
+
+
+def split_active_users(users: List[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
+    """Splits list of users into groups filtered by wether they have active positions"""
+    return partition(lambda u: u["Positions"], users)
 
 
 @lru_cache()
