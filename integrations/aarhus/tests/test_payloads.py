@@ -1,7 +1,6 @@
+import payloads
 from hypothesis import given
 from hypothesis import strategies as st
-
-import payloads
 
 
 class TestConvertCreateToEdit:

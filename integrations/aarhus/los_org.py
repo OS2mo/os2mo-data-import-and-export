@@ -1,4 +1,3 @@
-import ftplib
 import uuid
 from csv import DictWriter
 from datetime import date
@@ -268,13 +267,17 @@ class OrgUnitImporter:
         writer.writeheader()
         writer.writerows(f.dict() for f in failed)
 
+        # AaK never actually gave us write permissions to the FTP server. However, we had to try to write to the FTP
+        # server, as this was part of the assignment, despite the fact that it would always fail. We also had to write
+        # the CSV file, which is handled with the FS fileset
+
         # Write CSV file to FTP folder
-        ftp_fileset = los_files.FTPFileSet()
+        ftp_fileset = los_files.get_fileset_implementation()
         try:
             result = ftp_fileset.write_file(
                 output_filename, output, folder="DARfejlliste"
             )
-        except ftplib.Error as exc:
+        except Exception as exc:
             print("Could not write %r to FTP, error = %r" % (output_filename, str(exc)))
         else:
             print("Wrote %r to FTP, result = %r" % (output_filename, result))

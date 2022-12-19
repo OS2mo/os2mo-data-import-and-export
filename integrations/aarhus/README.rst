@@ -24,12 +24,14 @@ Setup
 The integration requires minimal configuration outside of the common default values
 found in the settings file:
 
-* ``integrations.aarhus_los.ftp_url``: The url for the Aarhus Kommune FTP. Contains a
-  default for the current FTP url.
+* ``integrations.aarhus_los.ftp_url``: The url for the Aarhus Kommune FTP.
+* ``integrations.aarhus_los.ftp_port``: The port for the FTP server, default is 22
 * ``integrations.aarhus_los.ftp_user``: The FTP username
 * ``integrations.aarhus_los.ftp_pass``: The FTP password
 * ``integrations.aarhus_los.state_file``: A location for a file containing state across
   different imports.
+* ``integrations.aarhus_los.ftp_ssh_key_path``: path, including filename, to the private ssh key
+*``integrations.aarhus_los.ftp_ssh_key_pass``: password to the ssh key
 
 Usage
 =====
@@ -314,3 +316,8 @@ identical properties from one line to the next (e.g. the same name or the same L
 the importer does not create multiple MO objects, but rather merges the MO objects into
 one object, whose start date will be the earliest `StartDato` and whose end date will be
 the latest `SlutDato`.
+
+Notes
+-----
+Paramiko v 2.8.1 is used, as newer versions have a bug where it is not possible to connect
+to an ssh server using both a keyfile, and a password.
