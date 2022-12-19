@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from more_itertools import one
 from os2sync_export.lcdb_os2mo import get_sts_user
 from os2sync_export.lcdb_os2mo import try_get_it_user_key
 from sqlalchemy.orm import sessionmaker
@@ -171,4 +172,6 @@ class Tests_lc_db(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        self.assertEqual(expected, get_sts_user(self.session, "b1", settings=settings))
+        self.assertEqual(
+            expected, one(get_sts_user(self.session, "b1", settings=settings))
+        )

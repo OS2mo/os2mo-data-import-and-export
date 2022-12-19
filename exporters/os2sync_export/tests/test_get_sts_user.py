@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+from more_itertools import one
 from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user as os2mo_get_sts_user
 from parameterized import parameterized
@@ -52,7 +53,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             os2sync_templates=os2sync_templates,
         )
         self.assertDictEqual(
-            sts_user,
+            one(sts_user),
             {
                 "Uuid": self._uuid,
                 "UserId": self._user_key,
@@ -117,7 +118,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             os2sync_templates=os2sync_templates,
         )
         self.assertDictEqual(
-            sts_user,
+            one(sts_user),
             {
                 "Uuid": self._uuid,
                 "UserId": expected_user_id,

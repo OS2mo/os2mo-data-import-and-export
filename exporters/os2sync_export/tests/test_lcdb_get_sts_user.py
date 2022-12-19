@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
+from more_itertools import one
 from os2sync_export import lcdb_os2mo
 from parameterized import parameterized
 from tests.helpers import dummy_settings
@@ -83,7 +84,7 @@ class TestGetStsUser(unittest.TestCase):
             sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, settings=settings)
 
         self.assertDictEqual(
-            sts_user,
+            one(sts_user),
             {
                 "Uuid": uuid,
                 "UserId": uuid,
@@ -152,7 +153,7 @@ class TestGetStsUser(unittest.TestCase):
             )
 
         self.assertDictEqual(
-            sts_user,
+            one(sts_user),
             {
                 "Uuid": mo_user_uuid,
                 "UserId": expected_user_id,
