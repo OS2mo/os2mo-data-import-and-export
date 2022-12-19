@@ -1,5 +1,5 @@
 import unittest
-from spsftp.spsftp import SpSftp, MetadataError
+from ..spsftp import SpSftp, MetadataError
 import io
 
 xmlfile = """<ns2:Trigger
@@ -37,7 +37,7 @@ class SftpMock:
 
 class SpSftpMock(SpSftp):
 
-    sftp_client = SftpMock()
+    sftp = SftpMock()
 
     def get_key(self, filename, password):
         return "Key"
