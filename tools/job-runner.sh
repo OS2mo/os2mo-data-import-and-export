@@ -40,11 +40,6 @@ fi
 BACK_UP_BEFORE_JOBS+=(
     $(readlink ${CUSTOMER_SETTINGS})
     $(
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        # backup mox_stsorgsync config only if file exists
-        [ -f "${MOX_MO_CONFIG}" ] && echo ${MOX_MO_CONFIG}
-    )
-    $(
         SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-SD customers
         echo ${run_db}
@@ -255,36 +250,14 @@ exports_mox_rollekatalog(){
 }
 
 exports_os2sync(){
-    BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="os2sync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${log_file}
-    ))
     echo running exports_os2sync
-    cd exporters/os2sync_export
+    cd exporters/os2sync_export || exit 1
     ${POETRYPATH} run python -m os2sync_export
     EXIT_CODE=$?
     cd ../..
     return $EXIT_CODE
 }
 
-exports_mox_stsorgsync(){
-    MOX_ERR_CODE=0
-    BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${LOGFILE}
-    ))
-    echo running exports_mox_stsorgsync
-    (
-        # get VENV, MOX_MO_CONFIG and LOGFILE
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || MOX_ERR_CODE=1
-        echo "Last 50 lines from mox_stsorgsyncs log :"
-        tail  -n 50  ${LOGFILE}
-        echo "last 10 Errors from OS2sync"
-        grep ERROR /var/log/os2sync/service.log | tail -n 10
-        exit ${MOX_ERR_CODE}
-    )
-}
 
 exports_cpr_uuid(){
     echo running exports_cpr_uuid
@@ -606,10 +579,6 @@ exports(){
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
         run-job exports_os2sync || return 2
-    fi
-
-    if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
-        run-job exports_mox_stsorgsync || return 2
     fi
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then

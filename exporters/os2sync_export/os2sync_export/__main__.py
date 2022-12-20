@@ -20,8 +20,7 @@ from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
-from tqdm import tqdm
-
+from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
 
