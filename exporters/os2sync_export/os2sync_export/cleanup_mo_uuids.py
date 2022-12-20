@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: 2022 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
+import logging
 from typing import List
 from typing import Optional
 from typing import Set
@@ -7,15 +8,17 @@ from typing import Tuple
 from uuid import UUID
 
 from gql import gql
+from gql.client import SyncClientSession
 from more_itertools import one
 from more_itertools import partition
 from os2sync_export.config import Settings
 from os2sync_export.os2sync import delete_orgunit
 from os2sync_export.os2sync import delete_user
-from raclients.graph.client import GraphQLClient
+
+logger = logging.getLogger(__name__)
 
 
-def get_it_user_uuids(settings: Settings) -> List:
+def get_it_user_uuids(gql_session: SyncClientSession, settings: Settings) -> List:
     """Read all MO uuids that have it-accounts."""
 
     query = gql(
@@ -32,17 +35,9 @@ def get_it_user_uuids(settings: Settings) -> List:
             }
         """
     )
-    with GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
-        client_id=settings.client_id,
-        client_secret=settings.client_secret,
-        auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
-        sync=True,
-        httpx_client_kwargs={"timeout": None},
-    ) as session:
-        r = session.execute(query)
-        # Filter by it-systems
+
+    r = gql_session.execute(query)
+    # Filter by it-systems
     filtered_uuids = filter(
         lambda it: one(it["objects"])["itsystem"]["name"]
         in settings.os2sync_uuid_from_it_systems,
@@ -67,18 +62,21 @@ def extract_uuids(gql_response: List) -> Tuple[Set[UUID], Set[UUID]]:
 
 
 def remove_from_os2sync(
-    settings: Settings, dry_run: bool = False
+    gql_session: SyncClientSession, settings: Settings, dry_run: bool = False
 ) -> Optional[Tuple[Set[UUID], Set[UUID]]]:
 
     if not settings.os2sync_uuid_from_it_systems:
         # No need to check it-accounts.
         return None
-
+    logger.info("Checking for uuids from it-systems")
     # Read it-users
-    uuids = get_it_user_uuids(settings)
+    uuids = get_it_user_uuids(gql_session=gql_session, settings=settings)
 
     # Split into units and employees
     org_unit_uuids, employee_uuids = extract_uuids(uuids)
+    logger.info(
+        f"Possible duplicates: org_units={len(org_unit_uuids)}, employees={len(employee_uuids)}"
+    )
     if dry_run:
         return org_unit_uuids, employee_uuids
 
