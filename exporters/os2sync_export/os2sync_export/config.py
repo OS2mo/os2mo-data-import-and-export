@@ -13,6 +13,7 @@ from pydantic import BaseSettings
 from ra_utils.apply import apply
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
+from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,19 @@ class Settings(JobSettings):
 @lru_cache()
 def get_os2sync_settings(*args, **kwargs) -> Settings:
     return Settings(*args, **kwargs)
+
+
+def setup_gql_client(settings: Settings) -> GraphQLClient:
+
+    return GraphQLClient(
+        url=f"{settings.mora_base}/graphql/v3",
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        auth_realm=settings.auth_realm,
+        auth_server=settings.auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    )
 
 
 if __name__ == "__main__":

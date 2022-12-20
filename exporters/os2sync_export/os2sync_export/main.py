@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi import Query
 from os2sync_export.__main__ import main
 from os2sync_export.config import get_os2sync_settings
+from os2sync_export.config import setup_gql_client
 from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
 
@@ -21,7 +22,9 @@ async def index() -> Dict[str, str]:
 @app.post("/trigger", status_code=202)
 async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
     settings = get_os2sync_settings()
-    background_tasks.add_task(main, settings=settings)
+    gql_client = setup_gql_client(settings)
+    with gql_client as session:
+        background_tasks.add_task(main, session=session, settings=settings)
     return {"triggered": "OK"}
 
 
