@@ -1,3 +1,5 @@
+from typing import Dict
+from typing import List
 from uuid import UUID
 
 from fastapi import BackgroundTasks
@@ -12,12 +14,12 @@ app = FastAPI()
 
 
 @app.get("/")
-async def index() -> dict[str, str]:
+async def index() -> Dict[str, str]:
     return {"name": "os2sync_export"}
 
 
 @app.post("/trigger", status_code=202)
-async def trigger_all(background_tasks: BackgroundTasks) -> dict[str, str]:
+async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
     settings = get_os2sync_settings()
     background_tasks.add_task(main, settings=settings)
     return {"triggered": "OK"}
@@ -27,7 +29,7 @@ async def trigger_all(background_tasks: BackgroundTasks) -> dict[str, str]:
 async def trigger_user(
     uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
     dry_run: bool = False,
-) -> dict[str, str]:
+) -> List[Dict[str, str]]:
     settings = get_os2sync_settings()
 
     return update_single_user(uuid, settings, dry_run)
@@ -37,7 +39,7 @@ async def trigger_user(
 async def trigger_orgunit(
     uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
     dry_run: bool = False,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     settings = get_os2sync_settings()
 
     return update_single_orgunit(uuid, settings, dry_run)

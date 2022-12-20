@@ -5,6 +5,7 @@ from typing import Dict
 from typing import Optional
 from unittest.mock import patch
 
+from more_itertools import one
 from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user
 from os2sync_export.os2mo import try_get_it_user_key
@@ -373,7 +374,6 @@ class TestsMOAd(unittest.TestCase):
     @patch.object(os2mo, "org_unit_uuids", return_value={})
     def test_mo_client_default(self, org_unit_uuids_mock):
         expected = {
-            "Email": "solveigk@kolding.dk",
             "Person": {"Cpr": "0602602389", "Name": "Solveig Kuhlenhenke"},
             "Positions": [],
             "UserId": "SolveigK_AD_logon",
@@ -381,4 +381,5 @@ class TestsMOAd(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        self.assertEqual(expected, get_sts_user(uuid, settings=settings))
+        actual = get_sts_user(uuid, settings=settings)
+        self.assertEqual(expected, one(actual))

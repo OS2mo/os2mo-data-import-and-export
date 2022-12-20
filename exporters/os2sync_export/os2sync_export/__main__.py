@@ -14,12 +14,14 @@ from operator import itemgetter
 from typing import Set
 
 import sentry_sdk
+from more_itertools import flatten
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
+from os2sync_export.os2mo import split_active_users
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -139,18 +141,21 @@ def sync_os2sync_users(settings, counter, prev_date):
     # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    for i in tqdm(os2mo_uuids_present, "Updating users", unit="user"):
-        # medarbejdere er allerede omfattet af autowash
-        # fordi de ikke får nogen 'Positions' hvis de ikke
-        # har en ansættelse i en af allowed_unitids
-        sts_user = os2mo.get_sts_user(i, settings=settings)
+    os2mo_uuids_present = tqdm(os2mo_uuids_present, "Updating users", unit="user")
+    # medarbejdere er allerede omfattet af autowash
+    # fordi de ikke får nogen 'Positions' hvis de ikke
+    # har en ansættelse i en af allowed_unitids
+    sts_users = flatten(
+        os2mo.get_sts_user(u, settings=settings) for u in os2mo_uuids_present
+    )
+    inactive, active = split_active_users(sts_users)
 
-        if not sts_user["Positions"]:
-            counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
-            os2sync.delete_user(i)
-            continue
+    for i in inactive:
+        counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
+        os2sync.delete_user(i["uuid"])
 
-        os2sync.upsert_user(sts_user)
+    for i in active:
+        os2sync.upsert_user(i)
         counter["Medarbejdere overført til OS2SYNC"] += 1
 
     logger.info("sync_os2sync_users done")

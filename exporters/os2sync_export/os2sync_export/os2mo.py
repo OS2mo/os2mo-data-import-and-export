@@ -9,6 +9,7 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
@@ -18,6 +19,7 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
+from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -282,12 +284,6 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
         # By returning user without any positions it will be removed from fk-org
         return sts_user
 
-    addresses_to_user(
-        sts_user,
-        os2mo_get("{BASE}/e/" + uuid + "/details/address").json(),
-        phone_scope_classes=settings.os2sync_phone_scope_classes,
-        email_scope_classes=settings.os2sync_email_scope_classes,
-    )
     # use calculate_primary flag to get the is_primary boolean used in getting work-address
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
@@ -297,6 +293,17 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
     )
     engagements_to_user(sts_user, engagements, allowed_unitids)
+
+    if not sts_user["Positions"]:
+        # return immediately because users with no engagements are not synced.
+        return sts_user
+
+    addresses_to_user(
+        sts_user,
+        os2mo_get("{BASE}/e/" + uuid + "/details/address").json(),
+        phone_scope_classes=settings.os2sync_phone_scope_classes,
+        email_scope_classes=settings.os2sync_email_scope_classes,
+    )
 
     # Optionally find the work address of employees primary engagement.
     work_address_names = settings.os2sync_employee_engagement_address
@@ -311,12 +318,17 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
     return sts_user
 
 
-def get_sts_user(uuid: str, settings: Settings) -> Dict[str, Any]:
+def get_sts_user(uuid: str, settings: Settings) -> List[Dict[str, Any]]:
     sts_user = get_sts_user_raw(uuid, settings)
 
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
-    return sts_user
+    return [sts_user]
+
+
+def split_active_users(users: List[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
+    """Splits list of users into groups filtered by whether they have active positions"""
+    return partition(lambda u: u["Positions"], users)
 
 
 @lru_cache()
