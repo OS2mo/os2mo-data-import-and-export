@@ -154,7 +154,7 @@ def sync_os2sync_users(settings, counter, prev_date):
 
     for i in inactive:
         counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
-        os2sync.delete_user(i["uuid"])
+        os2sync.delete_user(i["Uuid"])
 
     for i in active:
         os2sync.upsert_user(i)
