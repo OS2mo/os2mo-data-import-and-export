@@ -143,7 +143,7 @@ def sync_os2sync_users(settings, counter, prev_date):
     # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    os2mo_uuids_present = tqdm(os2mo_uuids_present, "Updating users", unit="user")
+    os2mo_uuids_present = tqdm(os2mo_uuids_present, desc="Updating users", unit="user")
     # medarbejdere er allerede omfattet af autowash
     # fordi de ikke får nogen 'Positions' hvis de ikke
     # har en ansættelse i en af allowed_unitids
