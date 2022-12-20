@@ -327,7 +327,7 @@ def get_sts_user(uuid: str, settings: Settings) -> List[Dict[str, Any]]:
 
 
 def split_active_users(users: List[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
-    """Splits list of users into groups filtered by wether they have active positions"""
+    """Splits list of users into groups filtered by whether they have active positions"""
     return partition(lambda u: u["Positions"], users)
 
 

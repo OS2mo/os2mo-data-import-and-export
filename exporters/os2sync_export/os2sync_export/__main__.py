@@ -146,7 +146,7 @@ def sync_os2sync_users(settings, counter, prev_date):
     # fordi de ikke får nogen 'Positions' hvis de ikke
     # har en ansættelse i en af allowed_unitids
     sts_users = flatten(
-        os2mo.get_sts_user(i, settings=settings) for i in os2mo_uuids_present
+        os2mo.get_sts_user(u, settings=settings) for u in os2mo_uuids_present
     )
     inactive, active = split_active_users(sts_users)
 
