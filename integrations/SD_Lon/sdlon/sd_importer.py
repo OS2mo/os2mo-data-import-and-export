@@ -19,6 +19,8 @@ from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from .fix_departments import FixDepartments
+from .config import get_changed_at_settings
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date, date_to_datetime
@@ -64,11 +66,13 @@ class SdImport:
         self.importer = importer
 
         self.org_name = self.settings.municipality_name
+        self.sd_institution_uuid = self.get_institution()
 
         self.importer.add_organisation(
             identifier=self.org_name,
             user_key=self.org_name,
             municipality_code=self.settings.municipality_code,
+            uuid=str(self.sd_institution_uuid),
         )
 
         self.org_id_prefix = org_id_prefix
@@ -375,6 +379,19 @@ class SdImport:
                 sub_tree=sub_tree,
                 super_unit=super_unit,
             )
+
+    @staticmethod
+    def get_institution() -> uuid.UUID:
+        # This way of getting the institution sucks, but it seems to be the
+        # best way for now to avoid duplicated code.
+        # TODO: use the upcoming SD-client instead
+
+        # This only works because the SD-importer is run from the SD-changed-at
+        # container
+        changed_at_settings = get_changed_at_settings()
+
+        fd = FixDepartments(changed_at_settings)
+        return uuid.UUID(fd.get_institution())
 
     def _create_org_tree_structure(self):
         nodes = {}

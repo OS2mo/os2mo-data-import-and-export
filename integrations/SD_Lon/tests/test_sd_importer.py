@@ -36,6 +36,9 @@ class SdImportTest(SdImport):
 
         self.add_people = self.add_people_mock
         self._read_department_info = self.read_department_info_mock
+        self.get_institution = MagicMock(
+            return_value=UUID("00000000-0000-0000-0000-000000000000")
+        )
 
         super().__init__(*args, **kwargs)
 
@@ -85,7 +88,7 @@ def get_sd_importer(
 
     assert sd.importer.organisation is not None
     assert sd.importer.organisation[0] == municipality_name
-    assert sd.importer.organisation[1].uuid is None
+    assert sd.importer.organisation[1].uuid == "00000000-0000-0000-0000-000000000000"
     assert sd.importer.organisation[1].name == municipality_name
     assert sd.importer.organisation[1].user_key == municipality_name
     assert sd.importer.organisation[1].municipality_code == str(municipality_code)
