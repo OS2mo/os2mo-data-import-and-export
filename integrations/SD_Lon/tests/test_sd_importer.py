@@ -36,7 +36,7 @@ class SdImportTest(SdImport):
 
         self.add_people = self.add_people_mock
         self._read_department_info = self.read_department_info_mock
-        self.get_institution = MagicMock(
+        self._get_institution = MagicMock(
             return_value=UUID("00000000-0000-0000-0000-000000000000")
         )
 
