@@ -308,6 +308,12 @@ Test plan2learn:
     - cp settings/kommune-andeby.json settings/settings.json
     - pytest exporters/tests/test_plan2learn_export_job.py
 
+Test SPSFTP:
+  extends: .test-python
+  script:
+    - cd exporters/emus/spsftp
+    - pytest tests
+
 
 # Release stage
 ###############
