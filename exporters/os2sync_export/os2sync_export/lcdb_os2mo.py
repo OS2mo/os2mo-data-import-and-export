@@ -133,12 +133,15 @@ def overwrite_user_uuids(session, sts_user: Dict, os2sync_uuid_from_it_systems: 
         )
 
 
-def get_sts_user(session, uuid, settings: Settings):
+def get_sts_user_raw(
+    session, uuid, settings: Settings, fk_org_uuid=None, user_key=None
+):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     user = User(
         dict(
             uuid=uuid,
-            candidate_user_id=try_get_it_user_key(
+            candidate_user_id=user_key
+            or try_get_it_user_key(
                 session,
                 uuid,
                 user_key_it_system_name=settings.os2sync_user_key_it_system_name,

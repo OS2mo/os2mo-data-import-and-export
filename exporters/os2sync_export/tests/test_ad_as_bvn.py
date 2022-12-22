@@ -3,12 +3,10 @@ from copy import deepcopy
 from typing import Any
 from typing import Dict
 from typing import Optional
-from unittest.mock import MagicMock
 from unittest.mock import patch
 
-from more_itertools import one
 from os2sync_export import os2mo
-from os2sync_export.os2mo import get_sts_user
+from os2sync_export.os2mo import get_sts_user_raw
 from tests.helpers import dummy_settings
 
 uuid = "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b"
@@ -373,5 +371,7 @@ class TestsMOAd(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        actual = get_sts_user(uuid, gql_session=MagicMock(), settings=settings)
-        self.assertEqual(expected, one(actual))
+        actual = get_sts_user_raw(
+            uuid, settings=settings, fk_org_uuid=None, user_key="SolveigK_AD_logon"
+        )
+        self.assertEqual(expected, actual)
