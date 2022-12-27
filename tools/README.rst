@@ -115,6 +115,7 @@ I ovenstående konfiguration kan man slå jobs til med alle de tilgængeglige ``
 * RUN_BALLERUP_APOS - Indlæs til OS2MO fra APOS (Ballerups version)
 * RUN_OPUS_DIFF_IMPORT - Kør Opus  diff import - deltaimport af øndringer fra OPUS
 * RUN_AD_SYNC - Kør en AD-synkronisering
+* RUN_MANAGER_SYNC - Kør en OS2mo Manager-synkronisering
 * RUN_BALLERUP_APOS - total-indlæsning af APOS i Ballerup
 * RUN_BALLERUP_UDVALG - udvalgshierarkiet i Ballerups OS2MO
 * RUN_MOX_ROLLE - overførslen til rollekataloget

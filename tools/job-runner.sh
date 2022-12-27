@@ -234,6 +234,11 @@ imports_aak_los(){
     "${VENV}/bin/python3" integrations/aarhus/los_import.py
 }
 
+imports_manager_sync(){
+    echo running imports_manager_sync
+    curl http://localhost:8020/trigger/all
+}
+
 
 
 exports_mox_rollekatalog(){
@@ -543,6 +548,10 @@ imports(){
 
     if [ "${RUN_IMPORTS_AAK_LOS}" == "true" ]; then
         run-job imports_aak_los || return 2
+    fi
+
+    if [ "${RUN_MANAGER_SYNC}" == "true" ]; then
+        run-job imports_manager_sync || return 2
     fi
 
 }
