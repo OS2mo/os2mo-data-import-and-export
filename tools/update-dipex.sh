@@ -3,6 +3,9 @@
 
 set -e
 
+# Never try to fetch keys from keyring, it can cause horrible DBUS issues
+export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export VENV=${VENV:=${DIPEXAR}/.venv}
 export POETRYPATH=${POETRYPATH:=/home/$(whoami)/.local/bin/poetry}
