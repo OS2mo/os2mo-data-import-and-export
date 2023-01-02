@@ -22,6 +22,7 @@ from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
+from more_itertools import only
 from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
@@ -327,34 +328,47 @@ def get_sts_user_raw(
 
 
 def get_it_uuid_user_key(
-    it: Iterable, uuid_from_it_systems: List, user_key_it_system: str
-):
+    it: List, uuid_from_it_systems: List, user_key_it_system: str
+) -> Dict:
     """From a list of it-accounts return a dict containing uuid and user_key"""
-    res = {}
-    for i in it:
-        if i["itsystem"]["name"] in uuid_from_it_systems:
-            res["uuid"] = i["user_key"]
-        elif i["itsystem"]["name"] == user_key_it_system:
-            res["user_key"] = i["user_key"]
-    return res
+    try:
+        uuid = dict(
+            only(
+                filter(lambda i: i["itsystem"]["name"] in uuid_from_it_systems, it),
+                default={},
+            )
+        ).get("user_key")
+        user_key = dict(
+            only(
+                filter(lambda i: i["itsystem"]["name"] == user_key_it_system, it),
+                default={},
+            )
+        ).get("user_key")
+    except ValueError:
+        msg = "Cannot infer uuids and user keys from it-systems. Make sure to group it-accounts by engagements"
+        logger.error(msg)
+        uuid = None
+        user_key = None
+    return {"uuid": uuid, "user_key": user_key}
 
 
 def group_accounts(users, uuid_from_it_systems: List, user_key_it_system: str) -> List:
     """Groups it accounts by their associated engagement"""
 
     def find_eng_uuid(it):
-        if it["engagement"] is None:
-            return None
-        return one(it["engagement"])["uuid"]
+        return it["engagement_uuid"]
 
     groups = groupby(users, find_eng_uuid)
     res = [
         {
             "engagement_uuid": key,
-            **get_it_uuid_user_key(group, uuid_from_it_systems, user_key_it_system),
+            **get_it_uuid_user_key(
+                list(group), uuid_from_it_systems, user_key_it_system
+            ),
         }
         for key, group in groups
     ]
+
     return res
 
 
@@ -601,9 +615,7 @@ def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str):
               itusers {
                 uuid
                 user_key
-                engagement {
-                  uuid
-                }
+                engagement_uuid
                 itsystem {
                   name
                 }
