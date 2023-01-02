@@ -328,8 +328,8 @@ def get_sts_user_raw(
 
 
 def get_it_uuid_user_key(
-    it: List, uuid_from_it_systems: List, user_key_it_system: str
-) -> Dict:
+    it: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
+) -> Dict[str, Optional[str]]:
     """From a list of it-accounts return a dict containing uuid and user_key"""
     try:
         uuid = dict(
@@ -352,7 +352,9 @@ def get_it_uuid_user_key(
     return {"uuid": uuid, "user_key": user_key}
 
 
-def group_accounts(users, uuid_from_it_systems: List, user_key_it_system: str) -> List:
+def group_accounts(
+    users: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
+) -> List:
     """Groups it accounts by their associated engagement"""
 
     def find_eng_uuid(it):
@@ -605,7 +607,7 @@ def get_sts_orgunit(uuid: str, settings):
     return sts_org_unit
 
 
-def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str):
+def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[Dict]:
     """Find fk-org user(s) details for the person with given MO uuid"""
     q = gql(
         """
