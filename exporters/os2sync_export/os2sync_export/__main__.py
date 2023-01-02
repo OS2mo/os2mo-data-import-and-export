@@ -173,7 +173,7 @@ def main(gql_session: SyncClientSession, settings: Settings):
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
-        os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
+        os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     if settings.sentry_dsn:
