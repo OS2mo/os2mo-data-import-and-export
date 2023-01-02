@@ -345,7 +345,7 @@ def group_accounts(users, uuid_from_it_systems: List, user_key_it_system: str) -
     def find_eng_uuid(it):
         if it["engagement"] is None:
             return None
-        return it["engagement"]["uuid"]
+        return one(it["engagement"])["uuid"]
 
     groups = groupby(users, find_eng_uuid)
     res = [

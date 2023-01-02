@@ -12,25 +12,25 @@ query_response = [
     {
         "uuid": str(uuid4()),
         "user_key": "AndersA",
-        "engagement": {"uuid": engagement_uuid1},
+        "engagement": [{"uuid": engagement_uuid1}],
         "itsystem": {"name": "FK-ORG USERNAME"},
     },
     {
         "uuid": str(uuid4()),
         "user_key": str(uuid4()),
-        "engagement": {"uuid": engagement_uuid1},
+        "engagement": [{"uuid": engagement_uuid1}],
         "itsystem": {"name": "FK-ORG UUID"},
     },
     {
         "uuid": str(uuid4()),
         "user_key": "AAnd",
-        "engagement": {"uuid": engagement_uuid2},
+        "engagement": [{"uuid": engagement_uuid2}],
         "itsystem": {"name": "FK-ORG USERNAME"},
     },
     {
         "uuid": str(uuid4()),
         "user_key": str(uuid4()),
-        "engagement": {"uuid": engagement_uuid2},
+        "engagement": [{"uuid": engagement_uuid2}],
         "itsystem": {"name": "FK-ORG UUID"},
     },
     {
