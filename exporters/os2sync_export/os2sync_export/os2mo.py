@@ -358,8 +358,12 @@ def group_accounts(
     """Groups it accounts by their associated engagement"""
 
     def find_eng_uuid(it):
+        if it["engagement_uuid"] is None:
+            # Can't sort lists with None, so we convert to empty string
+            return ""
         return it["engagement_uuid"]
 
+    users.sort(key=find_eng_uuid)
     groups = groupby(users, find_eng_uuid)
     res = [
         {
