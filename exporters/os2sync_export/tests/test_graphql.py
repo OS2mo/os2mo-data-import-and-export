@@ -13,7 +13,7 @@ engagement_uuid2 = str(uuid4())
 fk_org_uuid_1 = str(uuid4())
 fk_org_user_key_1 = "AndersA"
 fk_org_uuid_2 = str(uuid4())
-fk_org_user_key_2 = ("AAnd",)
+fk_org_user_key_2 = "AAnd"
 fk_org_uuid_3 = str(uuid4())
 
 query_response = [
@@ -50,10 +50,32 @@ query_response = [
 ]
 
 
+def test_group_by_engagement_noop():
+    groups = group_accounts(query_response, [], None)
+    assert len(groups) == 3
+    for g in groups:
+        assert g.get("uuid") is None
+        assert g.get("user_key") is None
+
+
 def test_group_by_engagement():
     groups = group_accounts(query_response, ["FK-ORG UUID"], "FK-ORG USERNAME")
     assert len(groups) == 3
-    assert any(engagement_uuid1 == g.get("engagement_uuid") for g in groups)
+
+    for g in [
+        {"engagement_uuid": "", "user_key": None, "uuid": fk_org_uuid_3},
+        {
+            "engagement_uuid": engagement_uuid1,
+            "user_key": fk_org_user_key_1,
+            "uuid": fk_org_uuid_1,
+        },
+        {
+            "engagement_uuid": engagement_uuid2,
+            "user_key": fk_org_user_key_2,
+            "uuid": fk_org_uuid_2,
+        },
+    ]:
+        assert g in groups
 
 
 @patch("os2sync_export.os2mo.get_sts_user_raw")

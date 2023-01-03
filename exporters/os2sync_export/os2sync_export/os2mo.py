@@ -331,24 +331,25 @@ def get_it_uuid_user_key(
     it: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
 ) -> Dict[str, Optional[str]]:
     """From a list of it-accounts return a dict containing uuid and user_key"""
+    uuid = None
+    user_key = None
+
+    def find_it_system_name(it):
+        return it["itsystem"]["name"]
+
+    # group by name of it-system
+    groups = groupby(sorted(it, key=find_it_system_name), find_it_system_name)
+
     try:
-        uuid = dict(
-            only(
-                filter(lambda i: i["itsystem"]["name"] in uuid_from_it_systems, it),
-                default={},
-            )
-        ).get("user_key")
-        user_key = dict(
-            only(
-                filter(lambda i: i["itsystem"]["name"] == user_key_it_system, it),
-                default={},
-            )
-        ).get("user_key")
+        # Check that there are only one it-system in each group and get the user_key
+        it_groups = {k: only(v)["user_key"] for k, v in groups}  # type: ignore
+
+        user_key = it_groups.get(user_key_it_system)
+        # UUID can be read from any one of the list of it-systems
+        uuid = only(it_groups[x] for x in uuid_from_it_systems)
     except ValueError:
         msg = "Cannot infer uuids and user keys from it-systems. Make sure to group it-accounts by engagements"
         logger.error(msg)
-        uuid = None
-        user_key = None
     return {"uuid": uuid, "user_key": user_key}
 
 
