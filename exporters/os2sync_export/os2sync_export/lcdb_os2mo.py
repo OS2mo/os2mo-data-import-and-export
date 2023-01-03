@@ -142,7 +142,7 @@ def get_sts_user_raw(
             session,
             uuid,
             user_key_it_system_name=settings.os2sync_user_key_it_system_name,
-            )
+        )
     user = User(
         dict(
             uuid=uuid,
