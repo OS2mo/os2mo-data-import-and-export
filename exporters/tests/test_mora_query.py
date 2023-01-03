@@ -9,14 +9,16 @@ import os
 import csv
 import unittest
 from chardet.universaldetector import UniversalDetector
-import common_queries as cq
+from exporters import common_queries as cq
 from os2mo_helpers.mora_helpers import MoraHelper
+
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 
 class QueryTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.morah = MoraHelper()
+        self.morah = MoraHelper(hostname=MORA_BASE, export_ansi=False)
         org = self.morah.read_organisation()
         # This assumes a single top-unit. Tests will fail if we have more.
         roots = self.morah.read_top_units(org)
@@ -26,7 +28,7 @@ class QueryTests(unittest.TestCase):
         cq.export_orgs(self.morah, self.nodes, 'all_employees.csv')
         cq.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
                        include_employees=False)
-        cq.export_managers(self.morah, self.nodes, 'all_managers.csv')
+        cq.export_managers(self.morah, self.nodes, 'all_managers.csv', empty_manager_fields=True)
         cq.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
 
     @classmethod
@@ -84,9 +86,25 @@ class QueryTests(unittest.TestCase):
         rows = self._load_csv('all_orgs.csv')
         self.assertEqual(len(rows), len(self.nodes))
 
-    def test_all_managers(self):
+    def test_empty_manager_fields(self):
+        """
+        Tests if fields in manager payloads can indeed be written as empty values,
+        as they previously have been populated by leaders higher up in hierarchy.
+        """
         rows = self._load_csv('all_managers.csv')
-        self.assertEqual(len(rows), self.counts['manager_count'])
+        empty_manager_fields_from_csv = {
+            '2xsub org': '',
+            '3xsub org': '',
+            'Ansvar': '',
+            'E-mail': '',
+            'Navn': '',
+            'Telefon': '',
+            'org': 'Teknik og Miljø',
+            'root': 'Kolding Kommune',
+            'sub org': ''
+        }
+        # (Empty) manager rows are written to, and can be found in, the csv file "all_managers.csv".
+        assert rows[1] == empty_manager_fields_from_csv
 
 
 if __name__ == '__main__':
