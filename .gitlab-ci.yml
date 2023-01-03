@@ -314,6 +314,9 @@ Test SPSFTP:
     - cd exporters/emus/spsftp
     - pytest tests
 
+Test mora query:
+  extends: .test-python
+  script: pytest exporters/tests/test_mora_query.py
 
 # Release stage
 ###############

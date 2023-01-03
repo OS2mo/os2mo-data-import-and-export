@@ -13,6 +13,8 @@ from exporters import common_queries as cq
 from os2mo_helpers.mora_helpers import MoraHelper
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
+PATH_TO_TEST_FILE = os.environ.get(
+    "PATH_TO_TEST_FILE", "exporters/tests/data/test_data_alle_ledere_uden_nedarvinger_os2mo.csv")
 
 
 class QueryTests(unittest.TestCase):
@@ -91,7 +93,7 @@ class QueryTests(unittest.TestCase):
         Tests if fields in manager payloads can indeed be written as empty values,
         as they previously have been populated by leaders higher up in hierarchy.
         """
-        rows = self._load_csv('all_managers.csv')
+        rows = self._load_csv(PATH_TO_TEST_FILE)
         empty_manager_fields_from_csv = {
             '2xsub org': '',
             '3xsub org': '',
@@ -103,7 +105,8 @@ class QueryTests(unittest.TestCase):
             'root': 'Kolding Kommune',
             'sub org': ''
         }
-        # (Empty) manager rows are written to, and can be found in, the csv file "all_managers.csv".
+        # Manager data is pulled in from "tests/datatest_data_alle_ledere_uden_nedarvinger_os2mo.csv", and rows can be
+        # found in, the test data file "test_data_alle_ledere_uden_nedarvinger_os2mo.csv".
         assert rows[1] == empty_manager_fields_from_csv
 
 
