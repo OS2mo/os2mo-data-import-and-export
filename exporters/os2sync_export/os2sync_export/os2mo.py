@@ -363,8 +363,7 @@ def group_accounts(
             return ""
         return it["engagement_uuid"]
 
-    users.sort(key=find_eng_uuid)
-    groups = groupby(users, find_eng_uuid)
+    groups = groupby(sorted(users, key=find_eng_uuid), find_eng_uuid)
     res = [
         {
             "engagement_uuid": key,
@@ -615,7 +614,7 @@ def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[D
     """Find fk-org user(s) details for the person with given MO uuid"""
     q = gql(
         """
-    query MyQuery($uuids: [UUID!]) {
+    query GetITAccounts($uuids: [UUID!]) {
         employees(uuids: $uuids) {
             objects {
               itusers {
