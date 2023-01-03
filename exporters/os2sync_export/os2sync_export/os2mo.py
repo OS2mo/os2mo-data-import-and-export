@@ -392,8 +392,8 @@ def get_sts_user(
         get_sts_user_raw(
             mo_uuid,
             settings,
-            fk_org_uuid=it.get("uuid"),
-            user_key=it.get("user_key"),
+            fk_org_uuid=it["uuid"],
+            user_key=it["user_key"],
         )
         for it in fk_org_accounts
     ]
