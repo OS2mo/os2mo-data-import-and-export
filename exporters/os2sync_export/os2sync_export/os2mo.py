@@ -274,6 +274,7 @@ def get_sts_user_raw(
     settings: Settings,
     fk_org_uuid: Optional[str] = None,
     user_key: Optional[str] = None,
+    engagement_uuid: Optional[str] = None,
 ) -> Dict[str, Any]:
 
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
@@ -297,6 +298,8 @@ def get_sts_user_raw(
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
+    if engagement_uuid:
+        engagements = filter(lambda e: e["uuid"] == engagement_uuid, engagements)
     allowed_unitids = org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
@@ -394,6 +397,7 @@ def get_sts_user(
             settings,
             fk_org_uuid=it["uuid"],
             user_key=it["user_key"],
+            engagement_uuid=it["engagement_uuid"],
         )
         for it in fk_org_accounts
     ]

@@ -91,8 +91,26 @@ def test_get_sts_user(get_sts_user_raw_mock):
 
     assert len(get_sts_user_raw_mock.call_args_list) == 3
     for c in [
-        call(mo_uuid, settings, fk_org_uuid=fk_org_uuid_1, user_key=fk_org_user_key_1),
-        call(mo_uuid, settings, fk_org_uuid=fk_org_uuid_2, user_key=fk_org_user_key_2),
-        call(mo_uuid, settings, fk_org_uuid=fk_org_uuid_3, user_key=None),
+        call(
+            mo_uuid,
+            settings,
+            fk_org_uuid=fk_org_uuid_1,
+            user_key=fk_org_user_key_1,
+            engagement_uuid=engagement_uuid1,
+        ),
+        call(
+            mo_uuid,
+            settings,
+            fk_org_uuid=fk_org_uuid_2,
+            user_key=fk_org_user_key_2,
+            engagement_uuid=engagement_uuid2,
+        ),
+        call(
+            mo_uuid,
+            settings,
+            fk_org_uuid=fk_org_uuid_3,
+            user_key=None,
+            engagement_uuid="",
+        ),
     ]:
         assert c in get_sts_user_raw_mock.call_args_list
