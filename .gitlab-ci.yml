@@ -314,7 +314,6 @@ Test SPSFTP:
     - cd exporters/emus/spsftp
     - pytest tests
 
-
 # Release stage
 ###############
 
