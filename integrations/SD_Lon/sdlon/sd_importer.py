@@ -382,7 +382,7 @@ class SdImport:
 
     def _get_institution(self) -> uuid.UUID:
         params = {
-            "InstitutionUUIDIdentifier": self.settings.sd_institution_identifier,
+            "InstitutionIdentifier": self.settings.sd_institution_identifier,
             "UUIDIndicator": "true",
         }
         r = sd_lookup("GetInstitution20111201", settings=self.settings, params=params)
