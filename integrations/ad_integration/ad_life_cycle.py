@@ -13,6 +13,7 @@ from typing import Optional
 from typing import Tuple
 
 import click
+import sentry_sdk
 from ra_utils.apply import apply
 from ra_utils.catchtime import catchtime
 from ra_utils.jinja_filter import create_filters
@@ -506,6 +507,9 @@ def ad_life_cycle(
         read_from_cache=read_from_cache,
         skip_occupied_names_check=skip_occupied_names_check,
     )
+
+    if "crontab.SENTRY_DSN" in sync._settings:
+        sentry_sdk.init(dsn=sync._settings["crontab.SENTRY_DSN"])
 
     if preview_command_for_uuid:
         run_preview_command_for_uuid(sync, str(preview_command_for_uuid))

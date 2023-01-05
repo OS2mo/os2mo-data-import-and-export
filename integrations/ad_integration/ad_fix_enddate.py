@@ -6,6 +6,7 @@ from datetime import datetime as dt
 
 import click
 import dateutil.parser
+import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from gql import gql
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -205,6 +206,9 @@ def cli(
     """
     pydantic_settings = AdFixEndDateSettings()
     pydantic_settings.start_logging_based_on_settings()
+
+    if pydantic_settings.sentry_dsn:
+        sentry_sdk.init(dsn=pydantic_settings.sentry_dsn)
 
     logger.info(
         f"Command line args:"
