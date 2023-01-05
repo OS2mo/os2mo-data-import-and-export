@@ -13,7 +13,9 @@ from os2sync_export.os2mo import get_sts_user
 
 
 def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Dict]:
-    sts_users = get_sts_user(str(uuid), settings=settings)
+    gql_client = setup_gql_client(settings)
+    with gql_client as gql_session:
+        sts_users = get_sts_user(str(uuid), gql_session=gql_session, settings=settings)
 
     if dry_run:
         return sts_users

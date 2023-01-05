@@ -78,10 +78,14 @@ class TestGetStsUser(unittest.TestCase):
         if template:
             # Run with template
             settings.os2sync_templates["person.name"] = template
-            sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, settings=settings)
+            sts_user = lcdb_os2mo.get_sts_user_raw(
+                self._session, uuid, settings=settings
+            )
         else:
             # Run without template
-            sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, settings=settings)
+            sts_user = lcdb_os2mo.get_sts_user_raw(
+                self._session, uuid, settings=settings
+            )
 
         self.assertDictEqual(
             one(sts_user),
@@ -148,7 +152,7 @@ class TestGetStsUser(unittest.TestCase):
         settings = dummy_settings
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("try_get_it_user_key", given_ad_user_key):
-            sts_user = lcdb_os2mo.get_sts_user(
+            sts_user = lcdb_os2mo.get_sts_user_raw(
                 self._session, mo_user_uuid, settings=dummy_settings
             )
 

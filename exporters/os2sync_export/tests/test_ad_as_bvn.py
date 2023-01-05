@@ -5,10 +5,8 @@ from typing import Dict
 from typing import Optional
 from unittest.mock import patch
 
-from more_itertools import one
 from os2sync_export import os2mo
-from os2sync_export.os2mo import get_sts_user
-from os2sync_export.os2mo import try_get_it_user_key
+from os2sync_export.os2mo import get_sts_user_raw
 from tests.helpers import dummy_settings
 
 uuid = "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b"
@@ -363,14 +361,6 @@ def patched_session_get(url: str, params: Optional[Dict[Any, Any]] = None, **kwa
 
 class TestsMOAd(unittest.TestCase):
     @patch("os2sync_export.os2mo.os2mo_get", patched_session_get)
-    def test_get_ad_user_key(self):
-        expected = "SolveigK_AD_logon"
-        self.assertEqual(
-            expected,
-            try_get_it_user_key(uuid, user_key_it_system_name="Active Directory"),
-        )
-
-    @patch("os2sync_export.os2mo.os2mo_get", patched_session_get)
     @patch.object(os2mo, "org_unit_uuids", return_value={})
     def test_mo_client_default(self, org_unit_uuids_mock):
         expected = {
@@ -381,5 +371,7 @@ class TestsMOAd(unittest.TestCase):
         }
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
-        actual = get_sts_user(uuid, settings=settings)
-        self.assertEqual(expected, one(actual))
+        actual = get_sts_user_raw(
+            uuid, settings=settings, fk_org_uuid=None, user_key="SolveigK_AD_logon"
+        )
+        self.assertEqual(expected, actual)

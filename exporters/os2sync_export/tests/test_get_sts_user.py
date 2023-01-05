@@ -1,9 +1,8 @@
 import unittest
 from unittest.mock import patch
 
-from more_itertools import one
 from os2sync_export import os2mo
-from os2sync_export.os2mo import get_sts_user as os2mo_get_sts_user
+from os2sync_export.os2mo import get_sts_user_raw as os2mo_get_sts_user_raw
 from parameterized import parameterized
 from tests.helpers import dummy_settings
 from tests.helpers import MoEmployeeMixin
@@ -53,7 +52,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             os2sync_templates=os2sync_templates,
         )
         self.assertDictEqual(
-            one(sts_user),
+            sts_user,
             {
                 "Uuid": self._uuid,
                 "UserId": self._user_key,
@@ -118,7 +117,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             os2sync_templates=os2sync_templates,
         )
         self.assertDictEqual(
-            one(sts_user),
+            sts_user,
             {
                 "Uuid": self._uuid,
                 "UserId": expected_user_id,
@@ -145,9 +144,11 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
         settings.os2sync_templates = os2sync_templates or {}
+
         with self._patch("os2mo_get", response):
-            with self._patch("try_get_it_user_key", ad_user_key):
-                return os2mo_get_sts_user(self._uuid, settings=settings)
+            return os2mo_get_sts_user_raw(
+                self._uuid, settings=settings, fk_org_uuid=None, user_key=ad_user_key
+            )
 
     def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)
