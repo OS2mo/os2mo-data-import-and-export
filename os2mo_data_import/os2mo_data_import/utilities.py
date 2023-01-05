@@ -572,7 +572,7 @@ class ImportUtility(object):
         return detail.build()
 
     def insert_mox_data(self, resource, data, uuid=None):
-        service_url = self.mox_base + "/" + resource
+        service_url = f"{self.mox_base}/{resource}"
 
         if uuid:
             update_url = "{service}/{uuid}".format(
