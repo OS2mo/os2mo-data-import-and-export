@@ -199,7 +199,7 @@ def get_work_address(positions, work_address_names) -> Optional[str]:
     try:
         primary_eng = one(primary)
     except ValueError:
-        logger.error(
+        logger.warning(
             "Could not get unique primary engagement, using first found position"
         )
         primary_eng = first(positions)
@@ -352,7 +352,7 @@ def get_it_uuid_user_key(
         uuid = only(it_groups[x] for x in uuid_from_it_systems)
     except ValueError:
         msg = "Cannot infer uuids and user keys from it-systems. Make sure to group it-accounts by engagements"
-        logger.error(msg)
+        logger.warning(msg)
     return {"uuid": uuid, "user_key": user_key}
 
 
