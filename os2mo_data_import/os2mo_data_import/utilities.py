@@ -8,7 +8,6 @@
 
 import logging
 from uuid import uuid4, UUID
-from urllib.parse import urljoin
 from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
@@ -391,7 +390,6 @@ class ImportUtility(object):
 
         employee.org_uuid = self.organisation_uuid
         payload = employee.build()
-        mox_resource = 'organisation/bruger'
 
         if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
             logger.info('Re-import employee {}'.format(payload['uuid']))
@@ -405,6 +403,7 @@ class ImportUtility(object):
         mora_resource = "e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
+            data=payload,
         )
 
         # Add uuid to the inserted employee map
@@ -573,11 +572,7 @@ class ImportUtility(object):
         return detail.build()
 
     def insert_mox_data(self, resource, data, uuid=None):
-
-        service_url = urljoin(
-            base=self.mox_base,
-            url=resource
-        )
+        service_url = f"{self.mox_base}/{resource}"
 
         if uuid:
             update_url = "{service}/{uuid}".format(
