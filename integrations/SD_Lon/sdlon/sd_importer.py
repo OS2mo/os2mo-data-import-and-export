@@ -66,7 +66,7 @@ class SdImport:
         self.importer = importer
 
         self.org_name = self.settings.municipality_name
-        self.sd_institution_uuid = self.get_institution()
+        self.sd_institution_uuid = self._get_institution()
 
         self.importer.add_organisation(
             identifier=self.org_name,
@@ -380,18 +380,13 @@ class SdImport:
                 super_unit=super_unit,
             )
 
-    @staticmethod
-    def get_institution() -> uuid.UUID:
-        # This way of getting the institution sucks, but it seems to be the
-        # best way for now to avoid duplicated code.
-        # TODO: use the upcoming SD-client instead
-
-        # This only works because the SD-importer is run from the SD-changed-at
-        # container
-        changed_at_settings = get_changed_at_settings()
-
-        fd = FixDepartments(changed_at_settings)
-        return uuid.UUID(fd.get_institution())
+    def _get_institution(self) -> uuid.UUID:
+        params = {
+            "InstitutionIdentifier": self.settings.sd_institution_identifier,
+            "UUIDIndicator": "true",
+        }
+        r = sd_lookup("GetInstitution20111201", settings=self.settings, params=params)
+        return uuid.UUID(r["Region"]["Institution"]["InstitutionUUIDIdentifier"])
 
     def _create_org_tree_structure(self):
         nodes = {}
