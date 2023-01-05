@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
 from functools import lru_cache
+from itertools import groupby
 from operator import itemgetter
 from typing import Any
 from typing import Dict
@@ -17,8 +18,11 @@ from typing import Tuple
 from uuid import UUID
 
 import requests
+from gql import gql
+from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
+from more_itertools import only
 from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
@@ -37,7 +41,9 @@ def get_mo_session():
     session.headers = {
         "User-Agent": "os2mo-data-import-and-export",
     }
+
     session_headers = TokenSettings().get_headers()
+
     if session_headers:
         session.headers.update(session_headers)
     return session
@@ -193,7 +199,7 @@ def get_work_address(positions, work_address_names) -> Optional[str]:
     try:
         primary_eng = one(primary)
     except ValueError:
-        logger.error(
+        logger.warning(
             "Could not get unique primary engagement, using first found position"
         )
         primary_eng = first(positions)
@@ -263,15 +269,19 @@ def get_org_unit_hierarchy(titles: Tuple):
     return map(itemgetter("uuid"), filtered_hierarchies)
 
 
-def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
+def get_sts_user_raw(
+    uuid: str,
+    settings: Settings,
+    fk_org_uuid: Optional[str] = None,
+    user_key: Optional[str] = None,
+    engagement_uuid: Optional[str] = None,
+) -> Dict[str, Any]:
+
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
-    it_system_user_key = try_get_it_user_key(
-        uuid, user_key_it_system_name=settings.os2sync_user_key_it_system_name
-    )
     user = User(
         dict(
-            uuid=uuid,
-            candidate_user_id=it_system_user_key,
+            uuid=fk_org_uuid or uuid,
+            candidate_user_id=user_key,
             person=Person(employee, settings=settings),
         ),
         settings=settings,
@@ -279,7 +289,7 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
 
     sts_user = user.to_json()
 
-    if settings.os2sync_filter_users_by_it_system and it_system_user_key is None:
+    if settings.os2sync_filter_users_by_it_system and user_key is None:
         # Skip user if filter is activated and there are no user_key to find in settings
         # By returning user without any positions it will be removed from fk-org
         return sts_user
@@ -288,6 +298,8 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
     engagements = os2mo_get(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
+    if engagement_uuid:
+        engagements = filter(lambda e: e["uuid"] == engagement_uuid, engagements)
     allowed_unitids = org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
@@ -318,15 +330,82 @@ def get_sts_user_raw(uuid: str, settings: Settings) -> Dict[str, Any]:
     return sts_user
 
 
-def get_sts_user(uuid: str, settings: Settings) -> List[Dict[str, Any]]:
-    sts_user = get_sts_user_raw(uuid, settings)
+def get_it_uuid_user_key(
+    it: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
+) -> Dict[str, Optional[str]]:
+    """From a list of it-accounts return a dict containing uuid and user_key"""
+    uuid = None
+    user_key = None
 
-    if settings.os2sync_uuid_from_it_systems:
-        overwrite_user_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
-    return [sts_user]
+    def find_it_system_name(it):
+        return it["itsystem"]["name"]
+
+    # group by name of it-system
+    groups = groupby(sorted(it, key=find_it_system_name), find_it_system_name)
+
+    try:
+        # Check that there are only one it-system in each group and get the user_key
+        it_groups = {k: only(v)["user_key"] for k, v in groups}  # type: ignore
+
+        user_key = it_groups.get(user_key_it_system)
+        # UUID can be read from any one of the list of it-systems
+        uuid = only(it_groups[x] for x in uuid_from_it_systems)
+    except ValueError:
+        msg = "Cannot infer uuids and user keys from it-systems. Make sure to group it-accounts by engagements"
+        logger.warning(msg)
+    return {"uuid": uuid, "user_key": user_key}
 
 
-def split_active_users(users: List[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
+def group_accounts(
+    users: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
+) -> List:
+    """Groups it accounts by their associated engagement"""
+
+    def find_eng_uuid(it):
+        if it["engagement_uuid"] is None:
+            # Can't sort lists with None, so we convert to empty string
+            return ""
+        return it["engagement_uuid"]
+
+    groups = groupby(sorted(users, key=find_eng_uuid), find_eng_uuid)
+    res = [
+        {
+            "engagement_uuid": key,
+            **get_it_uuid_user_key(
+                list(group), uuid_from_it_systems, user_key_it_system
+            ),
+        }
+        for key, group in groups
+    ]
+
+    return res
+
+
+def get_sts_user(
+    mo_uuid: str, gql_session: SyncClientSession, settings: Settings
+) -> List[Dict[str, Any]]:
+    users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
+    fk_org_accounts = group_accounts(
+        users,
+        settings.os2sync_uuid_from_it_systems,
+        settings.os2sync_user_key_it_system_name,
+    )
+
+    sts_users = [
+        get_sts_user_raw(
+            mo_uuid,
+            settings,
+            fk_org_uuid=it["uuid"],
+            user_key=it["user_key"],
+            engagement_uuid=it["engagement_uuid"],
+        )
+        for it in fk_org_accounts
+    ]
+
+    return sts_users
+
+
+def split_active_users(users: Iterable[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
     """Splits list of users into groups filtered by whether they have active positions"""
     return partition(lambda u: u["Positions"], users)
 
@@ -534,6 +613,31 @@ def get_sts_orgunit(uuid: str, settings):
     )
 
     return sts_org_unit
+
+
+def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[Dict]:
+    """Find fk-org user(s) details for the person with given MO uuid"""
+    q = gql(
+        """
+    query GetITAccounts($uuids: [UUID!]) {
+        employees(uuids: $uuids) {
+            objects {
+              itusers {
+                uuid
+                user_key
+                engagement_uuid
+                itsystem {
+                  name
+                }
+              }
+            }
+          }
+        }
+    """
+    )
+    res = gql_session.execute(q, variable_values={"uuids": mo_uuid})
+    objects = one(res["employees"])["objects"]
+    return one(objects)["itusers"]
 
 
 def show_all_details(uuid, objtyp):

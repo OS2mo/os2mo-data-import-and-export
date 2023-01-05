@@ -125,7 +125,9 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     return all_employee_uuids
 
 
-def sync_os2sync_users(settings, counter, prev_date):
+def sync_os2sync_users(
+    gql_session: SyncClientSession, settings: Settings, counter, prev_date
+):
 
     logger.info("sync_os2sync_users starting")
 
@@ -148,7 +150,8 @@ def sync_os2sync_users(settings, counter, prev_date):
     # fordi de ikke får nogen 'Positions' hvis de ikke
     # har en ansættelse i en af allowed_unitids
     sts_users = flatten(
-        os2mo.get_sts_user(u, settings=settings) for u in os2mo_uuids_present
+        os2mo.get_sts_user(u, gql_session=gql_session, settings=settings)
+        for u in os2mo_uuids_present
     )
     inactive, active = split_active_users(sts_users)
 
@@ -170,7 +173,7 @@ def main(gql_session: SyncClientSession, settings: Settings):
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
-        os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
+        os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     if settings.sentry_dsn:
@@ -191,7 +194,12 @@ def main(gql_session: SyncClientSession, settings: Settings):
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
     sync_os2sync_orgunits(settings, counter, prev_date_str)
-    sync_os2sync_users(settings, counter, prev_date_str)
+    sync_os2sync_users(
+        gql_session=gql_session,
+        settings=settings,
+        counter=counter,
+        prev_date=prev_date_str,
+    )
     remove_from_os2sync(gql_session=gql_session, settings=settings)
 
     if hash_cache_file:
