@@ -2188,14 +2188,14 @@ tenacity = ">=8.0.1,<9.0.0"
 
 [[package]]
 name = "os2mo-data-import"
-version = "3.26.2"
+version = "3.33.2"
 description = "A set of tools for OS2MO data import and export"
 category = "main"
 optional = false
 python-versions = ">=3.6.2,<4.0.0"
 files = [
-    {file = "os2mo_data_import-3.26.2-py3-none-any.whl", hash = "sha256:01f34f4246d7a9a816ef9685aabd07ae034bcbb39a3589c05eaa6c8eda8a4be9"},
-    {file = "os2mo_data_import-3.26.2.tar.gz", hash = "sha256:a9e4dee1546869ed62ca842c0e20d362fe62a791e51846cf1c1088677ef04116"},
+    {file = "os2mo_data_import-3.33.2-py3-none-any.whl", hash = "sha256:dd2fdf3f4c16e939516a8d80581c01d4fb54d4ae47de5746a3e89539717924e7"},
+    {file = "os2mo_data_import-3.33.2.tar.gz", hash = "sha256:74e1d6159bef6a197ba56a658febddb02f75e660149b49544e5b4fb0c3b88d8c"},
 ]
 
 [package.dependencies]
@@ -3924,4 +3924,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "82b46ee80c1874da0b75aacfa9dff99cdb5944879331afceb7625b23c9012363"
+content-hash = "3afc726ed3625340d9257de4e2682e6b800c57a6efd1e0c9a59597b3c50acb5b"
