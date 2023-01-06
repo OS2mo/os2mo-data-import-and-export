@@ -12,6 +12,8 @@ import los_files
 import mox_helpers.payloads as mox_payloads
 import pydantic
 import uuids
+from aiohttp import ClientResponseError
+from aiohttp.http_exceptions import HttpBadRequest
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 from pydantic import Field
@@ -460,6 +462,15 @@ class StamImporter:
                 )
             except KeyError:  # this class is already unpublished
                 print("LoRa class %r was already unpublished" % class_uuid)
+            except ClientResponseError as e:
+                # `MoxHelper._update` can now raise a ClientResponseError, rather than a
+                # KeyError to indicate an HTTP error.
+                if e.status == HttpBadRequest.code:
+                    # Based on empirical observation we assume that an HTTP 400 is
+                    # caused by attempting to unpublish the same class more than once.
+                    print("LoRa class %r was already unpublished" % class_uuid)
+                else:
+                    raise  # re-raise ClientResponseError
             else:
                 print("Unpublished LoRa class %r" % class_uuid)
 

@@ -5,6 +5,8 @@ from unittest import mock
 import los_files
 import los_stam
 import uuids
+from aiohttp import ClientResponseError
+from aiohttp.http_exceptions import HttpBadRequest
 from hypothesis import given
 from mox_helpers.mox_helper import ElementNotFound
 from pydantic import Field
@@ -102,6 +104,46 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
 
                 # Assert that we convert the class UUID to string
                 assert isinstance(class_uuid, str)
+
+    def test_unpublish_handles_already_unpublished_class(self, capsys):
+        # When trying to unpublish a LoRa class which has already been unpublished in a
+        # a previous LOS import run, make sure that we handle the error raised by
+        # `mox_helper._update`. (#54283)
+
+        # In this test, we mock the `_search` method of `MoxHelper` to return a random
+        # class UUID, while we process an empty "CSV file".
+        existing_class_uuid = str(uuid.uuid4())
+        empty_csv_file = []
+
+        # The expected behavior is that `_create_classes_from_csv` will try to unpublish
+        # the class which is in MO but not in the CSV file.
+        # However, doing this more than once will trigger a `ClientResponseError`.
+        side_effect = ClientResponseError(request_info=None, history=None)
+        side_effect.status = HttpBadRequest.code
+
+        # Arrange
+        with mock_config():
+            instance = los_stam.StamImporter(self._datetime_last_imported)
+            with mock_create_mox_helper(los_stam) as mh:
+                mox_helper = mh.return_value
+                mox_helper._search.return_value = [existing_class_uuid]
+                mox_helper._update.side_effect = side_effect
+
+                # Act
+                self._run_until_complete(
+                    instance._create_classes_from_csv(MockStamCSV, empty_csv_file)
+                )
+
+                # Assert that we tried to unpublish the class in question
+                mox_helper._update.assert_called_once()
+                class_uuid = mox_helper._update.call_args.args[2]
+                assert class_uuid == existing_class_uuid
+                payload = mox_helper._update.call_args.args[3]
+                assert payload["tilstande"]["klassepubliceret"][0]["publiceret"] == "IkkePubliceret"
+
+                # Assert that we logged the expected output to stdout
+                captured = capsys.readouterr()
+                assert captured.out == f"LoRa class UUID('{existing_class_uuid}') was already unpublished\n"
 
     def test_get_or_create_facet_existing_facet(self):
         with mock_config():
