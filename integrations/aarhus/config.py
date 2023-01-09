@@ -17,14 +17,16 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
         return settings_json.get(f"{prefix}.{key}", default)
 
     return dict(
-        ftp_url=_get_setting_value("ftp_url"),
+        ftp_url=_get_setting_value("ftp_url", "ftp.aarhuskommune.dk"),
         ftp_port=_get_setting_value("ftp_port", 22),
-        ftp_user=_get_setting_value("ftp_user"),
+        ftp_user=_get_setting_value("ftp_user", "magenta"),
         ftp_pass=_get_setting_value("ftp_pass"),
-        ftp_ssh_key_path=_get_setting_value("ftp_ssh_key_path"),
+        ftp_ssh_key_path=_get_setting_value(
+            "ftp_ssh_key_path", "/home/sys_magenta_dipex/.ssh/id_rsa"
+        ),
         ftp_ssh_key_pass=_get_setting_value("ftp_ssh_key_pass"),
         ftp_folder=_get_setting_value("ftp_folder", "TEST"),
-        import_state_file=_get_setting_value("state_file"),
+        import_state_file=_get_setting_value("state_file", "./aak_los_last_import"),
         import_csv_folder=_get_setting_value("import_csv_folder"),
         azid_it_system_uuid=_get_setting_value(
             "azid_it_system_uuid", uuids.AZID_SYSTEM
