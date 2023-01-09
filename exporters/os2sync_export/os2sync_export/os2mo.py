@@ -23,7 +23,6 @@ from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from more_itertools import partition
-from more_itertools import unique_everseen
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -334,8 +333,8 @@ def group_accounts(
     users: List[Dict], uuid_from_it_systems: List[str], user_key_it_system_name: str
 ) -> List:
     """Groups it accounts by their associated engagement"""
-    # Find all unique engagment_uuids
-    engagemet_uuids = unique_everseen(map(itemgetter("engagement_uuid"), users))
+    # Find all unique engagement_uuids
+    engagemet_uuids = {u["engagement_uuid"] for u in users}
     # Find relevant it-systems containing user_keys
     user_keys = list(
         filter(lambda x: x["itsystem"]["name"] == user_key_it_system_name, users)
@@ -346,9 +345,9 @@ def group_accounts(
     # Find uuid and user_key for each engagement.
     for eng_uuid in engagemet_uuids:
 
-        uuid = only([u["user_key"] for u in uuids if u["engagement_uuid"] == eng_uuid])
+        uuid = only(u["user_key"] for u in uuids if u["engagement_uuid"] == eng_uuid)
         user_key = only(
-            [u["user_key"] for u in user_keys if u["engagement_uuid"] == eng_uuid]
+            u["user_key"] for u in user_keys if u["engagement_uuid"] == eng_uuid
         )
         fk_org_accounts.append(
             {"engagement_uuid": eng_uuid, "uuid": uuid, "user_key": user_key}
