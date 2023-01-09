@@ -38,3 +38,44 @@ class TestFTPFileSet:
             import los_files
 
             return los_files.FTPFileSet()
+
+
+class TestSFTPFileSet:
+    @given(st.text())
+    def test_convert_stringio_to_bytesio(self, text):
+        with mock_config(ftp_ssh_key_path="ftp_ssh_key_path"):
+            fileset = self._get_sftpfileset()
+            stringio = StringIO(text)
+            bytesio = fileset._convert_stringio_to_bytesio(stringio)
+            assert isinstance(bytesio, BytesIO)
+
+    @settings(deadline=None)
+    @given(st.text(), st.text(), st.text())
+    def test_makes_sftp_calls(self, filename, text, folder):
+        with mock_config(
+            ftp_ssh_key_path="ftp_ssh_key_path",
+            ftp_ssh_key_pass="ftp_ssh_key_pass",
+        ):
+            fileset = self._get_sftpfileset()
+            csv_stream = StringIO(text)
+            mock_sftp = mock.MagicMock()
+            mock_ssh = mock.MagicMock()
+            with mock.patch.object(
+                fileset, "_get_sftp_connector", return_value=(mock_ssh, mock_sftp)
+            ):
+                fileset.write_file(filename, csv_stream, folder)
+                if folder:
+                    mock_sftp.chdir.assert_called_once_with(folder)
+                mock_sftp.putfo.assert_called_once_with(
+                    fl=mock.ANY, remotepath=filename
+                )
+                mock_sftp.close.assert_called_once()
+                csv_bytes = mock_sftp.putfo.call_args.kwargs["fl"]
+                csv_stream_as_bytes = fileset._convert_stringio_to_bytesio(csv_stream)
+                assert csv_bytes.getvalue() == csv_stream_as_bytes.getvalue()
+
+    def _get_sftpfileset(self):
+        with mock_config(import_csv_folder=None, ftp_ssh_key_path="ftp_ssh_key_path"):
+            import los_files
+
+            return los_files.SFTPFileSet()

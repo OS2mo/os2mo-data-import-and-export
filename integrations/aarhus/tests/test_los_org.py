@@ -240,7 +240,9 @@ class TestWriteFailedAddresses:
     def test_writes_csv_to_ftp(self, instance: los_org.FailedDARLookup):
         # Patch `config.get_config` so `write_failed_addresses` sees
         # `MockConfig.queries_dir` instead of actual setting.
-        with mock_config(queries_dir="/tmp/"):
+        with mock_config(
+            queries_dir="/tmp/", import_csv_folder=None, ftp_ssh_key_path=None
+        ):
             # Patch `FTPFileSet.write_file` so we can test its arguments
             with mock.patch.object(los_files.FTPFileSet, "write_file") as mock_write:
                 # Run `write_failed_addresses`

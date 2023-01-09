@@ -16,12 +16,14 @@ from typing import TypeVar
 from typing import Union
 
 import config
+import paramiko
 import pydantic
 from more_itertools import one
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 from pydantic import BaseModel
 from pydantic import parse_obj_as
 from ra_utils.apply import apply
-
 
 T = TypeVar("T")
 
@@ -43,6 +45,17 @@ class FileSet(ABC):
     def write_file(self, filename: str, stream: StringIO, folder: Optional[str] = None):
         raise NotImplementedError("must be implemented by subclass")
 
+    def _convert_stringio_to_bytesio(
+        self, output: StringIO, encoding: str = "utf-8"
+    ) -> BytesIO:
+        """Convert StringIO object `output` to a BytesIO object using `encoding`"""
+        output.seek(0)
+        bytes_output = BytesIO()
+        bytes_writer = codecs.getwriter(encoding)(bytes_output)
+        bytes_writer.write(output.getvalue())
+        bytes_output.seek(0)
+        return bytes_output
+
 
 class FTPFileSet(FileSet):
     def _get_ftp_connector(self) -> FTP:
@@ -58,17 +71,6 @@ class FTPFileSet(FileSet):
             ftp.login(user=self._settings.ftp_user, passwd=self._settings.ftp_pass)
             ftp.cwd(self._settings.ftp_folder)
             return ftp
-
-    def _convert_stringio_to_bytesio(
-        self, output: StringIO, encoding: str = "utf-8"
-    ) -> BytesIO:
-        """Convert StringIO object `output` to a BytesIO object using `encoding`"""
-        output.seek(0)
-        bytes_output = BytesIO()
-        bytes_writer = codecs.getwriter(encoding)(bytes_output)
-        bytes_writer.write(output.getvalue())
-        bytes_output.seek(0)
-        return bytes_output
 
     def get_import_filenames(self) -> List[str]:
         ftp = self._get_ftp_connector()
@@ -99,6 +101,90 @@ class FTPFileSet(FileSet):
             f"STOR {filename}", self._convert_stringio_to_bytesio(stream)
         )
         ftp.close()
+        return result
+
+
+class SFTPFileSet(FileSet):
+    def _get_sftp_connector(self) -> Tuple[SSHClient, SFTPClient]:
+        try:
+            ssh = paramiko.SSHClient()
+
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            pkey = paramiko.RSAKey.from_private_key_file(
+                filename=self._settings.ftp_ssh_key_path,
+                password=self._settings.ftp_ssh_key_pass,
+            )
+        except Exception as e:
+            raise config.ImproperlyConfigured(
+                "cannot connect to FTP server %r"
+                % getattr(self._settings, "ftp_url", None)
+            ) from e
+        else:
+
+            try:
+                ssh.connect(
+                    hostname=self._settings.ftp_url,
+                    port=self._settings.ftp_port,
+                    username=self._settings.ftp_user,
+                    password=self._settings.ftp_pass,
+                    pkey=pkey,
+                )
+
+                sftp = ssh.open_sftp()
+                if not sftp:
+                    raise
+
+            except Exception as e:
+                raise config.ImproperlyConfigured(
+                    "cannot connect to FTP server %r"
+                    % getattr(self._settings, "ftp_url", None)
+                ) from e
+            else:
+
+                sftp.chdir(self._settings.ftp_folder)
+                return ssh, sftp
+
+    def get_import_filenames(self) -> List[str]:
+        ssh, sftp = self._get_sftp_connector()
+        filenames = sftp.listdir()
+        sftp.close()
+        ssh.close()
+        return filenames
+
+    def get_modified_datetime(self, filename: str) -> datetime:
+        """Read the 'modified' field from an FTP file"""
+        ssh, sftp = self._get_sftp_connector()
+        file_stats = sftp.stat(filename)
+        sftp.close()
+        ssh.close()
+        modified_time = file_stats.st_mtime
+        if not modified_time:
+            raise AttributeError
+        return datetime.fromtimestamp(float(modified_time))
+
+    def read_file(self, filename: str) -> List[str]:
+        ssh, sftp = self._get_sftp_connector()
+        file = sftp.file(filename=filename, mode="r")
+        lines = file.readlines()
+        file.close()
+        sftp.close()
+        ssh.close()
+        return lines
+
+    def write_file(self, filename: str, stream: StringIO, folder: Optional[str] = None):
+        ssh, sftp = self._get_sftp_connector()
+        if folder:
+            try:
+                sftp.chdir(folder)
+            except IOError:
+                sftp.mkdir(folder)
+                sftp.chdir(folder)
+        result = sftp.putfo(
+            fl=self._convert_stringio_to_bytesio(stream), remotepath=filename
+        )
+        sftp.close()
+        ssh.close()
         return result
 
 
@@ -138,10 +224,12 @@ class FSFileSet(FileSet):
             return f.writelines(stream.getvalue())
 
 
-def get_fileset_implementation() -> Union[FTPFileSet, FSFileSet]:
+def get_fileset_implementation() -> Union[SFTPFileSet, FTPFileSet, FSFileSet]:
     settings = config.get_config()
     if settings.import_csv_folder:
         return FSFileSet()
+    elif settings.ftp_ssh_key_path:
+        return SFTPFileSet()
     else:
         return FTPFileSet()
 
