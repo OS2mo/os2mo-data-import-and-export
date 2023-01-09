@@ -63,7 +63,7 @@ def test_group_by_engagement():
     assert len(groups) == 3
 
     for g in [
-        {"engagement_uuid": "", "user_key": None, "uuid": fk_org_uuid_3},
+        {"engagement_uuid": None, "user_key": None, "uuid": fk_org_uuid_3},
         {
             "engagement_uuid": engagement_uuid1,
             "user_key": fk_org_user_key_1,
@@ -110,7 +110,7 @@ def test_get_sts_user(get_sts_user_raw_mock):
             settings,
             fk_org_uuid=fk_org_uuid_3,
             user_key=None,
-            engagement_uuid="",
+            engagement_uuid=None,
         ),
     ]:
         assert c in get_sts_user_raw_mock.call_args_list
