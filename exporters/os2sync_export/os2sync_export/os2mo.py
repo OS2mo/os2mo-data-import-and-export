@@ -6,7 +6,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
 from functools import lru_cache
-from itertools import groupby
 from operator import itemgetter
 from typing import Any
 from typing import Dict
@@ -330,66 +329,47 @@ def get_sts_user_raw(
     return sts_user
 
 
-def get_it_uuid_user_key(
-    it: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
-) -> Dict[str, Optional[str]]:
-    """From a list of it-accounts return a dict containing uuid and user_key"""
-    uuid = None
-    user_key = None
-
-    def find_it_system_name(it):
-        return it["itsystem"]["name"]
-
-    # group by name of it-system
-    groups = groupby(sorted(it, key=find_it_system_name), find_it_system_name)
-
-    try:
-        # Check that there are only one it-system in each group and get the user_key
-        it_groups = {k: only(v)["user_key"] for k, v in groups}  # type: ignore
-
-        user_key = it_groups.get(user_key_it_system)
-        # UUID can be read from any one of the list of it-systems
-        uuid = only(it_groups[x] for x in uuid_from_it_systems)
-    except ValueError:
-        msg = "Cannot infer uuids and user keys from it-systems. Make sure to group it-accounts by engagements"
-        logger.warning(msg)
-    return {"uuid": uuid, "user_key": user_key}
-
-
 def group_accounts(
-    users: List[Dict], uuid_from_it_systems: List[str], user_key_it_system: str
+    users: List[Dict], uuid_from_it_systems: List[str], user_key_it_system_name: str
 ) -> List:
     """Groups it accounts by their associated engagement"""
+    # Find all unique engagement_uuids
+    engagemet_uuids = {u["engagement_uuid"] for u in users}
+    # Find relevant it-systems containing user_keys
+    user_keys = list(
+        filter(lambda x: x["itsystem"]["name"] == user_key_it_system_name, users)
+    )
+    # Find relevant it-systems containing uuids
+    uuids = list(filter(lambda x: x["itsystem"]["name"] in uuid_from_it_systems, users))
+    fk_org_accounts = []
+    # Find uuid and user_key for each engagement.
+    for eng_uuid in engagemet_uuids:
 
-    def find_eng_uuid(it):
-        if it["engagement_uuid"] is None:
-            # Can't sort lists with None, so we convert to empty string
-            return ""
-        return it["engagement_uuid"]
+        uuid = only(u["user_key"] for u in uuids if u["engagement_uuid"] == eng_uuid)
+        user_key = only(
+            u["user_key"] for u in user_keys if u["engagement_uuid"] == eng_uuid
+        )
+        fk_org_accounts.append(
+            {"engagement_uuid": eng_uuid, "uuid": uuid, "user_key": user_key}
+        )
 
-    groups = groupby(sorted(users, key=find_eng_uuid), find_eng_uuid)
-    res = [
-        {
-            "engagement_uuid": key,
-            **get_it_uuid_user_key(
-                list(group), uuid_from_it_systems, user_key_it_system
-            ),
-        }
-        for key, group in groups
-    ]
-
-    return res
+    return fk_org_accounts
 
 
 def get_sts_user(
     mo_uuid: str, gql_session: SyncClientSession, settings: Settings
 ) -> List[Dict[str, Any]]:
+
     users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
-    fk_org_accounts = group_accounts(
-        users,
-        settings.os2sync_uuid_from_it_systems,
-        settings.os2sync_user_key_it_system_name,
-    )
+    try:
+        fk_org_accounts = group_accounts(
+            users,
+            settings.os2sync_uuid_from_it_systems,
+            settings.os2sync_user_key_it_system_name,
+        )
+    except ValueError:
+        logger.warn(f"Unable to map uuid/user_keys from it-systems for {mo_uuid=}.")
+        fk_org_accounts = [{"engagement_uuid": None, "uuid": None, "user_key": None}]
 
     sts_users = [
         get_sts_user_raw(
@@ -401,7 +381,6 @@ def get_sts_user(
         )
         for it in fk_org_accounts
     ]
-
     return sts_users
 
 
