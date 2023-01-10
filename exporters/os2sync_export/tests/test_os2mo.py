@@ -6,7 +6,6 @@ from uuid import uuid4
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from os2sync_export.os2mo import get_it_uuid_user_key
 from os2sync_export.os2mo import get_org_unit_hierarchy
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
@@ -296,48 +295,3 @@ def test_split_active_users(users, active_count):
     inactive = list(inactive)
     assert len(active) == active_count
     assert len(inactive) == len(users) - active_count
-
-
-@pytest.mark.parametrize(
-    "group,it_uuid_list,it_user_key_name,result",
-    [
-        # No it-accounts
-        ([], [], "", {"uuid": None, "user_key": None}),
-        # An it-account where we read uuid from
-        (
-            [{"itsystem": {"name": "FKORG UUID"}, "user_key": "fk-org uuid"}],
-            ["FKORG UUID"],
-            "",
-            {"uuid": "fk-org uuid", "user_key": None},
-        ),
-        # An it-account where we read user_key from
-        (
-            [{"itsystem": {"name": "FKORG USERKEY"}, "user_key": "fk-org user_key"}],
-            [],
-            "FKORG USERKEY",
-            {"user_key": "fk-org user_key", "uuid": None},
-        ),
-        # An it-account where we read uuid and one where we read user_key
-        (
-            [
-                {"itsystem": {"name": "FKORG UUID"}, "user_key": "fk-org uuid"},
-                {"itsystem": {"name": "FKORG USERKEY"}, "user_key": "fk-org user_key"},
-            ],
-            ["FKORG UUID"],
-            "FKORG USERKEY",
-            {"user_key": "fk-org user_key", "uuid": "fk-org uuid"},
-        ),
-        # Two it-accounts with uuids where we can't choose which to use.
-        (
-            [
-                {"itsystem": {"name": "FKORG UUID"}, "user_key": "fk-org uuid"},
-                {"itsystem": {"name": "FKORG UUID"}, "user_key": "fk-org uuid2"},
-            ],
-            ["FKORG UUID"],
-            "",
-            {"uuid": None, "user_key": None},
-        ),
-    ],
-)
-def test_get_it_uuid_user_key(group, it_uuid_list, it_user_key_name, result):
-    assert get_it_uuid_user_key(group, it_uuid_list, it_user_key_name) == result
