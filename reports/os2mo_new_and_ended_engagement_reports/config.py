@@ -1,11 +1,14 @@
 from functools import lru_cache
+from pathlib import Path
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 
 
 class EngagementSettings(JobSettings):
     # common settings for clients:
-    pass
+    new_engagements_reports_path: Path = Path("/opt/docker/os2mo/queries/new_engagements.csv")
+    ended_engagements_reports_path: Path = Path("/opt/docker/os2mo/queries/ended_engagements.csv")
+
 
 
 @lru_cache()

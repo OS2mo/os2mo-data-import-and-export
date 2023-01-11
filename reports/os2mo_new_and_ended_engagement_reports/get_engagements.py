@@ -13,11 +13,13 @@ from gql.client import SyncClientSession
 import pandas as pd
 
 from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
-from reports.os2mo_new_and_ended_engagement_reports.config import get_engagement_settings
+from reports.os2mo_new_and_ended_engagement_reports.config import (
+    get_engagement_settings,
+)
 
 
 def gql_query_validity_field(
-        validity_from: bool = False, validity_to: bool = False
+    validity_from: bool = False, validity_to: bool = False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if validity_from:
@@ -48,7 +50,7 @@ def gql_query_validity_field(
 
 
 def gql_query_persons_details_to_display(
-        started_engagement: bool = False, ended_engagement: bool = False
+    started_engagement: bool = False, ended_engagement: bool = False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if started_engagement:
@@ -100,12 +102,13 @@ def gql_query_persons_details_to_display(
 
 
 def established_person_engagements(
-        gql_session: SyncClientSession,
-        validity_field_from: bool = None,
-        validity_field_to: bool = None,
+    gql_session: SyncClientSession,
+    validity_field_from: bool = None,
+    validity_field_to: bool = None,
 ) -> dict:
     """
-    Reading all of active engagements with the persons uuid(s) engagement start date.
+    Reading all of active engagements with the persons uuid(s) engagement start date through a
+    GraphQL call.
 
     args:
     A GraphQL session to execute the graphQL query.
@@ -123,7 +126,9 @@ def established_person_engagements(
         graphql_query = gql(gql_query_validity_field(validity_to=True))
 
     variables = {"engagement_date_to_query_from": date.today().isoformat()}
-    response = gql_session.execute(graphql_query, variable_values=jsonable_encoder(variables))
+    response = gql_session.execute(
+        graphql_query, variable_values=jsonable_encoder(variables)
+    )
 
     return response
 
@@ -141,10 +146,10 @@ def get_filtered_engagements_for_started_today(gql_query_response: dict) -> List
 
     def filter_today(obj):
         return (
-                datetime.fromisoformat(one(obj["objects"])["validity"]["from"]).replace(
-                    tzinfo=None
-                )
-                == utils.today()
+            datetime.fromisoformat(one(obj["objects"])["validity"]["from"]).replace(
+                tzinfo=None
+            )
+            == utils.today()
         )
 
     filtered_dates = filter(
@@ -175,10 +180,10 @@ def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[U
 
     def filter_to_today(obj):
         return (
-                datetime.fromisoformat(one(obj["objects"])["validity"]["to"]).replace(
-                    tzinfo=None
-                )
-                == utils.today()
+            datetime.fromisoformat(one(obj["objects"])["validity"]["to"]).replace(
+                tzinfo=None
+            )
+            == utils.today()
         )
 
     filtered_dates = filter(
@@ -198,7 +203,8 @@ def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[U
 
 def retrieve_address_types_uuids(gql_session: SyncClientSession) -> dict:
     """
-    Reading all types of addresses.
+    Reading all types of addresses through a
+    GraphQL call.
 
     args:
     A GraphQL session to execute the graphQL query.
@@ -237,7 +243,7 @@ def get_email_address_type_uuid_from_gql(gql_query_dict: dict) -> list:
     """
     filtered_email_address_uuids = filter(
         lambda address_type: one(address_type["objects"])["address_type"]["scope"]
-                             == "EMAIL",
+        == "EMAIL",
         gql_query_dict["addresses"],
     )
     extracted_email_uuids = [
@@ -249,14 +255,15 @@ def get_email_address_type_uuid_from_gql(gql_query_dict: dict) -> list:
 
 
 def persons_details_from_engagement(
-        gql_session: SyncClientSession,
-        uuidlist: List[UUID],
-        address_type_uuid_list: List[UUID],
-        started_engagement_details: bool = False,
-        ended_engagement_details: bool = False,
+    gql_session: SyncClientSession,
+    uuidlist: List[UUID],
+    address_type_uuid_list: List[UUID],
+    started_engagement_details: bool = False,
+    ended_engagement_details: bool = False,
 ) -> dict:
     """
-    Retrieving all desired details on the person from the filtered engagements.
+    Retrieving all desired details on the person from the filtered engagements through a
+    GraphQL call.
 
     args:
     A GraphQL session to execute the graphQL query.
@@ -278,13 +285,15 @@ def persons_details_from_engagement(
         graphql_query = gql(gql_query_persons_details_to_display(ended_engagement=True))
 
     variables = {"uuidlist": uuidlist, "email_uuid_list": address_type_uuid_list}
-    response = gql_session.execute(graphql_query, variable_values=jsonable_encoder(variables))
+    response = gql_session.execute(
+        graphql_query, variable_values=jsonable_encoder(variables)
+    )
 
     return response
 
 
 def convert_person_and_engagement_data_to_csv(
-        dict_data, started: bool = False, ended: bool = False
+    dict_data, started: bool = False, ended: bool = False
 ):
     """
     Mapping fields of payload from engagement to CSV format.
@@ -309,8 +318,10 @@ def convert_person_and_engagement_data_to_csv(
                         "Personens UUID": obj["uuid"],
                         "Ansættelsessted": obj["engagements"][0]["org_unit"][0]["name"],
                         "Ansættelsesdato": obj["engagements"][0]["validity"]["from"],
-                        "CPR": obj["cpr_no"],
-                        "Email": obj["addresses"][0]["name"],
+                        "CPR": obj["cpr_no"] if obj["cpr_no"] else None,
+                        "Email": obj["addresses"][0]["name"]
+                        if obj["addresses"]
+                        else None,
                         "Brugervendtnøgle": obj["user_key"],
                     }
                 )
@@ -326,7 +337,9 @@ def convert_person_and_engagement_data_to_csv(
                         "Ansættelsesudløbsdato": obj["engagements"][0]["validity"][
                             "to"
                         ],
-                        "Email": obj["addresses"][0]["name"],
+                        "Email": obj["addresses"][0]["name"]
+                        if obj["addresses"]
+                        else None,
                         "Brugervendtnøgle": obj["user_key"],
                     }
                 )
@@ -350,11 +363,22 @@ def write_file(contents_of_file, path_to_file):
         file.write(contents_of_file)
 
 
-def display_engagements(gql_session: SyncClientSession) -> None:
+def display_engagements(
+    gql_session: SyncClientSession,
+    show_started_engagements: bool = False,
+    show_ended_engagements: bool = False,
+) -> str:
     """
-    Calls upon GraphQL queries and various filters defined in this module, to bring together an
-    object with all the details wanted on an engagement and on a person.
-    These details are written as CSV format and stored in a desired path.
+    Calls upon GraphQL queries and various filters defined in this module, to return all
+    relevant data with all the details wanted on an engagement and on a person.
+
+    args:
+    A GraphQL session to execute the graphQL queries.
+    Optional param of either "show_started_engagements" or "show_ended_engagements" to
+    specify what type of engagement details to be returned.
+
+    returns:
+    All relevant details on engagements formatted in CSV form.
     """
 
     # Pulling address types so email uuids can be found.
@@ -369,17 +393,19 @@ def display_engagements(gql_session: SyncClientSession) -> None:
     payload_of_started_engagements_objects = established_person_engagements(
         gql_session, validity_field_from=True
     )
+
     # Getting engagements that have an end-date with validity field "to" engagements.
     payload_of_ended_engagements_objects = established_person_engagements(
         gql_session, validity_field_to=True
     )
 
     # Finding uuids of persons that have started new engagements.
-    list_of_person_uuids_started_engagement = (
+    list_of_person_uuids_started_engagements = (
         get_filtered_engagements_for_started_today(
             payload_of_started_engagements_objects
         )
     )
+
     # Finding uuids of persons that have ended engagements.
     list_of_person_uuids_ended_engagements = get_filtered_engagements_for_ended_today(
         payload_of_ended_engagements_objects
@@ -388,10 +414,11 @@ def display_engagements(gql_session: SyncClientSession) -> None:
     # Retrieving details on person with new started engagement.
     details_of_started_engagements = persons_details_from_engagement(
         gql_session,
-        list_of_person_uuids_started_engagement,
+        list_of_person_uuids_started_engagements,
         list_of_email_uuids,
         started_engagement_details=True,
     )
+
     # Retrieving details on person with ended engagement.
     details_of_ended_engagements = persons_details_from_engagement(
         gql_session,
@@ -399,26 +426,19 @@ def display_engagements(gql_session: SyncClientSession) -> None:
         list_of_email_uuids,
         ended_engagement_details=True,
     )
+    if show_started_engagements:
+        # Converting details on new started engagements to CSV.
+        started_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
+            details_of_started_engagements, started=True
+        )
+        return started_engagements_data_in_csv
 
-    # Converting details on new started engagements to CSV.
-    started_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
-        details_of_started_engagements, started=True
-    )
-    # Converting details on ended engagements to csv.
-    ended_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
-        details_of_ended_engagements, ended=True
-    )
-
-    # Generating a file on newly established engagements.
-    write_file(
-        started_engagements_data_in_csv,
-        "reports/os2mo_new_and_ended_engagement_reports/testing_gqlsession_started_engagement_csv.csv",
-    )
-    # Generating a file  on ended engagements.
-    write_file(
-        ended_engagements_data_in_csv,
-        "reports/os2mo_new_and_ended_engagement_reports/testing_gqlsession_ended_engagement_csv.csv",
-    )
+    if show_ended_engagements:
+        # Converting details on ended engagements to csv.
+        ended_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
+            details_of_ended_engagements, ended=True
+        )
+        return ended_engagements_data_in_csv
 
 
 def main() -> None:
@@ -427,7 +447,23 @@ def main() -> None:
 
     gql_session = setup_gql_client(settings=settings)
 
-    display_engagements(gql_session)
+    new_engagements_to_write = display_engagements(
+        gql_session, show_started_engagements=True
+    )
+    # Generating a file on newly established engagements.
+    write_file(
+        new_engagements_to_write,
+        "reports/os2mo_new_and_ended_engagement_reports/no_emails_started.csv",
+    )
+
+    ended_engagements_to_write = display_engagements(
+        gql_session, show_ended_engagements=True
+    )
+    # Generating a file  on ended engagements.
+    write_file(
+        ended_engagements_to_write,
+        "reports/os2mo_new_and_ended_engagement_reports/no_emails_ended.csv",
+    )
 
 
 if __name__ == "__main__":
