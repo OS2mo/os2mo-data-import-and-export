@@ -6,8 +6,8 @@ from raclients.graph.client import GraphQLClient
 
 class EngagementSettings(JobSettings):
     # common settings for clients:
-    new_engagements_reports_path: Path = Path("/opt/docker/os2mo/queries/new_engagements.csv")
-    ended_engagements_reports_path: Path = Path("/opt/docker/os2mo/queries/ended_engagements.csv")
+    new_engagements_reports_file_path: Path = Path("/opt/docker/os2mo/queries/report_engagements_new.csv")
+    ended_engagements_reports_file_path: Path = Path("/opt/docker/os2mo/queries/report_engagements_ended.csv")
 
 
 
