@@ -472,6 +472,14 @@ exports_historic_skip_past_cache_loracache() {
     return $EXIT_CODE
 }
 
+#
+#reports_engagements_new(){
+#  ${VENV}/bin/python3 ${DIPEXAR}
+#}
+#
+#reports_engagements_ended(){
+#  ${VENV}/bin/python3 ${DIPEXAR}
+#}
 
 reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
