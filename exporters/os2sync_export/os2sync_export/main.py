@@ -24,7 +24,7 @@ async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
     settings = get_os2sync_settings()
     gql_client = setup_gql_client(settings)
     with gql_client as session:
-        background_tasks.add_task(main, session=session, settings=settings)
+        background_tasks.add_task(main, gql_session=session, settings=settings)
     return {"triggered": "OK"}
 
 
