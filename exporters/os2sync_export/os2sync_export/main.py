@@ -2,7 +2,6 @@ from typing import Dict
 from typing import List
 from uuid import UUID
 
-from fastapi import BackgroundTasks
 from fastapi import FastAPI
 from fastapi import Query
 from os2sync_export.__main__ import main
@@ -19,13 +18,13 @@ async def index() -> Dict[str, str]:
     return {"name": "os2sync_export"}
 
 
-@app.post("/trigger", status_code=202)
-async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
+@app.post("/trigger", status_code=200)
+async def trigger_all() -> Dict[str, str]:
     settings = get_os2sync_settings()
     gql_client = setup_gql_client(settings)
     with gql_client as session:
-        background_tasks.add_task(main, gql_session=session, settings=settings)
-    return {"triggered": "OK"}
+        main(gql_session=session, settings=settings)
+    return {"status": "ok"}
 
 
 @app.post("/trigger/user/{uuid}")
