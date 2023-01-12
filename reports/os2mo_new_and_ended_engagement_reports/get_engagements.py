@@ -444,7 +444,6 @@ def display_engagements(
 def main() -> None:
     settings = get_engagement_settings()
     settings.start_logging_based_on_settings()
-
     gql_session = setup_gql_client(settings=settings)
 
     new_engagements_to_write = display_engagements(
@@ -452,8 +451,7 @@ def main() -> None:
     )
     # Generating a file on newly established engagements.
     write_file(
-        new_engagements_to_write,
-        "reports/os2mo_new_and_ended_engagement_reports/no_emails_started.csv",
+        new_engagements_to_write, settings.report_engagements_new_file_path,
     )
 
     ended_engagements_to_write = display_engagements(
@@ -461,8 +459,7 @@ def main() -> None:
     )
     # Generating a file  on ended engagements.
     write_file(
-        ended_engagements_to_write,
-        "reports/os2mo_new_and_ended_engagement_reports/no_emails_ended.csv",
+        ended_engagements_to_write, settings.report_engagements_ended_file_path,
     )
 
 
