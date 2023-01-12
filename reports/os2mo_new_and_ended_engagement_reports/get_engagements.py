@@ -19,7 +19,7 @@ from reports.os2mo_new_and_ended_engagement_reports.config import (
 
 
 def gql_query_validity_field(
-    validity_from: bool = False, validity_to: bool = False
+    validity_from=False, validity_to=False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if validity_from:
@@ -50,7 +50,7 @@ def gql_query_validity_field(
 
 
 def gql_query_persons_details_to_display(
-    started_engagement: bool = False, ended_engagement: bool = False
+    started_engagement=False, ended_engagement=False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if started_engagement:
@@ -103,8 +103,8 @@ def gql_query_persons_details_to_display(
 
 def established_person_engagements(
     gql_session: SyncClientSession,
-    validity_field_from: bool = None,
-    validity_field_to: bool = None,
+    validity_field_from=None,
+    validity_field_to=None,
 ) -> dict:
     """
     Reading all of active engagements with the persons uuid(s) engagement start date through a
@@ -258,8 +258,8 @@ def persons_details_from_engagement(
     gql_session: SyncClientSession,
     uuidlist: List[UUID],
     address_type_uuid_list: List[UUID],
-    started_engagement_details: bool = False,
-    ended_engagement_details: bool = False,
+    started_engagement_details=False,
+    ended_engagement_details=False,
 ) -> dict:
     """
     Retrieving all desired details on the person from the filtered engagements through a
@@ -293,7 +293,7 @@ def persons_details_from_engagement(
 
 
 def convert_person_and_engagement_data_to_csv(
-    dict_data, started: bool = False, ended: bool = False
+    dict_data, started=False, ended=False
 ):
     """
     Mapping fields of payload from engagement to CSV format.
@@ -365,8 +365,8 @@ def write_file(contents_of_file, path_to_file):
 
 def display_engagements(
     gql_session: SyncClientSession,
-    show_started_engagements: bool = False,
-    show_ended_engagements: bool = False,
+    show_started_engagements=False,
+    show_ended_engagements=False,
 ) -> str:
     """
     Calls upon GraphQL queries and various filters defined in this module, to return all
