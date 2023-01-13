@@ -28,6 +28,8 @@ from os2sync_export.config import Settings
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 from exporters.utils.priority_by_class import choose_public_address
 
@@ -37,14 +39,18 @@ logger = logging.getLogger(__name__)
 def get_mo_session():
     session = requests.Session()
     session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
+
     session.headers = {
         "User-Agent": "os2mo-data-import-and-export",
     }
-
     session_headers = TokenSettings().get_headers()
-
     if session_headers:
         session.headers.update(session_headers)
+
+    adapter = HTTPAdapter(max_retries=Retry())
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
     return session
 
 
