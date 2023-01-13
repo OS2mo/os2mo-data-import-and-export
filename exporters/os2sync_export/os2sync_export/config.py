@@ -64,9 +64,6 @@ class Settings(JobSettings):
     os2sync_api_url: AnyHttpUrl = cast(AnyHttpUrl, "http://localhost:8081")
 
     os2sync_use_lc_db: bool = False
-
-    os2sync_log_level: int = logging.INFO
-    os2sync_log_file: Path = Path("/app/os2sync_export.log")
     os2sync_hash_cache: Path = Path("/app/hash_cache")
     os2sync_xfer_cpr: bool = False
 
