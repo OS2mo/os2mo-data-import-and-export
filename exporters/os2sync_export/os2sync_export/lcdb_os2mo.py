@@ -134,7 +134,12 @@ def overwrite_user_uuids(session, sts_user: Dict, os2sync_uuid_from_it_systems: 
 
 
 def get_sts_user_raw(
-    session, uuid, settings: Settings, fk_org_uuid=None, user_key=None
+    session,
+    uuid,
+    settings: Settings,
+    fk_org_uuid=None,
+    user_key=None,
+    engagement_uuid=None,
 ):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
     if user_key is None:
@@ -197,7 +202,7 @@ def get_sts_user_raw(
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(session, sts_user, settings.os2sync_uuid_from_it_systems)
 
-    return [sts_user]
+    return sts_user
 
 
 top_per_unit: Dict[str, Dict] = {}
