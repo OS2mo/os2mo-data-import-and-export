@@ -28,10 +28,14 @@ from os2sync_export.config import Settings
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
+from tenacity import retry
+from tenacity import stop_after_delay
+from tenacity import wait_exponential
 
 from exporters.utils.priority_by_class import choose_public_address
 
 logger = logging.getLogger(__name__)
+retry_max_time = 60
 
 
 def get_mo_session():
@@ -117,19 +121,20 @@ def strip_truncate_and_warn(d, root, length):
 
 
 @lru_cache
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_delay(retry_max_time),
+)
 def os2mo_get(url, **params):
     # format url like {BASE}/service
     mora_base = get_os2sync_settings().mora_base
 
     url = url.format(BASE=f"{mora_base}/service")
-    try:
-        session = get_mo_session()
-        r = session.get(url, params=params)
-        r.raise_for_status()
-        return r
-    except Exception:
-        logger.exception(url)
-        raise
+    session = get_mo_session()
+    r = session.get(url, params=params)
+    r.raise_for_status()
+    return r
 
 
 def has_kle():
@@ -596,6 +601,11 @@ def get_sts_orgunit(uuid: str, settings):
     return sts_org_unit
 
 
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_delay(retry_max_time),
+)
 def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[Dict]:
     """Find fk-org user(s) details for the person with given MO uuid"""
     q = gql(
