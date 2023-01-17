@@ -34,6 +34,7 @@ from exporters.utils.priority_by_class import choose_public_address
 logger = logging.getLogger(__name__)
 
 
+@lru_cache
 def get_mo_session():
     session = requests.Session()
     session.verify = get_os2sync_settings().os2sync_ca_verify_os2mo
