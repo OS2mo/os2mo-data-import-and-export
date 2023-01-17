@@ -166,7 +166,7 @@ def sync_os2sync_users(
     logger.info("sync_os2sync_users done")
 
 
-def main(gql_session: SyncClientSession, settings: Settings):
+def main(settings: Settings):
 
     settings.start_logging_based_on_settings()
 
@@ -194,13 +194,15 @@ def main(gql_session: SyncClientSession, settings: Settings):
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
     sync_os2sync_orgunits(settings, counter, prev_date_str)
-    sync_os2sync_users(
-        gql_session=gql_session,
-        settings=settings,
-        counter=counter,
-        prev_date=prev_date_str,
-    )
-    remove_from_os2sync(gql_session=gql_session, settings=settings)
+    gql_client = setup_gql_client(settings)
+    with gql_client as gql_session:
+        sync_os2sync_users(
+            gql_session=gql_session,
+            settings=settings,
+            counter=counter,
+            prev_date=prev_date_str,
+        )
+        remove_from_os2sync(gql_session=gql_session, settings=settings)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
@@ -212,6 +214,4 @@ def main(gql_session: SyncClientSession, settings: Settings):
 
 if __name__ == "__main__":
     settings = get_os2sync_settings()
-    gql_session = setup_gql_client(settings=settings)
-    with gql_session as session:
-        main(session, settings)
+    main(settings)
