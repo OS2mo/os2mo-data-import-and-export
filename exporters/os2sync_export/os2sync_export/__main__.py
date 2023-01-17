@@ -4,6 +4,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import asyncio
 import collections
 import datetime
 import json
@@ -14,16 +15,13 @@ from operator import itemgetter
 from typing import Set
 
 import sentry_sdk
-from gql.client import SyncClientSession
-from more_itertools import flatten
-from os2sync_export import lcdb_os2mo
+from gql.client import AsyncClientSession
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
-from os2sync_export.os2mo import split_active_users
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -125,8 +123,8 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     return all_employee_uuids
 
 
-def sync_os2sync_users(
-    gql_session: SyncClientSession, settings: Settings, counter, prev_date
+async def sync_os2sync_users(
+    gql_session: AsyncClientSession, settings: Settings, counter, prev_date
 ):
 
     logger.info("sync_os2sync_users starting")
@@ -149,28 +147,29 @@ def sync_os2sync_users(
     # medarbejdere er allerede omfattet af autowash
     # fordi de ikke får nogen 'Positions' hvis de ikke
     # har en ansættelse i en af allowed_unitids
-    sts_users = flatten(
+    get_users_tasks = (
         os2mo.get_sts_user(u, gql_session=gql_session, settings=settings)
         for u in os2mo_uuids_present
     )
-    inactive, active = split_active_users(sts_users)
-
-    for i in inactive:
-        counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
-        os2sync.delete_user(i["Uuid"])
-
-    for i in active:
-        os2sync.upsert_user(i)
-        counter["Medarbejdere overført til OS2SYNC"] += 1
-
+    for get_users in get_users_tasks:
+        for user in (await get_users):
+            is_active = user["Positions"]
+            if is_active:
+                os2sync.upsert_user(user)
+                counter["Medarbejdere overført til OS2SYNC"] += 1
+            else:
+                counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
+                os2sync.delete_user(user["Uuid"])
     logger.info("sync_os2sync_users done")
 
 
-def main(settings: Settings):
+async def main(settings: Settings, gql_session: AsyncClientSession):
 
     settings.start_logging_based_on_settings()
 
     if settings.os2sync_use_lc_db:
+        from os2sync_export import lcdb_os2mo
+
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
@@ -194,15 +193,13 @@ def main(settings: Settings):
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
     sync_os2sync_orgunits(settings, counter, prev_date_str)
-    gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        sync_os2sync_users(
-            gql_session=gql_session,
-            settings=settings,
-            counter=counter,
-            prev_date=prev_date_str,
-        )
-        remove_from_os2sync(gql_session=gql_session, settings=settings)
+    await sync_os2sync_users(
+        gql_session=gql_session,
+        settings=settings,
+        counter=counter,
+        prev_date=prev_date_str,
+    )
+    await remove_from_os2sync(gql_session=gql_session, settings=settings)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
@@ -214,4 +211,9 @@ def main(settings: Settings):
 
 if __name__ == "__main__":
     settings = get_os2sync_settings()
-    main(settings)
+
+    async def run():
+        async with setup_gql_client(settings) as gql_session:
+            await main(settings, gql_session=gql_session)
+
+    asyncio.run(run())

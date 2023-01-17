@@ -121,8 +121,7 @@ def setup_gql_client(settings: Settings) -> GraphQLClient:
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
         auth_server=settings.auth_server,
-        sync=True,
-        httpx_client_kwargs={"timeout": None},
+        httpx_client_kwargs=dict(timeout=None,),
     )
 
 

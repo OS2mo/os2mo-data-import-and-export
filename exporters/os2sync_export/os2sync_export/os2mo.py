@@ -9,7 +9,6 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
@@ -18,18 +17,15 @@ from uuid import UUID
 
 import requests
 from gql import gql
-from gql.client import SyncClientSession
+from gql.client import AsyncClientSession
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
-from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
-
-from exporters.utils.priority_by_class import choose_public_address
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +131,107 @@ def os2mo_get(url, **params):
 def has_kle():
     os2mo_config = os2mo_get("{BASE}/configuration").json()
     return os2mo_config["show_kle"]
+
+
+def choose_public_address(candidates, prioritized_classes):
+    """See mora_choose_public_address."""
+    return mora_choose_public_address(candidates, prioritized_classes)
+
+def mora_choose_public_address(candidates, prioritized_classes):
+    """See choose_public_address_helper.
+
+    Candidates are a list of MO address entries.
+    """
+
+    def scope_getter(candidate):
+        if "visibility" not in candidate:
+            return None
+        if candidate["visibility"] is None:
+            return None
+        return candidate["visibility"]["scope"]
+
+    def address_type_getter(candidate):
+        return candidate["address_type"]["uuid"]
+
+    def uuid_getter(candidate):
+        return candidate["uuid"]
+
+    return choose_public_address_helper(
+        candidates,
+        prioritized_classes,
+        scope_getter,
+        address_type_getter,
+        uuid_getter,
+    )
+
+def choose_public_address_helper(
+    candidates, prioritized_classes, scope_getter, address_type_getter, uuid_getter
+):
+    """Pick the most desirable valid candidate address.
+
+    An address candidate is considered valid if its visibility is PUBLIC or UNSET.
+
+    An address candidates desirability is inversely propertional to its address
+    types position inside prioritized_classes. I.e. address candidates whose address
+    types occur earlier in prioritized_classes are more desirable than address
+    candidates whose address types occur later (or yet worse, not at all).
+    Additionally lower UUIDs are considered more desirable than larger ones, this is
+    to ensure a consistent order regardless of the order of the candidates.
+
+    Args:
+        candidates: List of Address entries.
+        prioritized_classes: List of Address Type UUIDs.
+        scope_getter: Function from address entry to visibility scope.
+        address_type_getter: Function from address entry to address type uuid.
+        uuid_getter: Function from address entry to address entry uuid.
+
+    Returns:
+        Address entry: The address entry that is the most desirable.
+    """
+
+    def filter_by_visibility(candidate):
+        """Predicate for filtering on visibility.
+
+        Args:
+            candidate: Address entry.
+
+        Returns:
+            bool: True for candidates with PUBLIC or UNSET visibility.
+                  False otherwise.
+        """
+        visibility_scope = scope_getter(candidate)
+        return visibility_scope is None or visibility_scope == "PUBLIC"
+
+    def determine_candidate_desirability(candidate):
+        """Predicate for determining desirability of an address candidate.
+
+        The lower the value returned, the more desirable the candidate is.
+
+        Args:
+            candidate: Address entry.
+
+        Returns:
+            int: Index of the candidates address_type inside prioritized_classes.
+                 Length of prioritized_classes if no match is found.
+        """
+        address_type_uuid = address_type_getter(candidate)
+        try:
+            priority = prioritized_classes.index(address_type_uuid)
+        except ValueError:
+            priority = len(prioritized_classes)
+        return priority, uuid_getter(candidate)
+
+    # Filter candidates to only keep valid ones
+    candidates = filter(filter_by_visibility, candidates)
+
+    # If no prioritized_classes are provided, all the entries are equally desirable.
+    # Thus we can just return the entry with the lowest uuid.
+    if not prioritized_classes:
+        return min(candidates, key=uuid_getter, default=None)
+
+    # If prioritized_classes are provided, we want to return the most desirable one.
+    # The lowest index is the most desirable.
+    return min(candidates, key=determine_candidate_desirability, default=None)
 
 
 def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes):
@@ -358,11 +455,11 @@ def group_accounts(
     return fk_org_accounts
 
 
-def get_sts_user(
-    mo_uuid: str, gql_session: SyncClientSession, settings: Settings
+async def get_sts_user(
+    mo_uuid: str, gql_session: AsyncClientSession, settings: Settings
 ) -> List[Dict[str, Any]]:
 
-    users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
+    users = await get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
     try:
         fk_org_accounts = group_accounts(
             users,
@@ -384,11 +481,6 @@ def get_sts_user(
         for it in fk_org_accounts
     ]
     return sts_users
-
-
-def split_active_users(users: Iterable[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
-    """Splits list of users into groups filtered by whether they have active positions"""
-    return partition(lambda u: u["Positions"], users)
 
 
 @lru_cache()
@@ -596,7 +688,7 @@ def get_sts_orgunit(uuid: str, settings):
     return sts_org_unit
 
 
-def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[Dict]:
+async def get_user_it_accounts(gql_session: AsyncClientSession, mo_uuid: str) -> List[Dict]:
     """Find fk-org user(s) details for the person with given MO uuid"""
     q = gql(
         """
@@ -616,7 +708,7 @@ def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[D
         }
     """
     )
-    res = gql_session.execute(q, variable_values={"uuids": mo_uuid})
+    res = await gql_session.execute(q, variable_values={"uuids": mo_uuid})
     objects = one(res["employees"])["objects"]
     return one(objects)["itusers"]
 

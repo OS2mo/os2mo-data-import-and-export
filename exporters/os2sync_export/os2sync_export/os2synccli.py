@@ -1,10 +1,13 @@
+import asyncio
 from functools import partial
+from functools import wraps
 from typing import Dict
 from typing import List
 from uuid import UUID
 
 import click
-from os2sync_export import lcdb_os2mo
+from gql.client import AsyncClientSession
+
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
@@ -15,15 +18,19 @@ from os2sync_export.os2mo import get_sts_orgunit
 from os2sync_export.os2mo import get_sts_user
 
 
-def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Dict]:
+async def update_single_user(
+    uuid: UUID, settings: Settings, gql_session: AsyncClientSession, dry_run: bool
+) -> List[Dict]:
     if settings.os2sync_use_lc_db:
+        from os2sync_export import lcdb_os2mo
+
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
 
-    gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        sts_users = get_sts_user(str(uuid), gql_session=gql_session, settings=settings)
+    sts_users = await get_sts_user(
+        str(uuid), gql_session=gql_session, settings=settings
+    )
 
     if dry_run:
         return sts_users
@@ -47,6 +54,14 @@ def update_single_orgunit(uuid: UUID, settings: Settings, dry_run: bool) -> Dict
     return sts_org_unit
 
 
+def async_to_sync(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return asyncio.run(f(*args, **kwargs))
+
+    return wrapper
+
+
 @click.group()
 def cli():
     pass
@@ -55,12 +70,13 @@ def cli():
 @cli.command()
 @click.argument("uuid", type=click.UUID)
 @click.option("--dry-run", is_flag=True)
-def update_user(uuid: UUID, dry_run: bool):
+@async_to_sync
+async def update_user(uuid: UUID, dry_run: bool):
     """Send os2sync payload for a single user"""
     settings = get_os2sync_settings()
     settings.start_logging_based_on_settings()
-
-    click.echo(update_single_user(uuid, settings, dry_run))
+    async with setup_gql_client(settings) as gql_session:
+        click.echo(await update_single_user(uuid, settings, gql_session, dry_run))
 
 
 @cli.command()
@@ -80,15 +96,15 @@ def update_org_unit(uuid: UUID, dry_run: bool):
 
 @cli.command()
 @click.option("--dry-run", is_flag=True)
-def cleanup_mo_uuids(dry_run: bool):
+@async_to_sync
+async def cleanup_mo_uuids(dry_run: bool):
     """Remove objects with mo uuids from fk-org when their uuid is set in an it-system.
     Used for when an existing object has been given an fk-org uuid in an it-system
 
     """
     settings = get_os2sync_settings()
-    gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        res = remove_from_os2sync(
+    async with setup_gql_client(settings) as gql_session:
+        res = await remove_from_os2sync(
             gql_session=gql_session, settings=settings, dry_run=dry_run
         )
     if res is None:
