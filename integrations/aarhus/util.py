@@ -39,7 +39,13 @@ async def create_details(
 ) -> None:
     """Helper function for submitting create detail payloads"""
     url = "/service/details/create"
-    await submit_payloads(session, url, detail_payloads, "create details")
+    await submit_payloads(
+        session,
+        url,
+        detail_payloads,
+        "create details",
+        ignored_http_statuses=tuple([400]),
+    )
 
 
 async def edit_details(session: ClientSession, detail_payloads: Iterable[dict]) -> None:
