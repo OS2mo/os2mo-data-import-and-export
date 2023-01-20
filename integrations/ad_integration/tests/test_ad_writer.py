@@ -12,9 +12,9 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 from ra_utils.lazy_dict import LazyDict
 
+from ..ad_exceptions import CommandFailure
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
-from ..ad_exceptions import CommandFailure
 from ..ad_exceptions import NoPrimaryEngagementException
 from ..ad_exceptions import SamAccountNameNotUnique
 from ..ad_template_engine import illegal_parameters
@@ -1098,7 +1098,7 @@ class _TestRealADWriter(TestCase):
             template_to_ad_fields=template_to_ad_fields,
             template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
             read_ou_addresses=read_ou_addresses,
-            run_ps_response=kwargs.pop("run_ps_response", None)
+            run_ps_response=kwargs.pop("run_ps_response", None),
         ):
             instance = ADWriter(**kwargs)
             instance.get_from_ad = lambda *_args, **_kwargs: {}
@@ -1339,7 +1339,7 @@ class TestPreview(_TestRealADWriter):
                 # additional field mapping
                 {"extensionAttribute": "{{ now.strftime('%Y-%m-%d') }}"},
                 # expected output from additional field mapping
-                "\"extensionAttribute\"=\"%s\"" % datetime.now().strftime("%Y-%m-%d"),
+                '"extensionAttribute"="%s"' % datetime.now().strftime("%Y-%m-%d"),
             ),
             # 3. Test enabling AD user without additional field mapping.
             (

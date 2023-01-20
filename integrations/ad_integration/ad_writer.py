@@ -1126,8 +1126,8 @@ class ADWriter(AD):
         if enable is False:
             # Read an additional field mapping which is only to be used when disabling
             # AD users.
-            template_to_ad_fields_when_disable = (
-                settings["primary_write"].get("template_to_ad_fields_when_disable", {})
+            template_to_ad_fields_when_disable = settings["primary_write"].get(
+                "template_to_ad_fields_when_disable", {}
             )
             template_to_ad_fields.update(template_to_ad_fields_when_disable)
         settings["primary_write"]["template_to_ad_fields"] = template_to_ad_fields
