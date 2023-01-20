@@ -382,17 +382,27 @@ class MockADWriterContext(ExitStack):
             "upn_end": "upn_end",
             "mo_to_ad_fields": {},
             "template_to_ad_fields": {},
+            "template_to_ad_fields_when_disable": {},
         },
         "global": {"mora.base": "", "servers": ["server"]},
     }
 
     def __init__(self, **kwargs):
         super().__init__()
+
         settings = copy.deepcopy(self.all_settings)
         template_to_ad_fields = kwargs.get("template_to_ad_fields", {})
+        template_to_ad_fields_when_disable = kwargs.get(
+            "template_to_ad_fields_when_disable", {}
+        )
         self._read_ou_addresses = kwargs.get("read_ou_addresses")
         settings["primary_write"]["template_to_ad_fields"].update(template_to_ad_fields)
+        settings["primary_write"]["template_to_ad_fields_when_disable"].update(
+            template_to_ad_fields_when_disable
+        )
         self._settings = settings
+
+        self._run_ps_response = kwargs.get("run_ps_response") or MagicMock()
 
     def __enter__(self):
         super().__enter__()
@@ -403,9 +413,11 @@ class MockADWriterContext(ExitStack):
     @property
     def _context_managers(self):
         prefix = "integrations.ad_integration"
+        mock_session = MagicMock()
+        mock_session.run_ps = MagicMock(return_value=self._run_ps_response)
         yield patch(f"{prefix}.ad_common.read_settings", return_value=self._settings)
         yield patch(
-            f"{prefix}.ad_writer.ADWriter._create_session", return_value=MagicMock()
+            f"{prefix}.ad_writer.ADWriter._create_session", return_value=mock_session
         )
         yield patch(
             f"{prefix}.ad_writer.MORESTSource", return_value=MockMORESTSourcePreview()
