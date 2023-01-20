@@ -1,7 +1,3 @@
-# TODO:
-# All templates might need to also inlclude bp['server'],
-# no relevant test-case is currently available.
-# Set password for account
 set_password_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
            -Credential $usercredential |
@@ -11,21 +7,6 @@ Set-ADAccountPassword
    -NewPassword (ConvertTo-SecureString
                  -AsPlainText "{password}" -Force)
     -Credential $usercredential
-"""
-
-
-# Enable AD account
-enable_user_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
-            -Credential $usercredential |
-Enable-ADAccount -Credential $usercredential
-"""
-
-# Disable AD account
-disable_user_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
-            -Credential $usercredential |
-Disable-ADAccount -Credential $usercredential
 """
 
 

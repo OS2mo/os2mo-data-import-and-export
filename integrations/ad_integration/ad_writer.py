@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import copy
 import json
 import logging
 import random
@@ -1116,27 +1117,46 @@ class ADWriter(AD):
             logger.error(msg)
             return (False, msg)
 
+    def _get_enable_user_cmd(self, username: str, enable: bool) -> str:
+        # Hack: copy the settings and mutate `template_to_ad_fields` in the copy.
+        # This enables us to use a different set of field templates when enabling and
+        # disabling AD users.
+        settings = copy.deepcopy(self.settings)
+        template_to_ad_fields = {"Enabled": "$true" if enable else "$false"}
+        if enable is False:
+            # Read an additional field mapping which is only to be used when disabling
+            # AD users.
+            template_to_ad_fields_when_disable = (
+                settings["primary_write"].get("template_to_ad_fields_when_disable", {})
+            )
+            template_to_ad_fields.update(template_to_ad_fields_when_disable)
+        settings["primary_write"]["template_to_ad_fields"] = template_to_ad_fields
+
+        # Render the PowerShell command to enable or disable an AD user
+        cmd = template_powershell(
+            cmd="Set-ADUser",
+            context={
+                "user_sam": username,
+                # Available for the template rendering.
+                "now": datetime.now(),
+                # Required by `template_powershell`, but not actually used.
+                "mo_values": {"level2orgunit": None, "location": None},
+            },
+            settings=settings,
+        )
+        cmd = self._build_user_credential() + cmd
+        return cmd
+
     def enable_user(self, username, enable=True):
         """
         Enable or disable an AD account.
         :param username: SamAccountName of the account to be enabled or disabled
-        :param enable: If True enable account, if False, disbale account
+        :param enable: If True enable account, if False, disable account
         """
-
-        logger.info("Enable account: {}".format(enable))
-        format_rules = {"username": username}
-        if enable:
-            ps_script = self._build_ps(ad_templates.enable_user_template, format_rules)
-        else:
-            ps_script = self._build_ps(ad_templates.disable_user_template, format_rules)
-
-        response = self._run_ps_script(ps_script)
-        if not response:
-            return (True, "Account enabled or disabled")
-        else:
-            msg = "Failed to update account!: {}".format(response)
-            logger.error(msg)
-            return (False, msg)
+        cmd = self._get_enable_user_cmd(username, enable)
+        response = self._run_ps_script(cmd)  # raises `CommandFailure` if PS fails
+        if response == {}:
+            return True, "enabled AD user" if enable else "disabled AD user"
 
     def delete_user(self, username):
         """
