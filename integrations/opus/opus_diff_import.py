@@ -278,9 +278,9 @@ class OpusDiffImport(object):
             if mo_addr_type == "Adresse":
                 visibility = self.ensure_class_in_facet(
                     facet="visibility",
-                    bvn="Secret",
-                    title="Hemmelig",
-                    scope="SECRET",
+                    bvn="Intern",
+                    title="Må vises internt",
+                    scope="INTERNAL",
                 )
 
             current = mo_addresses.get(str(addr_type_uuid))

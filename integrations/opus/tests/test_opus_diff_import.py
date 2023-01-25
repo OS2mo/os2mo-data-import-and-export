@@ -343,7 +343,27 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
 
-class TestCondenseEmployeeOpusAddresses(unittest.TestCase):
+class _GetInstanceMixin:
+    _xml_date = datetime.now()
+
+    def get_instance(self, settings: dict) -> OpusDiffImport:
+        settings.setdefault("mora.base", "http://unused.url")
+        with patch(
+            "integrations.opus.opus_diff_import.load_settings", return_value=settings
+        ):
+            with patch("integrations.opus.opus_diff_import.MoraHelper"):
+                with patch(
+                    "integrations.opus.opus_diff_import.OPUSPrimaryEngagementUpdater"
+                ):
+                    instance = OpusDiffImport(
+                        xml_date=self._xml_date,
+                        ad_reader=None,
+                        employee_mapping=object(),
+                    )
+                    return instance
+
+
+class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
     """Test `OpusDiffImporter._condense_employee_opus_addresses`"""
 
     opus_employee = {
@@ -423,22 +443,49 @@ class TestCondenseEmployeeOpusAddresses(unittest.TestCase):
         dar_response: Optional[str],
         expected_result: dict,
     ) -> None:
-        settings.setdefault("mora.base", "http://unused.url")
+        instance = self.get_instance(settings)
         with patch(
-            "integrations.opus.opus_diff_import.load_settings", return_value=settings
+            "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+            return_value=dar_response,
         ):
-            with patch("integrations.opus.opus_diff_import.MoraHelper"):
-                instance = OpusDiffImport(
-                    xml_date=None, ad_reader=None, employee_mapping=object()
-                )
-                with patch(
-                    "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
-                    return_value=dar_response,
-                ):
-                    actual_result = instance._condense_employee_opus_addresses(
-                        opus_employee
+            actual_result = instance._condense_employee_opus_addresses(opus_employee)
+            assert actual_result == expected_result
+
+
+class TestUpdateEmployeeAddress(_GetInstanceMixin):
+    """Test `OpusDiffImporter._update_employee_address`"""
+
+    opus_employee = {
+        "email": "foobar@example.com",
+        "workPhone": "12345678",
+        "address": "Testvej 1",
+        "postalCode": "1234",
+    }
+
+    expected_address_visibility = {
+        "facet": "visibility",
+        "bvn": "Intern",
+        "title": "Må vises internt",
+        "scope": "INTERNAL",
+    }
+
+    def test_dar_address_visibility(self):
+        """Verify that we use the correct visibility class when creating or updating
+        employee addresses of the type 'Adresse' (= postal addresses.)"""
+        instance = self.get_instance({})
+        with patch.object(instance, "ensure_class_in_facet") as ensure_class:
+            # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
+            # "Adresse" address type (a postal address.)
+            with patch(
+                "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+                return_value="dar-address-uuid",
+            ):
+                with patch.object(instance, "_perform_address_update"):
+                    instance._update_employee_address("mo_uuid", self.opus_employee)
+                    assert (
+                        ensure_class.call_args.kwargs
+                        == self.expected_address_visibility
                     )
-                    self.assertEqual(actual_result, expected_result)
 
 
 if __name__ == "__main__":
