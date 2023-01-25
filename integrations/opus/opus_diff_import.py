@@ -218,10 +218,12 @@ class OpusDiffImport(object):
         ):
             opus_addresses["email"] = employee["email"]
 
-        opus_addresses["phone"] = None
+        skip_employee_phone = self.settings.get(
+            "integrations.opus.skip_employee_phone", False
+        )
         if employee["workPhone"] is not None:
             phone = opus_helpers.parse_phone(employee["workPhone"])
-            if phone is not None:
+            if (phone is not None) and (not skip_employee_phone):
                 opus_addresses["phone"] = phone
 
         if (
