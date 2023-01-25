@@ -9,7 +9,6 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
@@ -22,7 +21,6 @@ from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
-from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -389,11 +387,6 @@ def get_sts_user(
         for it in fk_org_accounts
     ]
     return sts_users
-
-
-def split_active_users(users: Iterable[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
-    """Splits list of users into groups filtered by whether they have active positions"""
-    return partition(lambda u: u["Positions"], users)
 
 
 @lru_cache()
