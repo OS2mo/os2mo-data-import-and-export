@@ -801,17 +801,6 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             exit 2
         fi
 
-        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                echo ${REASON}
-            )
-        else
-            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            echo ${REASON}
-        fi
-
         # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
         rm tmp/*.p 2>/dev/null || :
 
