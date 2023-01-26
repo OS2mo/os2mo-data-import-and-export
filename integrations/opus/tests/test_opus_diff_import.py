@@ -1,6 +1,7 @@
 import unittest
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
@@ -340,6 +341,151 @@ class Opus_diff_import_tester(unittest.TestCase):
         diff.helper.ensure_class_in_facet.assert_called_once_with(
             "Facetname", "classbvn", owner=root_uuid
         )
+
+
+class _GetInstanceMixin:
+    _xml_date = datetime.now()
+
+    def get_instance(self, settings: dict) -> OpusDiffImport:
+        settings.setdefault("mora.base", "http://unused.url")
+        with patch(
+            "integrations.opus.opus_diff_import.load_settings", return_value=settings
+        ):
+            with patch("integrations.opus.opus_diff_import.MoraHelper"):
+                with patch(
+                    "integrations.opus.opus_diff_import.OPUSPrimaryEngagementUpdater"
+                ):
+                    instance = OpusDiffImport(
+                        xml_date=self._xml_date,
+                        ad_reader=None,
+                        employee_mapping=object(),
+                    )
+                    return instance
+
+
+class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
+    """Test `OpusDiffImporter._condense_employee_opus_addresses`"""
+
+    opus_employee = {
+        "email": "foobar@example.com",
+        "workPhone": "12345678",
+        "address": "Testvej 1",
+        "postalCode": "1234",
+    }
+
+    opus_employee_protected_address = {
+        "email": "foobar@example.com",
+        "workPhone": "12345678",
+        # non-empty dict means the address is protected (?)
+        "address": {"unknown": "content"},
+        "postalCode": "1234",
+    }
+
+    dar_valid_uuid = "dar-valid-address-uuid"
+    dar_invalid_uuid = None
+
+    @parameterized.expand(
+        [
+            # Test flow with all feature flags turned off
+            (
+                {},  # empty feature flags
+                opus_employee,
+                dar_valid_uuid,
+                {
+                    "phone": opus_employee["workPhone"],
+                    "email": opus_employee["email"],
+                    "dar": dar_valid_uuid,
+                },
+            ),
+            # Test "skip_employee_email" flag with normal Opus employee and valid DAR
+            (
+                {"integrations.opus.skip_employee_email": True},
+                opus_employee,
+                dar_valid_uuid,
+                {"phone": opus_employee["workPhone"], "dar": dar_valid_uuid},
+            ),
+            # Test "skip_employee_address" flag with normal Opus employee and valid DAR
+            (
+                {"integrations.opus.skip_employee_address": True},
+                opus_employee,
+                dar_valid_uuid,
+                {"phone": opus_employee["workPhone"], "email": opus_employee["email"]},
+            ),
+            # Test "skip_employee_phone" flag with normal Opus employee and valid DAR
+            (
+                {"integrations.opus.skip_employee_phone": True},
+                opus_employee,
+                dar_valid_uuid,
+                {"email": opus_employee["email"], "dar": dar_valid_uuid},
+            ),
+            # Test protected addresses are always removed (regardless of
+            # "skip_employee_address" flag.)
+            (
+                {"integrations.opus.skip_employee_address": False},
+                opus_employee_protected_address,
+                dar_valid_uuid,
+                {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
+            ),
+            # Test that failed DAR lookups result in no "dar" key being added to the
+            # result (regardless of "skip_employee_address" flag.)
+            (
+                {"integrations.opus.skip_employee_address": False},
+                opus_employee,
+                dar_invalid_uuid,
+                {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
+            ),
+        ]
+    )
+    def test_feature_flags_are_respected(
+        self,
+        settings: dict,
+        opus_employee: dict,
+        dar_response: Optional[str],
+        expected_result: dict,
+    ) -> None:
+        instance = self.get_instance(settings)
+        with patch(
+            "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+            return_value=dar_response,
+        ):
+            actual_result = instance._condense_employee_opus_addresses(opus_employee)
+            assert actual_result == expected_result
+
+
+class TestUpdateEmployeeAddress(_GetInstanceMixin):
+    """Test `OpusDiffImporter._update_employee_address`"""
+
+    opus_employee = {
+        "email": "foobar@example.com",
+        "workPhone": "12345678",
+        "address": "Testvej 1",
+        "postalCode": "1234",
+    }
+
+    expected_address_visibility = {
+        "facet": "visibility",
+        "bvn": "Intern",
+        "title": "Må vises internt",
+        "scope": "INTERNAL",
+    }
+
+    def test_dar_address_visibility(self):
+        """Verify that we use the correct visibility class when creating or updating
+        employee addresses of the type 'Adresse' (= postal addresses.)"""
+        instance = self.get_instance({})
+        with patch.object(instance, "ensure_class_in_facet") as ensure_class:
+            # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
+            # "Adresse" address type (a postal address.)
+            with patch(
+                "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+                return_value="dar-address-uuid",
+            ):
+                with patch.object(instance, "_perform_address_update"):
+                    instance._update_employee_address("mo_uuid", self.opus_employee)
+                    assert (
+                        ensure_class.call_args.kwargs
+                        == self.expected_address_visibility
+                    )
 
 
 if __name__ == "__main__":
