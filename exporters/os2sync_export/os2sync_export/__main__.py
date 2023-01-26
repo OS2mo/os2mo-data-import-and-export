@@ -66,7 +66,7 @@ def sync_os2sync_orgunits(settings, counter):
 
     logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
     os2mo_uuids_present = tqdm(
-        os2mo_uuids_present, desc="Updating org_units", unit="org_unit"
+        os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
     )
     return [os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present]
 
@@ -145,36 +145,43 @@ def main(settings: Settings):
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
-    MO_org_units = sync_os2sync_orgunits(settings, counter)
+    mo_org_units = sync_os2sync_orgunits(settings, counter)
     os2sync_hierarchy = os2sync.get_hierarchy(
         os2sync_client,
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
-    os2sync_orgunit_uuids = set(o["Uuid"] for o in os2sync_hierarchy["result"]["oUs"])
-    for org_unit in MO_org_units:
-        counter["Orgenheder som opdateres i OS2Sync"] += 1
-        os2sync.upsert_orgunit(MO_org_units)
+    existing_os2sync_org_units = {
+        o["Uuid"]: o for o in os2sync_hierarchy["result"]["oUs"]
+    }
+    existing_os2sync_users = {
+        u["Uuid"]: u for u in os2sync_hierarchy["result"]["users"]
+    }
 
-    for uuid in os2sync_orgunit_uuids - set(o["Uuid"] for o in MO_org_units):
+    for org_unit in mo_org_units:
+        counter["Orgenheder som opdateres i OS2Sync"] += 1
+        os2sync.upsert_orgunit(mo_org_units)
+
+    for uuid in set(existing_os2sync_org_units) - set(o["Uuid"] for o in mo_org_units):
         counter["Orgenheder som slettes i OS2Sync"] += 1
         os2sync.delete_orgunit(org_unit["Uuid"])
 
     logger.info("sync_os2sync_orgunits done")
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:
-        os2sync_users = sync_os2sync_users(
+        mo_users = sync_os2sync_users(
             gql_session=gql_session,
             settings=settings,
             counter=counter,
         )
-    for user in os2sync_users:
-        os2sync.upsert_user(user)
-        counter["Medarbejdere overført til OS2SYNC"] += 1
+    for user in mo_users:
+        if user != existing_os2sync_users[user["Uuid"]]:
+            os2sync.upsert_user(user)
+            counter["Medarbejdere overført til OS2SYNC"] += 1
+        else:
+            logger.debug(f"No changes to user {user['Uuid']}. Skipping sync.")
 
-    os2sync_user_uuids = set(u["Uuid"] for u in os2sync_hierarchy["result"]["users"])
-    mo_user_uuids = set(u["Uuid"] for u in os2sync_users)
-    for uuid in os2sync_user_uuids - mo_user_uuids:
+    for uuid in set(existing_os2sync_users) - set(u["Uuid"] for u in mo_users):
         counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
         os2sync.delete_user(uuid)
 
