@@ -4,14 +4,14 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import asyncio
 import collections
-import json
 import logging
-import pathlib
 from functools import partial
 from operator import itemgetter
 from typing import Set
 
+import httpx
 import sentry_sdk
 from gql.client import SyncClientSession
 from more_itertools import flatten
@@ -137,15 +137,23 @@ def main(settings: Settings):
     counter: collections.Counter = collections.Counter()
     logger.info("mox_os2sync starting")
     log_mox_config(settings)
-    hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
-    if hash_cache_file and hash_cache_file.exists():
-        os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
     os2sync_client = os2sync.get_os2sync_session()
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
     mo_org_units = sync_os2sync_orgunits(settings, counter)
+
+    # Read from MO and update fk-org:
+    async def update_org_units(mo_org_units):
+        async with httpx.AsyncClient() as async_os2sync_client:
+            for org_unit in mo_org_units:
+                counter["Orgenheder som opdateres i OS2Sync"] += 1
+                await os2sync.upsert_orgunit(async_os2sync_client, org_unit)
+
+    asyncio.run(update_org_units(mo_org_units))
+
+    # Read hierarchy from os2sync
     os2sync_hierarchy = os2sync.get_hierarchy(
         os2sync_client,
         os2sync_api_url=settings.os2sync_api_url,
@@ -154,15 +162,16 @@ def main(settings: Settings):
     existing_os2sync_org_units = {o["Uuid"]: o for o in os2sync_hierarchy["oUs"]}
     existing_os2sync_users = {u["Uuid"]: u for u in os2sync_hierarchy["users"]}
 
-    for org_unit in mo_org_units:
-        counter["Orgenheder som opdateres i OS2Sync"] += 1
-        os2sync.upsert_orgunit(mo_org_units)
-
-    for uuid in set(existing_os2sync_org_units) - set(o["Uuid"] for o in mo_org_units):
-        counter["Orgenheder som slettes i OS2Sync"] += 1
-        os2sync.delete_orgunit(org_unit["Uuid"])
+    if settings.os2sync_autowash:
+        for uuid in set(existing_os2sync_org_units) - set(
+            o["Uuid"] for o in mo_org_units
+        ):
+            counter["Orgenheder som slettes i OS2Sync"] += 1
+            os2sync.delete_orgunit(uuid)
 
     logger.info("sync_os2sync_orgunits done")
+
+    logger.info("Start syncing users")
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:
         mo_users = sync_os2sync_users(
@@ -182,9 +191,6 @@ def main(settings: Settings):
         os2sync.delete_user(uuid)
 
     logger.info("sync_os2sync_users done")
-
-    if hash_cache_file:
-        hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
 
     log_mox_counters(counter)
     log_mox_config(settings)

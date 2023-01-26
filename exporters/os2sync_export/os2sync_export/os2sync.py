@@ -5,12 +5,10 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-import hashlib
-import json
 import logging
-from typing import Dict
 from uuid import UUID
 
+import httpx
 import requests
 from os2sync_export import config
 from tenacity import retry
@@ -20,7 +18,6 @@ from tenacity import wait_fixed
 
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(__name__)
-hash_cache: Dict = {}
 
 
 def get_os2sync_session():
@@ -41,18 +38,10 @@ def get_os2sync_session():
 session = get_os2sync_session()
 
 
-def already_xferred(url, params, method):
-    if settings.os2sync_api_url == "stub":
-        params_hash = params
-    else:
-        params_hash = hashlib.sha224(
-            (json.dumps(params, sort_keys=True) + method).encode("utf-8")
-        ).hexdigest()
-    if hash_cache.get(url) == params_hash:
-        return True
-    else:
-        hash_cache[url] = params_hash
-    return False
+def changed(from_os2mo, from_os2sync):
+    """Check if anything is changed in either of the keys that exists in OS2MO."""
+
+    return any(from_os2mo[k] != from_os2sync[k] for k in from_os2sync.keys())
 
 
 def os2sync_url(url):
@@ -63,14 +52,9 @@ def os2sync_url(url):
 
 def os2sync_delete(url, **params):
     url = os2sync_url(url)
-    try:
-        r = session.delete(url, **params)
-        r.raise_for_status()
-        return r
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            logger.warning("delete %r %r :404", url, params)
-            return r
+    r = session.delete(url, **params)
+    r.raise_for_status()
+    return r
 
 
 def os2sync_post(url, **params):
@@ -81,35 +65,32 @@ def os2sync_post(url, **params):
 
 
 def delete_user(uuid):
-    if not already_xferred("/user/" + uuid, {}, "delete"):
-        logger.debug("delete user %s", uuid)
-        os2sync_delete("{BASE}/user/" + uuid)
-    else:
-        logger.debug("delete user %s - cached", uuid)
+    logger.debug("delete user %s", uuid)
+    os2sync_delete("{BASE}/user/" + uuid)
 
 
 def upsert_user(user):
-    if not already_xferred("/user/" + user["Uuid"], user, "upsert"):
-        logger.debug("upsert user %s", user["Uuid"])
-        os2sync_post("{BASE}/user", json=user)
-    else:
-        logger.debug("upsert user %s - cached", user["Uuid"])
+    logger.debug("upsert user %s", user["Uuid"])
+    os2sync_post("{BASE}/user", json=user)
 
 
 def delete_orgunit(uuid):
-    if not already_xferred("/orgUnit/" + uuid, {}, "delete"):
-        logger.debug("delete orgunit %s", uuid)
-        os2sync_delete("{BASE}/orgUnit/" + uuid)
-    else:
-        logger.debug("delete orgunit %s - cached", uuid)
+    logger.debug("delete orgunit %s", uuid)
+    os2sync_delete("{BASE}/orgUnit/" + uuid)
 
 
-def upsert_orgunit(org_unit):
-    if not already_xferred("/orgUnit/" + org_unit["Uuid"], org_unit, "upsert"):
+async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
+    # Check data on unit before trying to sync
+    r = await client.get(f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}")
+
+    if r.status_code not in (200, 404):
+        r.raise_for_status()
+
+    if changed(from_os2mo=org_unit, from_os2sync=r.json()):
         logger.debug("upsert orgunit %s", org_unit["Uuid"])
-        os2sync_post("{BASE}/orgUnit/", json=org_unit)
+        return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     else:
-        logger.debug("upsert orgunit %s - cached", org_unit["Uuid"])
+        logger.debug("no changes to orgunit %s ", org_unit["Uuid"])
 
 
 def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:

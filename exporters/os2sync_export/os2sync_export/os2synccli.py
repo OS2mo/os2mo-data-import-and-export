@@ -1,9 +1,11 @@
+import asyncio
 from functools import partial
 from typing import Dict
 from typing import List
 from uuid import UUID
 
 import click
+import httpx
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
@@ -36,15 +38,18 @@ def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Di
     return sts_users
 
 
-def update_single_orgunit(uuid: UUID, settings: Settings, dry_run: bool) -> Dict:
+async def update_single_orgunit(
+    client: httpx.AsyncClient, uuid: UUID, settings: Settings, dry_run: bool
+) -> Dict:
 
-    sts_org_unit = get_sts_orgunit(str(uuid), settings=settings)
+    org_unit = get_sts_orgunit(str(uuid), settings=settings)
 
     if dry_run:
-        return sts_org_unit
+        return org_unit
 
-    os2sync.upsert_orgunit(sts_org_unit)
-    return sts_org_unit
+    await os2sync.upsert_orgunit(client, org_unit)
+
+    return org_unit
 
 
 @click.group()
@@ -69,13 +74,17 @@ def update_user(uuid: UUID, dry_run: bool):
 def update_org_unit(uuid: UUID, dry_run: bool):
     """Send os2sync payload for a single org_unit"""
     settings = get_os2sync_settings()
-    click.echo(
-        update_single_orgunit(
-            uuid,
-            settings,
-            dry_run,
-        )
-    )
+
+    async def client_setup(uuid):
+        async with httpx.AsyncClient() as async_os2sync_client:
+            return update_single_orgunit(
+                async_os2sync_client,
+                uuid,
+                settings,
+                dry_run,
+            )
+
+    click.echo(asyncio.run(client_setup(uuid)))
 
 
 @cli.command()

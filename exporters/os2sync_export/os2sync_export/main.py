@@ -2,6 +2,7 @@ from typing import Dict
 from typing import List
 from uuid import UUID
 
+import httpx
 from fastapi import BackgroundTasks
 from fastapi import FastAPI
 from fastapi import Query
@@ -41,5 +42,10 @@ async def trigger_orgunit(
     dry_run: bool = False,
 ) -> Dict[str, str]:
     settings = get_os2sync_settings()
-
-    return update_single_orgunit(uuid, settings, dry_run)
+    async with httpx.AsyncClient() as async_os2sync_client:
+        return await update_single_orgunit(
+            client=async_os2sync_client,
+            uuid=uuid,
+            settings=settings,
+            dry_run=dry_run,
+        )
