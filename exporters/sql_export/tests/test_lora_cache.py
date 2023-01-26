@@ -239,6 +239,20 @@ class TestLoraCacheAssociations(_TestLoraCacheMethodHelper, TestCase):
         assoc = associations[self._association_uuid][0]
         self.assertIsNone(assoc["association_type"])
 
+    @parameterized.expand(
+        [
+            ({"organisationfunktionegenskaber": [{}]},),
+            ({"organisationfunktionegenskaber": []},),
+        ]
+    )
+    def test_handles_empty_user_key(self, faulty_attrs):
+        associations = self.get_method_results(
+            self._association_uuid,
+            {"organisatoriskfunktionstype": []},
+            attrs=faulty_attrs,
+        )
+        assert len(associations[self._association_uuid]) == 0
+
 
 class TestCacheLoraUsers(_TestLoraCacheMethodHelper, TestCase):
     method_name = "_cache_lora_users"

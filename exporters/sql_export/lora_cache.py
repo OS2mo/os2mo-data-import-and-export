@@ -680,9 +680,14 @@ class LoraCache:
                     unit_uuid = None
                     logger.error("Error: Unable to find unit in {}".format(uuid))
 
-                user_key = attr["organisationfunktionegenskaber"][0][
-                    "brugervendtnoegle"
-                ]
+                try:
+                    user_key = attr["organisationfunktionegenskaber"][0][
+                        "brugervendtnoegle"
+                    ]
+                except (IndexError, KeyError):
+                    logger.warning(f"missing userkey for association {uuid}")
+                    continue
+
                 association_type_uuid = get_rel_uuid_or_none(
                     uuid, rel, "organisatoriskfunktionstype"
                 )
