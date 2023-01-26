@@ -151,12 +151,8 @@ def main(settings: Settings):
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
-    existing_os2sync_org_units = {
-        o["Uuid"]: o for o in os2sync_hierarchy["result"]["oUs"]
-    }
-    existing_os2sync_users = {
-        u["Uuid"]: u for u in os2sync_hierarchy["result"]["users"]
-    }
+    existing_os2sync_org_units = {o["Uuid"]: o for o in os2sync_hierarchy["oUs"]}
+    existing_os2sync_users = {u["Uuid"]: u for u in os2sync_hierarchy["users"]}
 
     for org_unit in mo_org_units:
         counter["Orgenheder som opdateres i OS2Sync"] += 1
