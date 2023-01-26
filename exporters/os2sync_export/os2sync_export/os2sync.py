@@ -14,6 +14,7 @@ from uuid import UUID
 import requests
 from os2sync_export import config
 from tenacity import retry
+from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
 from tenacity import wait_fixed
 
@@ -122,11 +123,17 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
     return UUID(r.text)
 
 
-@retry(wait=wait_fixed(5), reraise=True, stop=stop_after_delay(5 * 60))
+@retry(
+    wait=wait_fixed(5),
+    reraise=True,
+    stop=stop_after_delay(5 * 60),
+    retry=retry_if_exception_type(requests.HTTPError),
+)
 def get_hierarchy(client: requests.Session, os2sync_api_url: str, request_uuid: UUID):
     """Fetches the hierarchy from os2sync. Retries for 5 minutes until it is ready"""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
     hierarchy = r.json()["result"]
-    assert hierarchy, "Check connection to FK-ORG"
+    if hierarchy is None:
+        raise ConnectionError("Check connection to FK-ORG")
     return hierarchy
