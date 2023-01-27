@@ -68,7 +68,10 @@ def sync_os2sync_orgunits(settings, counter):
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
     )
-    return [os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present]
+
+    return filter(
+        None, [os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present]
+    )
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
