@@ -107,18 +107,17 @@ def sync_os2sync_users(gql_session: SyncClientSession, settings: Settings, count
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
 
-    # insert/overwrite all users from os2mo
-    # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    os2mo_uuids_present = tqdm(os2mo_uuids_present, desc="Updating users", unit="user")
-    # medarbejdere er allerede omfattet af autowash
-    # fordi de ikke får nogen 'Positions' hvis de ikke
-    # har en ansættelse i en af allowed_unitids
-    return flatten(
+    os2mo_uuids_present = tqdm(
+        os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
+    )
+
+    all_users = flatten(
         os2mo.get_sts_user(u, gql_session=gql_session, settings=settings)
         for u in os2mo_uuids_present
     )
+    return filter(None, all_users)
 
 
 def main(settings: Settings):
