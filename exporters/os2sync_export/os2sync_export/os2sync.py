@@ -42,9 +42,10 @@ session = get_os2sync_session()
 
 def changed(from_os2mo, from_os2sync):
     """Check if anything is changed in either of the keys that exists in OS2MO."""
-    # Skip checking "Uuid" as we know it is the same.
-    # (Also it's called 'uuid' in the os2sync response for some reason)
-    relevant_keys = set(from_os2mo.keys()) - set(["Uuid"])
+    # Skip checking some keys:
+    # "Uuid" as we know it is the same, and also it's called 'uuid' in the os2sync response for some reason
+    # TODO: "ItSystemUuids" is not in the response. Might be fixed by upgrading os2sync #50261
+    relevant_keys = set(from_os2mo.keys()) - set(["Uuid", "ItSystemUuids"])
     return any(from_os2mo[k] != from_os2sync[k] for k in relevant_keys)
 
 
