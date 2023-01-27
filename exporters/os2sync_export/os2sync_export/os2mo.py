@@ -543,7 +543,7 @@ def get_sts_orgunit(uuid: str, settings):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
-        logger.info("Ignoring %r", base)
+        logger.info(f"Ignoring {base['uuid']}")
         return None
     top_unit_uuid = str(settings.os2sync_top_unit_uuid)
     if not parent["uuid"] == top_unit_uuid:
