@@ -40,8 +40,10 @@ session = get_os2sync_session()
 
 def changed(from_os2mo, from_os2sync):
     """Check if anything is changed in either of the keys that exists in OS2MO."""
-
-    return any(from_os2mo[k] != from_os2sync[k] for k in from_os2sync.keys())
+    # Skip checking "Uuid" as we know it is the same.
+    # (Also it's called 'uuid' in the os2sync response for some reason)
+    relevant_keys = set(from_os2mo.keys()) - set(["Uuid"])
+    return any(from_os2mo[k] != from_os2sync[k] for k in relevant_keys)
 
 
 def os2sync_url(url):
@@ -86,8 +88,13 @@ async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
     if r.status_code not in (200, 404):
         r.raise_for_status()
 
-    if changed(from_os2mo=org_unit, from_os2sync=r.json()):
-        logger.debug("upsert orgunit %s", org_unit["Uuid"])
+    from_os2sync = r.json()
+
+    if changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
+        logger.debug(f"upsert orgunit {org_unit}")
+        # We have no support for these fields in OS2MO yet so use whatever is in fk-org.
+        org_unit["payoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
+        org_unit["contactForTasks"] = from_os2sync["contactForTasks"]
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     else:
         logger.debug("no changes to orgunit %s ", org_unit["Uuid"])
