@@ -148,7 +148,7 @@ def main(settings: Settings):
 
     # Read from MO and update fk-org:
     async def update_org_units(mo_org_units):
-        async with httpx.AsyncClient() as async_os2sync_client:
+        async with httpx.AsyncClient(timeout=10.0) as async_os2sync_client:
             for org_unit in mo_org_units:
                 counter["Orgenheder som opdateres i OS2Sync"] += 1
                 await os2sync.upsert_orgunit(async_os2sync_client, org_unit)
