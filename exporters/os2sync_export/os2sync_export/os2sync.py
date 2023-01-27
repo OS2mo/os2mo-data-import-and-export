@@ -14,8 +14,10 @@ from os2sync_export import config
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
+from tenacity import wait_exponential
 from tenacity import wait_fixed
 
+retry_max_time = 10
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(__name__)
 
@@ -81,14 +83,24 @@ def delete_orgunit(uuid):
     os2sync_delete("{BASE}/orgUnit/" + uuid)
 
 
-async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
-    # Check data on unit before trying to sync
-    r = await client.get(f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}")
-
+@retry(
+    reraise=True,
+    wait=wait_exponential(multiplier=1, min=4, max=10),
+    stop=stop_after_delay(retry_max_time),
+    retry=retry_if_exception_type(requests.HTTPError),
+)
+async def os2sync_get(client, url, **params):
+    r = await client.get(url, **params)
     if r.status_code not in (200, 404):
         r.raise_for_status()
+    return r.json()
 
-    from_os2sync = r.json()
+
+async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
+    # Check data on unit before trying to sync
+    from_os2sync = await os2sync_get(
+        client, f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}"
+    )
 
     if changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
         logger.debug(f"upsert orgunit {org_unit}")
