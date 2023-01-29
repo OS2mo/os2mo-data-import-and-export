@@ -93,9 +93,11 @@ def delete_orgunit(uuid):
 )
 async def os2sync_get(client, url, **params):
     r = await client.get(url, **params)
-    if r.status_code not in (200, 404):
-        r.raise_for_status()
-    return r.json()
+    if r.status_code == 200:
+        return r.json()
+    elif r.status_code == 404:
+        return None
+    r.raise_for_status()
 
 
 async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
@@ -103,9 +105,10 @@ async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
     from_os2sync = await os2sync_get(
         client, f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}"
     )
-
-    if changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
-        logger.debug(f"upsert orgunit {org_unit}")
+    logger.debug(f"upsert orgunit {org_unit}")
+    if from_os2sync is None:
+        return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
+    elif changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
         # We have no support for these fields in OS2MO yet so use whatever is in fk-org.
         org_unit["PayoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
         org_unit["ContactForTasks"] = from_os2sync["contactForTasks"]
