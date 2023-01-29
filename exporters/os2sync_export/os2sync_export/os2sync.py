@@ -46,6 +46,7 @@ def changed(from_os2mo, from_os2sync):
     # "Uuid" as we know it is the same, and also it's called 'uuid' in the os2sync response for some reason
     # TODO: "ItSystemUuids" is not in the response. Might be fixed by upgrading os2sync #50261
     relevant_keys = set(from_os2mo.keys()) - set(["Uuid", "ItSystemUuids"])
+    from_os2sync = {k[0].upper() + k[1:]: v for k, v in from_os2sync.items()}
     return any(from_os2mo[k] != from_os2sync[k] for k in relevant_keys)
 
 
@@ -106,8 +107,8 @@ async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
     if changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
         logger.debug(f"upsert orgunit {org_unit}")
         # We have no support for these fields in OS2MO yet so use whatever is in fk-org.
-        org_unit["payoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
-        org_unit["contactForTasks"] = from_os2sync["contactForTasks"]
+        org_unit["PayoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
+        org_unit["ContactForTasks"] = from_os2sync["contactForTasks"]
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     else:
         logger.debug("no changes to orgunit %s ", org_unit["Uuid"])
