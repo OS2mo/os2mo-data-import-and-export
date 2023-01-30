@@ -113,7 +113,7 @@ def strip_truncate_and_warn(d, root, length):
                     "truncating to %d key '%s' for" " uuid '%s' to value '%s'",
                     length,
                     k,
-                    root["Uuid"],
+                    root["uuid"],
                     v,
                 )
 
@@ -158,21 +158,21 @@ def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
     # find phone using prioritized/empty list of address_type uuids
     phone = choose_public_address(phones, phone_scope_classes)
     if phone:
-        user["PhoneNumber"] = phone["name"]
+        user["phoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
     email = choose_public_address(emails, email_scope_classes)
     if email:
-        user["Email"] = email["name"]
+        user["email"] = email["name"]
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
     for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
-            user["Positions"].append(
+            user["positions"].append(
                 {
-                    "OrgUnitUuid": e["org_unit"]["uuid"],
-                    "Name": e["job_function"]["name"],
+                    "orgUnitUuid": e["org_unit"]["uuid"],
+                    "name": e["job_function"]["name"],
                     # Only used to find primary engagements work-address
                     "is_primary": e["is_primary"],
                 }
@@ -207,7 +207,7 @@ def get_work_address(positions, work_address_names) -> Optional[str]:
         primary_eng = first(positions)
 
     org_addresses = os2mo_get(
-        "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
+        "{BASE}/ou/" + primary_eng["orgUnitUuid"] + "/details/address"
     ).json()
     # filter and sort based on settings and use the first match if any
     work_address: List[Dict] = list(
@@ -242,14 +242,14 @@ def get_fk_org_uuid(
 
 def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
     # Overwrite UUIDs with values from it-account
-    uuid = sts_user["Uuid"]
+    uuid = sts_user["uuid"]
     it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
-    sts_user["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    sts_user["uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
     # For each position check the it-system of the org-unit
-    for p in sts_user["Positions"]:
-        unit_uuid = p["OrgUnitUuid"]
+    for p in sts_user["positions"]:
+        unit_uuid = p["orgUnitUuid"]
         it = os2mo_get(f"{{BASE}}/ou/{unit_uuid}/details/it").json()
-        p["OrgUnitUuid"] = get_fk_org_uuid(it, unit_uuid, os2sync_uuid_from_it_systems)
+        p["orgUnitUuid"] = get_fk_org_uuid(it, unit_uuid, os2sync_uuid_from_it_systems)
 
 
 @lru_cache
@@ -308,7 +308,7 @@ def get_sts_user_raw(
     )
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
-    if not sts_user["Positions"]:
+    if not sts_user["positions"]:
         # return immediately because users with no engagements are not synced.
         return sts_user
     addresses = os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
@@ -323,9 +323,9 @@ def get_sts_user_raw(
 
     # Optionally find the work address of employees primary engagement.
     work_address_names = settings.os2sync_employee_engagement_address
-    if sts_user["Positions"] and work_address_names:
-        sts_user["Location"] = get_work_address(
-            sts_user["Positions"], work_address_names
+    if sts_user["positions"] and work_address_names:
+        sts_user["location"] = get_work_address(
+            sts_user["positions"], work_address_names
         )
 
     truncate_length = max(36, settings.os2sync_truncate_length)
@@ -418,7 +418,7 @@ def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
         lambda i: i["itsystem"]["name"] not in uuid_from_it_systems, itsystems
     )
     for i in itsystems:
-        orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
+        orgunit["itSystemUuids"].append(i["itsystem"]["uuid"])
 
 
 def address_type_is(
@@ -433,19 +433,19 @@ def address_type_is(
 def addresses_to_orgunit(orgunit, addresses):
     for a in addresses:
         if a["address_type"]["scope"] == "EMAIL":
-            orgunit["Email"] = a["name"]
+            orgunit["email"] = a["name"]
         elif a["address_type"]["scope"] == "EAN":
-            orgunit["Ean"] = a["name"]
+            orgunit["ean"] = a["name"]
         elif a["address_type"]["scope"] == "PHONE":
-            orgunit["PhoneNumber"] = a["name"]
+            orgunit["phoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
-            orgunit["Post"] = a["name"]
+            orgunit["post"] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
-            orgunit["Location"] = a["name"]
+            orgunit["location"] = a["name"]
         elif address_type_is(a, user_key="ContactOpenHours"):
-            orgunit["ContactOpenHours"] = a["name"]
+            orgunit["contactOpenHours"] = a["name"]
         elif address_type_is(a, user_key="DtrId"):
-            orgunit["DtrId"] = a["name"]
+            orgunit["dtrId"] = a["name"]
 
 
 def filter_kle(aspect: str, kle) -> List[str]:
@@ -500,9 +500,9 @@ def kle_to_orgunit(org_unit: Dict, kle: List, use_contact_for_tasks: bool) -> No
         kle, use_contact_for_tasks=use_contact_for_tasks
     )
     if tasks:
-        org_unit["Tasks"] = tasks
+        org_unit["tasks"] = tasks
     if contactfortasks:
-        org_unit["ContactForTasks"] = contactfortasks
+        org_unit["contactForTasks"] = contactfortasks
 
 
 def is_ignored(unit, settings):
@@ -527,14 +527,14 @@ def is_ignored(unit, settings):
 
 def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List):
     # Overwrite UUIDs with values from it-account
-    uuid = sts_org_unit["Uuid"]
+    uuid = sts_org_unit["uuid"]
     it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
-    sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+    sts_org_unit["uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
     # Also check if parent unit has a UUID from an it-account
-    parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
+    parent_uuid = sts_org_unit.get("parentOrgUnitUuid")
     if parent_uuid:
         it = os2mo_get(f"{{BASE}}/ou/{parent_uuid}/details/it").json()
-        sts_org_unit["ParentOrgUnitUuid"] = get_fk_org_uuid(
+        sts_org_unit["parentOrgUnitUuid"] = get_fk_org_uuid(
             it, parent_uuid, os2sync_uuid_from_it_systems
         )
 
@@ -557,10 +557,10 @@ def get_sts_orgunit(uuid: str, settings):
         logger.error(msg)
         raise ValueError(msg)
 
-    sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
+    sts_org_unit = {"itSystemUuids": [], "name": base["name"], "uuid": uuid}
 
     if base.get("parent") and "uuid" in base["parent"]:
-        sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
+        sts_org_unit["parentOrgUnitUuid"] = base["parent"]["uuid"]
 
     itsystems_to_orgunit(
         sts_org_unit,
@@ -575,7 +575,7 @@ def get_sts_orgunit(uuid: str, settings):
     if settings.os2sync_sync_managers:
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
-            sts_org_unit["ManagerUuid"] = manager_uuid
+            sts_org_unit["managerUuid"] = manager_uuid
 
     if has_kle():
         kle_to_orgunit(

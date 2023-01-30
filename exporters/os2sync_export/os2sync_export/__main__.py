@@ -163,8 +163,8 @@ def main(settings: Settings):
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
-    existing_os2sync_org_units = {o["Uuid"]: o for o in os2sync_hierarchy["oUs"]}
-    existing_os2sync_users = {u["Uuid"]: u for u in os2sync_hierarchy["users"]}
+    existing_os2sync_org_units = {o["uuid"]: o for o in os2sync_hierarchy["oUs"]}
+    existing_os2sync_users = {u["uuid"]: u for u in os2sync_hierarchy["users"]}
 
     if settings.os2sync_autowash:
         for uuid in set(existing_os2sync_org_units) - set(
@@ -184,7 +184,10 @@ def main(settings: Settings):
             counter=counter,
         )
     for user in mo_users:
-        if user != existing_os2sync_users[user["Uuid"]]:
+        if user["uuid"] not in mo_users or os2sync.changed(
+            user, existing_os2sync_users[user["uuid"]]
+        ):
+            logger.debug(f"Create or update user {user}")
             os2sync.upsert_user(user)
             counter["Medarbejdere overført til OS2SYNC"] += 1
         else:

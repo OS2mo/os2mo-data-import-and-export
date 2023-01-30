@@ -42,11 +42,8 @@ session = get_os2sync_session()
 
 def changed(from_os2mo, from_os2sync):
     """Check if anything is changed in either of the keys that exists in OS2MO."""
-    # Skip checking some keys:
-    # "Uuid" as we know it is the same, and also it's called 'uuid' in the os2sync response for some reason
     # TODO: "ItSystemUuids" is not in the response. Might be fixed by upgrading os2sync #50261
-    relevant_keys = set(from_os2mo.keys()) - set(["Uuid", "ItSystemUuids"])
-    from_os2sync = {k[0].upper() + k[1:]: v for k, v in from_os2sync.items()}
+    relevant_keys = set(from_os2mo.keys()) - set(["itSystemUuids"])
     return any(from_os2mo[k] != from_os2sync[k] for k in relevant_keys)
 
 
@@ -76,7 +73,7 @@ def delete_user(uuid):
 
 
 def upsert_user(user):
-    logger.debug("upsert user %s", user["Uuid"])
+    logger.debug("upsert user %s", user["uuid"])
     os2sync_post("{BASE}/user", json=user)
 
 
@@ -103,19 +100,19 @@ async def os2sync_get(client, url, **params):
 async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
     # Check data on unit before trying to sync
     from_os2sync = await os2sync_get(
-        client, f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}"
+        client, f"{settings.os2sync_api_url}/orgUnit/{org_unit['uuid']}"
     )
     if from_os2sync is None:
         logger.debug(f"Create orgunit {org_unit}")
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     elif changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
         # We have no support for these fields in OS2MO yet so use whatever is in fk-org.
-        org_unit["PayoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
-        org_unit["ContactForTasks"] = from_os2sync["contactForTasks"]
+        org_unit["payoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
+        org_unit["contactForTasks"] = from_os2sync["contactForTasks"]
         logger.debug(f"Update orgunit {org_unit}")
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     else:
-        logger.debug("no changes to orgunit %s ", org_unit["Uuid"])
+        logger.debug("no changes to orgunit %s ", org_unit["uuid"])
 
 
 def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
