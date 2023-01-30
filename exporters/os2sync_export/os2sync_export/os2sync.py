@@ -17,7 +17,7 @@ from tenacity import stop_after_delay
 from tenacity import wait_exponential
 from tenacity import wait_fixed
 
-retry_max_time = 10
+retry_max_time = 60
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(__name__)
 
@@ -105,13 +105,14 @@ async def upsert_orgunit(client: httpx.AsyncClient, org_unit):
     from_os2sync = await os2sync_get(
         client, f"{settings.os2sync_api_url}/orgUnit/{org_unit['Uuid']}"
     )
-    logger.debug(f"upsert orgunit {org_unit}")
     if from_os2sync is None:
+        logger.debug(f"Create orgunit {org_unit}")
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     elif changed(from_os2mo=org_unit, from_os2sync=from_os2sync):
         # We have no support for these fields in OS2MO yet so use whatever is in fk-org.
         org_unit["PayoutUnitUuid"] = from_os2sync["payoutUnitUuid"]
         org_unit["ContactForTasks"] = from_os2sync["contactForTasks"]
+        logger.debug(f"Update orgunit {org_unit}")
         return client.post(f"{settings.os2sync_api_url}/orgUnit/", json=org_unit)
     else:
         logger.debug("no changes to orgunit %s ", org_unit["Uuid"])
