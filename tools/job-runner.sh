@@ -236,7 +236,7 @@ imports_aak_los(){
 
 imports_manager_sync(){
     echo running imports_manager_sync
-    curl http://localhost:8020/trigger/all
+    curl -X POST http://localhost:8020/trigger/all
 }
 
 
