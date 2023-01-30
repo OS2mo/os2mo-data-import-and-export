@@ -2,22 +2,25 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
 from os2sync_export.os2mo import addresses_to_orgunit
 from os2sync_export.os2mo import addresses_to_user
 
 
 class _AddressMixin:
-    def mock_address_list(self, scope, user_key, value):
+    def mock_address_list(self, scope, user_key, value, uuid=str(uuid4())):
         # Mock the result of
         # `os2mo_get("{BASE}/ou/" + uuid + "/details/address").json()`
         # Only contains the keys relevant for `addresses_to_orgunit`
         return [
             {
                 "address_type": {
+                    "uuid": uuid,
                     "scope": scope,
                     "user_key": user_key,
                 },
                 "name": value,
+                "uuid": uuid4(),
             }
         ]
 
@@ -52,14 +55,92 @@ class TestAddressesToUser(unittest.TestCase):
         user = {}
         addresses = []
         phone_scope_classes = [uuid4()]
+        landline_scope_classes = [uuid4()]
         email_scope_classes = [uuid4()]
         with patch("os2sync_export.os2mo.choose_public_address") as mock_choose:
             # Mutates `result`
-            addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes)
+            addresses_to_user(
+                user,
+                addresses,
+                phone_scope_classes,
+                landline_scope_classes,
+                email_scope_classes,
+            )
             # Assert lists of UUIDs are converted to lists of strings before calling
             # `choose_public_address`
             pairs = zip(
-                mock_choose.call_args_list, [phone_scope_classes, email_scope_classes]
+                mock_choose.call_args_list,
+                [landline_scope_classes, phone_scope_classes, email_scope_classes],
             )
             for call, class_uuid_list in pairs:
                 self.assertEqual(call.args, ([], list(map(str, class_uuid_list))))
+
+
+def get_dummy_addresses():
+    address_generator = _AddressMixin()
+    phone = address_generator.mock_address_list(
+        "PHONE", "phone", "phonenumber", uuid="phone_uuid"
+    )[0]
+    landline = address_generator.mock_address_list(
+        "PHONE", "landline", "landlinenumber", uuid="landline_uuid"
+    )[0]
+    email = address_generator.mock_address_list(
+        "EMAIL", "email", "someone@email.com", uuid="email_uuid"
+    )[0]
+    return [phone, landline, email]
+
+
+def test_get_user_addresses_default():
+    """With no default, pick email and phone from scope
+    With no priority set we can't know which phonenumber will be used
+    """
+    user = {}
+    addresses = get_dummy_addresses()
+    addresses_to_user(user, addresses)
+    assert user["Email"] == "someone@email.com"
+    assert user["PhoneNumber"] in ("phonenumber", "landlinenumber")
+
+
+@pytest.mark.parametrize(
+    "settings_dict,expected",
+    [
+        (
+            # Prioritize phonenumber
+            {
+                "phone_scope_classes": ["phone_uuid", "landline_uuid"],
+            },
+            {
+                "Email": "someone@email.com",
+                "PhoneNumber": "phonenumber",
+            },
+        ),
+        (
+            # Prioritize landline
+            {
+                "phone_scope_classes": ["landline_uuid", "phone_uuid"],
+            },
+            {
+                "Email": "someone@email.com",
+                "PhoneNumber": "landlinenumber",
+            },
+        ),
+        (
+            # Use landline field when configured
+            {
+                "phone_scope_classes": ["phone_uuid"],
+                "landline_scope_classes": ["landline_uuid"],
+                "email_scope_classes": ["email_uuid"],
+            },
+            {
+                "Email": "someone@email.com",
+                "PhoneNumber": "phonenumber",
+                "LandLine": "landlinenumber",
+            },
+        ),
+    ],
+)
+def test_get_user_addresses(settings_dict, expected):
+    user = {}
+    addresses = get_dummy_addresses()
+    addresses_to_user(user, addresses, **settings_dict)
+    assert user == expected

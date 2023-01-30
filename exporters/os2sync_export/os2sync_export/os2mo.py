@@ -142,21 +142,33 @@ def has_kle():
     return os2mo_config["show_kle"]
 
 
-def addresses_to_user(user, addresses, phone_scope_classes, email_scope_classes):
-    # `phone_scope_classes` and `email_scope_classes` are both lists of UUIDs.
+def addresses_to_user(
+    user,
+    addresses,
+    phone_scope_classes: List[UUID] = [],
+    landline_scope_classes: List[UUID] = [],
+    email_scope_classes: List[UUID] = [],
+):
+    # `phone_scope_classes`, `landline_scope_classes` and `email_scope_classes` are all lists of UUIDs.
     # We need to convert them to lists of strings in order to make them work correctly
     # with `choose_public_address`.
-    phone_scope_classes = [str(cls) for cls in phone_scope_classes]
-    email_scope_classes = [str(cls) for cls in email_scope_classes]
-
+    phone_scope_classes = [str(cls) for cls in phone_scope_classes]  # type: ignore
+    landline_scope_classes = [str(cls) for cls in landline_scope_classes]  # type: ignore
+    email_scope_classes = [str(cls) for cls in email_scope_classes]  # type: ignore
     # TODO: This looks like bucketing (more_itertools.bucket)
-    emails, phones = [], []
+
+    emails, phones, landlines = [], [], []
     for address in addresses:
-        if address["address_type"]["scope"] == "EMAIL":
+        if address["address_type"]["uuid"] in landline_scope_classes:
+            landlines.append(address)
+        elif address["address_type"]["scope"] == "EMAIL":
             emails.append(address)
-        if address["address_type"]["scope"] == "PHONE":
+        elif address["address_type"]["scope"] == "PHONE":
             phones.append(address)
 
+    landline = choose_public_address(landlines, landline_scope_classes)
+    if landline:
+        user["LandLine"] = landline["name"]
     # find phone using prioritized/empty list of address_type uuids
     phone = choose_public_address(phones, phone_scope_classes)
     if phone:
@@ -320,6 +332,7 @@ def get_sts_user_raw(
         sts_user,
         addresses=addresses,
         phone_scope_classes=settings.os2sync_phone_scope_classes,
+        landline_scope_classes=settings.os2sync_landline_scope_classes,
         email_scope_classes=settings.os2sync_email_scope_classes,
     )
 
@@ -341,7 +354,7 @@ def group_accounts(
 ) -> List:
     """Groups it accounts by their associated engagement"""
     # Find all unique engagement_uuids
-    engagemet_uuids = {u["engagement_uuid"] for u in users}
+    engagement_uuids = {u["engagement_uuid"] for u in users}
     # Find relevant it-systems containing user_keys
     user_keys = list(
         filter(lambda x: x["itsystem"]["name"] == user_key_it_system_name, users)
@@ -350,7 +363,7 @@ def group_accounts(
     uuids = list(filter(lambda x: x["itsystem"]["name"] in uuid_from_it_systems, users))
     fk_org_accounts = []
     # Find uuid and user_key for each engagement.
-    for eng_uuid in engagemet_uuids:
+    for eng_uuid in engagement_uuids:
 
         uuid = only(u["user_key"] for u in uuids if u["engagement_uuid"] == eng_uuid)
         user_key = only(

@@ -175,6 +175,7 @@ def get_sts_user_raw(
         sts_user,
         addresses,
         phone_scope_classes=settings.os2sync_phone_scope_classes,
+        landline_scope_classes=settings.os2sync_landline_scope_classes,
         email_scope_classes=settings.os2sync_email_scope_classes,
     )
 

@@ -72,6 +72,7 @@ class Settings(JobSettings):
     os2sync_ca_verify_os2mo: bool = True
 
     os2sync_phone_scope_classes: List[UUID] = []
+    os2sync_landline_scope_classes: List[UUID] = []
     os2sync_email_scope_classes: List[UUID] = []
     os2sync_ignored_unit_levels: List[UUID] = []
     os2sync_ignored_unit_types: List[UUID] = []
