@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Dict
 from typing import List
+from typing import Optional
 from uuid import UUID
 
 import click
@@ -15,7 +16,9 @@ from os2sync_export.os2mo import get_sts_orgunit
 from os2sync_export.os2mo import get_sts_user
 
 
-def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Dict]:
+def update_single_user(
+    uuid: UUID, settings: Settings, dry_run: bool
+) -> List[Optional[Dict]]:
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
@@ -29,21 +32,22 @@ def update_single_user(uuid: UUID, settings: Settings, dry_run: bool) -> List[Di
         return sts_users
 
     for sts_user in sts_users:
-        if sts_user["Positions"]:
+        if sts_user:
             os2sync.upsert_user(sts_user)
-        else:
-            os2sync.delete_user(str(uuid))
+
     return sts_users
 
 
-def update_single_orgunit(uuid: UUID, settings: Settings, dry_run: bool) -> Dict:
+def update_single_orgunit(
+    uuid: UUID, settings: Settings, dry_run: bool
+) -> Optional[Dict]:
 
     sts_org_unit = get_sts_orgunit(str(uuid), settings=settings)
 
     if dry_run:
         return sts_org_unit
-
-    os2sync.upsert_orgunit(sts_org_unit)
+    if sts_org_unit:
+        os2sync.upsert_orgunit(sts_org_unit)
     return sts_org_unit
 
 

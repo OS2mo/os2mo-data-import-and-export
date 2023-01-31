@@ -197,7 +197,8 @@ def get_sts_user_raw(
             settings.os2sync_filter_hierarchy_names
         ),
     )
-
+    if not engagements:
+        return None
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
 
     if settings.os2sync_uuid_from_it_systems:

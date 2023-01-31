@@ -3,7 +3,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
-import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from os2sync_export.os2mo import get_org_unit_hierarchy
@@ -15,7 +14,6 @@ from os2sync_export.os2mo import os2mo_get
 from os2sync_export.os2mo import overwrite_unit_uuids
 from os2sync_export.os2mo import overwrite_user_uuids
 from os2sync_export.os2mo import partition_kle
-from os2sync_export.os2mo import split_active_users
 from parameterized import parameterized
 from tests.helpers import dummy_settings
 from tests.helpers import MockOs2moGet
@@ -274,24 +272,3 @@ def test_get_org_unit_hierarchy(root_mock):
     ):
         hierarchy_uuids = get_org_unit_hierarchy("Linjeorganisation")
     assert list(hierarchy_uuids) == ["f805eb80-fdfe-8f24-9367-68ea955b9b9b"]
-
-
-@pytest.mark.parametrize(
-    "users,active_count",
-    [
-        ([{"name": "test", "Positions": []}], 0),
-        (
-            [
-                {"name": "test", "Positions": []},
-                {"name": "test", "Positions": [{"This user has an": "engagement"}]},
-            ],
-            1,
-        ),
-    ],
-)
-def test_split_active_users(users, active_count):
-    inactive, active = split_active_users(users)
-    active = list(active)
-    inactive = list(inactive)
-    assert len(active) == active_count
-    assert len(inactive) == len(users) - active_count

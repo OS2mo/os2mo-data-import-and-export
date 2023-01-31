@@ -5,7 +5,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import collections
-import datetime
 import json
 import logging
 import pathlib
@@ -19,11 +18,9 @@ from more_itertools import flatten
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
-from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
-from os2sync_export.os2mo import split_active_users
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -48,7 +45,7 @@ def log_mox_counters(counter):
         logger.info("    %s: %r", k, v)
 
 
-def sync_os2sync_orgunits(settings, counter, prev_date):
+def sync_os2sync_orgunits(settings, counter):
     logger.info("sync_os2sync_orgunits starting")
 
     logger.info(
@@ -64,43 +61,17 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info(
         "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = os2mo.org_unit_uuids(
-        root=settings.os2sync_top_unit_uuid,
-        at=prev_date,
-        hierarchy_uuids=os2mo.get_org_unit_hierarchy(
-            settings.os2sync_filter_hierarchy_names
-        ),
-    )
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
-    counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
-
-    logger.info(
-        "sync_os2sync_orgunits deleting organisational "
-        "units from os2sync if deleted in os2mo"
-    )
-    if len(os2mo_uuids_present):
-        terminated_org_units = set(os2mo_uuids_past - os2mo_uuids_present)
-        for uuid in tqdm(
-            terminated_org_units, desc="Deleting terminated org_units", unit="org_unit"
-        ):
-            counter["Orgenheder som slettes i OS2Sync"] += 1
-            os2sync.delete_orgunit(uuid)
 
     logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
-
-    for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
-        sts_orgunit = os2mo.get_sts_orgunit(i, settings=settings)
-        if sts_orgunit:
-            counter["Orgenheder som opdateres i OS2Sync"] += 1
-            os2sync.upsert_orgunit(sts_orgunit)
-        elif settings.os2sync_autowash:
-            counter["Orgenheder som slettes i OS2Sync"] += 1
-            os2sync.delete_orgunit(i)
-
-    logger.info("sync_os2sync_orgunits done")
-
-    return
+    os2mo_uuids_present = tqdm(
+        os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
+    )
+    org_units = [
+        os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
+    ]
+    return filter(None, org_units)
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
@@ -125,9 +96,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     return all_employee_uuids
 
 
-def sync_os2sync_users(
-    gql_session: SyncClientSession, settings: Settings, counter, prev_date
-):
+def sync_os2sync_users(gql_session: SyncClientSession, settings: Settings, counter):
 
     logger.info("sync_os2sync_users starting")
 
@@ -141,29 +110,17 @@ def sync_os2sync_users(
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
 
-    # insert/overwrite all users from os2mo
-    # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    os2mo_uuids_present = tqdm(os2mo_uuids_present, desc="Updating users", unit="user")
-    # medarbejdere er allerede omfattet af autowash
-    # fordi de ikke får nogen 'Positions' hvis de ikke
-    # har en ansættelse i en af allowed_unitids
-    sts_users = flatten(
+    os2mo_uuids_present = tqdm(
+        os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
+    )
+
+    all_users = flatten(
         os2mo.get_sts_user(u, gql_session=gql_session, settings=settings)
         for u in os2mo_uuids_present
     )
-    inactive, active = split_active_users(sts_users)
-
-    for i in inactive:
-        counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
-        os2sync.delete_user(i["Uuid"])
-
-    for i in active:
-        os2sync.upsert_user(i)
-        counter["Medarbejdere overført til OS2SYNC"] += 1
-
-    logger.info("sync_os2sync_users done")
+    return filter(None, all_users)
 
 
 def main(settings: Settings):
@@ -179,12 +136,7 @@ def main(settings: Settings):
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
-    prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings.os2sync_hash_cache)
-
-    if hash_cache_file.exists():
-        prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
-    prev_date_str = prev_date.strftime("%Y-%m-%d")
 
     counter: collections.Counter = collections.Counter()
     logger.info("mox_os2sync starting")
@@ -192,18 +144,55 @@ def main(settings: Settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
+    os2sync_client = os2sync.get_os2sync_session()
+    request_uuid = os2sync.trigger_hierarchy(
+        os2sync_client, os2sync_api_url=settings.os2sync_api_url
+    )
+    mo_org_units = sync_os2sync_orgunits(settings, counter)
 
-    sync_os2sync_orgunits(settings, counter, prev_date_str)
+    # Read from MO and update fk-org:
+    for org_unit in mo_org_units:
+        counter["Orgenheder som opdateres i OS2Sync"] += 1
+        os2sync.upsert_orgunit(org_unit)
+
+    # Read hierarchy from os2sync
+    os2sync_hierarchy = os2sync.get_hierarchy(
+        os2sync_client,
+        os2sync_api_url=settings.os2sync_api_url,
+        request_uuid=request_uuid,
+    )
+    existing_os2sync_org_units = {o["uuid"]: o for o in os2sync_hierarchy["oUs"]}
+    existing_os2sync_users = {u["uuid"]: u for u in os2sync_hierarchy["users"]}
+
+    if settings.os2sync_autowash:
+        for uuid in set(existing_os2sync_org_units) - set(
+            o["Uuid"] for o in mo_org_units
+        ):
+            counter["Orgenheder som slettes i OS2Sync"] += 1
+            os2sync.delete_orgunit(uuid)
+
+    logger.info("sync_os2sync_orgunits done")
+
+    logger.info("Start syncing users")
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:
-        sync_os2sync_users(
+        mo_users = sync_os2sync_users(
             gql_session=gql_session,
             settings=settings,
             counter=counter,
-            prev_date=prev_date_str,
         )
-        remove_from_os2sync(gql_session=gql_session, settings=settings)
+    # Create or update users
+    for user in mo_users:
+        logger.debug(f"Create or update user {user}")
+        os2sync.upsert_user(user)
+        counter["Medarbejdere overført til OS2SYNC"] += 1
 
+    # Delete any user not in os2mo
+    for uuid in set(existing_os2sync_users) - set(u["Uuid"] for u in mo_users):
+        counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
+        os2sync.delete_user(uuid)
+
+    logger.info("sync_os2sync_users done")
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
 

@@ -9,25 +9,37 @@ import hashlib
 import json
 import logging
 from typing import Dict
+from uuid import UUID
 
 import requests
 from os2sync_export import config
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_delay
+from tenacity import wait_fixed
 
+retry_max_time = 60
 settings = config.get_os2sync_settings()
 logger = logging.getLogger(__name__)
 hash_cache: Dict = {}
-session = requests.Session()
 
 
-if settings.os2sync_api_url == "stub":
-    from os2ysnc_export import stub
+def get_os2sync_session():
 
-    session = stub.Session()
+    session = requests.Session()
+
+    if settings.os2sync_api_url == "stub":
+        from os2sync_export import stub
+
+        session = stub.Session()
+
+    session.verify = settings.os2sync_ca_verify_os2sync
+    session.headers["User-Agent"] = "os2mo-data-import-and-export"
+    session.headers["CVR"] = settings.municipality
+    return session
 
 
-session.verify = settings.os2sync_ca_verify_os2sync
-session.headers["User-Agent"] = "os2mo-data-import-and-export"
-session.headers["CVR"] = settings.municipality
+session = get_os2sync_session()
 
 
 def already_xferred(url, params, method):
@@ -114,3 +126,30 @@ def upsert_orgunit(org_unit):
         os2sync_post("{BASE}/orgUnit/", json=org_unit)
     else:
         logger.debug("upsert orgunit %s - cached", org_unit["Uuid"])
+
+
+def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
+    """ "Triggers a job in the os2sync container that gathers the entire hierarchy from FK-ORG
+
+    Returns: UUID
+
+    """
+    r = client.get(f"{os2sync_api_url}/hierarchy")
+    r.raise_for_status()
+    return UUID(r.text)
+
+
+@retry(
+    wait=wait_fixed(5),
+    reraise=True,
+    stop=stop_after_delay(5 * 60),
+    retry=retry_if_exception_type(requests.HTTPError),
+)
+def get_hierarchy(client: requests.Session, os2sync_api_url: str, request_uuid: UUID):
+    """Fetches the hierarchy from os2sync. Retries for 5 minutes until it is ready"""
+    r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
+    r.raise_for_status()
+    hierarchy = r.json()["result"]
+    if hierarchy is None:
+        raise ConnectionError("Check connection to FK-ORG")
+    return hierarchy
