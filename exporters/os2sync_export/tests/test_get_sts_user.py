@@ -4,7 +4,9 @@ from unittest.mock import patch
 from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user_raw as os2mo_get_sts_user_raw
 from parameterized import parameterized
+from tests.helpers import dummy_positions
 from tests.helpers import dummy_settings
+from tests.helpers import mock_engagements_to_user
 from tests.helpers import MoEmployeeMixin
 from tests.helpers import NICKNAME_TEMPLATE
 
@@ -56,7 +58,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             {
                 "Uuid": self._uuid,
                 "UserId": self._user_key,
-                "Positions": [],
+                "Positions": dummy_positions,
                 "Person": {
                     "Name": mo_employee_response.json()[expected_key],
                     "Cpr": mo_employee_response.json()["cpr_no"],
@@ -121,7 +123,7 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             {
                 "Uuid": self._uuid,
                 "UserId": expected_user_id,
-                "Positions": [],
+                "Positions": dummy_positions,
                 "Person": {
                     "Name": mo_employee_response.json()["name"],
                     "Cpr": mo_employee_response.json()["cpr_no"],
@@ -129,13 +131,12 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
             },
         )
 
-    @patch.object(os2mo, "engagements_to_user", return_value=[])
+    @patch.object(os2mo, "engagements_to_user", mock_engagements_to_user)
     @patch.object(os2mo, "addresses_to_user", return_value=[])
     @patch.object(os2mo, "org_unit_uuids", return_value={})
     def _run(
         self,
         response,
-        engagements_mock,
         address_mock,
         org_unit_uuids_mock,
         ad_user_key=None,

@@ -50,3 +50,10 @@ class MoEmployeeMixin:
                 return mo_employee
 
         return MockResponse()
+
+
+dummy_positions = [{"OrgUnitUuid": "Some-OrgUnit-uuid"}]
+
+
+def mock_engagements_to_user(user, *args, **kwargs):
+    user["Positions"] = dummy_positions
