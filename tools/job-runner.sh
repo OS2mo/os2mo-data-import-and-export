@@ -221,14 +221,6 @@ imports_kle_online(){
     "${VENV}/bin/python3" os2mo_data_import/kle/kle_import.py
 }
 
-imports_opgavefordeler(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/opgavefordeler.log"
-    )
-    echo running imports_opgavefordeler
-    "${VENV}/bin/python3" integrations/kle/kle_import_export.py
-}
-
 imports_aak_los(){
     echo "Running aak_los"
     "${VENV}/bin/python3" integrations/aarhus/los_import.py
@@ -545,10 +537,6 @@ imports(){
 
     if [ "${RUN_KLE_ONLINE}" == "true" ]; then
         run-job imports_kle_online || return 2
-    fi
-
-    if [ "${RUN_OPGAVEFORDELER}" == "true" ]; then
-        run-job imports_opgavefordeler || return 2
     fi
 
     if [ "${RUN_IMPORTS_AAK_LOS}" == "true" ]; then
