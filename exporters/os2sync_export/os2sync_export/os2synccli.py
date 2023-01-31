@@ -8,7 +8,6 @@ import click
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
-from os2sync_export.cleanup_mo_uuids import remove_from_os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
@@ -80,28 +79,6 @@ def update_org_unit(uuid: UUID, dry_run: bool):
             dry_run,
         )
     )
-
-
-@cli.command()
-@click.option("--dry-run", is_flag=True)
-def cleanup_mo_uuids(dry_run: bool):
-    """Remove objects with mo uuids from fk-org when their uuid is set in an it-system.
-    Used for when an existing object has been given an fk-org uuid in an it-system
-
-    """
-    settings = get_os2sync_settings()
-    gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        res = remove_from_os2sync(
-            gql_session=gql_session, settings=settings, dry_run=dry_run
-        )
-    if res is None:
-        click.echo("No it-system set in settings as os2sync_uuid_from_it_systems.")
-        return
-
-    org_units, employees = res
-    click.echo(len(org_units))
-    click.echo(len(employees))
 
 
 if __name__ == "__main__":
