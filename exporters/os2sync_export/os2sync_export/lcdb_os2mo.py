@@ -324,8 +324,9 @@ def get_sts_orgunit(session, uuid, settings: Settings):
 
     if settings.os2sync_sync_managers:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
-        manager_uuid = only(lc_manager.bruger_uuid)
-        sts_org_unit.update({"managerUuid": manager_uuid})
+        manager = only(lc_manager)
+        if manager:
+            sts_org_unit.update({"managerUuid": manager.bruger_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
