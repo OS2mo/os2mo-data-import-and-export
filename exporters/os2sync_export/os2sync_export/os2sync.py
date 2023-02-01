@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 from typing import Dict
+from typing import Tuple
 from uuid import UUID
 
 import requests
@@ -145,11 +146,15 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
     stop=stop_after_delay(5 * 60),
     retry=retry_if_exception_type(requests.HTTPError),
 )
-def get_hierarchy(client: requests.Session, os2sync_api_url: str, request_uuid: UUID):
+def get_hierarchy(
+    client: requests.Session, os2sync_api_url: str, request_uuid: UUID
+) -> Tuple[Dict[str, Dict], Dict[str, Dict]]:
     """Fetches the hierarchy from os2sync. Retries for 5 minutes until it is ready"""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
     hierarchy = r.json()["result"]
     if hierarchy is None:
         raise ConnectionError("Check connection to FK-ORG")
-    return hierarchy
+    existing_os2sync_org_units = {o["uuid"]: o for o in hierarchy["oUs"]}
+    existing_os2sync_users = {u["uuid"]: u for u in hierarchy["users"]}
+    return existing_os2sync_org_units, existing_os2sync_users

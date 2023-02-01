@@ -10,6 +10,7 @@ import logging
 import pathlib
 from functools import partial
 from operator import itemgetter
+from typing import Dict
 from typing import Set
 
 import sentry_sdk
@@ -38,19 +39,19 @@ def log_mox_config(settings):
         logger.warning("    %s=%r", k, v)
 
 
-def log_mox_counters(counter):
+def log_mox_counters(counter: collections.Counter):
     logger.info("-----------------------------------------")
     logger.info("program counters:")
     for k, v in sorted(counter.items()):
         logger.info("    %s: %r", k, v)
 
 
-def sync_os2sync_orgunits(settings, counter):
-    logger.info("sync_os2sync_orgunits starting")
+def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]:
+    """Read all current org_units from OS2MO and sync to fk-org
+    Returns a set of str(uuids) of the org_units that was processed
+    """
+    logger.info("read_all_orgunits starting")
 
-    logger.info(
-        "sync_os2sync_orgunits getting " "all current organisational units from os2mo"
-    )
     os2mo_uuids_present = os2mo.org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=os2mo.get_org_unit_hierarchy(
@@ -58,20 +59,18 @@ def sync_os2sync_orgunits(settings, counter):
         ),
     )
 
-    logger.info(
-        "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
-    )
-
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
 
-    logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
     )
-    org_units = [
+
+    # Read from MO and update fk-org:
+    org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
-    ]
-    return filter(None, org_units)
+    )
+
+    return {ou["Uuid"]: ou for ou in org_units if ou}
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
@@ -96,31 +95,29 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     return all_employee_uuids
 
 
-def sync_os2sync_users(gql_session: SyncClientSession, settings: Settings, counter):
+def read_all_users(
+    gql_session: SyncClientSession, settings: Settings, counter: collections.Counter
+) -> Dict[str, Dict]:
 
-    logger.info("sync_os2sync_users starting")
+    logger.info("read_all_users starting")
 
-    logger.info(
-        "sync_os2sync_users getting " "users from os2mo from previous xfer date"
-    )
     org_uuid = os2mo.organization_uuid()
 
-    logger.info("sync_os2sync_users getting list of users from os2mo")
+    logger.info("read_all_users getting list of users from os2mo")
     os2mo_uuids_present = read_all_user_uuids(org_uuid)
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
-
-    logger.info("sync_os2sync_users upserting os2sync users")
 
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
     )
 
     all_users = flatten(
-        os2mo.get_sts_user(u, gql_session=gql_session, settings=settings)
-        for u in os2mo_uuids_present
+        os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
+        for uuid in os2mo_uuids_present
     )
-    return filter(None, all_users)
+
+    return {u["Uuid"]: u for u in all_users if u}
 
 
 def main(settings: Settings):
@@ -148,27 +145,24 @@ def main(settings: Settings):
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
-    mo_org_units = sync_os2sync_orgunits(settings, counter)
+    mo_org_units = read_all_orgunits(settings, counter)
 
-    # Read from MO and update fk-org:
-    for org_unit in mo_org_units:
-        counter["Orgenheder som opdateres i OS2Sync"] += 1
+    counter["Orgenheder som opdateres i OS2Sync"] = len(mo_org_units)
+    for org_unit in mo_org_units.values():
         os2sync.upsert_orgunit(org_unit)
 
     # Read hierarchy from os2sync
-    os2sync_hierarchy = os2sync.get_hierarchy(
+    existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
         os2sync_client,
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
-    existing_os2sync_org_units = {o["uuid"]: o for o in os2sync_hierarchy["oUs"]}
-    existing_os2sync_users = {u["uuid"]: u for u in os2sync_hierarchy["users"]}
 
     if settings.os2sync_autowash:
-        for uuid in set(existing_os2sync_org_units) - set(
-            o["Uuid"] for o in mo_org_units
-        ):
-            counter["Orgenheder som slettes i OS2Sync"] += 1
+        # Delete any org_unit not in os2mo
+        terminated_org_units = set(existing_os2sync_org_units) - set(mo_org_units)
+        counter["Orgenheder som slettes i OS2Sync"] = len(terminated_org_units)
+        for uuid in terminated_org_units:
             os2sync.delete_orgunit(uuid)
 
     logger.info("sync_os2sync_orgunits done")
@@ -176,23 +170,24 @@ def main(settings: Settings):
     logger.info("Start syncing users")
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:
-        mo_users = sync_os2sync_users(
+        mo_users = read_all_users(
             gql_session=gql_session,
             settings=settings,
             counter=counter,
         )
+
     # Create or update users
-    for user in mo_users:
-        logger.debug(f"Create or update user {user}")
+    counter["Medarbejdere overført til OS2SYNC"] = len(mo_users)
+    for user in mo_users.values():
         os2sync.upsert_user(user)
-        counter["Medarbejdere overført til OS2SYNC"] += 1
 
     # Delete any user not in os2mo
-    for uuid in set(existing_os2sync_users) - set(u["Uuid"] for u in mo_users):
-        counter["Medarbejdere slettes i OS2Sync (pos)"] += 1
+    terminated_users = set(existing_os2sync_users) - set(mo_users)
+    counter["Medarbejdere slettes i OS2Sync"] = len(terminated_users)
+    for uuid in terminated_users:
         os2sync.delete_user(uuid)
 
-    logger.info("sync_os2sync_users done")
+    logger.info("sync users done")
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
 

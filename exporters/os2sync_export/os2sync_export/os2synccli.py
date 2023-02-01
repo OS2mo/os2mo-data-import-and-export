@@ -73,7 +73,7 @@ def update_org_unit(uuid: UUID, dry_run: bool):
     """Send os2sync payload for a single org_unit"""
     settings = get_os2sync_settings()
     click.echo(
-        update_org_unit(
+        update_single_orgunit(
             uuid,
             settings,
             dry_run,
