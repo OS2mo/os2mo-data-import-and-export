@@ -55,7 +55,7 @@ class ManagerImporter:
     ) -> dict:
         person_uuid = self.cpr_cache.get(manager.cpr)
         if not person_uuid:
-            print(f"No person found for CPR {manager.cpr}")
+            print(f"No person found for CPR {manager.cpr[:6]}")
 
         return mo_payloads.create_manager(
             uuid=self._generate_rel_uuid(manager),

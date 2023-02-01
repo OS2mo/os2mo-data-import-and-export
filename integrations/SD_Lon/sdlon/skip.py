@@ -23,6 +23,6 @@ def cpr_env_filter(entity: OrderedDict[str, Any]) -> bool:
         process_cpr = cpr in settings.sd_cprs
 
     if not process_cpr and settings.sd_exclude_cprs_mode:
-        logger.warning(f"*** SKIPPING employee with cpr={cpr} ***")
+        logger.warning(f"*** SKIPPING employee with cpr={cpr[:6]} ***")
 
     return process_cpr

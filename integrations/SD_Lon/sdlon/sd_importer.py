@@ -463,7 +463,7 @@ class SdImport:
             sur_name = person.get("PersonSurnameName", "")
 
             uuid = self.employee_forced_uuids.get(cpr)
-            logger.info("Employee in force list: {} {}".format(cpr, uuid))
+            logger.info(f"Employee in force list: {uuid}")
             if uuid is None and "ObjectGuid" in self.ad_people[cpr]:
                 uuid = self.ad_people[cpr]["ObjectGuid"]
 

@@ -1207,7 +1207,7 @@ class TestSyncCompare(_TestRealADWriter):
             (
                 [],  # manager not present in AD
                 None,  # expected `mismatch["manager"]`
-                "could not find manager by cpr 'manager_cpr'",  # expected logging
+                "could not find manager by cpr",  # expected logging
             ),
             (
                 # manager present in AD

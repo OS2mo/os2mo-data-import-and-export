@@ -919,9 +919,7 @@ class ADWriter(AD):
                     mo_values["manager_cpr"], ad_dump=ad_dump
                 )
             except CprNotFoundInADException:
-                logger.warning(
-                    "could not find manager by cpr %r", mo_values.get("manager_cpr")
-                )
+                logger.warning("could not find manager by cpr")
             else:
                 manager_distinguished_name = manager_ad_user["DistinguishedName"]
                 if ad_user["manager"] != manager_distinguished_name:
@@ -1091,8 +1089,8 @@ class ADWriter(AD):
             logger.error("SamAccount already in use: {}".format(sam_account_name))
             raise SamAccountNameNotUnique(sam_account_name)
         if cpr and self.get_from_ad(cpr=cpr):
-            logger.error("cpr already in use: {}".format(cpr))
-            raise CprNotNotUnique(cpr)
+            logger.error(f"cpr already in use: {cpr[:6]}-xxxx")
+            raise CprNotNotUnique()
 
     def add_ad_to_user_it_systems(self, username):
         # TODO: We need a function to write the SamAccount to the user's

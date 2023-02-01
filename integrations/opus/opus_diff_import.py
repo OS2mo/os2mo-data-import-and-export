@@ -723,13 +723,9 @@ class OpusDiffImport(object):
 
         if mo_user is None:
             uuid = self.employee_forced_uuids.get(cpr)
-            logger.info("Employee in force list: {} {}".format(cpr, uuid))
-            logger.info("AD info: {}".format(ad_info))
+            logger.info(f"Employee {uuid} in force list. AD info: {ad_info}")
             if uuid is None:
                 uuid = ad_info.get("ObjectGuid")
-                if uuid is None:
-                    msg = "{} not in MO, UUID list or AD, assign random uuid"
-                    logger.debug(msg.format(cpr))
             employee_mo_uuid = self.create_user(employee, uuid)
         else:
             employee_mo_uuid = mo_user["uuid"]
@@ -739,8 +735,7 @@ class OpusDiffImport(object):
                 employee["lastName"] != mo_user["surname"]
             ):
                 employee_mo_uuid = self.create_user(employee, employee_mo_uuid)
-                msg = "Updated name of employee {} with uuid {}"
-                logger.info(msg.format(cpr, employee_mo_uuid))
+                logger.info(f"Updated name of employee {employee_mo_uuid}")
 
         # Add it-systems
         self.connect_it_system(
