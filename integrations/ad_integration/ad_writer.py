@@ -1087,12 +1087,10 @@ class ADWriter(AD):
         return path_argument
 
     def _check_if_ad_user_exists(self, sam_account_name, cpr):
-        existing_sam = self.get_from_ad(user=sam_account_name)
-        existing_cpr = self.get_from_ad(cpr=cpr)
-        if existing_sam:
+        if sam_account_name and self.get_from_ad(user=sam_account_name):
             logger.error("SamAccount already in use: {}".format(sam_account_name))
             raise SamAccountNameNotUnique(sam_account_name)
-        if existing_cpr:
+        if cpr and self.get_from_ad(cpr=cpr):
             logger.error("cpr already in use: {}".format(cpr))
             raise CprNotNotUnique(cpr)
 
