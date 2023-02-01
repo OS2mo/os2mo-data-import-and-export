@@ -343,6 +343,8 @@ class FixDepartments:
             "UUIDIndicator": True,
         }
 
+        # TODO: use GetEmploymentChangedAt instead!
+
         # We need to catch all current and future engagements, this is an attempt to
         # do so, without making too many calls to the api.
         time_deltas = [0, 90, 365]
@@ -402,17 +404,22 @@ class FixDepartments:
                 person["Employment"] = [person["Employment"]]
 
             for employment in person["Employment"]:
+                # TODO: job_id is a bad name
                 job_id = employment["EmploymentIdentifier"]
                 msg = "Checking job-id: {}"
-                print(msg.format(job_id))
                 logger.info(msg.format(job_id))
+
+                # TODO: rename variable
                 sd_uuid = employment["EmploymentDepartment"]["DepartmentUUIDIdentifier"]
+
+                # TODO: use filter
                 if not sd_uuid == unit_uuid:
                     # This employment is not from the current department,
                     # but is inherited from a lower level. Can happen if this
                     # tool is initiated on a level higher than Afdelings-niveau.
                     continue
 
+                # TODO: create person in MO
                 mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
                 if mo_person is None:
                     msg = "MO person is None for job_id: {}"
