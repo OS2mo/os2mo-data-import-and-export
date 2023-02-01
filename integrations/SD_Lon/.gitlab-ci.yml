@@ -30,7 +30,7 @@ Lint SDLoen Integration:
   image: python:3
   script:
     - cd integrations/SD_Lon/
-    - pip install black
+    - pip install black~=22.0
     - python -m black --diff --check tests/*.py sdlon/*.py
 
 
