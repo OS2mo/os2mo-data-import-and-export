@@ -772,8 +772,7 @@ class ChangeAtSD:
 
             if cpr != activation_date_info["PersonCivilRegistrationIdentifier"]:
                 logger.error(
-                    "wrong cpr %r for position %r at date %r",
-                    activation_date_info["PersonCivilRegistrationIdentifier"],
+                    "wrong cpr for position %r at date %r",
                     engagement["EmploymentIdentifier"],
                     status["ActivationDate"],
                 )
@@ -1197,7 +1196,11 @@ class ChangeAtSD:
             code = EmploymentStatus(code)
 
             if code == EmploymentStatus.AnsatUdenLoen:
-                logger.info("Status 0. Cpr: {}, job: {}".format(cpr, employment_id))
+                logger.info(
+                    "Status 0. Cpr: {}, job: {}".format(
+                        f"{cpr[:6]}-xxxx", employment_id
+                    )
+                )
                 mo_eng = self._find_engagement(employment_id, person_uuid)
                 if mo_eng:
                     logger.info("Status 0, edit eng {}".format(mo_eng["uuid"]))
@@ -1249,7 +1252,9 @@ class ChangeAtSD:
             elif code in EmploymentStatus.let_go():
                 sd_from_date = status["ActivationDate"]
                 sd_to_date = status["DeactivationDate"]
-                logger.info("Terminate {}, job_id {} ".format(cpr, employment_id))
+                logger.info(
+                    "Terminate {}, job_id {} ".format(f"{cpr[:6]}-xxxx", employment_id)
+                )
                 success = self._terminate_engagement(
                     user_key=employment_id,
                     person_uuid=person_uuid,
@@ -1327,7 +1332,7 @@ class ChangeAtSD:
             sd_employments = ensure_list(employment["Employment"])
 
             logger.info("---------------------")
-            logger.info("We are now updating {}".format(cpr))
+            logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))
             logger.debug("From date: {}".format(self.from_date))
             logger.debug("To date: {}".format(self.to_date))
             logger.debug("Employment: {}".format(employment))

@@ -77,7 +77,7 @@ class ADParameterReader(AD):
         caseless_samname = settings.get("caseless_samname", False)
         sam_filter = settings.get("sam_filter", "")
 
-        logger.debug("Uncached AD read, user {}, cpr {}".format(user, cpr))
+        logger.debug(f"Uncached AD read, user {user}")
 
         server = None
         if self.all_settings["primary"]["servers"]:
@@ -145,7 +145,7 @@ class ADParameterReader(AD):
         :param cache_only: Return {} if user is not already cached
         :return: All properties listed in AD for the user.
         """
-        logger.debug("Cached AD read, user {}, cpr {}".format(user, cpr))
+        logger.debug(f"Cached AD read, user {user}")
         if (not cpr) and (not user):
             return
 
@@ -199,11 +199,10 @@ if __name__ == "__main__":
     everything = ad_reader.read_it_all()
     for user in everything:
         print(
-            "Name: {}, Sam: {}, Manager: {} CPR: {}".format(
+            "Name: {}, Sam: {}, Manager: {}".format(
                 user["Name"],
                 user["SamAccountName"],
                 user.get("Manager"),
-                "cpr: " + str(user.get("xAttrCPR")),
             )
         )
         if user["SamAccountName"] == "johndoe":
