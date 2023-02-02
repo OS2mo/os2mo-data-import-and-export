@@ -47,11 +47,12 @@ def log_mox_counters(counter: collections.Counter):
 
 
 def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]:
-    """Read all current org_units from OS2MO and sync to fk-org
-    Returns a set of str(uuids) of the org_units that was processed
+    """Read all current org_units from OS2MO
+
+    Returns a dict mapping uuids to os2sync payload for each org_unit
     """
     logger.info("read_all_orgunits starting")
-
+    # Read all relevant org_unit uuids from os2mo
     os2mo_uuids_present = os2mo.org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=os2mo.get_org_unit_hierarchy(
@@ -65,7 +66,7 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]
         os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
     )
 
-    # Read from MO and update fk-org:
+    # Create os2sync payload for all org_units:
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
     )
@@ -98,6 +99,10 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
 def read_all_users(
     gql_session: SyncClientSession, settings: Settings, counter: collections.Counter
 ) -> Dict[str, Dict]:
+    """Read all current users from OS2MO
+
+    Returns a dict mapping uuids to os2sync payload for each user
+    """
 
     logger.info("read_all_users starting")
 
@@ -112,6 +117,7 @@ def read_all_users(
         os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
     )
 
+    # Create os2sync payload for all org_units:
     all_users = flatten(
         os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
         for uuid in os2mo_uuids_present
