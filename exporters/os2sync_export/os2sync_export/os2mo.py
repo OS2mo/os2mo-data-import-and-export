@@ -9,7 +9,6 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Set
@@ -22,7 +21,6 @@ from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
-from more_itertools import partition
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.templates import Person
@@ -291,7 +289,7 @@ def get_sts_user_raw(
     fk_org_uuid: Optional[str] = None,
     user_key: Optional[str] = None,
     engagement_uuid: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> Optional[Dict[str, Any]]:
 
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
     user = User(
@@ -308,7 +306,7 @@ def get_sts_user_raw(
     if settings.os2sync_filter_users_by_it_system and user_key is None:
         # Skip user if filter is activated and there are no user_key to find in settings
         # By returning user without any positions it will be removed from fk-org
-        return sts_user
+        return None
 
     # use calculate_primary flag to get the is_primary boolean used in getting work-address
     engagements = os2mo_get(
@@ -324,7 +322,7 @@ def get_sts_user_raw(
 
     if not sts_user["Positions"]:
         # return immediately because users with no engagements are not synced.
-        return sts_user
+        return None
     addresses = os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     if engagement_uuid is not None:
         addresses = filter(lambda a: a["engagement_uuid"] == engagement_uuid, addresses)
@@ -378,7 +376,7 @@ def group_accounts(
 
 def get_sts_user(
     mo_uuid: str, gql_session: SyncClientSession, settings: Settings
-) -> List[Dict[str, Any]]:
+) -> List[Optional[Dict[str, Any]]]:
 
     users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
     try:
@@ -402,11 +400,6 @@ def get_sts_user(
         for it in fk_org_accounts
     ]
     return sts_users
-
-
-def split_active_users(users: Iterable[Dict]) -> Tuple[Iterable[Dict], Iterable[Dict]]:
-    """Splits list of users into groups filtered by whether they have active positions"""
-    return partition(lambda u: u["Positions"], users)
 
 
 @lru_cache()

@@ -1,5 +1,7 @@
+import logging
 from typing import Dict
 from typing import List
+from typing import Optional
 from uuid import UUID
 
 from fastapi import BackgroundTasks
@@ -11,6 +13,8 @@ from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
 
 app = FastAPI()
+
+logger = logging.getLogger(__name__)
 
 
 @app.get("/")
@@ -29,8 +33,9 @@ async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
 async def trigger_user(
     uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
     dry_run: bool = False,
-) -> List[Dict[str, str]]:
+) -> List[Optional[Dict[str, str]]]:
     settings = get_os2sync_settings()
+    settings.start_logging_based_on_settings()
 
     return update_single_user(uuid, settings, dry_run)
 
@@ -39,7 +44,7 @@ async def trigger_user(
 async def trigger_orgunit(
     uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
     dry_run: bool = False,
-) -> Dict[str, str]:
+) -> Optional[Dict[str, str]]:
     settings = get_os2sync_settings()
 
     return update_single_orgunit(uuid, settings, dry_run)

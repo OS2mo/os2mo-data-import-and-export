@@ -3,8 +3,11 @@ from unittest.mock import patch
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from os2sync_export import lcdb_os2mo
+from os2sync_export import os2mo
 from parameterized import parameterized
+from tests.helpers import dummy_positions
 from tests.helpers import dummy_settings
+from tests.helpers import mock_engagements_to_user
 from tests.helpers import NICKNAME_TEMPLATE
 
 from exporters.sql_export.sql_table_defs import Bruger
@@ -70,6 +73,7 @@ class TestGetStsUser(unittest.TestCase):
         ]
     )
     @patch("os2sync_export.os2mo.org_unit_uuids", return_value={})
+    @patch.object(os2mo, "engagements_to_user", mock_engagements_to_user)
     def test_person_template_nickname(
         self, template, uuid, expected_name, allowed_unitids_mock
     ):
@@ -91,7 +95,7 @@ class TestGetStsUser(unittest.TestCase):
             {
                 "Uuid": uuid,
                 "UserId": uuid,
-                "Positions": [],
+                "Positions": dummy_positions,
                 "Person": {
                     "Name": expected_name,
                     "Cpr": None,
@@ -151,16 +155,17 @@ class TestGetStsUser(unittest.TestCase):
         settings = dummy_settings
         settings.os2sync_templates = os2sync_templates or {}
         with self._patch("try_get_it_user_key", given_ad_user_key):
-            sts_user = lcdb_os2mo.get_sts_user_raw(
-                self._session, mo_user_uuid, settings=dummy_settings
-            )
+            with patch.object(os2mo, "engagements_to_user", mock_engagements_to_user):
+                sts_user = lcdb_os2mo.get_sts_user_raw(
+                    self._session, mo_user_uuid, settings=dummy_settings
+                )
 
         self.assertDictEqual(
             sts_user,
             {
                 "Uuid": mo_user_uuid,
                 "UserId": expected_user_id,
-                "Positions": [],
+                "Positions": dummy_positions,
                 "Person": {
                     "Name": "Test Testesen",
                     "Cpr": None,

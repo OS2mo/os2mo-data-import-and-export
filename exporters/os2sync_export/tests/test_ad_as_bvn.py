@@ -7,7 +7,9 @@ from unittest.mock import patch
 
 from os2sync_export import os2mo
 from os2sync_export.os2mo import get_sts_user_raw
+from tests.helpers import dummy_positions
 from tests.helpers import dummy_settings
+from tests.helpers import mock_engagements_to_user
 
 uuid = "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b"
 mo_employee_url_end = "e/{}/".format(uuid)
@@ -361,11 +363,13 @@ def patched_session_get(url: str, params: Optional[Dict[Any, Any]] = None, **kwa
 
 class TestsMOAd(unittest.TestCase):
     @patch("os2sync_export.os2mo.os2mo_get", patched_session_get)
+    @patch.object(os2mo, "engagements_to_user", mock_engagements_to_user)
     @patch.object(os2mo, "org_unit_uuids", return_value={})
     def test_mo_client_default(self, org_unit_uuids_mock):
         expected = {
+            "Email": "solveigk@kolding.dk",
             "Person": {"Cpr": "0602602389", "Name": "Solveig Kuhlenhenke"},
-            "Positions": [],
+            "Positions": dummy_positions,
             "UserId": "SolveigK_AD_logon",
             "Uuid": "23d2dfc7-6ceb-47cf-97ed-db6beadcb09b",
         }

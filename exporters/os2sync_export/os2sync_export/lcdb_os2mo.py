@@ -191,15 +191,16 @@ def get_sts_user_raw(
                 "is_primary": lc_engagement.primær_boolean,
             }
         )
+
     allowed_unitids = os2mo.org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=os2mo.get_org_unit_hierarchy(
             settings.os2sync_filter_hierarchy_names
         ),
     )
-
     os2mo.engagements_to_user(sts_user, engagements, allowed_unitids)
-
+    if not sts_user["Positions"]:
+        return None
     if settings.os2sync_uuid_from_it_systems:
         overwrite_user_uuids(session, sts_user, settings.os2sync_uuid_from_it_systems)
 
@@ -323,8 +324,9 @@ def get_sts_orgunit(session, uuid, settings: Settings):
 
     if settings.os2sync_sync_managers:
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
-        manager_uuid = only(lc_manager.bruger_uuid)
-        sts_org_unit.update({"managerUuid": manager_uuid})
+        manager = only(lc_manager)
+        if manager:
+            sts_org_unit.update({"managerUuid": manager.bruger_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
