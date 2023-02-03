@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from uuid import UUID
 from uuid import uuid4
 
 from hypothesis import given
@@ -271,4 +272,4 @@ def test_get_org_unit_hierarchy(root_mock):
         ),
     ):
         hierarchy_uuids = get_org_unit_hierarchy("Linjeorganisation")
-    assert list(hierarchy_uuids) == ["f805eb80-fdfe-8f24-9367-68ea955b9b9b"]
+    assert hierarchy_uuids == (UUID("f805eb80-fdfe-8f24-9367-68ea955b9b9b"),)
