@@ -134,7 +134,7 @@ def test_get_user_addresses_default():
             {
                 "Email": "someone@email.com",
                 "PhoneNumber": "phonenumber",
-                "LandLine": "landlinenumber",
+                "Landline": "landlinenumber",
             },
         ),
     ],
