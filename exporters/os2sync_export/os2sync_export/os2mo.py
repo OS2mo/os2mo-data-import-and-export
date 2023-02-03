@@ -280,7 +280,7 @@ def get_org_unit_hierarchy(titles: Tuple):
     assert (
         len(filtered_hierarchies) > 0
     ), f"No org_unit_hierarchy classes found matching the titles {titles}."
-    return map(itemgetter("uuid"), filtered_hierarchies)
+    return [o["uuid"] for o in filtered_hierarchies]
 
 
 def get_sts_user_raw(
