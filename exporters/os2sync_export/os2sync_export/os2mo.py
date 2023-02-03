@@ -166,7 +166,7 @@ def addresses_to_user(
 
     landline = choose_public_address(landlines, landline_scope_classes)
     if landline:
-        user["LandLine"] = landline["name"]
+        user["Landline"] = landline["name"]
     # find phone using prioritized/empty list of address_type uuids
     phone = choose_public_address(phones, phone_scope_classes)
     if phone:
