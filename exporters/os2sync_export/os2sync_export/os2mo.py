@@ -265,10 +265,10 @@ def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
 
 
 @lru_cache
-def get_org_unit_hierarchy(titles: Tuple):
+def get_org_unit_hierarchy(titles: Tuple) -> Optional[Tuple[UUID, ...]]:
     """Find uuids of org_unit_hierarchy classes with the specified titles"""
     if not titles:
-        return
+        return None
     org_unit_hierarchy_classes = os2mo_get(
         f"{{BASE}}/o/{organization_uuid()}/f/org_unit_hierarchy/"
     ).json()
@@ -280,7 +280,8 @@ def get_org_unit_hierarchy(titles: Tuple):
     assert (
         len(filtered_hierarchies) > 0
     ), f"No org_unit_hierarchy classes found matching the titles {titles}."
-    return [o["uuid"] for o in filtered_hierarchies]
+    # Return tuple, not list, because lists can't be used as input to lru_cached functions.
+    return tuple(UUID(o["uuid"]) for o in filtered_hierarchies)
 
 
 def get_sts_user_raw(
