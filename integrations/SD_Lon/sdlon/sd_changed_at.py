@@ -122,11 +122,6 @@ class ChangeAtSD:
         self.skip_job_functions = self.settings.sd_skip_job_functions
         self.use_ad = self.settings.sd_use_ad_integration
 
-        # TODO: remove when MO is updated to a version greater than 2.7.0
-        self.terminate_engagement_with_to_only = (
-            self.settings.sd_terminate_engagement_with_to_only
-        )
-
         # See https://os2web.atlassian.net/browse/MO-245 for more details
         # about no_salary_minimum
         self.no_salary_minimum = self.settings.sd_no_salary_minimum_id
@@ -895,12 +890,7 @@ class ChangeAtSD:
             logger.warning(f"Terminating non-existing job: {user_key}!")
             return False
 
-        # TODO: remove this hack when MO is updated to a version greater
-        #  than 2.7.0 !!
-
         validity = {"from": from_date, "to": to_date}
-        if self.terminate_engagement_with_to_only:
-            validity = {"to": sd_to_mo_termination_date(from_date)}
 
         # TODO: use/create termination object from RA Models
         payload = {

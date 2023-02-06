@@ -102,7 +102,6 @@ def setup_sd_changed_at(updates=None, hours=24):
         "sd_monthly_hourly_divide": 8000,
         "mora_base": "http://dummy.url",
         "mox_base": "http://dummy.url",
-        "sd_terminate_engagement_with_to_only": False,
     }
     if updates:
         settings_dict.update(updates)
@@ -441,7 +440,7 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-    @parameterized.expand([("2021-10-15", "2021-10-14"), ("9999-12-31", None)])
+    @parameterized.expand([("2021-10-15", "2021-10-15"), ("9999-12-31", None)])
     def test_handle_status_changes_terminates_let_go_employment_status(
         self, sd_deactivation_date, mo_termination_to_date
     ):

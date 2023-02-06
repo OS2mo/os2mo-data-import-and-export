@@ -51,7 +51,6 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_importer_employment_date_as_engagement_start_date": False,
     "sd_skip_job_functions": [],
     "sd_skip_employment_types": [],
-    "sd_terminate_engagement_with_to_only": True,
     "sd_use_ad_integration": True,
     "cache_folder_path": "/opt/dipex/os2mo-data-import-and-export/tmp/",
     "cpr_uuid_map_path": "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv",

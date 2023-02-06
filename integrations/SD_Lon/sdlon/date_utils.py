@@ -113,9 +113,6 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     """
     Convert SD termination date to MO termination date.
 
-    In MO, the termination date is the last day of work, while in SD it is the
-    first day of non-work.
-
     Args:
         sd_date: SD termination date formatted as "YYYY-MM-DD"
 
@@ -129,12 +126,7 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     if sd_date == SD_INFINITY:
         return MO_INFINITY
 
-    # In MO, the termination date is the last day of work,
-    # in SD it is the first day of non-work.
-    _sd_date = parse_date(sd_date)
-    mo_date = _sd_date - timedelta(days=1)
-
-    return format_date(mo_date)
+    return sd_date
 
 
 def to_midnight(dt: datetime) -> datetime:
