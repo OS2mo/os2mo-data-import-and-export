@@ -252,11 +252,7 @@ def get_fk_org_uuid(
     return first(it_uuids, mo_uuid)
 
 
-def overwrite_user_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
-    # Overwrite UUIDs with values from it-account
-    uuid = sts_user["Uuid"]
-    it = os2mo_get(f"{{BASE}}/e/{uuid}/details/it").json()
-    sts_user["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
+def overwrite_position_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List):
     # For each position check the it-system of the org-unit
     for p in sts_user["Positions"]:
         unit_uuid = p["OrgUnitUuid"]
@@ -324,6 +320,9 @@ def get_sts_user_raw(
     if not sts_user["Positions"]:
         # return immediately because users with no engagements are not synced.
         return None
+    if settings.os2sync_uuid_from_it_systems:
+        overwrite_position_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
+
     addresses = os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     if engagement_uuid is not None:
         addresses = filter(lambda a: a["engagement_uuid"] == engagement_uuid, addresses)
