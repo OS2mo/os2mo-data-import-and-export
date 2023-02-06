@@ -116,7 +116,6 @@ class ImporterSettings(CommonSettings):
     sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_employment_types: List[str] = []
     sd_skip_job_functions: List[str] = []
-    sd_terminate_engagement_with_to_only: bool = True
     sd_use_ad_integration: bool = True
 
     class Config:
@@ -150,7 +149,6 @@ class ChangedAtSettings(CommonSettings):
 
     sd_read_forced_uuids: bool = True
     sd_skip_job_functions: List[str] = []
-    sd_terminate_engagement_with_to_only: bool = True
     sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
     sd_log_file: Path = Path("mo_integrations.log")
