@@ -128,8 +128,6 @@ def read_all_users(
 
 def main(settings: Settings):
 
-    settings.start_logging_based_on_settings()
-
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
@@ -204,4 +202,5 @@ def main(settings: Settings):
 
 if __name__ == "__main__":
     settings = get_os2sync_settings()
+    settings.start_logging_based_on_settings()
     main(settings)
