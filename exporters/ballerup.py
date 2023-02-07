@@ -13,7 +13,7 @@ import os
 import time
 from anytree import PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
-import common_queries as cq
+from exporters import common_queries as cq
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
