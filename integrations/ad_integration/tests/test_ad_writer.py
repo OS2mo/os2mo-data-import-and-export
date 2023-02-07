@@ -1,6 +1,8 @@
 import copy
+from datetime import datetime
 from unittest import mock
 from unittest import TestCase
+from unittest.mock import MagicMock
 
 from freezegun import freeze_time
 from jinja2.exceptions import UndefinedError
@@ -10,6 +12,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 from ra_utils.lazy_dict import LazyDict
 
+from ..ad_exceptions import CommandFailure
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
 from ..ad_exceptions import NoPrimaryEngagementException
@@ -1087,10 +1090,15 @@ class TestADWriter(TestCase, TestADWriterMixin):
 class _TestRealADWriter(TestCase):
     def _prepare_adwriter(self, **kwargs):
         template_to_ad_fields = kwargs.pop("template_to_ad_fields", {})
+        template_to_ad_fields_when_disable = kwargs.pop(
+            "template_to_ad_fields_when_disable", {}
+        )
         read_ou_addresses = kwargs.pop("read_ou_addresses", None)
         with MockADWriterContext(
             template_to_ad_fields=template_to_ad_fields,
+            template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
             read_ou_addresses=read_ou_addresses,
+            run_ps_response=kwargs.pop("run_ps_response", None),
         ):
             instance = ADWriter(**kwargs)
             instance.get_from_ad = lambda *_args, **_kwargs: {}
@@ -1309,6 +1317,76 @@ class TestPreview(_TestRealADWriter):
         self.assertIn('-NewName "<new name>"', rename_cmd)
         self.assertEqual("<nonexistent AD user>", rename_cmd_target)
 
+    @parameterized.expand(
+        [
+            # 1. Test disabling AD user without additional field mapping.
+            (
+                # `enable` argument
+                False,
+                # expected value of `-Enable` argument in PowerShell command
+                "$false",
+                # additional field mapping
+                None,
+                # expected output from additional field mapping
+                None,
+            ),
+            # 2. Test disabling AD user with an additional field mapping.
+            (
+                # `enable` argument
+                False,
+                # expected value of `-Enable` argument in PowerShell command
+                "$false",
+                # additional field mapping
+                {"extensionAttribute": "{{ now.strftime('%Y-%m-%d') }}"},
+                # expected output from additional field mapping
+                '"extensionAttribute"="%s"' % datetime.now().strftime("%Y-%m-%d"),
+            ),
+            # 3. Test enabling AD user without additional field mapping.
+            (
+                # `enable` argument
+                True,
+                # expected value of `-Enable` argument in PowerShell command
+                "$true",
+                # additional field mapping
+                None,
+                # expected output from additional field mapping
+                None,
+            ),
+            # 4. Test enabling AD user with an additional field mapping.
+            # Since we are enabling the AD user, the additional field mapping should
+            # not be used.
+            (
+                # `enable` argument
+                True,
+                # expected value of `-Enable` argument in PowerShell command
+                "$true",
+                # additional field mapping
+                {"extensionAttribute": "{{ now.strftime('%Y-%m-%d') }}"},
+                # expected output from additional field mapping
+                None,
+            ),
+        ]
+    )
+    def test_preview_enable_command(
+        self,
+        enable_arg: bool,
+        expected_enabled_arg_value: str,
+        additional_field_mapping: dict,
+        expected_additional_output: str,
+    ):
+        ad_writer_context_kwargs = (
+            {"template_to_ad_fields_when_disable": additional_field_mapping}
+            if additional_field_mapping
+            else {}
+        )
+        ad_writer = self._prepare_adwriter(**ad_writer_context_kwargs)
+        enable_cmd = ad_writer._get_enable_user_cmd("sam_account_name", enable_arg)
+        self.assertIn("Get-ADUser", enable_cmd)
+        self.assertIn("Set-ADUser", enable_cmd)
+        self.assertIn("-Enabled %s" % expected_enabled_arg_value, enable_cmd)
+        if expected_additional_output:
+            self.assertIn(expected_additional_output, enable_cmd)
+
 
 class TestReadADInformationFromMO(_TestRealADWriter):
     @parameterized.expand(
@@ -1361,3 +1439,32 @@ class TestReadADInformationFromMO(_TestRealADWriter):
     def _get_loracache_ad_writer(self, address):
         lc = MockLoraCacheUnitAddress(address_value=address.get("Adresse"))
         return self._prepare_adwriter(lc=lc, lc_historic=lc)
+
+
+class TestEnableUser(_TestRealADWriter):
+    @parameterized.expand(
+        [
+            (False, "disabled AD user"),
+            (True, "enabled AD user"),
+        ]
+    )
+    def test_enable_user_handles_ok_response(self, enable: bool, expected_msg: str):
+        # Arrange: mock an "OK" response from WinRM
+        run_ps_response = MagicMock()
+        run_ps_response.status_code = 0
+        run_ps_response.std_out = "{}"
+        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        # Act
+        result = ad_writer.enable_user("sam_account_name", enable)
+        # Assert (here `True` means the PowerShell command executed successfully)
+        self.assertEqual(result, (True, expected_msg))
+
+    def test_enable_user_handles_error_response(self):
+        # Arrange: mock an "error" response from WinRM
+        run_ps_response = MagicMock()
+        run_ps_response.status_code = 1
+        run_ps_response.std_err = "something wrong"
+        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        # Act and assert
+        with self.assertRaises(CommandFailure):
+            ad_writer.enable_user("sam_account_name", False)

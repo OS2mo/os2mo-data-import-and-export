@@ -191,11 +191,13 @@ cmdlet_templates = {
         {%- for parameter, value in parameters.items() %}
           -{{ parameter }} {{ value }}
         {%- endfor %}
+        {% if other_attributes %}
           -Replace @{
         {%- for attribute, value in other_attributes.items() -%}
             "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
+        {% endif %}
     """,
 }
 
