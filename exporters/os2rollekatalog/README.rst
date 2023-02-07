@@ -18,8 +18,7 @@ Konfiguration
 For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
 `settings.json`:
 
- * ``exporters.os2rollekatalog.rollekatalog.url``: URL adressen til rollekatalogets organisations api, 
-   fx. https://os2mo.rollekatalog.dk/api/organisation/v3
+ * ``exporters.os2rollekatalog.rollekatalog.url``: URL adressen til rollekatalogets organisations api
  * ``exporters.os2rollekatalog.rollekatalog.api_token``: API token til autentificering med rollekataloget
  * ``exporters.os2rollekatalog.main_root_org_unit``: UUID på rod-enheden i OS2MO. Bliver også rod i rollekatalog medmindre andet er sat i `rollekatalog_root_uuid`
  * ``exporters.os2rollekatalog.ou_filter``: `true` eller `false`. 

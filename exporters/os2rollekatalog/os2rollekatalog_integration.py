@@ -200,10 +200,14 @@ def get_org_units(
     return converted_org_units
 
 
-def get_employee_engagements(employee_uuid, mh: MoraHelper):
-    present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
-    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
-    return present + future
+def get_employee_engagements(employee_uuid, mh: MoraHelper, no_future_included: bool = False):
+    if no_future_included:
+        present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+        return present
+    else:
+        present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+        future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
+        return present + future
 
 
 def convert_position(e: Dict, sync_titles: bool = False):
