@@ -201,19 +201,15 @@ def get_org_units(
 
 
 def get_employee_engagements(
-    employee_uuid, mh: MoraHelper, no_future_engagements_included: bool = False
+    employee_uuid: UUID, mh: MoraHelper, sync_future: bool = True
 ):
-    if no_future_engagements_included:
-        present = mh._mo_lookup(
-            employee_uuid, "e/{}/details/engagement?validity=present"
-        )
+
+    present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
+    if not sync_future:
         return present
-    else:
-        present = mh._mo_lookup(
-            employee_uuid, "e/{}/details/engagement?validity=present"
-        )
-        future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
-        return present + future
+
+    return present + future
 
 
 def convert_position(e: Dict, sync_titles: bool = False):
@@ -231,7 +227,7 @@ def get_users(
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
-    no_future_engagements_included: bool = False,
+    sync_future: bool = True,
     use_nickname: bool = False,
     sync_titles: bool = False,
 ) -> List[Dict[str, Any]]:
@@ -279,7 +275,7 @@ def get_users(
         engagements = get_employee_engagements(
             employee_uuid,
             mh,
-            no_future_engagements_included=no_future_engagements_included,
+            sync_future=sync_future,
         )
         convert = partial(convert_position, sync_titles=sync_titles)
         # Convert MO engagements to Rollekatalog positions
@@ -400,10 +396,8 @@ def get_users(
     envvar="AUTH_SERVER",
 )
 @click.option(
-    "--no-future-included",
-    default=load_setting(
-        "exporters.os2rollekatalog.no_future_engagements_included", False
-    ),
+    "--sync-future",
+    default=load_setting("exporters.os2rollekatalog.sync_future"),
     type=click.BOOL,
     required=False,
     help=(
@@ -455,7 +449,7 @@ def main(
     client_secret: str,
     auth_realm: str,
     auth_server: str,
-    no_future_engagements_included: bool,
+    sync_future: bool,
     use_nickname: bool,
     sync_titles: bool,
     dry_run: bool,
@@ -499,7 +493,7 @@ def main(
             org_unit_uuids,
             ou_filter,
             use_nickname,
-            no_future_engagements_included,
+            sync_future,
             sync_titles=sync_titles,
         )
     except requests.RequestException:
