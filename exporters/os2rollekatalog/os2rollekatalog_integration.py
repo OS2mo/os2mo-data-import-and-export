@@ -200,8 +200,8 @@ def get_org_units(
     return converted_org_units
 
 
-def get_employee_engagements(employee_uuid, mh: MoraHelper, no_future_included: bool = False):
-    if no_future_included:
+def get_employee_engagements(employee_uuid, mh: MoraHelper, no_future_engagements_included: bool = False):
+    if no_future_engagements_included:
         present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
         return present
     else:
@@ -225,6 +225,7 @@ def get_users(
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
+    no_future_engagements_included: bool = False,
     use_nickname: bool = False,
     sync_titles: bool = False,
 ) -> List[Dict[str, Any]]:
@@ -269,7 +270,8 @@ def get_users(
 
         # Read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
-        engagements = get_employee_engagements(employee_uuid, mh)
+        engagements = get_employee_engagements(
+            employee_uuid, mh, no_future_engagements_included=no_future_engagements_included)
         convert = partial(convert_position, sync_titles=sync_titles)
         # Convert MO engagements to Rollekatalog positions
         converted_positions = map(convert, engagements)
@@ -389,6 +391,16 @@ def get_users(
     envvar="AUTH_SERVER",
 )
 @click.option(
+    "--no-future-included",
+    default=load_setting("exporters.os2rollekatalog.no_future_engagements_included", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Chose whether or not to include future users. Will include per default, and this"
+        "argument must be called with, if no future users are desired."
+    ),
+)
+@click.option(
     "--use-nickname",
     default=load_setting("exporters.os2rollekatalog.use_nickname", False),
     type=click.BOOL,
@@ -432,6 +444,7 @@ def main(
     client_secret: str,
     auth_realm: str,
     auth_server: str,
+    no_future_engagements_included: bool,
     use_nickname: bool,
     sync_titles: bool,
     dry_run: bool,
@@ -475,6 +488,7 @@ def main(
             org_unit_uuids,
             ou_filter,
             use_nickname,
+            no_future_engagements_included,
             sync_titles=sync_titles,
         )
     except requests.RequestException:
