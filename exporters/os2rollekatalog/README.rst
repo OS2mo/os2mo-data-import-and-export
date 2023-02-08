@@ -21,6 +21,8 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.os2rollekatalog.rollekatalog.url``: URL adressen til rollekatalogets organisations api
  * ``exporters.os2rollekatalog.rollekatalog.api_token``: API token til autentificering med rollekataloget
  * ``exporters.os2rollekatalog.main_root_org_unit``: UUID på rod-enheden i OS2MO. Bliver også rod i rollekatalog medmindre andet er sat i `rollekatalog_root_uuid`
+ * ``exporters.os2rollekatalog.no_future_engagements_included``: Optionelt. Sættes til `true` hvis fremtidige brugere ønskes bortfiltreret.
+   Default er `false`, og skal derfor ikke specificeres hvis fremtidige brugere ønskes inkluderet.
  * ``exporters.os2rollekatalog.ou_filter``: `true` eller `false`. 
     Filtrer enheder og engagementer der ikke hører under main_root_org_unit fra. 
     Default er `false`. 
