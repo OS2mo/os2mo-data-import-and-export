@@ -200,12 +200,18 @@ def get_org_units(
     return converted_org_units
 
 
-def get_employee_engagements(employee_uuid, mh: MoraHelper, no_future_engagements_included: bool = False):
+def get_employee_engagements(
+    employee_uuid, mh: MoraHelper, no_future_engagements_included: bool = False
+):
     if no_future_engagements_included:
-        present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+        present = mh._mo_lookup(
+            employee_uuid, "e/{}/details/engagement?validity=present"
+        )
         return present
     else:
-        present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
+        present = mh._mo_lookup(
+            employee_uuid, "e/{}/details/engagement?validity=present"
+        )
         future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
         return present + future
 
@@ -271,7 +277,10 @@ def get_users(
         # Read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
         engagements = get_employee_engagements(
-            employee_uuid, mh, no_future_engagements_included=no_future_engagements_included)
+            employee_uuid,
+            mh,
+            no_future_engagements_included=no_future_engagements_included,
+        )
         convert = partial(convert_position, sync_titles=sync_titles)
         # Convert MO engagements to Rollekatalog positions
         converted_positions = map(convert, engagements)
@@ -392,7 +401,9 @@ def get_users(
 )
 @click.option(
     "--no-future-included",
-    default=load_setting("exporters.os2rollekatalog.no_future_engagements_included", False),
+    default=load_setting(
+        "exporters.os2rollekatalog.no_future_engagements_included", False
+    ),
     type=click.BOOL,
     required=False,
     help=(
