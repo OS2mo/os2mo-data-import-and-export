@@ -1,11 +1,16 @@
 import os
+from pathlib import Path
 from ra_utils.job_settings import JobSettings
 
-from reports.query_actualstate import list_employees, list_MED_members, run_report
-from exporters import common_queries as cq
 from os2mo_helpers.mora_helpers import MoraHelper
+from reports.query_actualstate import (
+    list_employees,
+    list_MED_members,
+    run_report,
+    list_org_units,
+)
+from exporters import common_queries as cq
 from exporters.ballerup import export_udvalg
-from pathlib import Path
 
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
@@ -24,7 +29,8 @@ if __name__ == "__main__":
         if root["name"] == "Holstebro Kommune":
             holstebro = root["uuid"]
 
-        if root["name"] == "MED":
+        # Taken from Holstebro frontend.
+        if root["name"] == "MED-organisation":
             test_med = root["uuid"]
 
     nodes = mh.read_ou_tree(holstebro)
@@ -50,20 +56,22 @@ if __name__ == "__main__":
     cq.export_all_teams(mh, nodes, filename)
     print("IT REACHES THIS POINT 2")
 
+    # Check if this one even works - does Holstebro have AMR?
     nodes = mh.read_ou_tree(test_med)
-    filename = "/mora/folder/query_export/AMR-udvalgsmedlemer_i_hieraki.csv"
+    filename = "/mora/folder/query_export/Test_AMR-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
     org_types = ["AMR"]
     export_udvalg(mh, nodes, filename, fieldnames, org_types)
 
-    filename = "/mora/folder/query_export/MED-udvalgsmedlemer_i_hieraki.csv"
+    filename = "/mora/folder/query_export/Test_MED-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
-    org_types = ["H-MED", "C-MED", "L-MED"]
+    org_types = ["Hoved-MED"]  # What kind of org_types is included? We have
+    # "F-MED Børn og Unge", "F-MED Kultur, Erhverv og Arbejdsmarks" etc.
     export_udvalg(mh, nodes, filename, fieldnames, org_types)
 
     run_report(
         list_MED_members,
-        "MED",
+        "MED-Organisation",
         {"løn": "Holstebro Kommune", "MED": "MED-organisationen"},
         "/mora/folder/query_export/MED_medlemmer.xlsx",
     )
@@ -72,4 +80,11 @@ if __name__ == "__main__":
         "Ansatte",
         "Holstebro Kommune",
         "/mora/folder/query_export/Ansatte.xlsx",
+    )
+
+    run_report(
+        list_org_units,
+        "Organsiationsenheder",
+        "Svendborg Kommune",
+        "/mora/folder/query_export/Organisationsenheder.xlsx",
     )
