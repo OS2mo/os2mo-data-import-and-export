@@ -200,10 +200,7 @@ def get_org_units(
     return converted_org_units
 
 
-def get_employee_engagements(
-    employee_uuid: UUID, mh: MoraHelper, sync_future: bool
-):
-
+def get_employee_engagements(employee_uuid: UUID, mh: MoraHelper, sync_future: bool):
     present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
     if not sync_future:
         return present
@@ -419,8 +416,8 @@ def get_users(
     type=click.BOOL,
     required=False,
     help=(
-        "Chose whether or not to include future users. Will include per default, and this"
-        "argument must be called with, if no future users are desired."
+        "Chose whether or not to include future users. Will include per default, and"
+        "must be set to 'False', if no future users are desired."
     ),
 )
 @click.option(
