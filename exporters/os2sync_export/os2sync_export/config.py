@@ -8,8 +8,10 @@ from typing import List
 from typing import Tuple
 from uuid import UUID
 
+from fastramqpi.config import Settings as FastRAMQPISettings
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
+from pydantic import Field
 from ra_utils.apply import apply
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
@@ -89,6 +91,9 @@ class Settings(JobSettings):
 
     os2sync_filter_hierarchy_names: Tuple = tuple()  # Title in MO
     os2sync_filter_users_by_it_system: bool = False
+    fastramqpi: FastRAMQPISettings = Field(
+        default_factory=FastRAMQPISettings, description="FastRAMQPI settings"
+    )
 
     class Config:
 

@@ -30,7 +30,10 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
-from exporters.utils.priority_by_class import choose_public_address
+
+def choose_public_address():
+    pass
+
 
 logger = logging.getLogger(__name__)
 retry_max_time = 60

@@ -1,10 +1,8 @@
 # SPDX-FileCopyrightText: Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
 
-FROM python:3.8
+FROM python:3.10
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
 
 WORKDIR /app
 
@@ -19,4 +17,4 @@ RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root --only main
 
 COPY ./ ./
 
-CMD ["uvicorn", "os2sync_export.main:app", "--host", "0.0.0.0"]
+CMD ["uvicorn", "os2sync_export.main:create_app", "--host", "0.0.0.0"]

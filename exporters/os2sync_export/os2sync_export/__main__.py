@@ -16,13 +16,14 @@ from typing import Set
 import sentry_sdk
 from gql.client import SyncClientSession
 from more_itertools import flatten
-from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
 from ra_utils.tqdm_wrapper import tqdm
+
+# from os2sync_export import lcdb_os2mo
 
 logger = logging.getLogger(__name__)
 
@@ -128,11 +129,11 @@ def read_all_users(
 
 def main(settings: Settings):
 
-    if settings.os2sync_use_lc_db:
-        engine = lcdb_os2mo.get_engine()
-        session = lcdb_os2mo.get_session(engine)
-        os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
-        os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
+    # if settings.os2sync_use_lc_db:
+    #     engine = lcdb_os2mo.get_engine()
+    #     session = lcdb_os2mo.get_session(engine)
+    #     os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
+    #     os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
