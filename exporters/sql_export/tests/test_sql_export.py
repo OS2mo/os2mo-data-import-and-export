@@ -1,12 +1,17 @@
+import os
+import unittest.mock
 from collections import ChainMap
 from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Tuple
 from unittest.mock import MagicMock
+from unittest.mock import patch
 from uuid import uuid4
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
+from hypothesis import given
+from hypothesis.strategies import booleans
 from more_itertools import one
 from parameterized import parameterized
 from sqlalchemy import inspect
@@ -14,6 +19,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from ..sql_export import SqlExport
+from ..sql_export import wrap_export
 from ..sql_table_defs import Base
 from ..sql_table_defs import Bruger
 from ..sql_table_defs import Enhed
@@ -392,3 +398,72 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
         slutdato=it_user["to_date"],
         primær_boolean=it_user["primary_boolean"],
     )
+
+
+class TestEnsureSingleRun(unittest.TestCase):
+    @patch("ra_utils.load_settings.load_settings")
+    @patch.object(SqlExport, "_get_engine")
+    @patch.object(SqlExport, "export")
+    @given(
+        locked=booleans(),
+        historic=booleans(),
+        force_sqlite=booleans(),
+        resolve_dar=booleans(),
+        use_pickle=booleans(),
+    )
+    def test_ensure_single_run_locked(
+        self,
+        mock_perform_export: MagicMock,
+        mock_engine: MagicMock,
+        mock_settings: MagicMock,
+        locked: bool,
+        historic: bool,
+        force_sqlite: bool,
+        resolve_dar: bool,
+        use_pickle: bool,
+    ):
+        mock_perform_export.reset_mock()
+        mock_engine.reset_mock()
+        mock_settings.reset_mock()
+
+        mock_settings.return_value = {"log_overlapping_aak": False}
+        mock_engine.return_value = MagicMock()
+        mock_perform_export.return_value = None
+
+        lock_name = "sql_export_actual"
+
+        if historic:
+            lock_name = "sql_export_historic"
+
+        args = {
+            "historic": historic,
+            "force_sqlite": force_sqlite,
+            "resolve_dar": resolve_dar,
+            "read_from_cache": use_pickle,
+        }
+        settings = {"log_overlapping_aak": False}
+
+        if locked:
+            # open( , "x") creates a file, and throws an error if the file already
+            # exist. If the file already exists something has gone wrong somewhere as
+            # the tests, and code, should always clean up after itself
+            #
+            # This test simulates a running instance is already occurring by taking the
+            # lock, and then trying to run, which should fail
+            with open(lock_name, "w") as lock:
+                lock.write("Hej :)")
+                lock.flush()
+                lock.close()
+
+            wrap_export(args=args, settings=settings)
+
+            os.remove(lock_name)
+
+            mock_perform_export.assert_not_called()
+
+        else:
+            wrap_export(args=args, settings=settings)
+
+            mock_perform_export.assert_called_once_with(
+                resolve_dar=resolve_dar, use_pickle=use_pickle
+            )
