@@ -201,13 +201,13 @@ def get_org_units(
 
 
 def get_employee_engagements(
-    employee_uuid: UUID, mh: MoraHelper, sync_future: bool = True
+    employee_uuid: UUID, mh: MoraHelper, sync_future: bool
 ):
 
     present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
-    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
     if not sync_future:
         return present
+    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
 
     return present + future
 
@@ -227,7 +227,7 @@ def get_users(
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
-    sync_future: bool = True,
+    sync_future: bool,
     use_nickname: bool = False,
     sync_titles: bool = False,
 ) -> List[Dict[str, Any]]:
@@ -396,31 +396,31 @@ def get_users(
     envvar="AUTH_SERVER",
 )
 @click.option(
+    "--use-nickname",
+    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Use employee nicknames if available. Will use name if nickname is unavailable"
+    ),
+)
+@click.option(
+    "--use-nickname",
+    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Use employee nicknames if available. Will use name if nickname is unavailable"
+    ),
+)
+@click.option(
     "--sync-future",
-    default=load_setting("exporters.os2rollekatalog.sync_future"),
+    default=load_setting("exporters.os2rollekatalog.sync_future", True),
     type=click.BOOL,
     required=False,
     help=(
         "Chose whether or not to include future users. Will include per default, and this"
         "argument must be called with, if no future users are desired."
-    ),
-)
-@click.option(
-    "--use-nickname",
-    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
-    type=click.BOOL,
-    required=False,
-    help=(
-        "Use employee nicknames if available. Will use name if nickname is unavailable"
-    ),
-)
-@click.option(
-    "--use-nickname",
-    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
-    type=click.BOOL,
-    required=False,
-    help=(
-        "Use employee nicknames if available. Will use name if nickname is unavailable"
     ),
 )
 @click.option(
@@ -449,8 +449,8 @@ def main(
     client_secret: str,
     auth_realm: str,
     auth_server: str,
-    sync_future: bool,
     use_nickname: bool,
+    sync_future: bool,
     sync_titles: bool,
     dry_run: bool,
 ):
