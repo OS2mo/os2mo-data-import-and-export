@@ -1,15 +1,16 @@
 import asyncio
+from typing import Iterable
 from contextlib import contextmanager
 from functools import partial
 
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Enum
+from prometheus_client import Gauge
 from integrations.rundb.db_overview import DBOverview
 
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
-from typing import Optional
 
 state = Enum(
     "sd_changed_at_state",
@@ -17,14 +18,21 @@ state = Enum(
     states=["running", "ok", "failure", "unknown"],
 )
 state.state("unknown")
+start_time = Gauge(
+    "sd_changed_at_start_time", "Start time of the latest SD Changed At run"
+)
+end_time = Gauge("sd_changed_at_end_time", "End time of the latest SD Changed At run")
+
 
 app = FastAPI()
 Instrumentator().instrument(app).expose(app)
 
 
 @contextmanager
-def update_state_metric() -> None:
+def update_state_metric() -> Iterable[None]:
     """Update SDChangedAt state metrics."""
+    start_time.set_to_current_time()
+
     settings = get_changed_at_settings()
     run_db = settings.sd_import_run_db
     db_overview = DBOverview(run_db)
@@ -41,6 +49,8 @@ def update_state_metric() -> None:
     except:
         state.state("failure")
         raise
+    finally:
+        end_time.set_to_current_time()
 
 
 @app.get("/")
