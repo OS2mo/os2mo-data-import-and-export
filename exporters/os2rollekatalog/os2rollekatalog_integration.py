@@ -200,13 +200,11 @@ def get_org_units(
     return converted_org_units
 
 
-def get_employee_engagements(employee_uuid: UUID, mh: MoraHelper, sync_future: bool):
-    present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
-    if not sync_future:
-        return present
-    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
+def get_employee_engagements(employee_uuid: UUID, mh: MoraHelper, validity: str):
 
-    return present + future
+    return mh._mo_lookup(
+        employee_uuid, f"e/{{}}/details/engagement?validity={validity}"
+    )
 
 
 def convert_position(e: Dict, sync_titles: bool = False):
@@ -269,11 +267,13 @@ def get_users(
 
         # Read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
-        engagements = get_employee_engagements(
-            employee_uuid,
-            mh,
-            sync_future=sync_future,
-        )
+
+        engagements = get_employee_engagements(employee_uuid, mh, validity="present")
+        if sync_future:
+            engagements += get_employee_engagements(
+                employee_uuid, mh, validity="future"
+            )
+
         convert = partial(convert_position, sync_titles=sync_titles)
         # Convert MO engagements to Rollekatalog positions
         converted_positions = map(convert, engagements)

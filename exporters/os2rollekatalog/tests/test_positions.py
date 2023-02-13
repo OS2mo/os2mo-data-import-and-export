@@ -46,7 +46,7 @@ POSITIONS_TITLES_2 = {
 def test_get_employee_engagements(current, future):
     mh = MagicMock()
     mh._mo_lookup.side_effect = [current, future]
-    positions = get_employee_engagements("dummy_uuid", mh)
+    positions = get_employee_engagements("dummy_uuid", mh, "future")
     assert list(positions) == current + future
     assert mh._mo_lookup.call_count == 2
 
