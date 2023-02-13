@@ -19,13 +19,9 @@ state = Enum(
 )
 state.state("unknown")
 start_time = Gauge(
-    "sd_changed_at_start_time",
-    "Start time of the latest SD Changed At run"
+    "sd_changed_at_start_time", "Start time of the latest SD Changed At run"
 )
-end_time = Gauge(
-    "sd_changed_at_end_time",
-    "End time of the latest SD Changed At run"
-)
+end_time = Gauge("sd_changed_at_end_time", "End time of the latest SD Changed At run")
 
 
 app = FastAPI()
