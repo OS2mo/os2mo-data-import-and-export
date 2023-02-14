@@ -55,7 +55,7 @@ include:
   - project: 'labs/salt-automation'
     file: '/gitlab-ci-templates/common/conventional-commits.v1.yml'
   - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/docker-build-meta.v1.yml'
+    file: '/gitlab-ci-templates/common/docker-build-meta.v2.yml'
   - project: 'labs/salt-automation'
     file: '/gitlab-ci-templates/common/docker-release.v1.yml'
   - project: "labs/salt-automation"
@@ -91,8 +91,6 @@ include:
     - apt-get -y install --no-install-recommends git
   script:
     - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
-  tags:
-    - docker
 
 
 .lint-python:
@@ -102,8 +100,6 @@ include:
   services: []
   before_script:
     - pip install -r integrations/requirements/lint.txt
-  tags:
-    - docker
 
 Lint Customers files:
   extends: .lint-python
@@ -213,8 +209,6 @@ Build TestImage:
   image:
     name: ${IMAGE_SHA}
   services: [ ]
-  tags:
-    - docker
   variables:
     GIT_STRATEGY: none # We do not need the source code
     HYPOTHESIS_PROFILE: ci
