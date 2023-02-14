@@ -11,7 +11,7 @@ include:
   - project: labs/salt-automation
     ref: master
     file:
-      - /gitlab-ci-templates/common/docker-build-meta.v1.yml
+      - /gitlab-ci-templates/common/docker-build-meta.v2.yml
       - /gitlab-ci-templates/common/docker-release-meta.v1.yml
       - /gitlab-ci-templates/common/config-updater-meta.v1.yml
 
