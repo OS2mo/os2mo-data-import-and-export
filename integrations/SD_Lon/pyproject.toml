@@ -10,7 +10,7 @@ repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-expor
 keywords = ["os2mo", "dipex", "sdloen"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "3.11.*"
 more-itertools = "^8.12.0"
 requests = "^2.27.1"
 xmltodict = "^0.12.0"
