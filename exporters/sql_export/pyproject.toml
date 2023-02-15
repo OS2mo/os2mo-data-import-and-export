@@ -12,7 +12,7 @@ repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-expor
 keywords = ["os2mo", "dipex", "sql_export"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "3.11.*"
 pymssql = "^2.2.5"
 SQLAlchemy = "^1.4.39"
 alembic = "^1.8.1"
@@ -50,7 +50,7 @@ build-backend = "poetry.core.masonry.api"
 asyncio_mode = "strict"
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = "True"
 warn_unused_configs = "True"
 check_untyped_defs = "True"
