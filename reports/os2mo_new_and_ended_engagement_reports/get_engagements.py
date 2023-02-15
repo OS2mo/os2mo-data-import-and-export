@@ -1,6 +1,7 @@
 from uuid import UUID
 from datetime import datetime, date
 from typing import List
+from typing import Optional
 
 import csv
 from dateutil import utils
@@ -300,14 +301,6 @@ def persons_details_from_engagement(
     return response
 
 
-def get_ad_it_system_user_key(data_dict: dict) -> str or None:
-    """A helper function to extract the user_key of AD It Systems."""
-    for data in data_dict["itusers"]:
-        if data is not None and data["itsystem"]["name"] == "Active Directory":
-            return data["user_key"]
-    return None
-
-
 def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=False):
     """
     Mapping fields of payload from engagement to CSV format.
@@ -322,6 +315,14 @@ def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=Fa
     returns:
     A CSV format of fields properly mapped to their representative fields.
     """
+
+    def get_ad_it_system_user_key(data_dict: dict) -> Optional[str]:
+        """A helper function to extract the user_key of AD It Systems."""
+        for data in data_dict["itusers"]:
+            if data is not None and data["itsystem"]["name"] == "Active Directory":
+                return data["user_key"]
+        return None
+
     out = []
     if started:
         for employee in dict_data["employees"]:
