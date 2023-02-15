@@ -10,6 +10,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 
+import aiohttp.client_exceptions
 import config
 from aiohttp import ClientResponse
 from aiohttp import ClientSession
@@ -21,6 +22,13 @@ from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.headers import TokenSettings
 from ra_utils.tqdm_wrapper import tqdm
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_random_exponential
+
+# The number of retry attempts seems to mostly be 7 various places in DIPEX
+retry_attempts = 7
 
 
 def get_tcp_connector():
@@ -104,6 +112,12 @@ async def raise_on_unhandled_mo_error(
     response.raise_for_status()
 
 
+@retry(
+    retry=retry_if_exception_type(aiohttp.ClientConnectionError),
+    wait=wait_random_exponential(multiplier=1, max=5),
+    stop=stop_after_attempt(retry_attempts),
+    reraise=True,
+)
 async def submit_payloads(
     session: ClientSession,
     endpoint: str,
