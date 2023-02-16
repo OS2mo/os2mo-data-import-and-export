@@ -1,6 +1,7 @@
 from uuid import UUID
 from datetime import datetime, date
 from typing import List
+from typing import Optional
 
 import csv
 from dateutil import utils
@@ -18,9 +19,7 @@ from reports.os2mo_new_and_ended_engagement_reports.config import (
 )
 
 
-def gql_query_validity_field(
-    validity_from=False, validity_to=False
-) -> str:
+def gql_query_validity_field(validity_from=False, validity_to=False) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if validity_from:
         return """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
@@ -59,7 +58,6 @@ def gql_query_persons_details_to_display(
                objects {
                  cpr_no
                  name
-                 user_key
                  uuid
                  addresses(address_types: $email_uuid_list) {
                    name
@@ -71,7 +69,13 @@ def gql_query_persons_details_to_display(
                    validity {
                      from
                    }
-                }
+                 }
+                 itusers {
+                   user_key
+                   itsystem {
+                     name
+                   }
+                 }
                }
              }
            }
@@ -82,7 +86,6 @@ def gql_query_persons_details_to_display(
              employees(uuids: $uuidlist) {
                objects {
                  name
-                 user_key
                  uuid
                  addresses(address_types: $email_uuid_list) {
                    name
@@ -94,7 +97,13 @@ def gql_query_persons_details_to_display(
                    validity {
                      to
                    }
-                }
+                 }
+                 itusers {
+                   user_key
+                   itsystem {
+                     name
+                   }
+                 }
                }
              }
            }
@@ -292,9 +301,7 @@ def persons_details_from_engagement(
     return response
 
 
-def convert_person_and_engagement_data_to_csv(
-    dict_data, started=False, ended=False
-):
+def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=False):
     """
     Mapping fields of payload from engagement to CSV format.
 
@@ -308,6 +315,14 @@ def convert_person_and_engagement_data_to_csv(
     returns:
     A CSV format of fields properly mapped to their representative fields.
     """
+
+    def get_ad_it_system_user_key(data_dict: dict) -> Optional[str]:
+        """A helper function to extract the user_key of AD It Systems."""
+        for data in data_dict["itusers"]:
+            if data is not None and data["itsystem"]["name"] == "Active Directory":
+                return data["user_key"]
+        return None
+
     out = []
     if started:
         for employee in dict_data["employees"]:
@@ -322,7 +337,7 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Brugervendtnøgle": obj["user_key"],
+                        "Shortname": get_ad_it_system_user_key(obj),
                     }
                 )
 
@@ -340,7 +355,7 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Brugervendtnøgle": obj["user_key"],
+                        "Shortname": get_ad_it_system_user_key(obj),
                     }
                 )
 
@@ -451,7 +466,8 @@ def main() -> None:
     )
     # Generating a file on newly established engagements.
     write_file(
-        new_engagements_to_write, settings.report_engagements_new_file_path,
+        new_engagements_to_write,
+        settings.report_engagements_new_file_path,
     )
 
     ended_engagements_to_write = display_engagements(
@@ -459,7 +475,8 @@ def main() -> None:
     )
     # Generating a file  on ended engagements.
     write_file(
-        ended_engagements_to_write, settings.report_engagements_ended_file_path,
+        ended_engagements_to_write,
+        settings.report_engagements_ended_file_path,
     )
 
 

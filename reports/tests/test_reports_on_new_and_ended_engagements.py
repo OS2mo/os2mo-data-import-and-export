@@ -55,7 +55,6 @@ from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
                objects {
                  cpr_no
                  name
-                 user_key
                  uuid
                  addresses(address_types: $email_uuid_list) {
                    name
@@ -67,7 +66,13 @@ from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
                    validity {
                      from
                    }
-                }
+                 }
+                 itusers {
+                   user_key
+                   itsystem {
+                     name
+                   }
+                 }
                }
              }
            }
@@ -76,7 +81,6 @@ from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
              employees(uuids: $uuidlist) {
                objects {
                  name
-                 user_key
                  uuid
                  addresses(address_types: $email_uuid_list) {
                    name
@@ -88,7 +92,13 @@ from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
                    validity {
                      to
                    }
-                }
+                 }
+                 itusers {
+                   user_key
+                   itsystem {
+                     name
+                   }
+                 }
                }
              }
            }
@@ -681,57 +691,97 @@ def test_filtering_email_address_type_uuids_from_payload(
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "123@sad.com"}],
-                                "cpr_no": "0102893212",
+                                "addresses": [{"name": "1@2.dk"}],
+                                "cpr_no": "0102892332",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
                                         "validity": {
-                                            "from": "2023-01-11T00:00:00+01:00"
+                                            "from": "2023-02-15T00:00:00+01:00"
                                         },
                                     }
                                 ],
-                                "name": "Anna Johansen",
-                                "user_key": "5243467b-39f4-4a7d-9e74-c658b61feaba",
-                                "uuid": "5243467b-39f4-4a7d-9e74-c658b61feaba",
+                                "itusers": [
+                                    {"itsystem": {"name": "Plone"}, "user_key": "12"},
+                                    {
+                                        "itsystem": {"name": "Active " "Directory"},
+                                        "user_key": "AD-konti",
+                                    },
+                                    {
+                                        "itsystem": {"name": "OpenDesk"},
+                                        "user_key": "32",
+                                    },
+                                ],
+                                "name": "Alberte Olsen",
+                                "uuid": "b1f94eca-652a-4d49-a3bf-cd34a0102dcf",
                             }
                         ]
                     },
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "312@sd.com"}],
-                                "cpr_no": "0102893211",
+                                "addresses": [{"name": "45@1.dk"}],
+                                "cpr_no": "0902874312",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
                                         "validity": {
-                                            "from": "2023-01-11T00:00:00+01:00"
+                                            "from": "2023-02-15T00:00:00+01:00"
                                         },
                                     }
                                 ],
-                                "name": "Adam Nielsen",
-                                "user_key": "98be7a7d-b61b-4213-9829-136f60769ba5",
-                                "uuid": "98be7a7d-b61b-4213-9829-136f60769ba5",
+                                "itusers": [
+                                    {"itsystem": {"name": "Plone"}, "user_key": "notAD"}
+                                ],
+                                "name": "Asta Jensen",
+                                "uuid": "a3e500a4-b393-4923-86a8-7248ad1c20c3",
                             }
                         ]
                     },
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "4321@ol.dk"}],
-                                "cpr_no": "0102893215",
+                                "addresses": [{"name": "45@0.dk"}],
+                                "cpr_no": "2103782143",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
                                         "validity": {
-                                            "from": "2023-01-11T00:00:00+01:00"
+                                            "from": "2023-02-15T00:00:00+01:00"
                                         },
                                     }
                                 ],
-                                "name": "August Hansen",
-                                "user_key": "dddf06aa-1fa3-4868-ad16-6a28681e757b",
-                                "uuid": "dddf06aa-1fa3-4868-ad16-6a28681e757b",
+                                "itusers": [],
+                                "name": "Liam Johansen",
+                                "uuid": "694e7c1f-cf1e-46a0-a168-cd392cf11c46",
+                            }
+                        ]
+                    },
+                    {
+                        "objects": [
+                            {
+                                "addresses": [],
+                                "cpr_no": "0102884312",
+                                "engagements": [
+                                    {
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "validity": {
+                                            "from": "2023-02-15T00:00:00+01:00"
+                                        },
+                                    }
+                                ],
+                                "itusers": [
+                                    {
+                                        "itsystem": {"name": "OpenDesk"},
+                                        "user_key": "43",
+                                    },
+                                    {
+                                        "itsystem": {"name": "Active " "Directory"},
+                                        "user_key": "AD-kontioooo",
+                                    },
+                                ],
+                                "name": "Sofia Nielsen",
+                                "uuid": "dffc9768-47da-435d-8d1b-0daf74ff97cd",
                             }
                         ]
                     },
@@ -742,104 +792,85 @@ def test_filtering_email_address_type_uuids_from_payload(
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "testing@tests.dk"}],
+                                "addresses": [{"name": "1@2.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
-                                "name": "Oscar Thomsen",
-                                "user_key": "e0ad7663-b289-4d51-9d1a-79acc434763f",
-                                "uuid": "e0ad7663-b289-4d51-9d1a-79acc434763f",
+                                "itusers": [
+                                    {"itsystem": {"name": "Plone"}, "user_key": "12"},
+                                    {
+                                        "itsystem": {"name": "Active " "Directory"},
+                                        "user_key": "AD-konti",
+                                    },
+                                    {
+                                        "itsystem": {"name": "OpenDesk"},
+                                        "user_key": "32",
+                                    },
+                                ],
+                                "name": "Alberte Olsen",
+                                "uuid": "b1f94eca-652a-4d49-a3bf-cd34a0102dcf",
                             }
                         ]
                     },
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "321@123.dk"}],
+                                "addresses": [{"name": "45@1.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [
-                                            {"name": "Budget og " "Planlægning"}
-                                        ],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
-                                "name": "Sofie Møller",
-                                "user_key": "7ab0da0d-5e64-404e-af24-4553d3ff8dd0",
-                                "uuid": "7ab0da0d-5e64-404e-af24-4553d3ff8dd0",
+                                "itusers": [
+                                    {"itsystem": {"name": "Plone"}, "user_key": "notAD"}
+                                ],
+                                "name": "Asta Jensen",
+                                "uuid": "a3e500a4-b393-4923-86a8-7248ad1c20c3",
                             }
                         ]
                     },
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "1462@7359.dk"}],
+                                "addresses": [{"name": "45@0.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [
-                                            {"name": "Budget og " "Planlægning"}
-                                        ],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
-                                "name": "Christian Poulsen",
-                                "user_key": "7ec687cc-404d-4343-92ff-7c5c69845fea",
-                                "uuid": "7ec687cc-404d-4343-92ff-7c5c69845fea",
+                                "itusers": [],
+                                "name": "Liam Johansen",
+                                "uuid": "694e7c1f-cf1e-46a0-a168-cd392cf11c46",
                             }
                         ]
                     },
                     {
                         "objects": [
                             {
-                                "addresses": [{"name": "lolol@kekek.dk"}],
+                                "addresses": [],
                                 "engagements": [
                                     {
-                                        "org_unit": [
-                                            {"name": "Budget og " "Planlægning"}
-                                        ],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
+                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
-                                "name": "Malou Johansen",
-                                "user_key": "8b227cf7-cb67-4023-8efc-b01c2a3632d1",
-                                "uuid": "8b227cf7-cb67-4023-8efc-b01c2a3632d1",
-                            }
-                        ]
-                    },
-                    {
-                        "objects": [
-                            {
-                                "addresses": [{"name": "hep@hey.dk"}],
-                                "engagements": [
+                                "itusers": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
-                                    }
-                                ],
-                                "name": "Alberte Jensen",
-                                "user_key": "e2cb6909-a351-490a-99e2-4d6fa93998cf",
-                                "uuid": "e2cb6909-a351-490a-99e2-4d6fa93998cf",
-                            }
-                        ]
-                    },
-                    {
-                        "objects": [
-                            {
-                                "addresses": [{"name": "po@op.com"}],
-                                "engagements": [
+                                        "itsystem": {"name": "OpenDesk"},
+                                        "user_key": "43",
+                                    },
                                     {
-                                        "org_unit": [
-                                            {"name": "Budget og " "Planlægning"}
-                                        ],
-                                        "validity": {"to": "2023-01-11T00:00:00+01:00"},
-                                    }
+                                        "itsystem": {"name": "Active " "Directory"},
+                                        "user_key": "AD-kontioooo",
+                                    },
                                 ],
-                                "name": "Christian Olsen",
-                                "user_key": "245835da-f8d4-4a37-9420-9ef3e3c36938",
-                                "uuid": "245835da-f8d4-4a37-9420-9ef3e3c36938",
+                                "name": "Sofia Nielsen",
+                                "uuid": "dffc9768-47da-435d-8d1b-0daf74ff97cd",
                             }
                         ]
                     },
@@ -847,49 +878,27 @@ def test_filtering_email_address_type_uuids_from_payload(
             },
             (
                 '"Personens navn";"Personens '
-                'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";'
-                '"Brugervendtnøgle"\n'
-                '"Anna Johansen";"5243467b-39f4-4a7d-9e74-c658b61feaba";"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"0102893212";'
-                '"123@sad.com";"5243467b-39f4-4a7d-9e74'
-                '-c658b61feaba"\n'
-                '"Adam Nielsen";"98be7a7d-b61b-4213-9829-136f60769ba5";'
-                '"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"0102893211";"312@sd.com";"'
-                "98be7a7d-b61b-4213-9829"
-                '-136f60769ba5"\n'
-                '"August Hansen";"dddf06aa-1fa3-4868-ad16-6a28681e757b";'
-                '"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"0102893215";'
-                '"4321@ol.dk";"dddf06aa-1fa3-4868-ad16'
-                '-6a28681e757b"\n'
+                'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";"Shortname"\n'
+                '"Alberte Olsen";"b1f94eca-652a-4d49-a3bf-cd34a0102dcf";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"0102892332";"1@2.dk";"AD-konti"\n'
+                '"Asta Jensen";"a3e500a4-b393-4923-86a8-7248ad1c20c3";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"0902874312";"45@1.dk";""\n'
+                '"Liam Johansen";"694e7c1f-cf1e-46a0-a168-cd392cf11c46";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"2103782143";"45@0.dk";""\n'
+                '"Sofia Nielsen";"dffc9768-47da-435d-8d1b-0daf74ff97cd";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"0102884312";"";"AD-kontioooo"\n'
             ),
             (
                 '"Personens navn";"Personens '
-                'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Brugervendtnøgle"\n'
-                '"Oscar Thomsen";"e0ad7663-b289-4d51-9d1a-79acc434763f";"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"testing@tests.dk";"e0ad7663-b289-4d51-9d1a'
-                '-79acc434763f"\n'
-                '"Sofie Møller";"7ab0da0d-5e64-404e-af24-4553d3ff8dd0";"Budget og '
-                'Planlægning";"2023-01-11T00:00:00+01:00";"321@123.dk";"7ab0da0d-5e64-404e-af24'
-                '-4553d3ff8dd0"\n'
-                '"Christian Poulsen";"7ec687cc-404d-4343-92ff-7c5c69845fea";"Budget og '
-                'Planlægning";"2023-01-11T00:00:00+01:00";"1462@7359.dk";"7ec687cc-404d-4343-92ff'
-                '-7c5c69845fea"\n'
-                '"Malou Johansen";"8b227cf7-cb67-4023-8efc-b01c2a3632d1";"Budget og '
-                'Planlægning";"2023-01-11T00:00:00+01:00";"lolol@kekek.dk";"'
-                "8b227cf7-cb67-4023-8efc"
-                "-b01c2a3632d1"
-                '"\n'
-                '"Alberte Jensen";"e2cb6909-a351-490a-99e2-4d6fa93998cf";"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"hep@hey.dk";'
-                '"e2cb6909-a351-490a-99e2'
-                '-4d6fa93998cf"\n'
-                '"Christian Olsen";"245835da-f8d4-4a37-9420-9ef3e3c36938";'
-                '"Budget og '
-                'Planlægning";"2023-01-11T00:00:00+01:00";"po@op.com"'
-                ';"245835da-f8d4-4a37-9420'
-                '-9ef3e3c36938"\n'
+                'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Shortname"\n'
+                '"Alberte Olsen";"b1f94eca-652a-4d49-a3bf-cd34a0102dcf";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"1@2.dk";"AD-konti"\n'
+                '"Asta Jensen";"a3e500a4-b393-4923-86a8-7248ad1c20c3";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"45@1.dk";""\n'
+                '"Liam Johansen";"694e7c1f-cf1e-46a0-a168-cd392cf11c46";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"45@0.dk";""\n'
+                '"Sofia Nielsen";"dffc9768-47da-435d-8d1b-0daf74ff97cd";"Social og '
+                'sundhed";"2023-02-15T00:00:00+01:00";"";"AD-kontioooo"\n'
             ),
         ),
         (  # Tests if details from payload are written correctly into CSV format,
@@ -909,8 +918,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         },
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "Adam Nielsen",
-                                "user_key": "98be7a7d-b61b-4213-9829-136f60769ba5",
                                 "uuid": "98be7a7d-b61b-4213-9829-136f60769ba5",
                             }
                         ]
@@ -928,8 +937,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         },
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "August Andersen",
-                                "user_key": "3c58db88-b434-4221-9af2-a216ce4cbfb7",
                                 "uuid": "3c58db88-b434-4221-9af2-a216ce4cbfb7",
                             }
                         ]
@@ -947,8 +956,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         },
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "Merle Møller",
-                                "user_key": "6f4a2cbf-d372-4dbf-87bb-d7f4307cb7a3",
                                 "uuid": "6f4a2cbf-d372-4dbf-87bb-d7f4307cb7a3",
                             }
                         ]
@@ -969,8 +978,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "Malou Johansen",
-                                "user_key": "8b227cf7-cb67-4023-8efc-b01c2a3632d1",
                                 "uuid": "8b227cf7-cb67-4023-8efc-b01c2a3632d1",
                             }
                         ]
@@ -985,8 +994,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "August Andersen",
-                                "user_key": "3c58db88-b434-4221-9af2-a216ce4cbfb7",
                                 "uuid": "3c58db88-b434-4221-9af2-a216ce4cbfb7",
                             }
                         ]
@@ -994,28 +1003,26 @@ def test_filtering_email_address_type_uuids_from_payload(
                 ]
             },
             (
-                '"Personens navn";"Personens UUID";"Ansættelsessted";'
-                '"Ansættelsesdato";"CPR";"Email";"Brugervendtnøgle"\n'
+                '"Personens navn";"Personens '
+                'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";"Shortname"\n'
                 '"Adam Nielsen";"98be7a7d-b61b-4213-9829-136f60769ba5"'
                 ';"Kolding Kommune";"2023-01-11T00:00:00+01:00";"0102893211";'
-                '"312@sd.com";"98be7a7d-b61b-4213-9829-136f60769ba5"\n'
+                '"312@sd.com";""\n'
                 '"August Andersen";"3c58db88-b434-4221-9af2-a216ce4cbfb7";'
                 '"Social og sundhed";"2023-01-11T00:00:00+01:00";"0401873211";"";'
-                '"3c58db88-b434-4221-9af2-a216ce4cbfb7"\n'
+                '""\n'
                 '"Merle Møller";"6f4a2cbf-d372-4dbf-87bb-d7f4307cb7a3";'
-                '"Social og sundhed";"2023-01-11T00:00:00+01:00";"0301674212";"";'
-                '"6f4a2cbf-d372-4dbf-87bb-d7f4307cb7a3"\n'
+                '"Social og sundhed";"2023-01-11T00:00:00+01:00";"0301674212";"";""\n'
             ),
             (
                 '"Personens navn";"Personens '
-                'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";'
-                '"Brugervendtnøgle"\n'
+                'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Shortname"\n'
+                ''
                 '"Malou Johansen";"8b227cf7-cb67-4023-8efc-b01c2a3632d1";'
                 '"Budget og Planlægning";"2023-01-11T00:00:00+01:00";"lolol@kekek.dk";'
-                '"8b227cf7-cb67-4023-8efc-b01c2a3632d1"\n'
+                '""\n'
                 '"August Andersen";"3c58db88-b434-4221-9af2-a216ce4cbfb7";'
-                '"Social og sundhed";"2023-01-11T00:00:00+01:00";"";'
-                '"3c58db88-b434-4221-9af2-a216ce4cbfb7"\n'
+                '"Social og sundhed";"2023-01-11T00:00:00+01:00";"";""\n'
             ),
         ),
         (  # Tests if details from payload are written correctly into CSV format,
@@ -1035,8 +1042,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         },
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "TESTFORNAVN",
-                                "user_key": "77e0da12-6cbf-4cef-b2bb-ceff19944643",
                                 "uuid": "77e0da12-6cbf-4cef-b2bb-ceff19944643",
                             }
                         ]
@@ -1055,8 +1062,8 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
+                                "itusers": [],
                                 "name": "TESTFORNAVN",
-                                "user_key": "77e0da12-6cbf-4cef-b2bb-ceff19944643",
                                 "uuid": "77e0da12-6cbf-4cef-b2bb-ceff19944643",
                             }
                         ]
@@ -1064,20 +1071,16 @@ def test_filtering_email_address_type_uuids_from_payload(
                 ]
             },
             (
-                '"Personens navn";"Personens '
-                'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";'
-                '"Brugervendtnøgle"\n'
-                '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";'
-                '"Kolding Kommune";"2023-01-11T00:00:00+01:00";"";"";'
-                '"77e0da12-6cbf-4cef-b2bb-ceff19944643"\n'
+                 '"Personens navn";"Personens '
+                'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";"Shortname"\n'
+                '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";"Kolding '
+                'Kommune";"2023-01-11T00:00:00+01:00";"";"";""\n'
             ),
             (
-                '"Personens navn";"Personens UUID";"Ansættelsessted";'
-                '"Ansættelsesudløbsdato";"Email";"Brugervendtnøgle"\n'
-                '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";'
-                '"Kolding '
-                'Kommune";"2023-01-11T00:00:00+01:00";"";'
-                '"77e0da12-6cbf-4cef-b2bb-ceff19944643"\n'
+                '"Personens navn";"Personens '
+                'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Shortname"\n'
+                '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";"Kolding '
+                'Kommune";"2023-01-11T00:00:00+01:00";"";""\n'
             ),
         ),
     ],
