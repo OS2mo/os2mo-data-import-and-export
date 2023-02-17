@@ -15,7 +15,7 @@ from mox_helpers.utils import async_to_sync
 from tqdm.asyncio import tqdm
 
 from ra_utils.load_settings import load_settings
-
+from ra_utils.headers import TokenSettings
 
 all_functionnames = [
     "Engagement",
@@ -142,11 +142,10 @@ class SubtreeDeleter:
 async def subtreedeleter_helper(
     org_unit_uuid: str, delete_functions: bool = False, keep_functions: List[str] = [], connections: int = 4
 ) -> None:
-    settings = load_settings()
-    api_token = settings.get("crontab.SAML_TOKEN")
+    token_settings = TokenSettings()
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        session.headers.update({"session": api_token})
+        session.headers.update(token_settings.get_headers())
         deleter = SubtreeDeleter(session, org_unit_uuid, connections=connections)
         await deleter.run(
             org_unit_uuid, delete_functions, keep_functions=keep_functions
