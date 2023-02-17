@@ -18,7 +18,6 @@ def create_relation(
     """Create a relation between given org_units"""
     payload = {"destination": [str(to_uuid)], "validity": {"from": today()}}
     r = client.post(f"{base_url}/service/ou/{str(from_uuid)}/map", json=payload)
-    r.raise_for_status()
     return r.json()
 
 
