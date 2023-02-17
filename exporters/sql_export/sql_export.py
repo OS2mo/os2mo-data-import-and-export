@@ -1,10 +1,13 @@
 import datetime
 import logging
+import typing
 from typing import Tuple
 
 import click
+import ra_utils.ensure_single_run
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from ra_utils.ensure_single_run import ensure_single_run
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
@@ -313,7 +316,7 @@ class SqlExport:
                     primærtype_uuid=engagement_info["primary_type"],
                     startdato=engagement_info["from_date"],
                     slutdato=engagement_info["to_date"],
-                    **engagement_info["extensions"]
+                    **engagement_info["extensions"],
                 )
                 self.session.add(sql_engagement)
             self.session.commit()
@@ -376,7 +379,7 @@ class SqlExport:
                     key: value
                     for key, value in address_info.items()
                     if key in DARAdresse.__table__.columns.keys() and key != "id"
-                }
+                },
             )
             self.session.add(sql_address)
         self.session.commit()
@@ -595,6 +598,49 @@ class SqlExport:
             for result in self.engine.execute("select * from leder_ansvar limit 10"):
                 print(result.items())
 
+    def log_overlapping_runs_aak(self):
+        self.engine.execute(
+            "INSERT INTO [dbo].[kvittering_afvigelse] "
+            "([query_tid],[aarsag]) VALUES (getdate(), "
+            "'Time-export: hopper over da foregående "
+            "loop stadig kører.')"
+        )
+
+    def export(self, resolve_dar: bool, use_pickle: typing.Any) -> None:
+
+        self.perform_export(
+            resolve_dar=resolve_dar,
+            use_pickle=use_pickle,
+        )
+
+        self.swap_tables()
+
+
+def wrap_export(args: dict, settings: dict) -> None:
+
+    sql_export = SqlExport(
+        force_sqlite=args["force_sqlite"],
+        historic=args["historic"],
+        settings=settings,
+    )
+    try:
+        lock_name = "sql_export_actual"
+
+        if args["historic"]:
+            lock_name = "sql_export_historic"
+
+        ensure_single_run(
+            func=sql_export.export,
+            lock_name=lock_name,
+            resolve_dar=args["resolve_dar"],
+            use_pickle=args["read_from_cache"],
+        )
+
+    except ra_utils.ensure_single_run.LockTaken as name_of_lock:
+        logger.warning(f"Lock {name_of_lock} taken, aborting export")
+        if "log_overlapping_aak" in settings and settings.get("log_overlapping_aak"):
+            sql_export.log_overlapping_runs_aak()
+
 
 @click.command(help="SQL export")
 @click.option("--resolve-dar", is_flag=True)
@@ -607,23 +653,11 @@ def cli(**args):
     """
     pydantic_settings = SqlExportSettings()
     pydantic_settings.start_logging_based_on_settings()
-
     logger.info("Command line args: %r", args)
 
     settings = load_settings()
 
-    sql_export = SqlExport(
-        force_sqlite=args["force_sqlite"],
-        historic=args["historic"],
-        settings=settings,
-    )
-
-    sql_export.perform_export(
-        resolve_dar=args["resolve_dar"],
-        use_pickle=args["read_from_cache"],
-    )
-
-    sql_export.swap_tables()
+    wrap_export(args=args, settings=settings)
 
     logger.info("*SQL export ended*")
 
