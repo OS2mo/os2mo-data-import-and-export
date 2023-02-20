@@ -1,21 +1,17 @@
 import asyncio
-import itertools
-import sys
-import typing
 import urllib.parse
 from queue import Queue
-from typing import Optional, List
+from typing import List
+from typing import Optional
 
 import aiohttp
 import click
-import requests
-import tqdm
-from more_itertools import flatten, one
+from more_itertools import flatten
+from more_itertools import one
 from mox_helpers.utils import async_to_sync
-from tqdm.asyncio import tqdm
-
+from ra_utils.headers import TokenSettings
 from ra_utils.load_settings import load_settings
-
+from tqdm.asyncio import tqdm
 
 all_functionnames = [
     "Engagement",
@@ -31,7 +27,7 @@ all_functionnames = [
 
 
 class SubtreeDeleter:
-    def __init__(self, session, subtree_uuid, connections: int = 4):
+    def __init__(self, session, connections: int = 4):
         self.session = session
         settings = load_settings()
         self.mora_base = settings.get("mora.base")
@@ -64,8 +60,8 @@ class SubtreeDeleter:
             return one(r["results"])
 
     @staticmethod
-    def find_subtree(subtree_uuid: str, trees: typing.List[dict]):
-        queue = Queue()
+    def find_subtree(subtree_uuid: str, trees: List[dict]):
+        queue: Queue = Queue()
         for tree in trees:
             queue.put(tree)
 
@@ -73,8 +69,9 @@ class SubtreeDeleter:
             tree = queue.get()
             if tree["uuid"] == subtree_uuid:
                 return tree
-            if tree.get("children"):
-                for child in tree.get("children"):
+            children: Optional[List[dict]] = tree.get("children")
+            if children:
+                for child in children:
                     queue.put(child)
 
         raise click.ClickException("{} not found".format(subtree_uuid))
@@ -96,9 +93,9 @@ class SubtreeDeleter:
             )
         return await tqdm.gather(
             *(
-                  self.get_associated_org_func(uuid, f)
-                  for uuid in unit_uuids
-                  for f in funktionsnavne
+                self.get_associated_org_func(uuid, f)
+                for uuid in unit_uuids
+                for f in funktionsnavne
             )
         )
 
@@ -124,10 +121,14 @@ class SubtreeDeleter:
         await self.delete_from_lora(unit_uuids, "organisation/organisationenhed")
 
         if delete_functions:
-            print("Deleting associated org functions for subtree".format(subtree_uuid))
+            print(
+                "Deleting associated org functions for subtree {}".format(subtree_uuid)
+            )
             funktionsnavne = []
             if keep_functions:
-                funktionsnavne = [f for f in all_functionnames if f not in keep_functions]
+                funktionsnavne = [
+                    f for f in all_functionnames if f not in keep_functions
+                ]
             org_func_uuids = await self.get_associated_org_funcs(
                 unit_uuids, funktionsnavne=funktionsnavne
             )
@@ -140,14 +141,16 @@ class SubtreeDeleter:
 
 @async_to_sync
 async def subtreedeleter_helper(
-    org_unit_uuid: str, delete_functions: bool = False, keep_functions: List[str] = [], connections: int = 4
+    org_unit_uuid: str,
+    delete_functions: bool = False,
+    keep_functions: List[str] = [],
+    connections: int = 4,
 ) -> None:
-    settings = load_settings()
-    api_token = settings.get("crontab.SAML_TOKEN")
+    token_settings = TokenSettings()
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-        session.headers.update({"session": api_token})
-        deleter = SubtreeDeleter(session, org_unit_uuid, connections=connections)
+        session.headers.update(token_settings.get_headers())
+        deleter = SubtreeDeleter(session, connections=connections)
         await deleter.run(
             org_unit_uuid, delete_functions, keep_functions=keep_functions
         )
@@ -178,12 +181,15 @@ async def subtreedeleter_helper(
 def main(org_unit_uuid, delete_functions, keep, connections):
     """Delete an organisational unit and all units below.
 
-    Given the uuid of an org_unit this will delete the unit and all units below it. Optionally also deletes organisationfunctions such as engagements, KLE and addresses.
-    To delete all organisationfunctions except certain type(s) add them with --keep.
+    Given the uuid of an org_unit this will delete the unit and all units below it.
+    Optionally also deletes organisation functions such as engagements, KLE and addresses.
+    To delete all organisation functions, except certain type(s), add them with --keep.
     Example:
-        venv/bin/python tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
+        metacli tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
     """
-    subtreedeleter_helper(org_unit_uuid, delete_functions, keep_functions=keep, connections=connections)
+    subtreedeleter_helper(
+        org_unit_uuid, delete_functions, keep_functions=keep, connections=connections
+    )
 
 
 if __name__ == "__main__":
