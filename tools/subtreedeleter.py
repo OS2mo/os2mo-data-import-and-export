@@ -27,7 +27,7 @@ all_functionnames = [
 
 
 class SubtreeDeleter:
-    def __init__(self, session, subtree_uuid, connections: int = 4):
+    def __init__(self, session, connections: int = 4):
         self.session = session
         settings = load_settings()
         self.mora_base = settings.get("mora.base")
@@ -150,7 +150,7 @@ async def subtreedeleter_helper(
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         session.headers.update(token_settings.get_headers())
-        deleter = SubtreeDeleter(session, org_unit_uuid, connections=connections)
+        deleter = SubtreeDeleter(session, connections=connections)
         await deleter.run(
             org_unit_uuid, delete_functions, keep_functions=keep_functions
         )
