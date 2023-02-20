@@ -58,3 +58,31 @@ class TestRunPSScript(TestCase):
         response.std_out = std_out
         response.std_err = std_err
         return patch.object(self._ad.session, "run_ps", return_value=response)
+
+
+def test_escape_string_delimiters():
+    ad = MockAD()
+    raw = "\"'`"
+    expected = "`\"`'``"
+    assert ad._escape_string_delimiters(raw) == expected
+
+
+def test_build_user_credential_escapes_password():
+    """Passwords containing ", ' or ` characters should be escaped by
+    `_build_user_credential`."""
+
+    raw = "\"'`"
+    escaped = "`\"`'``"
+
+    class _MockPasswordAD(MockAD):
+        def _get_setting(self):
+            return {
+                "system_user": "system_user",
+                "password": raw,
+            }
+
+    ad = _MockPasswordAD()
+    credential = ad._build_user_credential()
+
+    assert raw not in credential
+    assert escaped in credential

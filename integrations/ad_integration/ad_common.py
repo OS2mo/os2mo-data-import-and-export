@@ -1,6 +1,7 @@
 import json
 import logging
 import random
+import re
 import subprocess
 import time
 from typing import Dict
@@ -278,13 +279,20 @@ class AD:
     def _get_setting(self):
         return self.all_settings["primary"]
 
+    def _escape_string_delimiters(self, s: str) -> str:
+        """Given a string `s`, return a string where any string delimiters have been
+        escaped according to PowerShell syntax rules.
+        """
+        # The characters ", ' and ` must be escaped by prefixing them with a backtick `
+        # character. See: https://ss64.com/ps/syntax-esc.html
+        return re.sub(r"([\"|\'|`])", lambda match: f"`{match.group()}", s)
+
     def _build_user_credential(self):
         """
         Build the commonn set of Power Shell commands that is needed to
         run the AD commands.
         :return: A suitable string to prepend to AD commands.
         """
-
         credential_template = """
         $User = "{}"
         $PWord = ConvertTo-SecureString –String "{}" –AsPlainText -Force
@@ -293,7 +301,8 @@ class AD:
         """
         settings = self._get_setting()
         user_credential = credential_template.format(
-            settings["system_user"], settings["password"]
+            settings["system_user"],
+            self._escape_string_delimiters(settings["password"]),
         )
         return user_credential
 
