@@ -181,10 +181,11 @@ async def subtreedeleter_helper(
 def main(org_unit_uuid, delete_functions, keep, connections):
     """Delete an organisational unit and all units below.
 
-    Given the uuid of an org_unit this will delete the unit and all units below it. Optionally also deletes organisationfunctions such as engagements, KLE and addresses.
-    To delete all organisationfunctions except certain type(s) add them with --keep.
+    Given the uuid of an org_unit this will delete the unit and all units below it.
+    Optionally also deletes organisation functions such as engagements, KLE and addresses.
+    To delete all organisation functions, except certain type(s), add them with --keep.
     Example:
-        venv/bin/python tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
+        metacli tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
     """
     subtreedeleter_helper(
         org_unit_uuid, delete_functions, keep_functions=keep, connections=connections
