@@ -1,5 +1,6 @@
 from typing import Optional
 from unittest.mock import AsyncMock
+from unittest.mock import patch
 
 import pytest
 from aiohttp import ClientSession
@@ -20,6 +21,10 @@ _mo_tree = [
         ],
     },
 ]
+_settings = {
+    "mora.base": "http://mo.test-universe",
+    "mox.base": "http://mox.test-universe",
+}
 
 
 class _TestableSubtreeDeleter(SubtreeDeleter):
@@ -94,28 +99,31 @@ async def test_run_method():
 
 
 @pytest.mark.asyncio
-async def test_get_org_uuid():
+@patch("tools.subtreedeleter.load_settings", return_value=_settings)
+async def test_get_org_uuid(mock_load_settings):
     doc = [{"uuid": _mo_org_uuid}]
     async with _Session(doc) as session:
         instance = SubtreeDeleter(session)
         actual_org_uuid = await instance.get_org_uuid()
         assert actual_org_uuid == _mo_org_uuid
-        assert session.requests == [("GET", "http://localhost:5000/service/o/")]
+        assert session.requests == [("GET", f"{_settings['mora.base']}/service/o/")]
 
 
 @pytest.mark.asyncio
-async def test_get_tree():
+@patch("tools.subtreedeleter.load_settings", return_value=_settings)
+async def test_get_tree(mock_load_settings):
     async with _Session(_mo_tree) as session:
         instance = SubtreeDeleter(session)
         actual_tree = await instance.get_tree(_mo_org_uuid)
         assert actual_tree == _mo_tree
         assert session.requests == [
-            ("GET", "http://localhost:5000/service/o/mo-org-uuid/ou/tree")
+            ("GET", f"{_settings['mora.base']}/service/o/mo-org-uuid/ou/tree")
         ]
 
 
 @pytest.mark.asyncio
-async def test_get_associated_org_func():
+@patch("tools.subtreedeleter.load_settings", return_value=_settings)
+async def test_get_associated_org_func(mock_load_settings):
     doc = {"results": [_lora_org_func_uuid]}
     async with _Session(doc) as session:
         instance = SubtreeDeleter(session)
@@ -127,6 +135,6 @@ async def test_get_associated_org_func():
         assert session.requests == [
             (
                 "GET",
-                "http://localhost:8080/organisation/organisationfunktion?tilknyttedeenheder=mo-org-unit-uuid&virkningfra=-infinity&virkningtil=infinity&funktionsnavn=funktionsnavn",
+                f"{_settings['mox.base']}/organisation/organisationfunktion?tilknyttedeenheder=mo-org-unit-uuid&virkningfra=-infinity&virkningtil=infinity&funktionsnavn=funktionsnavn",
             )
         ]
