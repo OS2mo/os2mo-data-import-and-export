@@ -8,23 +8,7 @@ from .config import get_changed_at_settings
 from .sd_common import sd_lookup
 
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "test_sd_connectivity.log"
-
-
-def setup_logging():
-    detail_logging = "sdCommon"
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=LOG_FILE,
-    )
+LOG_LEVEL = logging.INFO
 
 
 class TestSdConnectivity(object):
@@ -36,18 +20,20 @@ class TestSdConnectivity(object):
             self.validation_error = err
 
     def _check_sd_settings(self):
-        print("Check settings...")
+        logging.info("Check settings...")
 
         if self.validation_error is None:
-            print("SD settings OK")
+            logging.info("SD settings OK")
         else:
-            print("The following SD settings errors were detected:")
-            print(self.validation_error)
+            logging.warning(
+                "The following SD settings errors were detected: %s",
+                self.validation_error,
+            )
 
-        print("Done checking SD settings\n\n")
+        logging.info("Done checking SD settings")
 
     def _check_contact_to_sd(self):
-        print("Tjekker at vi har kontakt til SD:")
+        logging.info("Tjekker at vi har kontakt til SD")
         params = {
             "UUIDIndicator": "true",
             "InstitutionIdentifier": self.settings.sd_institution_identifier,
@@ -59,18 +45,20 @@ class TestSdConnectivity(object):
                 params=params,
                 use_cache=False,
             )
-        except Exception as e:
-            print("Fejl i kontakt til SD Løn: {}".format(e))
+        except Exception:
+            logging.exception("Fejl i kontakt til SD Løn")
             exit(1)
 
         try:
             institution = institution_info["Region"]["Institution"]
             institution_uuid = institution["InstitutionUUIDIdentifier"]
             UUID(institution_uuid, version=4)
-            print(" * Korrekt kontakt til SD Løn")
-        except Exception as e:
-            msg = " * Fik forbindelse, men modtog ikke-korrekt svar fra SD: {}, {}"
-            print(msg.format(institution_uuid, e))
+            logging.info("Korrekt kontakt til SD Løn")
+        except Exception:
+            logging.exception(
+                "Fik forbindelse, men modtog ikke-korrekt svar fra SD: %s",
+                institution_info,
+            )
             exit(1)
 
     def sd_check(self):
@@ -86,5 +74,9 @@ def check_connectivity():
 
 
 if __name__ == "__main__":
-    setup_logging()
+    logging.basicConfig(
+        format="{asctime} [{levelname:<8}] {message} [{name}]",
+        level=LOG_LEVEL,
+        style="{",
+    )
     check_connectivity()
