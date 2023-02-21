@@ -6,6 +6,7 @@
 #
 from datetime import date
 from functools import lru_cache
+import logging
 from typing import Any
 from typing import Dict
 from typing import List
@@ -151,7 +152,7 @@ class ChangedAtSettings(CommonSettings):
     sd_skip_job_functions: List[str] = []
     sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
-    sd_log_file: Path = Path("mo_integrations.log")
+    sd_log_level: str = logging.INFO
 
     sentry_dsn: Optional[str] = None
 

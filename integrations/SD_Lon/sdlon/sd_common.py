@@ -14,6 +14,7 @@ from typing import Optional
 from typing import OrderedDict
 from typing import Union
 
+from integrations.calculate_primary.common import LOGGER_NAME
 import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
@@ -356,3 +357,24 @@ def read_employment_at(
 
     response = sd_lookup(url, settings=settings, params=params)
     return response.get("Person")
+
+
+def setup_logging(log_level):
+    detail_logging = (
+        "sdCommon",
+        "sdChangedAt",
+        LOGGER_NAME,
+        "fixDepartments",
+        "sdSyncJobId",
+    )
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(log_level)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format="{asctime} [{levelname:<8}] {message} [{name}]",
+        level=log_level,
+        style="{",
+    )

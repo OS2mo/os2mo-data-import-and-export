@@ -6,9 +6,7 @@ from pydantic import ValidationError
 
 from .config import get_changed_at_settings
 from .sd_common import sd_lookup
-
-
-LOG_LEVEL = logging.INFO
+from .sd_common import setup_logging
 
 
 class TestSdConnectivity(object):
@@ -16,6 +14,7 @@ class TestSdConnectivity(object):
         self.validation_error = None
         try:
             self.settings = get_changed_at_settings()
+            setup_logging(self.settings.sd_log_level)
         except ValidationError as err:
             self.validation_error = err
 
@@ -74,9 +73,4 @@ def check_connectivity():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        format="{asctime} [{levelname:<8}] {message} [{name}]",
-        level=LOG_LEVEL,
-        style="{",
-    )
     check_connectivity()
