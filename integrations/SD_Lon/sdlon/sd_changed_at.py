@@ -25,7 +25,6 @@ import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
-from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from integrations.rundb.db_overview import DBOverview
@@ -64,31 +63,9 @@ from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 
 
-LOG_LEVEL = logging.DEBUG
 DUMMY_CPR = "0000000000"
 
 logger = logging.getLogger("sdChangedAt")
-
-
-def setup_logging(log_file: pathlib.Path):
-    detail_logging = (
-        "sdCommon",
-        "sdChangedAt",
-        LOGGER_NAME,
-        "fixDepartments",
-        "sdSyncJobId",
-    )
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        filename=str(log_file),
-    )
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
@@ -1457,7 +1434,7 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
     settings = get_changed_at_settings()
-    setup_logging(settings.sd_log_file)
+    settings.start_logging_based_on_settings()
 
     run_db = settings.sd_import_run_db
 

@@ -23,11 +23,12 @@ from pydantic import SecretStr
 from pydantic import UUID4
 from pydantic.types import Path
 from ra_utils.load_settings import load_settings
+from ra_utils.job_settings import JobSettings
 
 from .models import JobFunction
 
 
-class CommonSettings(BaseSettings):
+class CommonSettings(JobSettings):
     """
     Settings common to both the SD importer and SD-changed-at
     """
@@ -151,9 +152,6 @@ class ChangedAtSettings(CommonSettings):
     sd_skip_job_functions: List[str] = []
     sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
-    sd_log_file: Path = Path("mo_integrations.log")
-
-    sentry_dsn: Optional[str] = None
 
     class Config:
         extra = Extra.forbid
