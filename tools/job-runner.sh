@@ -132,9 +132,6 @@ imports_test_ad_connectivity_writer(){
 
 imports_test_sd_connectivity(){
     echo running imports_test_sd_connectivity
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/integrations/SD_Lon/test_sd_connectivity.log"
-    )
     cd integrations/SD_Lon/
     ${POETRYPATH} run python -m sdlon.test_sd_connectivity
     EXIT_CODE=$?
