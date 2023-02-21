@@ -8,7 +8,8 @@ RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsod
 
 WORKDIR /app
 
-ENV POETRY_HOME=/opt/poetry \
+ENV PYTHONUNBUFFERED=1 \
+    POETRY_HOME=/opt/poetry \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_VERSION=1.3.1
 
