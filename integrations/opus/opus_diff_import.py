@@ -193,7 +193,12 @@ class OpusDiffImport(object):
         Read all addresses from MO an return as a simple dict
         """
         # Unfortunately, mora-helper currently does not read all addresses
-        user_addresses = self.helper._mo_lookup(mo_uuid, "e/{}/details/address")
+        try:
+            user_addresses = self.helper._mo_lookup(mo_uuid, "e/{}/details/address")
+        except KeyError:
+            logger.info("Skipping {}".format(mo_uuid))
+            return
+
         address_dict = {}  # Condensate of all MO addresses for the employee
         if not isinstance(user_addresses, list):
             # In case the request to mo fails we assume no addresses in MO.
@@ -484,7 +489,6 @@ class OpusDiffImport(object):
 
         logger.info("Create user payload: {}".format(payload))
         r = self.helper._mo_post("e/create", payload)
-        r.raise_for_status()
         return_uuid = r.json()
         logger.info(
             "Created employee {} {} with uuid {}".format(
@@ -715,7 +719,11 @@ class OpusDiffImport(object):
         logger.info("----")
         logger.info("Now updating {}".format(employee.get("@id")))
         logger.debug("Available info: {}".format(employee))
-        mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
+        try:
+            mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
+        except KeyError:
+            logger.info("Skipping {}".format(employee))
+            return
 
         ad_info = {}
         if self.ad_reader is not None:
