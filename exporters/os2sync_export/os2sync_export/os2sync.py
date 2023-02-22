@@ -143,13 +143,13 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
 @retry(
     wait=wait_fixed(5),
     reraise=True,
-    stop=stop_after_delay(5 * 60),
+    stop=stop_after_delay(10 * 60),
     retry=retry_if_exception_type(requests.HTTPError),
 )
 def get_hierarchy(
     client: requests.Session, os2sync_api_url: str, request_uuid: UUID
 ) -> Tuple[Dict[str, Dict], Dict[str, Dict]]:
-    """Fetches the hierarchy from os2sync. Retries for 5 minutes until it is ready"""
+    """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready"""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
     hierarchy = r.json()["result"]
