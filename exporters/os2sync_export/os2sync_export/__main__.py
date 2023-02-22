@@ -179,7 +179,9 @@ def main(settings: Settings):
             settings=settings,
             counter=counter,
         )
-
+    assert (
+        mo_users
+    ), "No mo-users were found. Stopping os2sync_export to ensure we won't delete every user from fk-org. Again"
     # Create or update users
     counter["Medarbejdere overført til OS2SYNC"] = len(mo_users)
     for user in mo_users.values():
