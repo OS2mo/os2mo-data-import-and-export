@@ -370,7 +370,8 @@ def group_accounts(
         fk_org_accounts.append(
             {"engagement_uuid": eng_uuid, "uuid": uuid, "user_key": user_key}
         )
-
+    if fk_org_accounts == []:
+        return [{"engagement_uuid": None, "uuid": None, "user_key": None}]
     return fk_org_accounts
 
 
