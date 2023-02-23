@@ -26,7 +26,6 @@ hash_cache: Dict = {}
 
 
 def get_os2sync_session():
-
     session = requests.Session()
 
     if settings.os2sync_api_url == "stub":
@@ -140,11 +139,20 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
     return UUID(r.text)
 
 
+class OS2syncReturnedNoHierarchy(Exception):
+    """The OS2sync service retuned no result.
+
+    Likely OS2sync had a connection error to FK-org.
+
+    See http://driftstatus.kombit.dk/
+    """
+
+
 @retry(
     wait=wait_fixed(5),
     reraise=True,
     stop=stop_after_delay(10 * 60),
-    retry=retry_if_exception_type(requests.HTTPError),
+    retry=retry_if_exception_type((requests.HTTPError, OS2syncReturnedNoHierarchy)),
 )
 def get_hierarchy(
     client: requests.Session, os2sync_api_url: str, request_uuid: UUID
@@ -154,7 +162,9 @@ def get_hierarchy(
     r.raise_for_status()
     hierarchy = r.json()["result"]
     if hierarchy is None:
-        raise ConnectionError("Check connection to FK-ORG")
+        raise OS2syncReturnedNoHierarchy(
+            "Check connection to FK-ORG. See http://driftstatus.kombit.dk/."
+        )
     existing_os2sync_org_units = {o["uuid"]: o for o in hierarchy["oUs"]}
     existing_os2sync_users = {u["uuid"]: u for u in hierarchy["users"]}
     return existing_os2sync_org_units, existing_os2sync_users
