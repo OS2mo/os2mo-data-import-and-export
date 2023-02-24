@@ -1093,12 +1093,6 @@ class ADWriter(AD):
             logger.error(f"cpr already in use: {cpr[:6]}-xxxx")
             raise CprNotNotUnique()
 
-    def add_ad_to_user_it_systems(self, username):
-        # TODO: We need a function to write the SamAccount to the user's
-        # IT-systems. This is most likely most elegantly done by importing
-        # the AD->MO sync tool
-        pass
-
     def _get_enable_user_cmd(self, username: str, enable: bool) -> str:
         # Hack: copy the settings and mutate `template_to_ad_fields` in the copy.
         # This enables us to use a different set of field templates when enabling and
