@@ -1099,24 +1099,6 @@ class ADWriter(AD):
         # the AD->MO sync tool
         pass
 
-    def set_user_password(self, username, password):
-        """
-        Set a password for a user.
-        :param username: SamAccountName for the user.
-        :param password: The password to assign to the user.
-        :return: True if success, otherwise False
-        """
-
-        format_rules = {"username": username, "password": password}
-        ps_script = self._build_ps(ad_templates.set_password_template, format_rules)
-        response = self._run_ps_script(ps_script)
-        if not response:
-            return (True, "Password updated")
-        else:
-            msg = "Failed to set password!: {}".format(response)
-            logger.error(msg)
-            return (False, msg)
-
     def _get_enable_user_cmd(self, username: str, enable: bool) -> str:
         # Hack: copy the settings and mutate `template_to_ad_fields` in the copy.
         # This enables us to use a different set of field templates when enabling and

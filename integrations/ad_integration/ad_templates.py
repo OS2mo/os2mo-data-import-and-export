@@ -1,15 +1,3 @@
-set_password_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
-           -Credential $usercredential |
-
-Set-ADAccountPassword
-   -Reset
-   -NewPassword (ConvertTo-SecureString
-                 -AsPlainText "{password}" -Force)
-    -Credential $usercredential
-"""
-
-
 # Delete user
 delete_user_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' -Credential $usercredential |
