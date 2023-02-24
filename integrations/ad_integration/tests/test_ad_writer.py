@@ -1,4 +1,5 @@
 import copy
+import re
 from datetime import datetime
 from unittest import mock
 from unittest import TestCase
@@ -1468,3 +1469,12 @@ class TestEnableUser(_TestRealADWriter):
         # Act and assert
         with self.assertRaises(CommandFailure):
             ad_writer.enable_user("sam_account_name", False)
+
+    def test_get_enable_user_cmd_strips_linebreaks(self):
+        ad_writer = self._prepare_adwriter()
+        ps_script = ad_writer._get_enable_user_cmd("user", enable=False)
+        # Find actual "Get-ADUser NNN | Set-ADUser NNN -Enabled $false" line in PS
+        match = re.search("Get-ADUser .*", ps_script, re.MULTILINE)
+        # Assert that this line does not contain any unintended line breaks, caused by
+        # forgetting to call `AD.remove_redundant`.
+        assert "\n" not in match.group()

@@ -1144,7 +1144,7 @@ class ADWriter(AD):
             },
             settings=settings,
         )
-        cmd = self._build_user_credential() + cmd
+        cmd = self._build_user_credential() + self.remove_redundant(cmd)
         return cmd
 
     def enable_user(self, username, enable=True):
