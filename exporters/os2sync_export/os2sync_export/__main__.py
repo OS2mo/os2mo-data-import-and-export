@@ -22,6 +22,7 @@ from os2sync_export import os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
+from os2sync_export.os2sync_models import orgUnit
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ def log_mox_counters(counter: collections.Counter):
         logger.info("    %s: %r", k, v)
 
 
-def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]:
+def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, orgUnit]:
     """Read all current org_units from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each org_unit
@@ -70,8 +71,9 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
     )
+    # TODO: Check that only one org_unit has parent=None
 
-    return {ou["Uuid"]: ou for ou in org_units if ou}
+    return {str(ou.Uuid): ou for ou in org_units if ou}
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
@@ -151,9 +153,14 @@ def main(settings: Settings):
     )
     mo_org_units = read_all_orgunits(settings, counter)
 
-    counter["Orgenheder som opdateres i OS2Sync"] = len(mo_org_units)
-    for org_unit in mo_org_units.values():
-        os2sync.upsert_orgunit(org_unit)
+    counter["Orgenheder som tjekkes i OS2Sync"] = len(mo_org_units)
+
+    changed = [
+        os2sync.upsert_orgunit(org_unit, settings.os2sync_api_url)
+        for org_unit in mo_org_units.values()
+    ]
+
+    counter["Orgenheder som blev ændret i OS2Sync"] = sum(changed)
 
     # Read hierarchy from os2sync
     existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(

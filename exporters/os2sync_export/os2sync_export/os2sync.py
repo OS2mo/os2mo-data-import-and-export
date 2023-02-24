@@ -14,6 +14,7 @@ from uuid import UUID
 
 import requests
 from os2sync_export import config
+from os2sync_export.os2sync_models import orgUnit
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
@@ -70,6 +71,11 @@ def os2sync_get(url, **params):
     return r
 
 
+def os2sync_get_org_unit(api_url: str, uuid: UUID) -> orgUnit:
+    current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
+    return orgUnit(**current)
+
+
 def os2sync_delete(url, **params):
     url = os2sync_url(url)
     try:
@@ -89,10 +95,6 @@ def os2sync_post(url, **params):
     return r
 
 
-def user_uuids():
-    return os2sync_get("{BASE}/user").json()
-
-
 def delete_user(uuid):
     if not already_xferred("/user/" + uuid, {}, "delete"):
         logger.debug("delete user %s", uuid)
@@ -109,10 +111,6 @@ def upsert_user(user):
         logger.debug("upsert user %s - cached", user["Uuid"])
 
 
-def orgunit_uuids():
-    return os2sync_get("{BASE}/orgunit").json()
-
-
 def delete_orgunit(uuid):
     if not already_xferred("/orgUnit/" + uuid, {}, "delete"):
         logger.debug("delete orgunit %s", uuid)
@@ -121,12 +119,19 @@ def delete_orgunit(uuid):
         logger.debug("delete orgunit %s - cached", uuid)
 
 
-def upsert_orgunit(org_unit):
-    if not already_xferred("/orgUnit/" + org_unit["Uuid"], org_unit, "upsert"):
-        logger.debug("upsert orgunit %s", org_unit["Uuid"])
-        os2sync_post("{BASE}/orgUnit/", json=org_unit)
-    else:
-        logger.debug("upsert orgunit %s - cached", org_unit["Uuid"])
+def upsert_orgunit(org_unit: orgUnit, os2sync_api_url) -> bool:
+    current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
+
+    # Avoid overwriting information that we cannot provide from os2mo.
+    org_unit.LOSShortName = current.LOSShortName
+
+    if current == org_unit:
+        logger.debug(f"No changes to {org_unit.Uuid=}")
+        return False
+
+    logger.info(f"Syncing org_unit {org_unit}")
+    os2sync_post("{BASE}/orgUnit/", json=org_unit.json())
+    return True
 
 
 def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:

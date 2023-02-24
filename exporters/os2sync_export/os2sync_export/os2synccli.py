@@ -13,6 +13,7 @@ from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
 from os2sync_export.os2mo import get_sts_orgunit
 from os2sync_export.os2mo import get_sts_user
+from os2sync_export.os2sync_models import orgUnit
 
 
 def update_single_user(
@@ -39,14 +40,14 @@ def update_single_user(
 
 def update_single_orgunit(
     uuid: UUID, settings: Settings, dry_run: bool
-) -> Optional[Dict]:
+) -> Optional[orgUnit]:
 
     sts_org_unit = get_sts_orgunit(str(uuid), settings=settings)
 
     if dry_run:
         return sts_org_unit
     if sts_org_unit:
-        os2sync.upsert_orgunit(sts_org_unit)
+        os2sync.upsert_orgunit(sts_org_unit, settings.os2sync_api_url)
     return sts_org_unit
 
 

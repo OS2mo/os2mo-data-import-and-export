@@ -23,6 +23,7 @@ from more_itertools import one
 from more_itertools import only
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
+from os2sync_export.os2sync_models import orgUnit
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
@@ -553,7 +554,7 @@ def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List)
         )
 
 
-def get_sts_orgunit(uuid: str, settings):
+def get_sts_orgunit(uuid: str, settings) -> Optional[orgUnit]:
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
@@ -575,6 +576,8 @@ def get_sts_orgunit(uuid: str, settings):
 
     if base.get("parent") and "uuid" in base["parent"]:
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
+    else:
+        sts_org_unit["ParentOrgUnitUuid"] = None
 
     itsystems_to_orgunit(
         sts_org_unit,
@@ -605,7 +608,7 @@ def get_sts_orgunit(uuid: str, settings):
         sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
     )
 
-    return sts_org_unit
+    return orgUnit(**sts_org_unit)
 
 
 @retry(
