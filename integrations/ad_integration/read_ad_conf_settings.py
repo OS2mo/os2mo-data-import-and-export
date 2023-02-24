@@ -155,6 +155,9 @@ def _read_primary_write_information(top_settings):
     conf["template_to_ad_fields"] = top_settings.get(
         "integrations.ad_writer.template_to_ad_fields", {}
     )
+    conf["template_to_ad_fields_when_disable"] = top_settings.get(
+        "integrations.ad_writer.template_to_ad_fields_when_disable", {}
+    )
 
     # Overrides the "-Path" argument to "New-ADUser", if set
     if "integrations.ad_writer.new_ad_user_path" in top_settings:

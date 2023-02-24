@@ -125,3 +125,16 @@ def test_missing_properties(tup):
         )
 
         assert glom(settings, "primary_write.mo_to_ad_fields.Title") == title
+
+
+def test_template_to_ad_fields_when_disable():
+    """Test that "template_to_ad_fields_when_disable" is read and included in settings."""
+    mapping = {"ad_field": "jinja_template"}
+    properties = ["ad_field"]
+    settings = get_minimum_valid_writer_settings()
+    settings["integrations.ad_writer.template_to_ad_fields_when_disable"] = mapping
+    settings["integrations.ad"][0]["properties"] += properties
+    settings_read = read_settings(settings)
+    assert (
+        settings_read["primary_write"]["template_to_ad_fields_when_disable"] == mapping
+    )
