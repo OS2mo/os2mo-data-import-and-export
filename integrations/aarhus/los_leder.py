@@ -114,7 +114,7 @@ class ManagerImporter:
             for manager in managers
         ]
         async with util.get_client_session() as session:
-            await util.terminate_details(session, payloads, ignored_http_statuses=None)
+            await util.terminate_details(session, payloads)
 
     async def run(self, last_import: datetime):
         print("Starting manager import")
