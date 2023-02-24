@@ -59,7 +59,7 @@ async def edit_details(session: ClientSession, detail_payloads: Iterable[dict]) 
 async def terminate_details(
     session: ClientSession,
     detail_payloads: Iterable[dict],
-    ignored_http_statuses: Optional[Tuple[int]] = (404,),
+    ignored_http_statuses: Tuple[int, ...] = (404,),
 ) -> None:
     """Helper function for submitting terminate detail payloads"""
     url = "/service/details/terminate"
@@ -123,7 +123,7 @@ async def submit_payloads(
     endpoint: str,
     payloads: Iterable[dict],
     description: str,
-    ignored_http_statuses: Optional[Tuple[int]] = None,
+    ignored_http_statuses: Tuple[int, ...] = (),
 ) -> None:
     """
     Send a list of payloads to OS2mo. The payloads are chunked based on preset variable
@@ -148,7 +148,7 @@ async def submit_payloads(
             json=doc,
             headers=headers,
         ) as response:
-            if ignored_http_statuses and response.status in ignored_http_statuses:
+            if response.status in ignored_http_statuses:
                 print(f"{endpoint} returned status {response.status}, ignoring")
             else:
                 await raise_on_unhandled_mo_error(endpoint, doc, response)

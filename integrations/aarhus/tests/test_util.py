@@ -123,7 +123,7 @@ async def test_terminate_details_handles_404_response(
 
     # Expect an exception if `raise_for_status` is called in `submit_payloads`
     with pytest.raises(ClientResponseError):
-        await _run_test(ignored_http_statuses=None)
+        await _run_test(ignored_http_statuses=())
 
 
 @pytest.mark.asyncio
