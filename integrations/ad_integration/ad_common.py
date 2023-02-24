@@ -28,6 +28,7 @@ ADUser = Dict[str, str]
 
 
 def ad_minify(text):
+    # This function is only used by `ADWriter.remove_redundant`
     text = text.replace("\n", "")
     text = text.replace("\r", "")
     while text.find("  ") > -1:
@@ -262,6 +263,9 @@ class AD:
         return boiler_plate
 
     def remove_redundant(self, text):
+        # This method is poorly named, as is `ad_minify`. `ad_minify` actually removes
+        # linebreaks and superfluous whitespace from `text`, which is assumed to be a
+        # PowerShell command fragment.
         return ad_minify(text)
 
     def _build_ps(self, ps_script, format_rules):
@@ -269,6 +273,9 @@ class AD:
         Return the standard code need to execute a power shell script from a
         template.
         """
+        # This method is only used by `ADWriter._get_add_manager_command`.
+        # TODO: Consider removing this method and integrating its logic in
+        # `ADWriter._get_add_manager_command` instead.
         formatted_script = ps_script.format(**format_rules)
         finished_ps_script = self._build_user_credential() + self.remove_redundant(
             formatted_script

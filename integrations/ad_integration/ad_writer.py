@@ -411,6 +411,10 @@ class ADWriter(AD):
         return self.all_settings["primary_write"]
 
     def _wait_for_replication(self, sam):
+        # This method is only used by `ADWriter.create_user` (and only if called with
+        # `create_manager=True`.) It is questionable whether `_wait_for_replication`
+        # serves any real purpose, and we should consider removing it.
+
         t_start = time.time()
         logger.debug("Wait for replication of {}".format(sam))
         if not self.all_settings["global"]["servers"]:
