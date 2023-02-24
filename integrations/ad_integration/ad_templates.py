@@ -1,10 +1,3 @@
-# Delete user
-delete_user_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' -Credential $usercredential |
-Remove-ADUser -Credential $usercredential -Confirm:$false
-"""
-
-
 # Add manager to user
 add_manager_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{user_sam}\"' -Credential $usercredential |
