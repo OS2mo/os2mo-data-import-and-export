@@ -104,8 +104,7 @@ async def raise_on_unhandled_mo_error(
         )
         # Examine the MO error to see if it should be ignored
         mo_error_key = mo_error.get("error_key")
-        needs_check = mo_error_key and ignored_mo_error_keys
-        if needs_check and mo_error_key in ignored_mo_error_keys:
+        if mo_error_key in ignored_mo_error_keys:
             print(f'Continuing on ignored MO error "{mo_error_key}"')
             return
 
