@@ -114,3 +114,15 @@ def test_get_sts_user(get_sts_user_raw_mock):
         ),
     ]:
         assert c in get_sts_user_raw_mock.call_args_list
+
+
+@patch("os2sync_export.os2mo.get_sts_user_raw")
+def test_get_sts_user_no_it_accounts(get_sts_user_raw_mock):
+    """Test that users without it-accounts creates one fk-org account"""
+    gql_mock = MagicMock()
+    gql_mock.execute.return_value = {"employees": [{"objects": [{"itusers": []}]}]}
+    settings = dummy_settings
+    get_sts_user(mo_uuid=mo_uuid, gql_session=gql_mock, settings=settings)
+    get_sts_user_raw_mock.assert_called_once_with(
+        mo_uuid, settings, fk_org_uuid=None, user_key=None, engagement_uuid=None
+    )
