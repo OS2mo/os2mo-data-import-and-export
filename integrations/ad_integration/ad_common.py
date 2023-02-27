@@ -297,10 +297,21 @@ class AD:
         )
         return user_credential
 
+    def _unreadable_properties(self) -> List[str]:
+        """Return a list of AD properties which cannot be read by `Get-ADUser`, as they
+        are write-only."""
+        return ["AccountPassword"]
+
     def _properties(self):
+        # This is only called from `AD.get_from_ad`, and as such, it is only used to
+        # create a list of the AD properties we want to *read* (not write.)
+        # Thus it is irrelevant for the code paths which create or update AD users.
         settings = self._get_setting()
         properties = " -Properties "
         for item in settings["properties"]:
+            # Skip unreadable AD properties, such as "AccountPassword"
+            if item in self._unreadable_properties():
+                continue
             properties += item + ","
         properties = properties[:-1] + " "  # Remove trailing comma, add space
         return properties

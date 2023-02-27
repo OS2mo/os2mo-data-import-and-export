@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Dict
+from typing import List
 from unittest import TestCase
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -58,3 +61,24 @@ class TestRunPSScript(TestCase):
         response.std_out = std_out
         response.std_err = std_err
         return patch.object(self._ad.session, "run_ps", return_value=response)
+
+
+def test_properties_method_excludes_unreadable_properties() -> None:
+    """Test that `ADWriter._properties` does not include any of the AD properties
+    returned by `ADWriter._unreadable_properties` in its return value.
+    """
+
+    # List of allowed (readable) AD properties
+    ad_properties: List[str] = ["Foo", "Bar"]
+
+    class _MockADProperties(MockAD):
+        """Mock `AD` class where the AD properties in the configuration include some
+        which are unreadable."""
+
+        def _get_setting(self) -> Dict[str, Any]:
+            return {"properties": ad_properties + self._unreadable_properties()}
+
+    instance = _MockADProperties()
+
+    # Assert that the return value only includes properties from `ad_properties`
+    assert instance._properties() == f" -Properties {','.join(ad_properties)} "
