@@ -2,6 +2,7 @@ from functools import partial
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Tuple
 from uuid import UUID
 
 import click
@@ -40,15 +41,16 @@ def update_single_user(
 
 def update_single_orgunit(
     uuid: UUID, settings: Settings, dry_run: bool
-) -> Optional[orgUnit]:
+) -> Tuple[Optional[orgUnit], bool]:
 
     sts_org_unit = get_sts_orgunit(str(uuid), settings=settings)
 
-    if dry_run:
-        return sts_org_unit
     if sts_org_unit:
-        os2sync.upsert_orgunit(sts_org_unit, settings.os2sync_api_url)
-    return sts_org_unit
+        changed = os2sync.upsert_orgunit(
+            sts_org_unit, settings.os2sync_api_url, dry_run
+        )
+
+    return sts_org_unit, changed
 
 
 @click.group()
@@ -73,13 +75,13 @@ def update_user(uuid: UUID, dry_run: bool):
 def update_org_unit(uuid: UUID, dry_run: bool):
     """Send os2sync payload for a single org_unit"""
     settings = get_os2sync_settings()
-    click.echo(
-        update_single_orgunit(
-            uuid,
-            settings,
-            dry_run,
-        )
+    org_unit, changed = update_single_orgunit(
+        uuid,
+        settings,
+        dry_run,
     )
+    msg = "Changed" if changed else "No changes"
+    click.echo(f"{msg} {org_unit=}")
 
 
 if __name__ == "__main__":

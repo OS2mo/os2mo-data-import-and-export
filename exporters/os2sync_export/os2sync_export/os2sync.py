@@ -68,7 +68,7 @@ def os2sync_get(url, **params):
     url = os2sync_url(url)
     r = session.get(url, params=params)
     r.raise_for_status()
-    return r
+    return r.json()
 
 
 def os2sync_get_org_unit(api_url: str, uuid: UUID) -> orgUnit:
@@ -119,12 +119,19 @@ def delete_orgunit(uuid):
         logger.debug("delete orgunit %s - cached", uuid)
 
 
-def upsert_orgunit(org_unit: orgUnit, os2sync_api_url) -> bool:
+def upsert_orgunit(org_unit: orgUnit, os2sync_api_url, dry_run: bool = False) -> bool:
     current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
 
     # Avoid overwriting information that we cannot provide from os2mo.
     org_unit.LOSShortName = current.LOSShortName
+    org_unit.Tasks = org_unit.Tasks or current.Tasks
+    org_unit.ShortKey = org_unit.ShortKey or current.ShortKey
+    org_unit.PayoutUnitUuid = org_unit.PayoutUnitUuid or current.PayoutUnitUuid
+    org_unit.ContactPlaces = org_unit.ContactPlaces or current.ContactPlaces
 
+    if dry_run:
+        logger.info(f"Found changes to {org_unit.Uuid=}? {current != org_unit}")
+        return current != org_unit
     if current == org_unit:
         logger.debug(f"No changes to {org_unit.Uuid=}")
         return False

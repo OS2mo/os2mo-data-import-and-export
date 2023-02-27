@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
+from pydantic import Extra
 from pydantic import Field
 
 
@@ -44,6 +45,7 @@ class orgUnit(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+        extra = Extra.ignore
 
     def json(self):
         return jsonable_encoder(self.dict())
@@ -54,7 +56,7 @@ class orgUnit(BaseModel):
     ParentOrgUnitUuid: Optional[UUID] = Field(..., alias="parentOrgUnitUuid")
     PayoutUnitUuid: Optional[str] = Field(None, alias="payoutUnitUuid")
     ManagerUuid: Optional[str] = Field(None, alias="managerUuid")
-    Timestamp: Optional[str] = Field(None, alias="timestamp")
+    # Timestamp: Optional[str] = Field(None, alias="timestamp")
     PhoneNumber: Optional[str] = Field(None, alias="phoneNumber")
     Email: Optional[str] = Field(None, alias="email")
     Location: Optional[str] = Field(None, alias="location")
@@ -73,7 +75,8 @@ class orgUnit(BaseModel):
     FOA: Optional[str] = Field(None, alias="foa")
     PNR: Optional[str] = Field(None, alias="pnr")
     SOR: Optional[str] = Field(None, alias="sor")
-    Type: Optional[str] = Field(None, alias="type")
+    # Type: Optional[str] = Field(None, alias="type")
     Tasks: List[UUID] = Field([], alias="tasks")
     ItSystems: List[UUID] = Field([], alias="itSystems")
     ContactForTasks: List[UUID] = Field([], alias="contactForTasks")
+    ContactPlaces: List[UUID] = Field([], alias="contactPlaces")

@@ -7,9 +7,12 @@ from uuid import UUID
 from fastapi import BackgroundTasks
 from fastapi import FastAPI
 from fastapi import Query
+from fastapi import Response
+from fastapi import status
 from os2sync_export import os2mo
 from os2sync_export.__main__ import main
 from os2sync_export.config import get_os2sync_settings
+from os2sync_export.os2sync_models import orgUnit
 from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
 
@@ -51,10 +54,16 @@ async def trigger_user(
     return update_single_user(uuid, settings, dry_run)
 
 
-@app.post("/trigger/orgunit/{uuid}")
+@app.post("/trigger/orgunit/{uuid}", status_code=200)
 async def trigger_orgunit(
-    uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
-    dry_run: bool = False,
-) -> Optional[Dict[str, str]]:
+    uuid: UUID,
+    dry_run: bool,
+    response: Response,
+) -> Optional[orgUnit]:
     clear_caches()
-    return update_single_orgunit(uuid, settings, dry_run)
+    org_unit, changes = update_single_orgunit(uuid, settings, dry_run)
+    if changes:
+        response.status_code = status.HTTP_201_CREATED
+    if not org_unit:
+        response.status_code = status.HTTP_404_NOT_FOUND
+    return org_unit
