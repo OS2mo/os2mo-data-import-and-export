@@ -96,7 +96,7 @@ include:
 .lint-python:
   stage: lint
   needs: []
-  image: python:3.10
+  image: python:3.11
   services: []
   before_script:
     - pip install -r integrations/requirements/lint.txt

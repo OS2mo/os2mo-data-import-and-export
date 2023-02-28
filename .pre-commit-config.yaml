@@ -11,13 +11,14 @@ repos:
     hooks:
       - id: black
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.812
+    rev: v1.0.0
     hooks:
       - id: mypy
         additional_dependencies:
           - pydantic
           - types-requests
           - types-python-dateutil
+          - types-paramiko
         args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
         exclude: integrations/opus/
 

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
-FROM python:3.10
+FROM python:3.11
 
 # Install binary database connection libraries
 RUN apt-get update \

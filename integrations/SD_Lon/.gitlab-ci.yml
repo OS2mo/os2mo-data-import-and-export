@@ -27,7 +27,7 @@ variables:
 Lint SDLoen Integration:
   stage: lint
   needs: []
-  image: python:3
+  image: python:3.11
   script:
     - cd integrations/SD_Lon/
     - pip install black~=22.0

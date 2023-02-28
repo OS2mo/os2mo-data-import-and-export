@@ -121,7 +121,6 @@ class SFTPFileSet(FileSet):
                 % getattr(self._settings, "ftp_url", None)
             ) from e
         else:
-
             try:
                 ssh.connect(
                     hostname=self._settings.ftp_url,
@@ -141,7 +140,6 @@ class SFTPFileSet(FileSet):
                     % getattr(self._settings, "ftp_url", None)
                 ) from e
             else:
-
                 sftp.chdir(self._settings.ftp_folder)
                 return ssh, sftp
 
