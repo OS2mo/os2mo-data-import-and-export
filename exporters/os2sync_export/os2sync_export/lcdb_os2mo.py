@@ -293,8 +293,8 @@ def get_sts_orgunit(session, uuid, settings: Settings) -> Optional[orgUnit]:
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
 
-    if base.forældreenhed_uuid is not None:
-        sts_org_unit["ParentOrgUnitUuid"] = base.forældreenhed_uuid
+    # TODO: check that only one parent_uuid is None
+    sts_org_unit["ParentOrgUnitUuid"] = base.forældreenhed_uuid
 
     itconnections = (
         session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
