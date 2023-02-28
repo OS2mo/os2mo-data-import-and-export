@@ -802,25 +802,6 @@ class TestADWriter(TestCase, TestADWriterMixin):
         )
         self.assertEqual(add_manager_ps, expected_line)
 
-    def test_set_password(self):
-        password = "password"
-        self.ad_writer.set_user_password("MGORE", password)
-        # Expected outputs
-        num_expected_scripts = 1
-        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
-        # Verify that the first 4 lines are identical for all scripts
-        self._verify_identical_common_code(num_expected_scripts)
-        # Check that the create user ps looks good
-        set_password_ps = self._get_script_contents()
-
-        expected_line = (
-            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential"
-            + " $usercredential |Set-ADAccountPassword -Reset -NewPassword"
-            + ' (ConvertTo-SecureString -AsPlainText "{}" -Force)'
-            + " -Credential $usercredential"
-        ).format(password)
-        self.assertEqual(set_password_ps, expected_line)
-
     @parameterized.expand(
         [
             # AD dump is None

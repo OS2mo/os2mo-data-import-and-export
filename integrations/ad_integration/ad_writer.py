@@ -411,6 +411,10 @@ class ADWriter(AD):
         return self.all_settings["primary_write"]
 
     def _wait_for_replication(self, sam):
+        # This method is only used by `ADWriter.create_user` (and only if called with
+        # `create_manager=True`.) It is questionable whether `_wait_for_replication`
+        # serves any real purpose, and we should consider removing it.
+
         t_start = time.time()
         logger.debug("Wait for replication of {}".format(sam))
         if not self.all_settings["global"]["servers"]:
@@ -1093,30 +1097,6 @@ class ADWriter(AD):
             logger.error(f"cpr already in use: {cpr[:6]}-xxxx")
             raise CprNotNotUnique()
 
-    def add_ad_to_user_it_systems(self, username):
-        # TODO: We need a function to write the SamAccount to the user's
-        # IT-systems. This is most likely most elegantly done by importing
-        # the AD->MO sync tool
-        pass
-
-    def set_user_password(self, username, password):
-        """
-        Set a password for a user.
-        :param username: SamAccountName for the user.
-        :param password: The password to assign to the user.
-        :return: True if success, otherwise False
-        """
-
-        format_rules = {"username": username, "password": password}
-        ps_script = self._build_ps(ad_templates.set_password_template, format_rules)
-        response = self._run_ps_script(ps_script)
-        if not response:
-            return (True, "Password updated")
-        else:
-            msg = "Failed to set password!: {}".format(response)
-            logger.error(msg)
-            return (False, msg)
-
     def _get_enable_user_cmd(self, username: str, enable: bool) -> str:
         # Hack: copy the settings and mutate `template_to_ad_fields` in the copy.
         # This enables us to use a different set of field templates when enabling and
@@ -1158,26 +1138,6 @@ class ADWriter(AD):
         if response == {}:
             return True, "enabled AD user" if enable else "disabled AD user"
 
-    def delete_user(self, username):
-        """
-        Delete an AD account. Only to be used for service purpose, actual
-        AD integration should never delete a user, but only mark it for
-        deletetion.
-        :param username: SamAccountName of the account to be deleted
-        """
-        format_rules = {"username": username}
-        ps_script = self._build_ps(
-            ad_templates.delete_user_template, format_rules=format_rules
-        )
-
-        response = self._run_ps_script(ps_script)
-        # TODO: Should we make a read to confirm the user is gone?
-        if not response:
-            return (True, "User deleted")
-        else:
-            logger.error("Failed to delete account!: {}".format(response))
-            return (False, "Failed to delete")
-
 
 @click.command()
 @optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
@@ -1198,7 +1158,6 @@ class ADWriter(AD):
     type=click.UUID,
     help="Show mo-values for the user",
 )
-@optgroup.option("--delete-user")
 @optgroup.option("--read-ad-information")
 @optgroup.option("--add-manager-to-user", nargs=2, type=str)
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
@@ -1226,11 +1185,6 @@ def cli(**args):
     if args.get("sync_user"):
         print("Sync MO fields to AD")
         status = ad_writer.sync_user(args["sync_user"])
-        print(status[1])
-
-    if args.get("delete_user"):
-        print("Deleting user:")
-        status = ad_writer.delete_user(args["delete_user"])
         print(status[1])
 
     if args.get("read_ad_information"):
