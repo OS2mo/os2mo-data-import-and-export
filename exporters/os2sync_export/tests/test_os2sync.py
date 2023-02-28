@@ -30,6 +30,17 @@ def test_os2sync_upsert_orgunit_no_changes(get_settings_mock):
 
 
 @patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
+def test_os2sync_upsert_orgunit_new(get_settings_mock):
+    """Test that if no orgUnit was found in fk-org we create it."""
+    from os2sync_export.os2sync import upsert_orgunit
+
+    with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=None):
+        with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
+            upsert_orgunit(o, "os2sync_api_url")
+            post_mock.assert_called_once_with("{BASE}/orgUnit/", json=o.json())
+
+
+@patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
 def test_os2sync_upsert_orgunit_changes(get_settings_mock):
     """If there are changes to an orgunit it is sent to os2sync"""
     from os2sync_export.os2sync import upsert_orgunit

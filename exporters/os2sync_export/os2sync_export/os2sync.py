@@ -9,6 +9,7 @@ import hashlib
 import json
 import logging
 from typing import Dict
+from typing import Optional
 from typing import Tuple
 from uuid import UUID
 
@@ -67,12 +68,16 @@ def os2sync_url(url):
 def os2sync_get(url, **params):
     url = os2sync_url(url)
     r = session.get(url, params=params)
+    if r.status_code == 404:
+        return None
     r.raise_for_status()
     return r.json()
 
 
-def os2sync_get_org_unit(api_url: str, uuid: UUID) -> orgUnit:
+def os2sync_get_org_unit(api_url: str, uuid: UUID) -> Optional[orgUnit]:
     current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
+    if current is None:
+        return None
     return orgUnit(**current)
 
 
@@ -121,6 +126,11 @@ def delete_orgunit(uuid):
 
 def upsert_orgunit(org_unit: orgUnit, os2sync_api_url, dry_run: bool = False) -> bool:
     current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
+
+    if not current:
+        logger.info(f"OrgUnit not found in os2sync - creating {org_unit.Uuid=}")
+        os2sync_post("{BASE}/orgUnit/", json=org_unit.json())
+        return True
 
     # Avoid overwriting information that we cannot provide from os2mo.
     org_unit.LOSShortName = current.LOSShortName
