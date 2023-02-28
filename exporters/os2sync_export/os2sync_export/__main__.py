@@ -12,6 +12,7 @@ from functools import partial
 from operator import itemgetter
 from typing import Dict
 from typing import Set
+from uuid import UUID
 
 import sentry_sdk
 from gql.client import SyncClientSession
@@ -47,7 +48,7 @@ def log_mox_counters(counter: collections.Counter):
         logger.info("    %s: %r", k, v)
 
 
-def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, orgUnit]:
+def read_all_orgunits(settings, counter: collections.Counter) -> Dict[UUID, orgUnit]:
     """Read all current org_units from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each org_unit
@@ -74,7 +75,7 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, orgUn
     org_units = tqdm(org_units, desc="Updating orgUnits in fk-org", unit="orgUnit")
     # TODO: Check that only one org_unit has parent=None
 
-    return {str(ou.Uuid): ou for ou in org_units if ou}
+    return {ou.Uuid: ou for ou in org_units if ou}
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
@@ -101,7 +102,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
 
 def read_all_users(
     gql_session: SyncClientSession, settings: Settings, counter: collections.Counter
-) -> Dict[str, Dict]:
+) -> Dict[UUID, Dict]:
     """Read all current users from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each user
@@ -126,7 +127,7 @@ def read_all_users(
         for uuid in os2mo_uuids_present
     )
 
-    return {u["Uuid"]: u for u in all_users if u}
+    return {UUID(u["Uuid"]): u for u in all_users if u}
 
 
 def main(settings: Settings):
@@ -174,7 +175,7 @@ def main(settings: Settings):
 
     if settings.os2sync_autowash:
         # Delete any org_unit not in os2mo
-        terminated_org_units = set(existing_os2sync_org_units) - set(mo_org_units)
+        terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
         counter["Orgenheder som slettes i OS2Sync"] = len(terminated_org_units)
         for uuid in terminated_org_units:
             os2sync.delete_orgunit(uuid)
@@ -198,10 +199,10 @@ def main(settings: Settings):
         os2sync.upsert_user(user)
 
     # Delete any user not in os2mo
-    terminated_users = set(existing_os2sync_users) - set(mo_users)
+    terminated_users = existing_os2sync_users - set(mo_users)
     counter["Medarbejdere slettes i OS2Sync"] = len(terminated_users)
     for uuid in terminated_users:
-        os2sync.delete_user(uuid)
+        os2sync.delete_user(str(uuid))
 
     logger.info("sync users done")
     if hash_cache_file:
