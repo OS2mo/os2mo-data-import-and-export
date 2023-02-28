@@ -212,12 +212,13 @@ class FixDepartments:
         else:
             response.raise_for_status()
 
-    def fix_department(self, unit_uuid, validity_date) -> None:
+    def fix_department(self, unit_uuid: str, validity_date: datetime.date) -> None:
         """
         Synchronize the state of a MO unit to the current and future state(s) in SD.
         :param unit_uuid: uuid of the unit to be updated.
         :param validity_date: The validity date to read the department info from SD.
         """
+
         msg = "Set department {} to state as of {}"
         logger.info(msg.format(unit_uuid, validity_date))
         validity = {
@@ -228,9 +229,10 @@ class FixDepartments:
         departments = self.get_department(validity, uuid=unit_uuid)
         for department in departments:
             # Get the UUID of the parent unit
-            parent_uuid = self.get_parent(
-                unit_uuid, parse_date(department["ActivationDate"])
+            parent_lookup_date = max(
+                validity_date, parse_date(department["ActivationDate"]).date()
             )
+            parent_uuid = self.get_parent(unit_uuid, parent_lookup_date)
 
             # Create org unit if missing in MO
             ou_created = self._create_org_unit_if_missing_in_mo(department, parent_uuid)
@@ -549,7 +551,7 @@ def unit_fixer(short_names, uuids):
     settings = get_changed_at_settings()
     unit_fixer = FixDepartments(settings)
 
-    today = datetime.datetime.today()
+    today = datetime.datetime.today().date()
 
     # Translate short_names to uuids
     short_name_uuids = map(

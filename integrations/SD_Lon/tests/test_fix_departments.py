@@ -203,7 +203,7 @@ class TestFixDepartment(TestCase):
         # Act
         with mock_sd_lookup("GetDepartment20111201", dict(), dict()):
             instance.fix_department(
-                "99999999-9999-9999-9999-999999999999", datetime.today()
+                "99999999-9999-9999-9999-999999999999", datetime.today().date()
             )
 
         # Assert
@@ -230,6 +230,7 @@ class TestFixDepartment(TestCase):
 
         unit_uuid = "11111111-1111-1111-1111-111111111111"
         parent_uuid = "22222222-2222-2222-2222-222222222222"
+        today = datetime.today().date()
 
         instance.get_parent = MagicMock(side_effect=[parent_uuid, None])
         instance.get_department = MagicMock(
@@ -294,12 +295,17 @@ class TestFixDepartment(TestCase):
         ]
 
         # Act
-        instance.fix_department(unit_uuid, datetime.today())
+        instance.fix_department(unit_uuid, today)
 
         # Assert
         actual_calls = instance.helper._mo_post.call_args_list
-
         assert expected_calls == actual_calls
+
+        get_parent_calls = instance.get_parent.call_args_list
+        assert get_parent_calls == [
+            call("11111111-1111-1111-1111-111111111111", today),
+            call("22222222-2222-2222-2222-222222222222", today),
+        ]
 
     def test_fix_department_called_recursively(self):
         # Arrange
@@ -394,4 +400,10 @@ class TestFixDepartment(TestCase):
                 },
                 parent_uuid,
             ),
+        ]
+
+        get_parent_calls = instance.get_parent.call_args_list
+        assert get_parent_calls == [
+            call("11111111-1111-1111-1111-111111111111", date(2020, 1, 1)),
+            call("22222222-2222-2222-2222-222222222222", date(2020, 1, 1)),
         ]
