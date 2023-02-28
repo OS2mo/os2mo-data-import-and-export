@@ -72,7 +72,6 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[UUID, orgU
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
     )
-    org_units = tqdm(org_units, desc="Updating orgUnits in fk-org", unit="orgUnit")
     # TODO: Check that only one org_unit has parent=None
 
     return {ou.Uuid: ou for ou in org_units if ou}
