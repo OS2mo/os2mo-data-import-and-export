@@ -71,6 +71,7 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, orgUn
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
     )
+    org_units = tqdm(org_units, desc="Updating orgUnits in fk-org", unit="orgUnit")
     # TODO: Check that only one org_unit has parent=None
 
     return {str(ou.Uuid): ou for ou in org_units if ou}
@@ -157,7 +158,9 @@ def main(settings: Settings):
 
     changed = [
         os2sync.upsert_orgunit(org_unit, settings.os2sync_api_url)
-        for org_unit in mo_org_units.values()
+        for org_unit in tqdm(
+            mo_org_units.values(), desc="Updating orgUnits in fk-org", unit="orgUnit"
+        )
     ]
 
     counter["Orgenheder som blev ændret i OS2Sync"] = sum(changed)
