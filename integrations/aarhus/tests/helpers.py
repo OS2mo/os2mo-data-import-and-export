@@ -59,9 +59,10 @@ class HelperMixin:
             los_files, "get_fileset_implementation", return_value=fileset
         )
 
-    def _mock_get_import_filenames(self, filenames):
+    def _mock_get_import_filenames(self, filenames, created_date):
         fileset = mock.Mock(spec=los_files.FileSet)
         fileset.get_import_filenames = mock.Mock(return_value=filenames)
+        fileset.get_modified_datetime = mock.Mock(return_value=created_date)
         return self._mock_get_fileset_implementation(fileset)
 
     def _mock_get_modified_datetime(self, return_value=None, side_effect=None):
