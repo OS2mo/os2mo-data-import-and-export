@@ -16,7 +16,7 @@ from uuid import UUID
 
 import requests
 from os2sync_export import config
-from os2sync_export.os2sync_models import orgUnit
+from os2sync_export.os2sync_models import OrgUnit
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
@@ -75,11 +75,11 @@ def os2sync_get(url, **params):
     return r.json()
 
 
-def os2sync_get_org_unit(api_url: str, uuid: UUID) -> Optional[orgUnit]:
+def os2sync_get_org_unit(api_url: str, uuid: UUID) -> Optional[OrgUnit]:
     current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
     if current is None:
         return None
-    return orgUnit(**current)
+    return OrgUnit(**current)
 
 
 def os2sync_delete(url, **params):
@@ -125,7 +125,9 @@ def delete_orgunit(uuid):
         logger.debug("delete orgunit %s - cached", uuid)
 
 
-def upsert_orgunit(org_unit: orgUnit, os2sync_api_url, dry_run: bool = False) -> bool:
+def upsert_org_unit(
+    org_unit: OrgUnit, os2sync_api_url: str, dry_run: bool = False
+) -> bool:
     current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
 
     if not current:

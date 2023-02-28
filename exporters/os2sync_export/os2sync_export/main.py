@@ -12,7 +12,7 @@ from fastapi import status
 from os2sync_export import os2mo
 from os2sync_export.__main__ import main
 from os2sync_export.config import get_os2sync_settings
-from os2sync_export.os2sync_models import orgUnit
+from os2sync_export.os2sync_models import OrgUnit
 from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
 
@@ -59,7 +59,7 @@ async def trigger_orgunit(
     uuid: UUID,
     dry_run: bool,
     response: Response,
-) -> Optional[orgUnit]:
+) -> Optional[OrgUnit]:
     clear_caches()
     org_unit, changes = update_single_orgunit(uuid, settings, dry_run)
     if changes:

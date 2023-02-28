@@ -8,7 +8,7 @@ from pydantic import Extra
 from pydantic import Field
 
 
-class orgUnit(BaseModel):
+class OrgUnit(BaseModel):
     """API model for os2sync
 
     https://www.os2sync.dk/downloads/API%20Documentation.pdf
