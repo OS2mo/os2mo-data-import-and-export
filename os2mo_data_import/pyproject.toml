@@ -18,7 +18,7 @@ packages = [
 python = "3.11.*"
 aiohttp = "^3.8.1"
 anytree = "^2.8.0"
-certifi = "^2021.10.8"
+certifi = ">=2021.10.8,<2023.0.0"
 chardet = "^4.0.0"
 click = "^8.0.4"
 idna = "^3.3"
