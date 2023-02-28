@@ -23,15 +23,15 @@ find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ..
 export POETRY_VIRTUALENVS_CREATE=true
 export POETRY_VIRTUALENVS_IN_PROJECT=true
 
-# https://python-poetry.org/docs/managing-environments
 $POETRYPATH env use python3.11
-
 $POETRYPATH install --no-interaction
 
 .venv/bin/pip install --editable .
 
 cd $DIPEXAR/integrations/SD_Lon/
+$POETRYPATH env use python3.11
 $POETRYPATH install
 
 cd $DIPEXAR/exporters/os2sync_export
+$POETRYPATH env use python3.11
 $POETRYPATH install
