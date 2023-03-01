@@ -1,4 +1,0 @@
-click
-aiohttp
-jsonschema
-more_itertools

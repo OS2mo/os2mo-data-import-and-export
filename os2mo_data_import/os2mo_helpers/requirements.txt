@@ -1,4 +1,0 @@
-requests
-anytree
-more_itertools
-pydantic

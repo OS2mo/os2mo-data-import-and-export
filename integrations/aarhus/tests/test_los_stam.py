@@ -139,11 +139,17 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 class_uuid = mox_helper._update.call_args.args[2]
                 assert class_uuid == existing_class_uuid
                 payload = mox_helper._update.call_args.args[3]
-                assert payload["tilstande"]["klassepubliceret"][0]["publiceret"] == "IkkePubliceret"
+                assert (
+                    payload["tilstande"]["klassepubliceret"][0]["publiceret"]
+                    == "IkkePubliceret"
+                )
 
                 # Assert that we logged the expected output to stdout
                 captured = capsys.readouterr()
-                assert captured.out == f"LoRa class UUID('{existing_class_uuid}') was already unpublished\n"
+                assert (
+                    captured.out
+                    == f"LoRa class UUID('{existing_class_uuid}') was already unpublished\n"
+                )
 
     def test_get_or_create_facet_existing_facet(self):
         with mock_config():
