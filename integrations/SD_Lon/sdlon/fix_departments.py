@@ -24,10 +24,8 @@ from .config import ChangedAtSettings
 from .config import get_changed_at_settings
 from .exceptions import NoCurrentValdityException
 from .sd_common import mora_assert
-from .sd_common import sd_lookup as _sd_lookup
+from .sd_common import sd_lookup
 
-
-sd_lookup = partial(_sd_lookup, use_cache=False)
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "fix_sd_departments.log"

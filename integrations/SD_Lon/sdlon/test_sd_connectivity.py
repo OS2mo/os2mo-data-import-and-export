@@ -41,7 +41,6 @@ class TestSdConnectivity(object):
                 "GetInstitution20111201",
                 settings=self.settings,
                 params=params,
-                use_cache=False,
             )
         except Exception:
             logging.exception("Fejl i kontakt til SD Løn")

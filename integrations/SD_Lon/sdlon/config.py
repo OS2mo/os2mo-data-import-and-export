@@ -49,7 +49,6 @@ class CommonSettings(JobSettings):
     cpr_uuid_map_path: str = (
         "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv"
     )
-    cache_folder_path: str = "/opt/dipex/os2mo-data-import-and-export/tmp/"
 
 
 def gen_json_file_settings_func(settings_class: Type[CommonSettings]):

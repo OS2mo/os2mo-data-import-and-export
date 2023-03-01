@@ -34,7 +34,6 @@ DEFAULT_MOCK_SETTINGS = {
 DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "auth_realm": "mo",
     "auth_server": "http://keycloak:8080/auth",
-    "cache_folder_path": "/opt/dipex/os2mo-data-import-and-export/tmp/",
     "client_id": "dipex",
     "client_secret": None,
     "cpr_uuid_map_path": "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv",
