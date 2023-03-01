@@ -1,5 +1,5 @@
-from typing import List
 from typing import Optional
+from typing import Set
 from uuid import UUID
 
 from fastapi.encoders import jsonable_encoder
@@ -76,7 +76,7 @@ class OrgUnit(BaseModel):
     PNR: Optional[str] = Field(None, alias="pnr")
     SOR: Optional[str] = Field(None, alias="sor")
     # Type: Optional[str] = Field(None, alias="type")
-    Tasks: List[UUID] = Field([], alias="tasks")
-    ItSystems: List[UUID] = Field([], alias="itSystems")
-    ContactForTasks: List[UUID] = Field([], alias="contactForTasks")
-    ContactPlaces: List[UUID] = Field([], alias="contactPlaces")
+    Tasks: Set[UUID] = Field(set(), alias="tasks")
+    ItSystems: Set[UUID] = Field(set(), alias="itSystems")
+    ContactForTasks: Set[UUID] = Field(set(), alias="contactForTasks")
+    ContactPlaces: Set[UUID] = Field(set(), alias="contactPlaces")

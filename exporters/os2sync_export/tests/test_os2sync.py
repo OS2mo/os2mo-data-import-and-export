@@ -80,3 +80,25 @@ def test_os2sync_upsert_org_unit_changes_w_fixed_fields(get_settings_mock):
             expected.Name = org_unit.Name
             upsert_org_unit(org_unit, "os2sync_api_url")
             post_mock.assert_called_once_with("{BASE}/orgUnit/", json=expected.json())
+
+
+@patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
+def test_os2sync_upsert_org_unit_ordered_tasks(get_settings_mock):
+    """Test the order of 'tasks' doesn't matter."""
+    from os2sync_export.os2sync import upsert_org_unit
+
+    task1 = uuid4()
+    task2 = uuid4()
+    org_unit_data = o.json()
+    org_unit_data.update({"Tasks": [task1, task2]})
+    current_data = o.json()
+    current_data.update({"Tasks": [task2, task1]})
+    org_unit = OrgUnit(**org_unit_data)
+    current = OrgUnit(**current_data)
+
+    with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=current):
+        with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
+
+            upsert_org_unit(org_unit, "os2sync_api_url")
+
+            post_mock.assert_not_called()
