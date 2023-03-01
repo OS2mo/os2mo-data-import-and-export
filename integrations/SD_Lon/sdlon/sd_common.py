@@ -1,12 +1,9 @@
 import datetime
 import hashlib
 import logging
-import pickle
 import uuid
 from enum import Enum
 from functools import lru_cache
-from functools import wraps
-from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
@@ -19,8 +16,6 @@ import xmltodict
 from ra_utils.load_settings import load_settings
 
 from .config import CommonSettings
-from .config import get_common_settings
-
 
 logger = logging.getLogger("sdCommon")
 
@@ -44,81 +39,12 @@ def sd_lookup_settings():
     return institution_identifier, sd_user, sd_password
 
 
-def _sd_lookup_cache(func):
-    def create_hex_digest(full_url, payload):
-        """Create a reproducible hex digest from url and payloads."""
-        hasher = hashlib.sha256()
-
-        for key, value in sorted(payload.items()):
-            hasher.update((str(key) + str(value)).encode())
-        hasher.update(full_url.encode())
-
-        return hasher.hexdigest()
-
-    def write_response(cache_file, response):
-        """Write response to disk."""
-        with open(str(cache_file), "wb") as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-
-    def read_response(cache_file):
-        """Read response from disk."""
-        with open(str(cache_file), "rb") as f:
-            response = pickle.load(f)
-        return response
-
-    @wraps(func)
-    def wrapper(full_url, payload, auth, use_cache=True):
-        # Short-circuit as noop, if no caching is requested
-        if use_cache is False:
-            return func(full_url, payload, auth)
-
-        # We need a cache dir to exist before we can proceed
-        cache_dir = Path(get_common_settings().cache_folder_path)
-        if not cache_dir.is_dir():
-            raise Exception("Folder for temporary files does not exist")
-
-        # Create digest and find filename
-        lookup_id = create_hex_digest(full_url, payload)
-        cache_file = cache_dir / ("sd_" + lookup_id + ".p")
-
-        # If cache file was found, use it
-        if cache_file.is_file():
-            response = read_response(cache_file)
-            logger.info("This SD lookup was found in cache: {}".format(lookup_id))
-            logger.debug(full_url + " - read from cache")
-        else:  # No cache
-            response = func(full_url, payload, auth)
-            write_response(cache_file, response)
-            logger.debug(full_url + " - requested from SD")
-        return response
-
-    return wrapper
-
-
-@_sd_lookup_cache
-def _sd_request(full_url, payload, auth):
-    """Fire the actual request against SD.
-
-    Annotation only calls this if we did not hit the cache.
-    """
-    return requests.get(
-        full_url,
-        params=payload,
-        auth=auth,
-    )
-
-
 def sd_lookup(
     url: str,
     settings: Optional[CommonSettings] = None,
     params: Optional[Dict[str, Any]] = None,
-    use_cache: bool = True,
 ) -> OrderedDict:
-    """Fire a requests against SD.
-
-    Utilizes _sd_request to fire the actual request, which in turn utilize
-    _sd_lookup_cache for caching.
-    """
+    """Fire a requests against SD."""
     logger.info("Retrieve: {}".format(url))
     logger.debug("Params: {}".format(params))
 
@@ -143,7 +69,11 @@ def sd_lookup(
     }
     payload.update(params)
     auth = (sd_user, sd_password)
-    response = _sd_request(full_url, payload, auth, use_cache=use_cache)
+    response = requests.get(
+        full_url,
+        params=payload,
+        auth=auth,
+    )
     logger.debug("Response: {}".format(response.text))
 
     dict_response = xmltodict.parse(response.text)

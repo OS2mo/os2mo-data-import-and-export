@@ -249,12 +249,12 @@ def test_create_employee(create_associations: bool):
 
 
 @patch("sdlon.sd_common.sd_lookup_settings")
-@patch("sdlon.sd_common._sd_request")
+@patch("sdlon.sd_common.requests.get")
 @patch("integrations.dawa_helper.dawa_lookup")
 @given(st.booleans())
 @settings(deadline=None)
 def test_create_ou_tree(
-    dawa_lookup, sd_request, sd_settings, create_email_addresses: bool
+    dawa_lookup, requests_get, sd_settings, create_email_addresses: bool
 ):
     sd_settings.return_value = ("", "", "")
     dawa_lookup.return_value = None
@@ -273,7 +273,7 @@ def test_create_ou_tree(
 
     original_classes = set(sd.importer.klasse_objects.keys())
 
-    sd_request.return_value = get_department_fixture(
+    requests_get.return_value = get_department_fixture(
         institution_uuid=institution_uuid,
         region_uuid=region_uuid,
         department1_uuid=department1_uuid,
@@ -311,7 +311,7 @@ def test_create_ou_tree(
     assert ny5_niveau.title == "NY5-niveau"
     UUID(ny5_niveau.uuid)
 
-    sd_request.return_value = get_organisation_fixture(
+    requests_get.return_value = get_organisation_fixture(
         institution_uuid=institution_uuid,
         region_uuid=region_uuid,
         department1_uuid=department1_uuid,

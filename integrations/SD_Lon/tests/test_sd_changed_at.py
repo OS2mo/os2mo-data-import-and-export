@@ -120,8 +120,8 @@ def setup_sd_changed_at(updates=None, hours=24):
 
 class Test_sd_changed_at(unittest.TestCase):
     @patch("sdlon.sd_common.sd_lookup_settings")
-    @patch("sdlon.sd_common._sd_request")
-    def test_get_sd_person(self, sd_request, sd_settings):
+    @patch("sdlon.sd_common.requests.get")
+    def test_get_sd_person(self, requests_get, sd_settings):
         """Test that read_person does the expected transformation."""
         sd_settings.return_value = ("", "", "")
 
@@ -130,7 +130,7 @@ class Test_sd_changed_at(unittest.TestCase):
             cpr=cpr, first_name="John", last_name="Deere", employment_id="01337"
         )
 
-        sd_request.return_value = sd_reply
+        requests_get.return_value = sd_reply
 
         sd_updater = setup_sd_changed_at()
         result = sd_updater.get_sd_person(cpr=cpr)
@@ -187,10 +187,10 @@ class Test_sd_changed_at(unittest.TestCase):
 
     @given(status=st.sampled_from(["1", "S"]))
     @patch("sdlon.sd_common.sd_lookup_settings")
-    @patch("sdlon.sd_common._sd_request")
+    @patch("sdlon.sd_common.requests.get")
     def test_read_employment_changed(
         self,
-        sd_request,
+        requests_get,
         sd_settings,
         status,
     ):
@@ -204,7 +204,7 @@ class Test_sd_changed_at(unittest.TestCase):
             status=status,
         )
 
-        sd_request.return_value = sd_reply
+        requests_get.return_value = sd_reply
         sd_updater = setup_sd_changed_at()
         result = sd_updater.read_employment_changed()
         self.assertEqual(result, expected_read_employment_result)
