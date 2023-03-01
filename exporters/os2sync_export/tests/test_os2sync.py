@@ -34,7 +34,7 @@ def test_os2sync_upsert_org_unit_new(get_settings_mock):
     """Test that if no orgUnit was found in fk-org we create it."""
     from os2sync_export.os2sync import upsert_org_unit
 
-    with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=None):
+    with patch("os2sync_export.os2sync.os2sync_get_org_unit", side_effect=KeyError()):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
             upsert_org_unit(o, "os2sync_api_url")
             post_mock.assert_called_once_with("{BASE}/orgUnit/", json=o.json())

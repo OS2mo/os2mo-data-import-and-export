@@ -9,7 +9,6 @@ import hashlib
 import json
 import logging
 from typing import Dict
-from typing import Optional
 from typing import Set
 from typing import Tuple
 from uuid import UUID
@@ -66,19 +65,19 @@ def os2sync_url(url):
     return url
 
 
-def os2sync_get(url, **params):
+def os2sync_get(url, **params) -> Dict:
     url = os2sync_url(url)
     r = session.get(url, params=params)
     if r.status_code == 404:
-        return None
+        raise KeyError(f"No object found at {url=}, {params=}")
     r.raise_for_status()
     return r.json()
 
 
-def os2sync_get_org_unit(api_url: str, uuid: UUID) -> Optional[OrgUnit]:
+def os2sync_get_org_unit(api_url: str, uuid: UUID) -> OrgUnit:
+
     current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
-    if current is None:
-        return None
+
     return OrgUnit(**current)
 
 
@@ -128,9 +127,9 @@ def delete_orgunit(uuid):
 def upsert_org_unit(
     org_unit: OrgUnit, os2sync_api_url: str, dry_run: bool = False
 ) -> bool:
-    current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
-
-    if not current:
+    try:
+        current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
+    except KeyError:
         logger.info(f"OrgUnit not found in os2sync - creating {org_unit.Uuid=}")
         os2sync_post("{BASE}/orgUnit/", json=org_unit.json())
         return True
