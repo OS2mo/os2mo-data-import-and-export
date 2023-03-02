@@ -12,6 +12,7 @@ from functools import partial
 from operator import itemgetter
 from typing import Dict
 from typing import Set
+from uuid import UUID
 
 import sentry_sdk
 from gql.client import SyncClientSession
@@ -22,6 +23,7 @@ from os2sync_export import os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
+from os2sync_export.os2sync_models import OrgUnit
 from ra_utils.tqdm_wrapper import tqdm
 
 logger = logging.getLogger(__name__)
@@ -46,12 +48,12 @@ def log_mox_counters(counter: collections.Counter):
         logger.info("    %s: %r", k, v)
 
 
-def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]:
+def read_all_org_units(settings, counter: collections.Counter) -> Dict[UUID, OrgUnit]:
     """Read all current org_units from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each org_unit
     """
-    logger.info("read_all_orgunits starting")
+    logger.info("read_all_org_units starting")
     # Read all relevant org_unit uuids from os2mo
     os2mo_uuids_present = os2mo.org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
@@ -70,8 +72,9 @@ def read_all_orgunits(settings, counter: collections.Counter) -> Dict[str, Dict]
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
     )
+    # TODO: Check that only one org_unit has parent=None
 
-    return {ou["Uuid"]: ou for ou in org_units if ou}
+    return {ou.Uuid: ou for ou in org_units if ou}
 
 
 def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
@@ -98,7 +101,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
 
 def read_all_users(
     gql_session: SyncClientSession, settings: Settings, counter: collections.Counter
-) -> Dict[str, Dict]:
+) -> Dict[UUID, Dict]:
     """Read all current users from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each user
@@ -123,7 +126,7 @@ def read_all_users(
         for uuid in os2mo_uuids_present
     )
 
-    return {u["Uuid"]: u for u in all_users if u}
+    return {UUID(u["Uuid"]): u for u in all_users if u}
 
 
 def main(settings: Settings):
@@ -149,11 +152,18 @@ def main(settings: Settings):
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
-    mo_org_units = read_all_orgunits(settings, counter)
+    mo_org_units = read_all_org_units(settings, counter)
 
-    counter["Orgenheder som opdateres i OS2Sync"] = len(mo_org_units)
-    for org_unit in mo_org_units.values():
-        os2sync.upsert_orgunit(org_unit)
+    counter["Orgenheder som tjekkes i OS2Sync"] = len(mo_org_units)
+
+    changed = [
+        os2sync.upsert_org_unit(org_unit, settings.os2sync_api_url)
+        for org_unit in tqdm(
+            mo_org_units.values(), desc="Updating OrgUnits in fk-org", unit="OrgUnit"
+        )
+    ]
+
+    counter["Orgenheder som blev ændret i OS2Sync"] = sum(changed)
 
     # Read hierarchy from os2sync
     existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
@@ -164,7 +174,7 @@ def main(settings: Settings):
 
     if settings.os2sync_autowash:
         # Delete any org_unit not in os2mo
-        terminated_org_units = set(existing_os2sync_org_units) - set(mo_org_units)
+        terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
         counter["Orgenheder som slettes i OS2Sync"] = len(terminated_org_units)
         for uuid in terminated_org_units:
             os2sync.delete_orgunit(uuid)
@@ -188,10 +198,10 @@ def main(settings: Settings):
         os2sync.upsert_user(user)
 
     # Delete any user not in os2mo
-    terminated_users = set(existing_os2sync_users) - set(mo_users)
+    terminated_users = existing_os2sync_users - set(mo_users)
     counter["Medarbejdere slettes i OS2Sync"] = len(terminated_users)
     for uuid in terminated_users:
-        os2sync.delete_user(uuid)
+        os2sync.delete_user(str(uuid))
 
     logger.info("sync users done")
     if hash_cache_file:

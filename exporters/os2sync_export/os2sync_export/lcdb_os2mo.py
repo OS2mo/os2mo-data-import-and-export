@@ -14,6 +14,7 @@ from more_itertools import flatten
 from more_itertools import only
 from os2sync_export import os2mo
 from os2sync_export.config import Settings
+from os2sync_export.os2sync_models import OrgUnit
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from sqlalchemy.orm import sessionmaker
@@ -271,7 +272,7 @@ def overwrite_unit_uuids(
         )
 
 
-def get_sts_orgunit(session, uuid, settings: Settings):
+def get_sts_orgunit(session, uuid, settings: Settings) -> Optional[OrgUnit]:
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
     if is_ignored(base, settings):
@@ -292,8 +293,8 @@ def get_sts_orgunit(session, uuid, settings: Settings):
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
 
-    if base.forældreenhed_uuid is not None:
-        sts_org_unit["ParentOrgUnitUuid"] = base.forældreenhed_uuid
+    # TODO: check that only one parent_uuid is None
+    sts_org_unit["ParentOrgUnitUuid"] = base.forældreenhed_uuid
 
     itconnections = (
         session.query(ItForbindelse).filter(ItForbindelse.enhed_uuid == uuid).all()
@@ -349,4 +350,4 @@ def get_sts_orgunit(session, uuid, settings: Settings):
 
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit, length=truncate_length)
 
-    return sts_org_unit
+    return OrgUnit(**sts_org_unit)
