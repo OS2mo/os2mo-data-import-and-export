@@ -16,10 +16,9 @@ from aiohttp import ClientResponseError
 from aiohttp.http_exceptions import HttpBadRequest
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
-from pydantic import Field
-
 from os2mo_data_import.mox_data_types import Facet
 from os2mo_data_import.mox_data_types import Itsystem
+from pydantic import Field
 
 
 class StamCSV(pydantic.BaseModel):
