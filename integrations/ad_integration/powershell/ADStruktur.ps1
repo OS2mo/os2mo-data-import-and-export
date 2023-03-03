@@ -1,22 +1,27 @@
 # mrw, 21.2.2023:
+#   * Rensning af enhedsnavne omskriver kun komma til "" (ingenting.)
+#   * Adskillelse mellem "hvor findes de u-placerede AD-brugere?", og "under hvilken OU skal de placeres under?"
+#     Hhv. $SettingOURoot og $SettingOURootCreate.
+#   * Skip en eller flere navngivne OU'er i "CleanUpEmptyOU" ("Computere", "Brugere".)
+#   * Kald til "CleanUpEmptyOU" er udkommenteret som default.
+#   * Skip et eller flere led i den organisatoriske sti, når brugere skal indplaceres.
+#     Eksempel:
+#         Brugerens organisatoriske sti er "Top\Led 2\Led 3\Led 4".
+#         $SettingOURootCreate er "OU=Kommune,DC=dc,DC=com".
+#         $SettingStartAtDepth er 1.
+#     Brugeren indplaceres i "OU=Led 4,OU=Led 3,OU=Led 2,OU=Kommune,DC=dc,DC=com".
+#     "Top" i den organisatoriske sti springes over, fordi $SettingStartAtDepth er 1 (= skip første led.)
 #
-# * Justeret med flg. ændringer:
+# mrw, 2.3.2023:
+#   * Understøttelse af flere rod-OU'er, når brugere flyttes ud i OU'er under "$SettingOURootCreate".
+#     "$SettingOURoot" er omdøbt til "$SettingOURoots" og er nu et array af OU'er.
 #
-# * Rensning af enhedsnavne omskriver kun komma til "" (ingenting.)
-#
-# * Adskillelse mellem "hvor findes de u-placerede AD-brugere?", og "under hvilken OU skal de placeres under?"
-#   Hhv. $SettingOURoot og $SettingOURootCreate
-#
-# * Skip en eller flere navngivne OU'er i "CleanUpEmptyOU" ("Computere", "Brugere".)
-# * Kald til "CleanUpEmptyOU" er udkommenteret som default.
-#
-# * Skip et eller flere led i den organisatoriske sti, når brugere skal indplaceres.
-#   Eksempel:
-#       Brugerens organisatoriske sti er "Top\Led 2\Led 3\Led 4"
-#       $SettingOURootCreate er "OU=Kommune,DC=dc,DC=com"
-#       $SettingStartAtDepth er 1
-#   Brugeren indplaceres i "OU=Led 4,OU=Led 3,OU=Led 2,OU=Kommune,DC=dc,DC=com"
-#   "Top" i den organisatoriske sti springes over, fordi $SettingStartAtDepth er 1 (= skip første led)
+# mrw, 3.3.2023:
+#   * "CleanUpEmptyOU" er igen indkommenteret.
+#   * Understøttelse af flere rod-OU'er i "CleanUpEmptyOU".
+#     "CleanUpEmptyOU" fjerner nu tomme OU'er i alle de OU'er, der er listet i "$SettingOURoots".
+#   * Fjernet: skip en eller flere navngivne OU'er i "CleanUpEmptyOU" ("Computere", "Brugere".)
+#     Disse fjernes nu på lige fod med andre tomme OU'er.
 #
 #$ScriptVersion = 2.8
 
@@ -26,26 +31,30 @@ Param (
 )
 
 # Svendborg settings
-$SettingOURoot = "OU=Nye Brugere,OU=OS2MO,DC=Svendborg,DC=net" # Skal være oprettet. Angiver roden for hvor scriptet skal arbejde fra.
-$SettingOURootCreate = "OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net"
-$SettingOUInactiveUsers = "OU=Kapel,OU=OS2MO,DC=Svendborg,DC=net" # Skal være oprettet. Angiver OU for inaktive brugere.
-$SettingAutoritativOrg = "extensionAttribute10" # Angiv navnet på den attribut som indeholder den autoritative organisation
+#$SettingOURoots = $(
+#    "OU=Nye Brugere,OU=OS2MO,DC=Svendborg,DC=net",
+#    "OU=Svendborg Kommune,OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net",
+#    "OU=Svendborg Kommunalbestyrelse,OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net"
+#)
+#$SettingOURootCreate = "OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net"
+#$SettingOUInactiveUsers = "OU=Kapel,OU=OS2MO,DC=Svendborg,DC=net"
+#$SettingAutoritativOrg = "extensionAttribute10"
+#$SettingStartAtDepth = 0
+
+# Magenta local AD settings
+$SettingOURoots = @(
+    "OU=Users,OU=demo,OU=OS2MO,DC=ad,DC=addev",
+    "OU=A,OU=demo,OU=OS2MO,DC=ad,DC=addev",
+    "OU=B,OU=demo,OU=OS2MO,DC=ad,DC=addev"
+)
+$SettingOURootCreate = "OU=demo,OU=OS2MO,DC=ad,DC=addev"
+$SettingOUInactiveUsers = "OU=Kapel,OU=demo,OU=OS2MO,DC=ad,DC=addev"
+$SettingAutoritativOrg = "Description"
 $SettingStartAtDepth = 0
 
-# ----- Script settings ---------- #
-#$SettingOURoot = "OU=Users,OU=demo,OU=OS2MO,DC=ad,DC=addev" # Skal være oprettet, og indeholder AD-brugere oprettet af MO
-#$SettingOURootCreate = "OU=OS2MO,DC=ad,DC=addev"  # Rod for de OU'er, som dette script opretter
-#$SettingOUInactiveUsers = "OU=Kapel,OU=demo,OU=OS2MO,DC=ad,DC=addev" # Skal være oprettet. Angiver OU for inaktive brugere
-#$SettingAutoritativOrg = "Description" # Angiv navnet på den attribut som indeholder den autoritative organisation
-#$SettingStartAtDepth = 1  # Angiver hvor mange led i den organisatoriske sti, der skal springes over ved indplacering
+# Common settings
 $SettingLogPath = "C:/temp/" # Angiv stien til hvor log filer skal placeres (Format: "C:\PSScript\")
 $SettingLogsToKeep = 30 # Angiv hvor mange log filer der skal gemmes (der laves en ny log fil med dato og tid, for hver kørsel af scriptet)
-
-# ----- Bruger settings: Angiv hvilke brugere scripet skal køre for (hvis der ikke er angivet $Username som parameter ved kørsel) ----- #
-If (!$Username){
-    # Kør for alle brugere, i forhold til $SettingOURoot
-    $SettingUsers = Get-ADUser -Filter * -SearchBase $SettingOURoot -Properties $SettingAutoritativOrg
-}
 
 #region Script
 # ----- Faste variabler --- #
@@ -80,18 +89,23 @@ function Set-AutoritativOrg {
         Return
     }
 
+    $UserOU = $Username.DistinguishedName.Split(",", 2)[1]
+
     # Undersøger om brugeren er inaktiv og placeret under inaktive brugere
-    If (($Username.DistinguishedName.Split(",",2)[1] -eq $SettingOUInactiveUsers) -and ($Username.Enabled -eq $false)){
+    If (($UserOU -eq $SettingOUInactiveUsers) -and ($Username.Enabled -eq $false)){
         Write-host "Skipping: Brugeren er inaktiv:"$username.samaccountname"" -ForegroundColor Green
         Return
     }
 
     # Flytter inaktive brugere til OU for inaktive brugere (alle deaktiverede brugere i roden)
-    If (($Username.DistinguishedName.Split(",",2)[1] -eq $SettingOURoot) -and ($Username.Enabled -eq $false)){
-        Write-host "Brugeren er inaktiv og flyttes til: $SettingOUInactiveUsers" -ForegroundColor Green
-        Move-ADObject -Identity $Username.objectguid -TargetPath $SettingOUInactiveUsers -Verbose
-        $global:movedcount++
-        Return
+    Foreach ($RootOU in $SettingOURoots) {
+        $Suffix = "*" + $RootOU
+        If (($UserOU -ilike $Suffix) -and ($Username.Enabled -eq $false)) {
+            Write-host "Brugeren er inaktiv og flyttes til: $SettingOUInactiveUsers" -ForegroundColor Green
+            Move-ADObject -Identity $Username.objectguid -TargetPath $SettingOUInactiveUsers -Verbose
+            $global:movedcount++
+            Return
+        }
     }
 
     ## Vi arbejder nu med en aktiveret bruger, som evt. skal flyttes ##
@@ -170,24 +184,31 @@ function Set-AutoritativOrg {
 
 # Ryder op i OU strukturen, ved at fjerne tomme OU'er
 function CleanUpEmptyOU {
-Do{
-    # Flere navne kan tilføjes nedenfor (Computere, Brugere, osv.)
-    $EmptyOU = Get-ADOrganizationalUnit -Filter * -SearchBase $SettingOURootCreate `
-      | Where-Object DistinguishedName -NotMatch "OU=Computere," `
-      | Where-Object DistinguishedName -NotMatch "OU=Brugere," `
-      | ForEach-Object { If (!(Get-ADObject -Filter * -SearchBase $_ -SearchScope OneLevel)) {$_}}
+    ForEach ($RootOU in $SettingOURoots) {
+        Write-Host "Foretager oprydning fra rod-OU: " $RootOU -ForegroundColor Green
 
-    ForEach ($OU in $EmptyOU) {
-        # Vi sletter ikke OU'en til inaktive brugere, selvom den evt. skulle være tom.
-        If ($OU.DistinguishedName -ne $SettingOUInactiveUsers){
-            Set-ADOrganizationalUnit -Identity $OU.DistinguishedName -ProtectedFromAccidentalDeletion $false
-            Remove-ADOrganizationalUnit -Identity $OU.DistinguishedName -Confirm:$false
-            Write-host "Følgende OU er tom og dermed fjernet: "$OU.DistinguishedName -ForegroundColor Green
-            $global:EmptyOUsRemoved++
-        }
+        Do {
+            # Find alle tomme OU'er under dette rod-OU, dvs. OU'er, hvor der ikke findes nogen AD-objekter.
+            # (En tom OU ligger pr. definition "nederst" i hierarkiet, og derfor foretages denne søgning i en
+            # while-løkke, indtil søgningen ikke returnerer flere tomme OU'er.)
+            $EmptyOU = Get-ADOrganizationalUnit -Filter 'DistinguishedName -ne $RootOU' -SearchBase $RootOU `
+              | ForEach-Object { If (!(Get-ADObject -Filter * -SearchBase $_ -SearchScope OneLevel)) { $_ } }
+
+            ForEach ($OU in $EmptyOU) {
+                # Vi sletter ikke OU'en til inaktive brugere, selvom den evt. skulle være tom.
+                If ($OU.DistinguishedName -eq $SettingOUInactiveUsers) {
+                    Write-Host "Fjerner ikke " $SettingOUInactiveUsers " som er til inaktive brugere"
+                } Elseif ($OU.DistinguishedName -eq $RootOU) {
+                    Write-Host "Fjerner ikke " $RootOU " som er en rod-OU"
+                } Else {
+                    Set-ADOrganizationalUnit -Identity $OU.DistinguishedName -ProtectedFromAccidentalDeletion $false
+                    Remove-ADOrganizationalUnit -Identity $OU.DistinguishedName -Confirm:$false
+                    Write-host "Følgende OU er tom og dermed fjernet: " $OU.DistinguishedName -ForegroundColor Green
+                    $global:EmptyOUsRemoved++
+                }
+            }
+        } While ($EmptyOU.Count -ge 1)
     }
-} While ($EmptyOU.Count -ge 1)
-
 }
 
 # Funktion til logning
@@ -209,22 +230,29 @@ Start-Transcript -Path $LogFilePath
 Start-Log
 
 # Kør for én bestemt bruger, hvis det er angivet som parameter ved kørsel af script.
-If($Username){
-    Try{$SettingUsers = Get-ADUser -Identity $Username -Properties $SettingAutoritativOrg}Catch{Write-host "Ugyldig bruger angivet som parameter" -ForegroundColor Red;Stop-Transcript;Return}
+If ($Username) {
+    Try {
+        $SettingUsers = Get-ADUser -Identity $Username -Properties $SettingAutoritativOrg
+    }
+    Catch {
+        Write-host "Ugyldig bruger angivet som parameter" -ForegroundColor Red
+        Stop-Transcript
+        Return
+    }
+} else {
+    $SettingUsers = $SettingOURoots | ForEach { Get-ADUser -Filter * -SearchBase $_  -Properties $SettingAutoritativOrg }
 }
 
 $time = Measure-Command {
-
     # Foretag flytning af brugere og oprettelse af OU'er
     Foreach ($User in $SettingUsers) {
-        #Write-host "Starter process for"$User.samaccountname -ForegroundColor Yellow
+        Write-host "Behandler" $User.samaccountname -ForegroundColor Yellow
         Set-AutoritativOrg -Username $user
-        #Write-host "Færdig" -ForegroundColor Yellow
+        Write-host "Færdig" -ForegroundColor Yellow
     }
 
     # Foretag oprydning i tomme OU'er
-    #CleanUpEmptyOU
-
+    CleanUpEmptyOU
 } | Select-Object TotalSeconds
 
 Write-host "Total users: "$SettingUsers.count
