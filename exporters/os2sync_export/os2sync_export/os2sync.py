@@ -193,7 +193,7 @@ def get_hierarchy(
 def get_hierarchy_v3(
     client: requests.Session, os2sync_api_url: str, request_uuid: UUID
 ) -> Tuple[Set[UUID], Set[UUID]]:
-    """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready"""
+    """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready."""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
     hierarchy = r.json()["Result"]
