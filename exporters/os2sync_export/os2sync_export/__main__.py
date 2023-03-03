@@ -166,6 +166,8 @@ def main(settings: Settings):
     counter["Orgenheder som blev ændret i OS2Sync"] = sum(changed)
 
     # Read hierarchy from os2sync
+    if settings.os2sync_version_3:
+        os2sync.get_hierarchy = os2sync.get_hierarchy_v3
     existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
         os2sync_client,
         os2sync_api_url=settings.os2sync_api_url,
