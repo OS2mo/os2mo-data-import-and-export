@@ -116,12 +116,9 @@ def upsert_user(user):
         logger.debug("upsert user %s - cached", user["Uuid"])
 
 
-def delete_orgunit(uuid):
-    if not already_xferred("/orgUnit/" + uuid, {}, "delete"):
-        logger.debug("delete orgunit %s", uuid)
-        os2sync_delete("{BASE}/orgUnit/" + uuid)
-    else:
-        logger.debug("delete orgunit %s - cached", uuid)
+def delete_orgunit(uuid: UUID):
+    logger.debug("delete orgunit %s", uuid)
+    os2sync_delete("{BASE}/orgUnit/" + str(uuid))
 
 
 def upsert_org_unit(
@@ -140,6 +137,7 @@ def upsert_org_unit(
     org_unit.ShortKey = org_unit.ShortKey or current.ShortKey
     org_unit.PayoutUnitUuid = org_unit.PayoutUnitUuid or current.PayoutUnitUuid
     org_unit.ContactPlaces = org_unit.ContactPlaces or current.ContactPlaces
+    org_unit.ContactOpenHours = org_unit.ContactOpenHours or current.ContactOpenHours
 
     if dry_run:
         logger.info(f"Found changes to {org_unit.Uuid=}? {current != org_unit}")
