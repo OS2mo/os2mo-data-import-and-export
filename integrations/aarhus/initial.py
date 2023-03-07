@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 from typing import Any
 from typing import Dict
@@ -12,6 +13,9 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import import ImportHelper  # type: ignore
 from os2mo_data_import.mox_data_types import Itsystem
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -31,7 +35,7 @@ async def perform_initial_setup():
     try:
         await mox_helper.read_element_organisation_organisation(bvn="%")
     except ElementNotFound:
-        print("No org found in LoRa. Performing initial setup.")
+        logger.info("No org found in LoRa. Performing initial setup.")
         importer = ImportHelper(
             create_defaults=True,
             mox_base=settings.mox_base,
@@ -89,7 +93,7 @@ async def import_it():
         json = it_system.build()
         await mox_helper.insert_organisation_itsystem(json, str(uuid))
     else:
-        print(
-            """Settings specify a non-default AZID IT system UUID, not creating
-            default AZ IT system"""
+        logger.info(
+            "Settings specify a non-default AZID IT system UUID, not creating "
+            "default AZ IT system"
         )

@@ -1,5 +1,6 @@
 import codecs
 import csv
+import logging
 import os
 import warnings
 from abc import ABC
@@ -26,6 +27,8 @@ from pydantic import parse_obj_as
 from ra_utils.apply import apply
 
 T = TypeVar("T")
+
+logger = logging.getLogger(__name__)
 
 
 class FileSet(ABC):
@@ -271,7 +274,7 @@ def parse_csv(lines: List[str], model: BaseModel) -> List[BaseModel]:
 
 def read_csv(filename: str, model: T) -> List[T]:
     """Read CSV file from FTP into list of model objects"""
-    print(f"Processing {filename}")
+    logger.info("Processing %s", filename)
     fileset = get_fileset_implementation()
     lines = fileset.read_file(filename)
     return parse_csv(lines, model)  # type: ignore

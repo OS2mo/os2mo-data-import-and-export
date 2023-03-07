@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import date
 from datetime import datetime
@@ -14,6 +15,9 @@ from more_itertools import partition
 from pydantic import BaseModel
 from pydantic import Field
 from ra_utils.generate_uuid import uuid_generator
+
+
+logger = logging.getLogger(__name__)
 
 
 class _ManagerBase(BaseModel):
@@ -47,7 +51,7 @@ class ManagerImporter:
 
     def cache_cpr(self):
         """Read all employees from OS2mo and cache them based on their CPR no."""
-        print("Caching employees")
+        logger.info("Caching employees")
         self.cpr_cache = util.build_cpr_map()
 
     def generate_manager_payload(
@@ -55,7 +59,7 @@ class ManagerImporter:
     ) -> dict:
         person_uuid = self.cpr_cache.get(manager.cpr)
         if not person_uuid:
-            print(f"No person found for CPR {manager.cpr[:6]}")
+            logger.error("No person found for CPR %s", manager.cpr[:6])
 
         return mo_payloads.create_manager(
             uuid=self._generate_rel_uuid(manager),
@@ -117,7 +121,7 @@ class ManagerImporter:
             await util.terminate_details(session, payloads)
 
     async def run(self, last_import: datetime):
-        print("Starting manager import")
+        logger.info("Starting manager import")
         filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         self.cache_cpr()
@@ -141,4 +145,4 @@ class ManagerImporter:
         for filename, filedate in terminates:
             await self.handle_terminate(filename, filedate)
 
-        print("Manager import done")
+        logger.info("Manager import done")
