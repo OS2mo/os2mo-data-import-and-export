@@ -152,9 +152,10 @@ class ChangeAtSD:
 
         # SD supports only one type of leave
         self.leave_uuid = self.helper.ensure_class_in_facet("leave_type", "Orlov")
-
-        facet_info = self.helper.read_classes_in_facet("association_type")
-        self.association_uuid = facet_info[0][0]["uuid"]
+        # SD supports only one type of association
+        self.association_uuid = self.helper.ensure_class_in_facet(
+            "association_type", "SD-Medarbejder"
+        )
 
     def _get_primary_types(self, mora_helper: MoraHelper):
         return primary_types(mora_helper)
