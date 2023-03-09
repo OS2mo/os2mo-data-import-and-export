@@ -228,7 +228,7 @@ class FixDepartments:
         for department in departments:
             # Get the UUID of the parent unit
             parent_lookup_date = max(
-                validity_date, parse_date(department["ActivationDate"]).date()
+                validity_date.date(), parse_date(department["ActivationDate"]).date()
             )
             parent_uuid = self.get_parent(unit_uuid, parent_lookup_date)
 
