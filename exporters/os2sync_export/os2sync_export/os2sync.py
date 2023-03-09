@@ -65,6 +65,12 @@ def os2sync_url(url):
     return url
 
 
+@retry(
+    wait=wait_fixed(5),
+    reraise=True,
+    stop=stop_after_delay(10 * 60),
+    retry=retry_if_exception_type(requests.HTTPError),
+)
 def os2sync_get(url, **params) -> Dict:
     url = os2sync_url(url)
     r = session.get(url, params=params)
