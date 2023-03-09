@@ -43,6 +43,8 @@ def set_import_state(settings: config.Settings, import_date: datetime.datetime):
 def run_los_import(settings, last_import):
     loop = asyncio.get_event_loop()
 
+    now = datetime.datetime.now()
+
     initial_import = asyncio.ensure_future(initial.perform_initial_setup())
     loop.run_until_complete(initial_import)
 
@@ -64,7 +66,7 @@ def run_los_import(settings, last_import):
 
     loop.close()
 
-    set_import_state(settings, datetime.datetime.now())
+    set_import_state(settings, now)
 
 
 @click.command()
