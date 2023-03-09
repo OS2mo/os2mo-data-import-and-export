@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import logging
 from pathlib import Path
 
 import click
@@ -12,6 +13,9 @@ from los_pers import PersonImporter
 from los_stam import StamImporter
 
 
+logger = logging.getLogger(__name__)
+
+
 def get_or_create_import_state(settings: config.Settings) -> datetime.datetime:
     """
     Ensure that the state file exists, and return the date of the last import
@@ -19,7 +23,7 @@ def get_or_create_import_state(settings: config.Settings) -> datetime.datetime:
     """
     state_file_path = Path(settings.import_state_file)
     if not state_file_path.is_file():
-        print("Import file not present. Creating.")
+        logger.warning("Import file not present. Creating.")
         with open(state_file_path, "w") as f:
             earliest = datetime.datetime.min
             f.write(earliest.isoformat())
@@ -27,7 +31,7 @@ def get_or_create_import_state(settings: config.Settings) -> datetime.datetime:
     else:
         with open(state_file_path, "r") as f:
             last_import = parser.parse(f.read())
-            print(f"Last import performed at {last_import}")
+            logger.info("Last import performed at %s", last_import)
             return last_import
 
 
@@ -36,7 +40,7 @@ def set_import_state(settings: config.Settings, import_date: datetime.datetime):
     state_file_path = Path(settings.import_state_file)
     with open(state_file_path, "w") as f:
         import_date_string = import_date.isoformat()
-        print(f"Writing timestamp '{import_date_string}' to state")
+        logger.debug("Writing timestamp %s to state", import_date_string)
         f.write(import_date_string)
 
 

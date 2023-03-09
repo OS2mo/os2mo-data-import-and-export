@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import date
 from functools import lru_cache
 from operator import itemgetter
@@ -29,6 +30,9 @@ from tenacity import wait_random_exponential
 
 # The number of retry attempts seems to mostly be 7 various places in DIPEX
 retry_attempts = 7
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_tcp_connector():
@@ -98,15 +102,17 @@ async def raise_on_unhandled_mo_error(
     if not response.ok:
         # Print out the MO error response to ease debugging
         mo_error = await response.json()
-        print(
-            f'Posting "{doc}" to "{endpoint}" resulted in MO error '
-            f'response "{mo_error}"'
+        logger.error(
+            "Posting '%s' to '%s' resulted in MO error response '%s'",
+            doc,
+            endpoint,
+            mo_error,
         )
         # Examine the MO error to see if it should be ignored
         mo_error_key = mo_error.get("error_key")
         needs_check = mo_error_key and ignored_mo_error_keys
         if needs_check and mo_error_key in ignored_mo_error_keys:
-            print(f'Continuing on ignored MO error "{mo_error_key}"')
+            logger.debug("Continuing on ignored MO error ''%s", mo_error_key)
             return
 
     response.raise_for_status()
@@ -149,7 +155,11 @@ async def submit_payloads(
             headers=headers,
         ) as response:
             if ignored_http_statuses and response.status in ignored_http_statuses:
-                print(f"{endpoint} returned status {response.status}, ignoring")
+                logger.debug(
+                    "%s returned status %r, ignoring",
+                    endpoint,
+                    response.status,
+                )
             else:
                 await raise_on_unhandled_mo_error(endpoint, doc, response)
 

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 from datetime import datetime
 from typing import Any
@@ -19,6 +20,9 @@ from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import.mox_data_types import Facet
 from os2mo_data_import.mox_data_types import Itsystem
 from pydantic import Field
+
+
+logger = logging.getLogger(__name__)
 
 
 class StamCSV(pydantic.BaseModel):
@@ -281,7 +285,7 @@ class StamImporter:
         self.last_import = last_import
 
     async def run(self):
-        print("Starting STAM import")
+        logger.info("Starting STAM import")
         tasks = [
             self.handle_engagementstype(),
             self.handle_enhedstype(),
@@ -294,7 +298,7 @@ class StamImporter:
             self.handle_tilknytningsrolle(),
         ]
         await asyncio.gather(*tasks)
-        print("STAM import done")
+        logger.info("STAM import done")
 
     async def handle_engagementstype(self):
         """
@@ -440,7 +444,7 @@ class StamImporter:
                 scope="TEXT",
             )
             await mox_helper.insert_klassifikation_klasse(klasse, str(row.class_uuid))
-            print("Created LoRa class %r" % row.class_uuid)
+            logger.info("Created LoRa class %r", row.class_uuid)
 
         # Find classes to terminate (classes in LoRa but no longer in CSV file)
         class_uuids_to_terminate = [
@@ -460,18 +464,18 @@ class StamImporter:
                     unpublish_payload,
                 )
             except KeyError:  # this class is already unpublished
-                print("LoRa class %r was already unpublished" % class_uuid)
+                logger.debug("LoRa class %r was already unpublished", class_uuid)
             except ClientResponseError as e:
                 # `MoxHelper._update` can now raise a ClientResponseError, rather than a
                 # KeyError to indicate an HTTP error.
                 if e.status == HttpBadRequest.code:
                     # Based on empirical observation we assume that an HTTP 400 is
                     # caused by attempting to unpublish the same class more than once.
-                    print("LoRa class %r was already unpublished" % class_uuid)
+                    logger.debug("LoRa class %r was already unpublished", class_uuid)
                 else:
                     raise  # re-raise ClientResponseError
             else:
-                print("Unpublished LoRa class %r" % class_uuid)
+                logger.info("Unpublished LoRa class %r", class_uuid)
 
     @staticmethod
     def _get_lora_unpublish_payload():
@@ -512,7 +516,7 @@ class StamImporter:
             )
         except ElementNotFound:
             # Facet does not yet exist, create it based on the BVN
-            print(f"LoRa facet {facet_bvn!r} not found, creating ...")
+            logger.info("LoRa facet %r not found, creating ...", facet_bvn)
             facet_uuid = uuids.uuid_gen(facet_bvn)
             org_uuid = (await mox_helper.read_all_organisation_organisation())[0]
             kls_uuid = (await mox_helper.read_all_klassifikation_klassifikation())[0]

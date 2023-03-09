@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime
 from functools import partial
@@ -15,6 +16,9 @@ from more_itertools import first
 from more_itertools import partition
 from pydantic import Field
 from ra_utils.generate_uuid import uuid_generator
+
+
+logger = logging.getLogger(__name__)
 
 
 class Person(pydantic.BaseModel):
@@ -206,7 +210,7 @@ class PersonImporter:
             await util.terminate_details(session, payloads)
 
     async def run(self, last_import: datetime):
-        print("Starting person import")
+        logger.info("Starting person import")
         filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         creates = los_files.parse_filenames(
@@ -228,4 +232,4 @@ class PersonImporter:
         for filename, filedate in terminates:
             await self.handle_terminate(filename, filedate)
 
-        print("Person import done")
+        logger.info("Person import done")

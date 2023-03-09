@@ -1,3 +1,4 @@
+import logging
 import uuid
 from csv import DictWriter
 from datetime import date
@@ -32,6 +33,9 @@ from pydantic import validator
 from ra_utils.generate_uuid import uuid_generator
 
 from integrations.dar_helper import dar_helper
+
+
+logger = logging.getLogger(__name__)
 
 
 class OrgUnitBase(pydantic.BaseModel):
@@ -277,26 +281,25 @@ class OrgUnitImporter:
             result = ftp_fileset.write_file(
                 output_filename, output, folder="DARfejlliste"
             )
-        except Exception as exc:
-            print("Could not write %r to FTP, error = %r" % (output_filename, str(exc)))
+        except Exception:
+            logger.exception("Could not write %r to FTP", output_filename)
         else:
-            print("Wrote %r to FTP, result = %r" % (output_filename, result))
+            logger.info("Wrote %r to FTP, result = %r", output_filename, result)
 
         # Write CSV file to MO queries folder
         fs_fileset = los_files.FSFileSet()
         try:
             result = fs_fileset.write_file(output_filename, output)
-        except IOError as exc:
-            print(
-                "Could not write %r to queries folder, error = %r"
-                % (output_filename, str(exc))
-            )
+        except IOError:
+            logger.exception("Could not write %r to queries folder", output_filename)
         else:
-            print("Wrote %r to queries folder, result = %r" % (output_filename, result))
+            logger.info(
+                "Wrote %r to queries folder, result = %r", output_filename, result
+            )
 
     async def handle_addresses(self, org_units, filename):
         addresses = map(attrgetter("post_address"), org_units)
-        addresses = set(filter(None.__ne__, addresses))
+        addresses = set(filter(lambda address: address is not None, addresses))
 
         if len(addresses) == 0:
             return
@@ -307,11 +310,11 @@ class OrgUnitImporter:
         success, failure = partition(lambda x: x[1] is None, address_lookups)
 
         success = dict(success)
-        print(f"{len(success)} addresses found")
+        logger.debug("%d addresses found", len(success))
         self.dar_cache.update(success)
 
         failed_addresses = set(map(itemgetter(0), failure))
-        print(f"{len(failed_addresses)} addresses could not be found")
+        logger.debug("%d addresses could not be found", len(failed_addresses))
         if failed_addresses:
             # Join `failed_addresses` with `org_units` on `post_address` to get
             # `org_uuid` for each failed address lookup.
@@ -454,7 +457,7 @@ class OrgUnitImporter:
         Reads org unit files newer than last_import
         and performs inserts/updates as needed
         """
-        print("Starting org unit import")
+        logger.info("Starting org unit import")
         filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         initials = los_files.parse_filenames(
@@ -476,4 +479,4 @@ class OrgUnitImporter:
         for filename, filedate in edits:
             await self.handle_edit(filename, filedate)
 
-        print("Org unit import done")
+        logger.info("Org unit import done")

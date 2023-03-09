@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime
 from unittest import mock
@@ -105,7 +106,7 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 # Assert that we convert the class UUID to string
                 assert isinstance(class_uuid, str)
 
-    def test_unpublish_handles_already_unpublished_class(self, capsys):
+    def test_unpublish_handles_already_unpublished_class(self, caplog):
         # When trying to unpublish a LoRa class which has already been unpublished in a
         # a previous LOS import run, make sure that we handle the error raised by
         # `mox_helper._update`. (#54283)
@@ -130,9 +131,10 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 mox_helper._update.side_effect = side_effect
 
                 # Act
-                self._run_until_complete(
-                    instance._create_classes_from_csv(MockStamCSV, empty_csv_file)
-                )
+                with caplog.at_level(logging.DEBUG):
+                    self._run_until_complete(
+                        instance._create_classes_from_csv(MockStamCSV, empty_csv_file)
+                    )
 
                 # Assert that we tried to unpublish the class in question
                 mox_helper._update.assert_called_once()
@@ -144,11 +146,10 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                     == "IkkePubliceret"
                 )
 
-                # Assert that we logged the expected output to stdout
-                captured = capsys.readouterr()
+                # Assert that we logged the expected log line
                 assert (
-                    captured.out
-                    == f"LoRa class UUID('{existing_class_uuid}') was already unpublished\n"
+                    f"LoRa class UUID('{existing_class_uuid}') was already unpublished"
+                    in caplog.text
                 )
 
     def test_get_or_create_facet_existing_facet(self):
