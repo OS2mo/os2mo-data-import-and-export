@@ -23,6 +23,17 @@
 #   * Fjernet: skip en eller flere navngivne OU'er i "CleanUpEmptyOU" ("Computere", "Brugere".)
 #     Disse fjernes nu på lige fod med andre tomme OU'er.
 #
+# mrw, 13.3.2023:
+#   * Bugfix "CleanUpEmptyOU".
+#     Funktionen ville i visse tilfælde forsøge at fjerne rod-OU'erne selv (de OU'er, der er angivet i
+#     "$SettingOURoots".)
+#     Dette er der nu forhåbentligt rådet bod på via en alternativ udgave af søge-logikken, der finder de tomme
+#     OU'er under hver rod-OU.
+#     Samtidig burde det ikke længere være nødvendigt at køre scriptet flere gange for gradvist at rydde op i OU'er
+#     som "CleanUpEmptyOU" selv har tømt.
+#   * Bugfix: "Set-AutoritativOrg" talte ikke en flytning med i "$global:movedcount" ifbm. indplacering af selve
+#     brugeren (der hvor scriptet udskriver "Brugeren places her".)
+#
 #$ScriptVersion = 2.8
 
 # ----- Script parameter ----- #
@@ -33,6 +44,7 @@ Param (
 # Svendborg settings
 #$SettingOURoots = $(
 #    "OU=Nye Brugere,OU=OS2MO,DC=Svendborg,DC=net",
+#    "OU=Kapel,OU=OS2MO,DC=Svendborg,DC=net",
 #    "OU=Svendborg Kommune,OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net",
 #    "OU=Svendborg Kommunalbestyrelse,OU=Test-OU,OU=OS2MO,DC=Svendborg,DC=net"
 #)
@@ -44,8 +56,8 @@ Param (
 # Magenta local AD settings
 $SettingOURoots = @(
     "OU=Users,OU=demo,OU=OS2MO,DC=ad,DC=addev",
-    "OU=A,OU=demo,OU=OS2MO,DC=ad,DC=addev",
-    "OU=B,OU=demo,OU=OS2MO,DC=ad,DC=addev"
+    "OU=A a,OU=demo,OU=OS2MO,DC=ad,DC=addev",
+    "OU=B b,OU=demo,OU=OS2MO,DC=ad,DC=addev"
 )
 $SettingOURootCreate = "OU=demo,OU=OS2MO,DC=ad,DC=addev"
 $SettingOUInactiveUsers = "OU=Kapel,OU=demo,OU=OS2MO,DC=ad,DC=addev"
@@ -179,6 +191,7 @@ function Set-AutoritativOrg {
         # Placer brugeren i brugerens OU
         Write-host "Brugeren places her: $currentpath" -ForegroundColor Green
         Move-ADObject -Identity $Username.objectguid -TargetPath $path -Verbose
+        $global:movedcount++
     }
 }
 
@@ -187,27 +200,33 @@ function CleanUpEmptyOU {
     ForEach ($RootOU in $SettingOURoots) {
         Write-Host "Foretager oprydning fra rod-OU: " $RootOU -ForegroundColor Green
 
-        Do {
-            # Find alle tomme OU'er under dette rod-OU, dvs. OU'er, hvor der ikke findes nogen AD-objekter.
-            # (En tom OU ligger pr. definition "nederst" i hierarkiet, og derfor foretages denne søgning i en
-            # while-løkke, indtil søgningen ikke returnerer flere tomme OU'er.)
-            $EmptyOU = Get-ADOrganizationalUnit -Filter 'DistinguishedName -ne $RootOU' -SearchBase $RootOU `
-              | ForEach-Object { If (!(Get-ADObject -Filter * -SearchBase $_ -SearchScope OneLevel)) { $_ } }
+        # Find alle tomme OU'er under "$RootOU".
+        # (Et OU tæller også som tomt, hvis fjernelsen af alle tomme OU'er i det pågældende OU vil gøre OU'et selv
+        # tomt.)
+        # Før der fjernes OU'er, sorteres listen efter "Parent" for at vi sletter "børnebørn" før "børn", osv.
+        # Baseret på https://petri.com/powershell-problem-solver-finding-empty-organizational-units-active-directory/
+        # Udtræk af "Parent": https://social.technet.microsoft.com/Forums/windowsserver/en-US/830ff383-9057-45d8-ae10-5e567efd36f8/how-to-get-parent-container-path-of-the-ad-user-object?forum=winserverpowershell
+        $EmptyOUs = Get-ADOrganizationalUnit -Filter 'DistinguishedName -ne $RootOU' -SearchBase $RootOU -PipelineVariable pv `
+            | Select `
+                DistinguishedName, `
+                @{Name="Parent"; Expression = {([adsi]"LDAP://$($_.DistinguishedName)").Parent}}, `
+                @{Name="Children"; Expression = { Get-ADObject -Filter * -SearchBase $pv.distinguishedname | Where { $_.objectclass -ne "organizationalunit" } | Measure-Object | Select -ExpandProperty Count } } `
+            | Where {$_.children -eq 0} `
+            | Sort-Object -Descending -Property Parent
 
-            ForEach ($OU in $EmptyOU) {
+        ForEach ($OU in $EmptyOUs) {
+            Write-Host "Behandler" $OU -ForegroundColor Gray
+            If ($OU.DistinguishedName -eq $SettingOUInactiveUsers) {
                 # Vi sletter ikke OU'en til inaktive brugere, selvom den evt. skulle være tom.
-                If ($OU.DistinguishedName -eq $SettingOUInactiveUsers) {
-                    Write-Host "Fjerner ikke " $SettingOUInactiveUsers " som er til inaktive brugere"
-                } Elseif ($OU.DistinguishedName -eq $RootOU) {
-                    Write-Host "Fjerner ikke " $RootOU " som er en rod-OU"
-                } Else {
-                    Set-ADOrganizationalUnit -Identity $OU.DistinguishedName -ProtectedFromAccidentalDeletion $false
-                    Remove-ADOrganizationalUnit -Identity $OU.DistinguishedName -Confirm:$false
-                    Write-host "Følgende OU er tom og dermed fjernet: " $OU.DistinguishedName -ForegroundColor Green
-                    $global:EmptyOUsRemoved++
-                }
+                Write-Host "Fjerner ikke " $SettingOUInactiveUsers " som er til inaktive brugere"
+            } Else {
+                Write-Host "Fjerner " $OU.DistinguishedName " som er tom" -ForegroundColor Green
+                Set-ADOrganizationalUnit -Identity $OU.DistinguishedName -ProtectedFromAccidentalDeletion $false
+                Remove-ADOrganizationalUnit -Identity $OU.DistinguishedName -Confirm:$false
+                Write-Host "Fjernede " $OU.DistinguishedName -ForegroundColor Green
+                $global:EmptyOUsRemoved++
             }
-        } While ($EmptyOU.Count -ge 1)
+        }
     }
 }
 
