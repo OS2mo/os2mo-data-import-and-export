@@ -252,9 +252,14 @@ def parse_filenames(
 
     filtered_names = filter(lambda x: x.startswith(prefix), filenames)
     parsed_names = map(parse_filepath, filtered_names)
-    # Only use files that are newer than last import
+    # Only use files that are newer than last import, as agreed with Jesper Norup
+    fileset = get_fileset_implementation()
     new_files = filter(
-        apply(lambda filepath, filedate: filedate > last_import), parsed_names
+        apply(
+            lambda filepath, filedate: fileset.get_modified_datetime(filepath)
+            > last_import
+        ),
+        parsed_names,
     )
     sorted_filenames = sorted(new_files, key=itemgetter(1))
     return sorted_filenames

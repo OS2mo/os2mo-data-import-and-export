@@ -16,43 +16,69 @@ from aiohttp import ClientSession
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import one
+from unittest import mock
 
 from .helpers import mock_config
+from los_files import SFTPFileSet
+
+from parameterized import parameterized
 
 
 class TestParseFilenames:
     def test_parses_prefix_correctly(self):
-        filenames = [
-            "xxxxOrg_nye_20210128_123742.csv",
-            "Org_nye_20210128_123742.csv",
-            "garbagebagasdasdads",
+        with mock_config(import_csv_folder=None, ):
+            with mock.patch("los_files.get_fileset_implementation") as mock_get_fileset:
+                mock_get_fileset.return_value = los_files.SFTPFileSet()
+                with mock.patch.object(SFTPFileSet, "get_modified_datetime",
+                                       return_value=datetime(2020, 5, 1, 0, 0, 0)):
+                    filenames = [
+                        "xxxxOrg_nye_20210128_123742.csv",
+                        "Org_nye_20210128_123742.csv",
+                        "garbagebagasdasdads",
+                    ]
+
+                    expected_filename = "Org_nye_20210128_123742.csv"
+
+                    actual = los_files.parse_filenames(filenames, "Org_nye",
+                                                       datetime.min)
+
+                    actual_filename, _ = one(actual)
+
+                    assert expected_filename == actual_filename
+
+    @parameterized.expand(
+        [
+            # (filename, modified_date, expected_found),
+            ("Org_nye_20200128_123742.csv", datetime(2020, 1, 28, 12, 37, 42),
+             datetime(2020, 1, 28, 12, 37, 42), False),
+            ("Org_nye_20201028_123742.csv", datetime(2020, 10, 28, 12, 37, 42),
+             datetime(2020, 10, 28, 12, 37, 42), True),
+            ("Org_nye_20210128_123742.csv", datetime(2021, 1, 28, 12, 37, 42),
+             datetime(2021, 1, 28, 12, 37, 42), True),
+            ("Org_nye_20210128_123742.csv", datetime(2020, 1, 28, 12, 37, 42),
+             datetime(2021, 1, 28, 12, 37, 42), False),
+            ("Org_nye_20200128_123742.csv", datetime(2021, 1, 28, 12, 37, 42),
+             datetime(2020, 1, 28, 12, 37, 42), True),
         ]
+    )
+    def test_filters_dates_correctly(self, filename: str, modified_date: datetime,
+                                     expected_date: datetime,
+                                     expected_found: bool):
+        with mock_config(import_csv_folder=None):
+            with mock.patch("los_files.get_fileset_implementation") as mock_get_fileset:
+                mock_get_fileset.return_value = los_files.SFTPFileSet()
+                with mock.patch.object(SFTPFileSet, "get_modified_datetime",
+                                       return_value=modified_date):
+                    expected = []
 
-        expected_filename = "Org_nye_20210128_123742.csv"
+                    if expected_found:
+                        expected = [(filename, expected_date)]
 
-        actual = los_files.parse_filenames(filenames, "Org_nye", datetime.min)
+                    actual = los_files.parse_filenames(
+                        [filename, ], "Org_nye", datetime(2020, 6, 1, 0, 0, 0)
+                    )
 
-        actual_filename, _ = one(actual)
-
-        assert expected_filename == actual_filename
-
-    def test_filters_dates_correctly(self):
-        filenames = [
-            "Org_nye_20200128_123742.csv",
-            "Org_nye_20201028_123742.csv",
-            "Org_nye_20210128_123742.csv",
-        ]
-
-        expected = [
-            ("Org_nye_20201028_123742.csv", datetime(2020, 10, 28, 12, 37, 42)),
-            ("Org_nye_20210128_123742.csv", datetime(2021, 1, 28, 12, 37, 42)),
-        ]
-
-        actual = los_files.parse_filenames(
-            filenames, "Org_nye", datetime(2020, 6, 1, 0, 0, 0)
-        )
-
-        assert expected == actual
+                    assert expected == actual
 
     @given(
         st.permutations(
@@ -65,25 +91,31 @@ class TestParseFilenames:
         )
     )
     def test_sorts_output(self, filenames):
-        expected_dates = [
-            datetime(2018, 1, 1),
-            datetime(2019, 1, 1),
-            datetime(2020, 1, 1),
-            datetime(2021, 1, 1),
-        ]
+        with mock_config(import_csv_folder=None):
+            with mock.patch("los_files.get_fileset_implementation") as mock_get_fileset:
+                mock_get_fileset.return_value = los_files.SFTPFileSet()
+                with mock.patch.object(SFTPFileSet, "get_modified_datetime",
+                                       return_value=datetime(2020, 5, 1, 0, 0, 0)):
+                    expected_dates = [
+                        datetime(2018, 1, 1),
+                        datetime(2019, 1, 1),
+                        datetime(2020, 1, 1),
+                        datetime(2021, 1, 1),
+                    ]
 
-        actual = los_files.parse_filenames(filenames, "Org_nye", datetime.min)
-        actual_dates = list(map(itemgetter(1), actual))
+                    actual = los_files.parse_filenames(filenames, "Org_nye",
+                                                       datetime.min)
+                    actual_dates = list(map(itemgetter(1), actual))
 
-        assert expected_dates == actual_dates
+                    assert expected_dates == actual_dates
 
 
 @contextlib.asynccontextmanager
 async def _mock_mo_response(
-    aioresponses: pytest_aioresponses,
-    mo_endpoint: str,
-    mo_http_status: int,
-    mo_response: Optional[dict] = None,
+        aioresponses: pytest_aioresponses,
+        mo_endpoint: str,
+        mo_http_status: int,
+        mo_response: Optional[dict] = None,
 ) -> typing.AsyncGenerator[ClientSession, None]:
     mora_base = "http://example.com:8080"
     # Mock a response from MO
@@ -94,9 +126,9 @@ async def _mock_mo_response(
     )
     # Create client session on mock base URL
     with mock_config(
-        mora_base=mora_base,
-        max_concurrent_requests=1,
-        os2mo_chunk_size=1,
+            mora_base=mora_base,
+            max_concurrent_requests=1,
+            os2mo_chunk_size=1,
     ):
         async with util.get_client_session() as session:
             yield session
@@ -104,12 +136,12 @@ async def _mock_mo_response(
 
 @pytest.mark.asyncio
 async def test_terminate_details_handles_404_response(
-    aioresponses: pytest_aioresponses,
+        aioresponses: pytest_aioresponses,
 ):
     async def _run_test(ignored_http_statuses):
         # Mock a 404 response from MO "terminate" API, and run `terminate_details`
         async with _mock_mo_response(
-            aioresponses, "/service/details/terminate", 404
+                aioresponses, "/service/details/terminate", 404
         ) as client_session:
             detail_payloads = [{"foo": "bar"}]
             await util.terminate_details(
@@ -129,7 +161,7 @@ async def test_terminate_details_handles_404_response(
 @pytest.mark.asyncio
 async def test_unhandled_status_400(aioresponses: pytest_aioresponses):
     async with _mock_mo_response(
-        aioresponses, "/service/details/create", 400, {}
+            aioresponses, "/service/details/create", 400, {}
     ) as client_session:
         with pytest.raises(ClientResponseError):
             await util.create_details(client_session, [{"foo": "bar"}])
@@ -138,10 +170,10 @@ async def test_unhandled_status_400(aioresponses: pytest_aioresponses):
 @pytest.mark.asyncio
 async def test_handled_status_400(aioresponses: pytest_aioresponses):
     async with _mock_mo_response(
-        aioresponses,
-        "/service/details/create",
-        400,
-        {"error_key": "V_DUPLICATED_IT_USER"},
+            aioresponses,
+            "/service/details/create",
+            400,
+            {"error_key": "V_DUPLICATED_IT_USER"},
     ) as client_session:
         await util.create_details(client_session, [{"foo": "bar"}])
 
@@ -149,14 +181,13 @@ async def test_handled_status_400(aioresponses: pytest_aioresponses):
 @pytest.mark.asyncio
 @patch("aiohttp.client.ClientSession.post")
 async def test_connection_error(
-    mock_post: MagicMock, aioresponses: pytest_aioresponses
+        mock_post: MagicMock, aioresponses: pytest_aioresponses
 ):
     mock_post.side_effect = aiohttp.client.ServerDisconnectedError
     async with _mock_mo_response(
-        aioresponses, "/service/details/create", 500, {}
+            aioresponses, "/service/details/create", 500, {}
     ) as client_session:
         with pytest.raises(aiohttp.ServerDisconnectedError):
-
             await util.create_details(client_session, [{"foo": "bar"}])
 
         assert mock_post.call_count == util.retry_attempts

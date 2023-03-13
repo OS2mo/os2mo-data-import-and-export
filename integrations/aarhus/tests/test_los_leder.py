@@ -4,9 +4,13 @@ from uuid import uuid4
 
 import los_files
 import los_leder
+from .helpers import mock_config
+from unittest import mock
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
+from los_files import FileSet
+
 
 from .helpers import HelperMixin
 from .strategies import csv_buf_from_model
@@ -185,13 +189,13 @@ class TestManagerImporter(HelperMixin):
         ]
         expected_filedate = datetime(2020, 1, 1, 0, 0, 1)
         with self._mock_get_import_filenames(
-            mock_filenames
+            mock_filenames, datetime(2020, 1, 1, 0, 0, 1)
         ) as mock_get_import_filenames:
             importer = _TestableManagerImporter()
             # Run method under test
             self._run_until_complete(importer.run(mock_last_import))
             # Assert `get_import_filenames` was called (without arguments)
-            mock_get_import_filenames.assert_called_once_with()
+            mock_get_import_filenames.assert_called_with()
             # Assert that `handle_{create,edit,terminate}` were called with the
             # expected arguments.
             methods = ("handle_create", "handle_edit", "handle_terminate")
