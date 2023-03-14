@@ -125,8 +125,20 @@ def read_all_users(
         os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
         for uuid in os2mo_uuids_present
     )
+    res: Dict[UUID, Dict] = {}
+    for u in all_users:
 
-    return {UUID(u["Uuid"]): u for u in all_users if u}
+        if u is None:
+            continue
+        user_uuid = UUID(u["Uuid"])
+        if res.get(user_uuid):
+            # This might happen if more than one user has the samme uuid in an it-account
+            # or one has the same uuid in an it-account as another user without any it-accounts' MO uuid
+            raise ValueError(f"Duplicated uuid: {user_uuid}")
+        else:
+            res[user_uuid] = u
+
+    return res
 
 
 def main(settings: Settings):
