@@ -1,9 +1,13 @@
 from uuid import UUID
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import List
 from typing import Optional
 
+import os
 import csv
+import json
+import time
+import shutil
 from dateutil import utils
 from more_itertools import one
 from fastapi.encoders import jsonable_encoder
@@ -19,7 +23,30 @@ from reports.os2mo_new_and_ended_engagement_reports.config import (
 )
 
 
-def gql_query_validity_field(validity_from=False, validity_to=False) -> str:
+def read_report_as_json(path_to_file):
+    """
+    A generic way to read content in JSON format.
+
+    args:
+    A path to where the file to read is stored.
+
+    returns:
+    A written file with the contents written as JSON.
+
+    example of contents:
+    [{"uuid": "0004b952-a513-430b-b696-8d393d7eb2bb"}, , {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"},
+    {"uuid": "00556594-7be8-4c57-ba0a-9d2adefc8d1c"}, {"uuid": "00973369-2d8f-4120-bbaf-75f0e0f38534"}]
+    """
+
+    with open(path_to_file, "r") as infile:
+        read_json_object = json.load(infile)
+
+    return read_json_object
+
+
+def gql_query_validity_field(
+    validity_from: bool = False, validity_to: bool = False
+) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if validity_from:
         return """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
@@ -49,71 +76,84 @@ def gql_query_validity_field(validity_from=False, validity_to=False) -> str:
 
 
 def gql_query_persons_details_to_display(
-    started_engagement=False, ended_engagement=False
+    started_engagement: bool = False, ended_engagement: bool = False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if started_engagement:
-        return """query PersonEngagementDetails ($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
-             employees(uuids: $uuidlist) {
-               objects {
-                 cpr_no
-                 name
-                 uuid
-                 addresses(address_types: $email_uuid_list) {
-                   name
-                 }
-                 engagements {
-                   org_unit {
-                   name
-                 }
-                   validity {
-                     from
-                   }
-                 }
-                 itusers {
-                   user_key
-                   itsystem {
-                     name
-                   }
-                 }
-               }
-             }
-           }
-        """
+        return """
+        query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
+            employees(uuids: $uuidlist, to_date: null) {
+              objects {
+                cpr_no
+                name
+                uuid
+                addresses(address_types: $email_uuid_list) {
+                  name
+                }
+                engagements {
+                  org_unit {
+                    name
+                    ancestors {
+                      user_key
+                      uuid
+                      name
+                    }
+                  }
+                  validity {
+                    from
+                  }
+                }
+                itusers {
+                  user_key
+                  itsystem {
+                    name
+                    }
+                  }
+                }
+              }
+            }
+       """
 
     if ended_engagement:
-        return """query PersonEngagementDetails ($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
-             employees(uuids: $uuidlist) {
-               objects {
-                 name
-                 uuid
-                 addresses(address_types: $email_uuid_list) {
-                   name
-                 }
-                 engagements {
-                   org_unit {
-                   name
-                 }
-                   validity {
-                     to
-                   }
-                 }
-                 itusers {
-                   user_key
-                   itsystem {
-                     name
-                   }
-                 }
-               }
-             }
-           }
+        return """
+            query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
+                employees(uuids: $uuidlist) {
+                  objects {
+                    cpr_no
+                    name
+                    uuid
+                    addresses(address_types: $email_uuid_list) {
+                      name
+                    }
+                    engagements {
+                      org_unit {
+                        name
+                        ancestors {
+                          user_key
+                          uuid
+                          name
+                        }
+                      }
+                      validity {
+                        to
+                      }
+                    }
+                    itusers {
+                      user_key
+                      itsystem {
+                        name
+                      }
+                    }
+                  }
+                }
+              }
         """
 
 
 def established_person_engagements(
     gql_session: SyncClientSession,
-    validity_field_from=None,
-    validity_field_to=None,
+    validity_field_from: bool = None,
+    validity_field_to: bool = None,
 ) -> dict:
     """
     Reading all of active engagements with the persons uuid(s) engagement start date through a
@@ -265,10 +305,10 @@ def get_email_address_type_uuid_from_gql(gql_query_dict: dict) -> list:
 
 def persons_details_from_engagement(
     gql_session: SyncClientSession,
-    uuidlist: List[UUID],
+    uuidlist: List[UUID] | set,
     address_type_uuid_list: List[UUID],
-    started_engagement_details=False,
-    ended_engagement_details=False,
+    started_engagement_details: bool = False,
+    ended_engagement_details: bool = False,
 ) -> dict:
     """
     Retrieving all desired details on the person from the filtered engagements through a
@@ -301,7 +341,57 @@ def persons_details_from_engagement(
     return response
 
 
-def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=False):
+def gql_get_all_persons_uuids(gql_session: SyncClientSession) -> List[dict]:
+    """
+    Runs a query to return a list of all person uuids.
+
+    args:
+    A GraphQL session to execute the graphQL query.
+
+    returns:
+    A list of objects containing key value pairs of uuid(s).
+
+    example:
+    [{'uuid': '0004b952-a513-430b-b696-8d393d7eb2bb'},
+     {'uuid': '002a1aed-d015-4b86-86a4-c37cd8df1e18'},
+     {'uuid': '00556594-7be8-4c57-ba0a-9d2adefc8d1c'}]
+    """
+    graphql_query = gql(
+        """
+        query MyQuery {
+          employees(from_date: null, to_date: null) {
+            uuid
+          }
+        }
+        """
+    )
+
+    all_persons = gql_session.execute(graphql_query)
+
+    return all_persons["employees"]
+
+
+def write_report_as_json(gql_object: List[dict], path_to_file):
+    """
+    Function for writing content in JSON format.
+
+    args:
+    Data with the contents wished to be written. A path to where the file is wanted to be stored.
+
+    returns:
+    A written file with the contents written as JSON.
+
+    example of contents:
+    [{"uuid": "0004b952-a513-430b-b696-8d393d7eb2bb"}, , {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"},
+    {"uuid": "00556594-7be8-4c57-ba0a-9d2adefc8d1c"}, {"uuid": "00973369-2d8f-4120-bbaf-75f0e0f38534"}]
+    """
+    with open(path_to_file, "w") as outfile:
+        json.dump(gql_object, outfile, sort_keys=True)
+
+
+def convert_person_and_engagement_data_to_csv(
+    dict_data: dict, started: bool = False, ended: bool = False
+):
     """
     Mapping fields of payload from engagement to CSV format.
 
@@ -323,6 +413,19 @@ def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=Fa
                 return data["user_key"]
         return None
 
+    def get_org_unit_ancestor(gql_data: dict) -> Optional[str]:
+        """In case of multiple root Organisations, this function can
+        be used to extract the name of the Organisation."""
+        for data in gql_data["engagements"]:
+            assert 1 == 1
+            if len(data["org_unit"][0]["ancestors"]) == 0:
+                assert 2 == 2
+                return data["org_unit"][0]["name"]
+            if len(data["org_unit"][0]["ancestors"]) >= 1:
+                assert 3 == 3
+                return data["org_unit"][0]["ancestors"][-1]["name"]
+            return None
+
     out = []
     if started:
         for employee in dict_data["employees"]:
@@ -331,13 +434,20 @@ def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=Fa
                     {
                         "Personens navn": obj["name"],
                         "Personens UUID": obj["uuid"],
-                        "Ansættelsessted": obj["engagements"][0]["org_unit"][0]["name"],
-                        "Ansættelsesdato": obj["engagements"][0]["validity"]["from"],
+                        "Ansættelsessted": f"{obj['engagements'][0]['org_unit'][0]['name']}, i organisation: "
+                        f"{get_org_unit_ancestor(obj)}"
+                        if obj["engagements"]
+                        else "Der findes intet fremtidigt engagement for personen",
+                        "Ansættelsesdato": obj["engagements"][0]["validity"]["from"]
+                        if obj["engagements"]
+                        else "Der findes intet fremtidigt engagement for personen",
+                        "Oprettelsesdato": datetime.today().isoformat(),
                         "CPR": obj["cpr_no"] if obj["cpr_no"] else None,
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
                         "Shortname": get_ad_it_system_user_key(obj),
+                        "Tester Ancestor": get_org_unit_ancestor(obj),
                     }
                 )
 
@@ -360,13 +470,25 @@ def convert_person_and_engagement_data_to_csv(dict_data, started=False, ended=Fa
                 )
 
     return pd.DataFrame(out).to_csv(
-        index=False, header=True, sep=";", quoting=csv.QUOTE_ALL
+        index=False,
+        header=True,
+        sep=";",
+        quoting=csv.QUOTE_ALL,
     )
+
+
+yesterdays_report_testing = read_report_as_json(
+    "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
+)
+
+todays_report_testing = read_report_as_json(
+    "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
+)
 
 
 def write_file(contents_of_file, path_to_file):
     """
-    A generic way of writing any file.
+    A generic way of writing a file.
 
     args:
     Data with the contents wished to be written. A path to where the file is wanted to be stored.
@@ -380,8 +502,9 @@ def write_file(contents_of_file, path_to_file):
 
 def display_engagements(
     gql_session: SyncClientSession,
-    show_started_engagements=False,
-    show_ended_engagements=False,
+    show_started_engagements: bool = False,
+    show_ended_engagements: bool = False,
+    testing_show: bool = False,
 ) -> str:
     """
     Calls upon GraphQL queries and various filters defined in this module, to return all
@@ -426,6 +549,24 @@ def display_engagements(
         payload_of_ended_engagements_objects
     )
 
+    newly_established_uuids_in_mo = get_differences_in_uuids(
+        yesterdays_report_testing, todays_report_testing
+    )
+    assert 2 == 2
+    details_new_persons_established_in_mo = persons_details_from_engagement(
+        gql_session,
+        newly_established_uuids_in_mo,
+        list_of_email_uuids,
+        started_engagement_details=True,
+    )
+    assert 1 == 1
+    if testing_show:
+        testing_stuff_in_csv = convert_person_and_engagement_data_to_csv(
+            details_new_persons_established_in_mo, started=True
+        )
+        assert 99 == 99
+        return testing_stuff_in_csv
+
     # Retrieving details on person with new started engagement.
     details_of_started_engagements = persons_details_from_engagement(
         gql_session,
@@ -433,6 +574,7 @@ def display_engagements(
         list_of_email_uuids,
         started_engagement_details=True,
     )
+    assert 2 == 2
 
     # Retrieving details on person with ended engagement.
     details_of_ended_engagements = persons_details_from_engagement(
@@ -456,10 +598,59 @@ def display_engagements(
         return ended_engagements_data_in_csv
 
 
+def get_differences_in_uuids(old_report: List[dict], new_report: List[dict]) -> set:
+    """
+    Takes two lists of objects and unpacks each into a set. These sets are each
+    compared to each-other to find differences. These differences would indicate
+    changes in uuid(s) relative to the reports' day; meaning new persons have
+    been created, or old persons have been removed.
+
+    args:
+    A list of dict(s) with key value pairs.
+
+    returns:
+    A set of uuid(s) only.
+
+    example:
+    "{'ffbe5804-cf13-450a-a41b-47865e355a15'}"
+    """
+    old_report_json_set = {uuid["uuid"] for uuid in old_report}
+
+    new_report_json_set = {uuid["uuid"] for uuid in new_report}
+
+    # This might be useful in the future. As of now though, only new entries are needed.
+    previous_uuids_already_in_mo = old_report_json_set.difference(new_report_json_set)
+
+    new_uuids_appear_from_today = new_report_json_set.difference(old_report_json_set)
+
+    return new_uuids_appear_from_today
+
+
 def main() -> None:
     settings = get_engagement_settings()
     settings.start_logging_based_on_settings()
     gql_session = setup_gql_client(settings=settings)
+
+    yesterdays_report = read_report_as_json(
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
+    )
+
+    list_of_all_new_persons = gql_get_all_persons_uuids(gql_session)
+
+    write_report_as_json(
+        list_of_all_new_persons,
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json",
+    )
+
+    todays_report = read_report_as_json(
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
+    )
+
+    new_uuids_appeared_in_mo = get_differences_in_uuids(
+        yesterdays_report, todays_report
+    )
+
+    assert 100 == 100
 
     new_engagements_to_write = display_engagements(
         gql_session, show_started_engagements=True
@@ -467,17 +658,26 @@ def main() -> None:
     # Generating a file on newly established engagements.
     write_file(
         new_engagements_to_write,
-        settings.report_engagements_new_file_path,
+        "reports/os2mo_new_and_ended_engagement_reports/new_engagements.csv",
+        # settings.report_engagements_new_file_path,
     )
 
     ended_engagements_to_write = display_engagements(
         gql_session, show_ended_engagements=True
     )
+
+    lol_test = display_engagements(gql_session, testing_show=True)
+
+    write_file(lol_test, "reports/os2mo_new_and_ended_engagement_reports/halpme.csv")
     # Generating a file  on ended engagements.
+
     write_file(
         ended_engagements_to_write,
-        settings.report_engagements_ended_file_path,
+        "reports/os2mo_new_and_ended_engagement_reports/old_engagements.csv",
+        # settings.report_engagements_ended_file_path,
     )
+
+    assert 8 == 8
 
 
 if __name__ == "__main__":
