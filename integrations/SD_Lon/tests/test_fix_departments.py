@@ -110,7 +110,7 @@ class TestFixDepartment(TestCase):
         instance._create_org_unit_if_missing_in_mo = MagicMock(return_value=False)
         with mock_sd_lookup("GetDepartment20111201", {}, {}):
             instance.fix_department(
-                "99999999-9999-9999-9999-999999999999", datetime(2020, 1, 1)
+                "99999999-9999-9999-9999-999999999999", date(2020, 1, 1)
             )
             instance.helper._mo_post.assert_called_with(
                 "details/edit",
@@ -153,7 +153,7 @@ class TestFixDepartment(TestCase):
             ]
         }
         with mock_sd_lookup("GetDepartment20111201", dict(), sd_response):
-            instance.fix_department("uuid", datetime(2020, 1, 1))
+            instance.fix_department("uuid", date(2020, 1, 1))
 
         call_list = instance.helper._mo_post.mock_calls
 
@@ -203,7 +203,7 @@ class TestFixDepartment(TestCase):
         # Act
         with mock_sd_lookup("GetDepartment20111201", dict(), dict()):
             instance.fix_department(
-                "99999999-9999-9999-9999-999999999999", datetime.today()
+                "99999999-9999-9999-9999-999999999999", datetime.today().date()
             )
 
         # Assert
@@ -230,7 +230,7 @@ class TestFixDepartment(TestCase):
 
         unit_uuid = "11111111-1111-1111-1111-111111111111"
         parent_uuid = "22222222-2222-2222-2222-222222222222"
-        today = datetime.today()
+        today = datetime.today().date()
 
         instance.get_parent = MagicMock(side_effect=[parent_uuid, None])
         instance.get_department = MagicMock(
@@ -303,8 +303,8 @@ class TestFixDepartment(TestCase):
 
         get_parent_calls = instance.get_parent.call_args_list
         assert get_parent_calls == [
-            call("11111111-1111-1111-1111-111111111111", today.date()),
-            call("22222222-2222-2222-2222-222222222222", today.date()),
+            call("11111111-1111-1111-1111-111111111111", today),
+            call("22222222-2222-2222-2222-222222222222", today),
         ]
 
     def test_fix_department_called_recursively(self):
@@ -344,7 +344,7 @@ class TestFixDepartment(TestCase):
         instance._update_org_unit_for_single_sd_dep_registration = MagicMock()
 
         # Act
-        instance.fix_department(str(unit_uuid), datetime(2020, 1, 1))
+        instance.fix_department(str(unit_uuid), date(2020, 1, 1))
 
         # Assert
         create_org_unit_calls = instance._create_org_unit_if_missing_in_mo.mock_calls
