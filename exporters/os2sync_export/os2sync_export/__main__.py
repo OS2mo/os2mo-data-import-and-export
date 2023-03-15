@@ -25,6 +25,9 @@ from os2sync_export.config import Settings
 from os2sync_export.config import setup_gql_client
 from os2sync_export.os2sync_models import OrgUnit
 from ra_utils.tqdm_wrapper import tqdm
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +144,12 @@ def read_all_users(
     return res
 
 
+# Retry in case the connection to fk-org is down
+@retry(
+    reraise=True,
+    stop=stop_after_attempt(5),
+    retry=retry_if_exception_type(ConnectionError),
+)
 def main(settings: Settings):
 
     if settings.os2sync_use_lc_db:
