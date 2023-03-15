@@ -434,20 +434,20 @@ def convert_person_and_engagement_data_to_csv(
                     {
                         "Personens navn": obj["name"],
                         "Personens UUID": obj["uuid"],
-                        "Ansættelsessted": f"{obj['engagements'][0]['org_unit'][0]['name']}, i organisation: "
-                        f"{get_org_unit_ancestor(obj)}"
+                        "Ansættelsessted": obj['engagements'][0]['org_unit'][0]['name']
                         if obj["engagements"]
                         else "Der findes intet fremtidigt engagement for personen",
-                        "Ansættelsesdato": obj["engagements"][0]["validity"]["from"]
+                        "Ansættelsesdato": datetime.fromisoformat(
+                            obj["engagements"][0]["validity"]["from"]).date().isoformat()
                         if obj["engagements"]
                         else "Der findes intet fremtidigt engagement for personen",
-                        "Oprettelsesdato": datetime.today().isoformat(),
-                        "CPR": obj["cpr_no"] if obj["cpr_no"] else None,
+                        "Oprettelsesdato": date.today().isoformat(),
+                        "CPR": "'{crp}'".format(crp=obj["cpr_no"]) if obj["cpr_no"] else None,
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
                         "Shortname": get_ad_it_system_user_key(obj),
-                        "Tester Ancestor": get_org_unit_ancestor(obj),
+                        "Organisation": get_org_unit_ancestor(obj),
                     }
                 )
 
@@ -677,7 +677,6 @@ def main() -> None:
         # settings.report_engagements_ended_file_path,
     )
 
-    assert 8 == 8
 
 
 if __name__ == "__main__":
