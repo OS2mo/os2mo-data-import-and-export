@@ -14,7 +14,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 from .date_utils import (
     datetime_to_sd_date,
-    parse_date,
+    parse_datetime,
     SD_INFINITY,
     MO_INFINITY,
     format_date,
@@ -221,14 +221,14 @@ class FixDepartments:
         logger.info(msg.format(unit_uuid, validity_date))
         validity = {
             "from_date": validity_date.strftime("%d.%m.%Y"),
-            "to_date": datetime_to_sd_date(parse_date(SD_INFINITY)),
+            "to_date": datetime_to_sd_date(parse_datetime(SD_INFINITY)),
         }
 
         departments = self.get_department(validity, uuid=unit_uuid)
         for department in departments:
             # Get the UUID of the parent unit
             parent_lookup_date = max(
-                validity_date, parse_date(department["ActivationDate"]).date()
+                validity_date, parse_datetime(department["ActivationDate"]).date()
             )
             parent_uuid = self.get_parent(unit_uuid, parent_lookup_date)
 
