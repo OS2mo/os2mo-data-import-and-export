@@ -15,7 +15,7 @@ from sdlon.date_utils import format_date
 from sdlon.date_utils import datetime_to_sd_date
 from sdlon.date_utils import gen_cut_dates
 from sdlon.date_utils import gen_date_intervals
-from sdlon.date_utils import get_employment_dates
+from sdlon.date_utils import get_employment_datetimes
 from sdlon.date_utils import is_midnight
 from sdlon.date_utils import sd_to_mo_termination_date
 from sdlon.date_utils import to_midnight
@@ -158,7 +158,7 @@ def test_get_from_date_always_return_date():
 def test_get_employment_from_date_when_status_is_leave(
     emp_date,
     act_date,
-    exp_date,
+    exp_datetime,
 ):
     employment = OrderedDict(
         [
@@ -192,9 +192,9 @@ def test_get_employment_from_date_when_status_is_leave(
         ]
     )
 
-    date_from, date_to = get_employment_dates(employment)
+    datetime_from, datetime_to = get_employment_datetimes(employment)
 
-    assert date_from == exp_date
+    assert datetime_from == exp_datetime
 
 
 @parameterized.expand(
@@ -205,7 +205,7 @@ def test_get_employment_from_date_when_status_is_leave(
 )
 def test_get_employment_to_date_when_status_is_leave(
     deactivation_date,
-    exp_date,
+    exp_datetime,
 ):
     employment = OrderedDict(
         [
@@ -239,9 +239,9 @@ def test_get_employment_to_date_when_status_is_leave(
         ]
     )
 
-    date_from, date_to = get_employment_dates(employment)
+    datetime_from, datetime_to = get_employment_datetimes(employment)
 
-    assert date_to == exp_date
+    assert datetime_to == exp_datetime
 
 
 @parameterized.expand(

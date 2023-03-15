@@ -686,7 +686,7 @@ class ChangeAtSD:
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings.sd_import_too_deep
         # Move users and make associations according to NY logic
-        today = datetime.datetime.today()
+        today = datetime.datetime.today().date()
         ou_info = self.helper.read_ou(org_unit, use_cache=False)
         if "status" in ou_info:
             # This unit does not exist, read its state in the not-too
@@ -699,7 +699,7 @@ class ChangeAtSD:
                 #       is eliminated, right now it serves to ensure solely that
                 #       the SD integration does not crash due to the bad code.
                 #       The solution will then be to fix all the issues using SDTool.
-                logger.warning("Unable to apply NY-logic", org_unit)
+                logger.warning("Unable to apply NY-logic on unit %s", org_unit)
                 return org_unit
 
         if ou_info["org_unit_level"]["user_key"] in too_deep:

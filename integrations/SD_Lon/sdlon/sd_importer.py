@@ -24,8 +24,8 @@ from .config import get_changed_at_settings
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date, date_to_datetime
-from .date_utils import get_employment_dates
-from .date_utils import parse_date
+from .date_utils import get_employment_datetimes
+from .date_utils import parse_datetime
 from .models import JobFunction
 from .sd_common import calc_employment_id
 from .sd_common import EmploymentStatus
@@ -631,17 +631,17 @@ class SdImport:
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            date_from_engagement, date_to = get_employment_dates(employment)
+            datetime_from_engagement, datetime_to = get_employment_datetimes(employment)
             # Use org unit start date if engagement starts *before*
             # the org unit start date
-            org_unit_date_from = parse_date(
+            org_unit_datetime_from = parse_datetime(
                 self.importer.organisation_units[unit].date_from
             )
-            date_from = max(date_from_engagement, org_unit_date_from)
+            datetime_from = max(datetime_from_engagement, org_unit_datetime_from)
 
-            date_from_str = format_date(date_from)
-            date_to_str = format_date(date_to)
-            if date_to == datetime.datetime(9999, 12, 31, 0, 0):
+            date_from_str = format_date(datetime_from)
+            date_to_str = format_date(datetime_to)
+            if datetime_to == datetime.datetime(9999, 12, 31, 0, 0):
                 date_to_str = None
 
             sd_employment_id = employment_id["id"]
@@ -650,7 +650,7 @@ class SdImport:
                 f"to: {date_to_str}"
             )
 
-            if date_to <= date_from:
+            if datetime_to <= datetime_from:
                 logger.warning(f"Skip creating employment for id: {sd_employment_id}")
                 continue
 
@@ -700,15 +700,15 @@ class SdImport:
             # Add historic dummy engagement if the start date of the engagement
             # is older than the start date of the corresponding org unit
             # (see https://redmine.magenta-aps.dk/issues/51898)
-            if date_from_engagement < org_unit_date_from:
-                dummy_eng_date_to = org_unit_date_from - datetime.timedelta(days=1)
+            if datetime_from_engagement < org_unit_datetime_from:
+                dummy_eng_date_to = org_unit_datetime_from - datetime.timedelta(days=1)
                 dummy_eng_date_to_str = format_date(dummy_eng_date_to)
                 self.importer.add_engagement(
                     employee=cpr,
                     organisation_unit=self.historic_org_unit_uuid,
                     job_function_ref=HISTORIC,
                     engagement_type_ref="historisk",
-                    date_from=format_date(date_from_engagement),
+                    date_from=format_date(datetime_from_engagement),
                     date_to=dummy_eng_date_to_str,
                 )
 

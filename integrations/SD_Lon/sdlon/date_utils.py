@@ -35,7 +35,7 @@ def format_date(date_time: datetime) -> str:
     return date_time.strftime("%Y-%m-%d").zfill(10)
 
 
-def parse_date(date_str: str) -> datetime:
+def parse_datetime(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
@@ -71,15 +71,15 @@ def _get_employment_from_date(employment: OrderedDict) -> datetime:
     )
 
     return max(
-        parse_date(employment_date),
-        parse_date(employment_department_date),
-        parse_date(employment_status_date),
-        parse_date(profession_date),
-        parse_date(working_time_date),
+        parse_datetime(employment_date),
+        parse_datetime(employment_department_date),
+        parse_datetime(employment_status_date),
+        parse_datetime(profession_date),
+        parse_datetime(working_time_date),
     )
 
 
-def get_employment_dates(employment: OrderedDict) -> Tuple[datetime, datetime]:
+def get_employment_datetimes(employment: OrderedDict) -> Tuple[datetime, datetime]:
     """
     Get the "from" and "to" date from the SD employment
 
@@ -93,17 +93,17 @@ def get_employment_dates(employment: OrderedDict) -> Tuple[datetime, datetime]:
     status = EmploymentStatus(employment["EmploymentStatus"]["EmploymentStatusCode"])
 
     if status in EmploymentStatus.let_go():
-        date_from = parse_date(employment["EmploymentDate"])
+        datetime_from = parse_datetime(employment["EmploymentDate"])
         termination_date = str(
             sd_to_mo_termination_date(employment["EmploymentStatus"]["ActivationDate"])
         )
-        date_to = parse_date(termination_date)
-        return date_from, date_to
+        datetime_to = parse_datetime(termination_date)
+        return datetime_from, datetime_to
 
-    date_from = _get_employment_from_date(employment)
-    date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
+    datetime_from = _get_employment_from_date(employment)
+    datetime_to = parse_datetime(employment["EmploymentStatus"]["DeactivationDate"])
 
-    return date_from, date_to
+    return datetime_from, datetime_to
 
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
