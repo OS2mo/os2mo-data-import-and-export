@@ -1,13 +1,10 @@
 from uuid import UUID
-from datetime import datetime, date, timedelta
+from datetime import datetime, date
 from typing import List
 from typing import Optional
 
-import os
 import csv
 import json
-import time
-import shutil
 from dateutil import utils
 from more_itertools import one
 from fastapi.encoders import jsonable_encoder
@@ -417,12 +414,9 @@ def convert_person_and_engagement_data_to_csv(
         """In case of multiple root Organisations, this function can
         be used to extract the name of the Organisation."""
         for data in gql_data["engagements"]:
-            assert 1 == 1
             if len(data["org_unit"][0]["ancestors"]) == 0:
-                assert 2 == 2
                 return data["org_unit"][0]["name"]
             if len(data["org_unit"][0]["ancestors"]) >= 1:
-                assert 3 == 3
                 return data["org_unit"][0]["ancestors"][-1]["name"]
             return None
 
@@ -434,15 +428,20 @@ def convert_person_and_engagement_data_to_csv(
                     {
                         "Personens navn": obj["name"],
                         "Personens UUID": obj["uuid"],
-                        "Ansættelsessted": obj['engagements'][0]['org_unit'][0]['name']
+                        "Ansættelsessted": obj["engagements"][0]["org_unit"][0]["name"]
                         if obj["engagements"]
                         else "Der findes intet fremtidigt engagement for personen",
                         "Ansættelsesdato": datetime.fromisoformat(
-                            obj["engagements"][0]["validity"]["from"]).date().isoformat()
+                            obj["engagements"][0]["validity"]["from"]
+                        )
+                        .date()
+                        .isoformat()
                         if obj["engagements"]
                         else "Der findes intet fremtidigt engagement for personen",
                         "Oprettelsesdato": date.today().isoformat(),
-                        "CPR": "'{crp}'".format(crp=obj["cpr_no"]) if obj["cpr_no"] else None,
+                        "CPR": "'{crp}'".format(crp=obj["cpr_no"])
+                        if obj["cpr_no"]
+                        else None,
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
@@ -477,11 +476,13 @@ def convert_person_and_engagement_data_to_csv(
     )
 
 
-yesterdays_report_testing = read_report_as_json(
+# TODO adjust these properly
+
+yesterdays_json_report = read_report_as_json(
     "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
 )
 
-todays_report_testing = read_report_as_json(
+todays_json_report = read_report_as_json(
     "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
 )
 
@@ -502,9 +503,8 @@ def write_file(contents_of_file, path_to_file):
 
 def display_engagements(
     gql_session: SyncClientSession,
-    show_started_engagements: bool = False,
     show_ended_engagements: bool = False,
-    testing_show: bool = False,
+    show_new_persons: bool = False,
 ) -> str:
     """
     Calls upon GraphQL queries and various filters defined in this module, to return all
@@ -512,11 +512,11 @@ def display_engagements(
 
     args:
     A GraphQL session to execute the graphQL queries.
-    Optional param of either "show_started_engagements" or "show_ended_engagements" to
-    specify what type of engagement details to be returned.
+    Optional param of either "show_ended_engagements" or "show_new_persons" to
+    specify what type of details to be returned on engagements or persons.
 
     returns:
-    All relevant details on engagements formatted in CSV form.
+    All relevant details on engagements or persons formatted in CSV form.
     """
 
     # Pulling address types so email uuids can be found.
@@ -527,21 +527,9 @@ def display_engagements(
         address_type_uuids_and_scopes
     )
 
-    # Getting active payload with validity field "from" engagements.
-    payload_of_started_engagements_objects = established_person_engagements(
-        gql_session, validity_field_from=True
-    )
-
     # Getting engagements that have an end-date with validity field "to" engagements.
     payload_of_ended_engagements_objects = established_person_engagements(
         gql_session, validity_field_to=True
-    )
-
-    # Finding uuids of persons that have started new engagements.
-    list_of_person_uuids_started_engagements = (
-        get_filtered_engagements_for_started_today(
-            payload_of_started_engagements_objects
-        )
     )
 
     # Finding uuids of persons that have ended engagements.
@@ -549,32 +537,25 @@ def display_engagements(
         payload_of_ended_engagements_objects
     )
 
+    # Finding newly appeared uuids, which we assume must be new persons in MO.
     newly_established_uuids_in_mo = get_differences_in_uuids(
-        yesterdays_report_testing, todays_report_testing
+        yesterdays_json_report, todays_json_report
     )
-    assert 2 == 2
+
+    # Finding relevant details on new persons from GraphQL calls.
     details_new_persons_established_in_mo = persons_details_from_engagement(
         gql_session,
         newly_established_uuids_in_mo,
         list_of_email_uuids,
         started_engagement_details=True,
     )
-    assert 1 == 1
-    if testing_show:
-        testing_stuff_in_csv = convert_person_and_engagement_data_to_csv(
+
+    # If the details to be made are on new persons, convert the details to CSV.
+    if show_new_persons:
+        new_persons_in_csv = convert_person_and_engagement_data_to_csv(
             details_new_persons_established_in_mo, started=True
         )
-        assert 99 == 99
-        return testing_stuff_in_csv
-
-    # Retrieving details on person with new started engagement.
-    details_of_started_engagements = persons_details_from_engagement(
-        gql_session,
-        list_of_person_uuids_started_engagements,
-        list_of_email_uuids,
-        started_engagement_details=True,
-    )
-    assert 2 == 2
+        return new_persons_in_csv
 
     # Retrieving details on person with ended engagement.
     details_of_ended_engagements = persons_details_from_engagement(
@@ -583,13 +564,8 @@ def display_engagements(
         list_of_email_uuids,
         ended_engagement_details=True,
     )
-    if show_started_engagements:
-        # Converting details on new started engagements to CSV.
-        started_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
-            details_of_started_engagements, started=True
-        )
-        return started_engagements_data_in_csv
 
+    # If details to be made are on ended engagements, convert the details to CSV.
     if show_ended_engagements:
         # Converting details on ended engagements to csv.
         ended_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
@@ -632,51 +608,54 @@ def main() -> None:
     gql_session = setup_gql_client(settings=settings)
 
     yesterdays_report = read_report_as_json(
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json",
+        # settings.yesterdays_json_report_path
     )
+    print("Read JSON uuids from yesterdays")
 
     list_of_all_new_persons = gql_get_all_persons_uuids(gql_session)
 
     write_report_as_json(
         list_of_all_new_persons,
         "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json",
+        # settings.todays_json_report_path
     )
+    print("Wrote JSON uuids for today")
 
     todays_report = read_report_as_json(
         "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
+        # settings.todays_json_report_path
     )
 
+    # TODO change the functionality of this to main, and remove from other places
     new_uuids_appeared_in_mo = get_differences_in_uuids(
         yesterdays_report, todays_report
-    )
-
-    assert 100 == 100
-
-    new_engagements_to_write = display_engagements(
-        gql_session, show_started_engagements=True
-    )
-    # Generating a file on newly established engagements.
-    write_file(
-        new_engagements_to_write,
-        "reports/os2mo_new_and_ended_engagement_reports/new_engagements.csv",
-        # settings.report_engagements_new_file_path,
     )
 
     ended_engagements_to_write = display_engagements(
         gql_session, show_ended_engagements=True
     )
 
-    lol_test = display_engagements(gql_session, testing_show=True)
+    new_persons_in_mo_to_write_in_report = display_engagements(
+        gql_session, show_new_persons=True
+    )
 
-    write_file(lol_test, "reports/os2mo_new_and_ended_engagement_reports/halpme.csv")
+    write_file(
+        new_persons_in_mo_to_write_in_report,
+        settings.report_new_persons_file_path
+    )
+
+    print("Wrote CSV report for new persons in MO today")
+
     # Generating a file  on ended engagements.
 
     write_file(
         ended_engagements_to_write,
-        "reports/os2mo_new_and_ended_engagement_reports/old_engagements.csv",
-        # settings.report_engagements_ended_file_path,
+        settings.report_ended_engagements_file_path
     )
 
+    print("Wrote CSV report for ended engagements in MO today")
+    print("Report successfully made!")
 
 
 if __name__ == "__main__":

@@ -6,30 +6,21 @@ from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 
 
-timestamp = time.strftime("%Y%m%d%H%M%S")
-
-
 class EngagementSettings(JobSettings):
     # common settings for clients:
-    read_yesterdays_json_report_path: Path = Path(
-        "/opt/docker/os2mo/queries/read_new_entries_in_mo.json"
+    yesterdays_json_report_path: Path = Path(
+        "/opt/dipex/os2mo/os2mo-data-import-and-export/"
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
     )
-    write_todays_json_report_path: Path = Path(
-        f"/opt/docker/os2mo/queries/write_new_entries_in_mo.json"
-    )
-
-    write_todays_json_report_path_with_timestamp: Path = Path(
-        f"/opt/docker/os2mo/queries/write_new_entries_in_mo{timestamp}.json"
-    )
-    copy_todays_json_report_path_with_timestamp: Path = Path(
-        f"/opt/docker/os2mo/queries/copy_new_entries_in_mo{timestamp}.json"
+    todays_json_report_path: Path = Path(
+        f"/opt/dipex/os2mo/os2mo-data-import-and-export/employee_uuids_today.json"
     )
 
-    report_engagements_new_file_path: Path = Path(
-        "/opt/docker/os2mo/queries/report_engagements_new.csv"
+    report_new_persons_file_path: Path = Path(
+        "/opt/docker/os2mo/queries/new_persons.csv"
     )
-    report_engagements_ended_file_path: Path = Path(
-        "/opt/docker/os2mo/queries/report_engagements_ended.csv"
+    report_ended_engagements_file_path: Path = Path(
+        "/opt/docker/os2mo/queries/ended_engagements.csv"
     )
 
 
