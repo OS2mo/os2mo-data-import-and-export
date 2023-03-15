@@ -692,14 +692,14 @@ class ChangeAtSD:
             # This unit does not exist, read its state in the not-too
             # distant future.
             fix_date = today + datetime.timedelta(weeks=80)
-            self.department_fixer.fix_department(org_unit, fix_date)
+            self.department_fixer.fix_department(org_unit, fix_date.date())
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
             if "status" in ou_info:
                 # TODO: This code should be removed once the 80-week magic number
                 #       is eliminated, right now it serves to ensure solely that
                 #       the SD integration does not crash due to the bad code.
                 #       The solution will then be to fix all the issues using SDTool.
-                logger.warning("Unable to apply NY-logic", org_unit)
+                logger.warning("Unable to apply NY-logic on unit %s", org_unit)
                 return org_unit
 
         if ou_info["org_unit_level"]["user_key"] in too_deep:
