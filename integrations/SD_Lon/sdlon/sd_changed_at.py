@@ -686,13 +686,13 @@ class ChangeAtSD:
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings.sd_import_too_deep
         # Move users and make associations according to NY logic
-        today = datetime.datetime.today()
+        today = datetime.datetime.today().date()
         ou_info = self.helper.read_ou(org_unit, use_cache=False)
         if "status" in ou_info:
             # This unit does not exist, read its state in the not-too
             # distant future.
             fix_date = today + datetime.timedelta(weeks=80)
-            self.department_fixer.fix_department(org_unit, fix_date.date())
+            self.department_fixer.fix_department(org_unit, fix_date)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
             if "status" in ou_info:
                 # TODO: This code should be removed once the 80-week magic number
