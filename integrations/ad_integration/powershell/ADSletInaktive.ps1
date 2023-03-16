@@ -24,7 +24,7 @@ function Start-Log {
     $LogFilePath = $SettingLogPath + "Log." + $Timestamp + ".txt"
 
     # Slet gamle log filer
-    Get-ChildItem -Path $SettingLogPath | Sort-Object CreationTime -Descending | Select -Skip $SettingLogsToKeep | Remove-Item -Force
+    Get-ChildItem -Path $SettingLogPath | Sort-Object CreationTime -Descending | Select -Skip $SettingLogsToKeep | Remove-Item -Force -Confirm:$false
 
     Start-Transcript -Path $LogFilePath
 }
