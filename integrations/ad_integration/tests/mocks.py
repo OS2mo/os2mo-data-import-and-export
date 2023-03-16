@@ -173,6 +173,7 @@ class MockLoraCacheExtended(MockLoraCache):
             MO_ROOT_ORG_UNIT_UUID: [
                 {
                     "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "parent": None,
                 }
             ]
         }

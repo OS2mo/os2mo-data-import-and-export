@@ -204,6 +204,20 @@ class AdLifeCycle:
 
         return False
 
+    def _get_filter_users_outside_unit_tree(self):
+        """Return predicate which filter MO users outside the specified unit tree (aka.
+        "user_trees".)
+        """
+
+        @self.log_skipped("filter_users_outside_unit_tree")
+        def filter_users_outside_unit_tree(tup):
+            status = self._find_user_unit_tree(tup)
+            if status is False:
+                self.stats["not_in_user_tree"] += 1
+            return status
+
+        return filter_users_outside_unit_tree
+
     def _gen_filtered_employees(
         self, in_filters: Optional[List[FilterFunction]] = None
     ):
@@ -324,6 +338,8 @@ class AdLifeCycle:
                 filter_user_not_in_ad,
                 # Remove users that have active engagements
                 filter_user_has_engagements,
+                # Remove users outside the unit tree
+                self._get_filter_users_outside_unit_tree(),
             ]
             + self.disable_filters
         )
@@ -372,13 +388,6 @@ class AdLifeCycle:
                 return False
             return True
 
-        @self.log_skipped("filter_users_outside_unit_tree")
-        def filter_users_outside_unit_tree(tup):
-            status = self._find_user_unit_tree(tup)
-            if status is False:
-                self.stats["not_in_user_tree"] += 1
-            return status
-
         def run_create_filters(tup):
             status = all(create_filter(tup) for create_filter in self.create_filters)
             if status is False:
@@ -392,7 +401,7 @@ class AdLifeCycle:
                 # Remove users that have no active engagements at all
                 filter_user_without_engagements,
                 # Check if the user is in a create-user sub-tree
-                filter_users_outside_unit_tree,
+                self._get_filter_users_outside_unit_tree(),
                 # Run all create_filters
                 run_create_filters,
             ]
