@@ -455,7 +455,7 @@ def main() -> None:
     gql_session = setup_gql_client(settings=settings)
     try:  # Read report from yesterday and store the data in variable.
         yesterdays_report = read_report_as_json(
-            "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json",
+            "reports/os2mo_new_and_ended_engagement_reports/employee_uuid.json",
             # settings.yesterdays_json_report_path
         )
         print("Read JSON uuids from yesterdays")
@@ -467,19 +467,8 @@ def main() -> None:
     # Get uuids on all persons.
     list_of_all_persons = gql_get_all_persons_uuids(gql_session)
 
-    # Write a report for today with the uuids from all persons.
-    write_report_as_json(
-        list_of_all_persons,
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json",
-        # settings.todays_json_report_path
-    )
-    print("Wrote JSON uuids for today")
-
     # Read the report written today with the uuids from all persons.
-    todays_report = read_report_as_json(
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
-        # settings.todays_json_report_path
-    )
+    todays_report = list_of_all_persons
 
     # Find uuid difference in reports from yesterday and from today.
     # These must be uuids on all new persons established in MO.
@@ -551,6 +540,14 @@ def main() -> None:
     print("Wrote CSV report for ended engagements in MO today")
     print("Report successfully made!")
 
+    # Write a report for today with the uuids from all persons.
+    write_report_as_json(
+        list_of_all_persons,
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids.json",
+        # settings.todays_json_report_path
+    )
+
+    print("Wrote JSON uuids for today")
 
 if __name__ == "__main__":
     main()
