@@ -455,7 +455,7 @@ def main() -> None:
     gql_session = setup_gql_client(settings=settings)
     try:  # Read report from yesterday and store the data in variable.
         yesterdays_report = read_report_as_json(
-            "reports/os2mo_new_and_ended_engagement_reports/employee_uuid.json",
+            "reports/os2mo_new_and_ended_engagement_reports/employee_uuids.json",
             # settings.yesterdays_json_report_path
         )
         print("Read JSON uuids from yesterdays")
@@ -548,6 +548,7 @@ def main() -> None:
     )
 
     print("Wrote JSON uuids for today")
+
 
 if __name__ == "__main__":
     main()
