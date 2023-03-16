@@ -1,5 +1,3 @@
-import time
-
 from functools import lru_cache
 from pathlib import Path
 from ra_utils.job_settings import JobSettings
@@ -13,7 +11,7 @@ class EngagementSettings(JobSettings):
         "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
     )
     todays_json_report_path: Path = Path(
-        f"/opt/dipex/os2mo/os2mo-data-import-and-export/employee_uuids_today.json"
+        "/opt/dipex/os2mo/os2mo-data-import-and-export/employee_uuids_today.json"
     )
 
     report_new_persons_file_path: Path = Path(

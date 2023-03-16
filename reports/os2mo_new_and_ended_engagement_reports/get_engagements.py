@@ -1,7 +1,6 @@
 from uuid import UUID
 from datetime import datetime, date
 from typing import List
-from typing import Optional
 
 import csv
 import json
@@ -20,7 +19,7 @@ from reports.os2mo_new_and_ended_engagement_reports.config import (
 )
 
 
-def read_report_as_json(path_to_file):
+def read_report_as_json(path_to_file: str) -> List[dict[str, str]]:
     """
     A generic way to read content in JSON format.
 
@@ -41,42 +40,34 @@ def read_report_as_json(path_to_file):
     return read_json_object
 
 
-def gql_query_validity_field(
-    validity_from: bool = False, validity_to: bool = False
-) -> str:
-    """GQL query to return to use as input, depending on what type of engagement is wanted."""
-    if validity_from:
-        return """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
-             engagements(from_date: $engagement_date_to_query_from) {
-               objects {
-                 employee_uuid
-                 validity {
-                   from
-                 }
-               }
-             }
-           }
-        """
+def get_gql_query_validity_to(
+    gql_session: SyncClientSession,
+) -> dict:
+    """Returns a GQL payload on engagements with validity till today."""
+    graphql_query = gql(
+        """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
+                     engagements(from_date: $engagement_date_to_query_from) {
+                       objects {
+                         employee_uuid
+                         validity {
+                           to
+                         }
+                       }
+                     }
+                   }
+                """
+    )
 
-    if validity_to:
-        return """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
-             engagements(from_date: $engagement_date_to_query_from) {
-               objects {
-                 employee_uuid
-                 validity {
-                   to
-                 }
-               }
-             }
-           }
-        """
+    return gql_session.execute(
+        graphql_query, {"engagement_date_to_query_from": date.today().isoformat()}
+    )
 
 
 def gql_query_persons_details_to_display(
-    started_engagement: bool = False, ended_engagement: bool = False
+    show_new_persons: bool = False, show_ended_engagements: bool = False
 ) -> str:
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
-    if started_engagement:
+    if show_new_persons:
         return """
         query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
             employees(uuids: $uuidlist, to_date: null) {
@@ -111,7 +102,7 @@ def gql_query_persons_details_to_display(
             }
        """
 
-    if ended_engagement:
+    if show_ended_engagements:
         return """
             query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
                 employees(uuids: $uuidlist) {
@@ -147,72 +138,6 @@ def gql_query_persons_details_to_display(
         """
 
 
-def established_person_engagements(
-    gql_session: SyncClientSession,
-    validity_field_from: bool = None,
-    validity_field_to: bool = None,
-) -> dict:
-    """
-    Reading all of active engagements with the persons uuid(s) engagement start date through a
-    GraphQL call.
-
-    args:
-    A GraphQL session to execute the graphQL query.
-
-    Optional param of either "validity_field_from" or "validity_field_to" to
-    specify what engagement validity to retrieve data of.
-
-    returns:
-    An object of active engagements with persons uuid(s) and dates on persons validity from.
-    """
-    if validity_field_from:
-        graphql_query = gql(gql_query_validity_field(validity_from=True))
-
-    elif validity_field_to:
-        graphql_query = gql(gql_query_validity_field(validity_to=True))
-
-    variables = {"engagement_date_to_query_from": date.today().isoformat()}
-    response = gql_session.execute(
-        graphql_query, variable_values=jsonable_encoder(variables)
-    )
-
-    return response
-
-
-def get_filtered_engagements_for_started_today(gql_query_response: dict) -> List[UUID]:
-    """
-    Applying filter to get uuids of persons which have started engagements as of today.
-
-    args:
-    A graphQL query with payload of active engagements.
-
-    returns:
-    A list of eligible uuid(s) of the person(s) that have started their engagements as of today.
-    """
-
-    def filter_today(obj):
-        return (
-            datetime.fromisoformat(one(obj["objects"])["validity"]["from"]).replace(
-                tzinfo=None
-            )
-            == utils.today()
-        )
-
-    filtered_dates = filter(
-        lambda startdate: one(startdate["objects"])["validity"]["from"],
-        gql_query_response["engagements"],
-    )
-
-    filtered_engagements_by_today_date = filter(filter_today, filtered_dates)
-
-    extracted_uuids = [
-        one(person_uuids["objects"])["employee_uuid"]
-        for person_uuids in filtered_engagements_by_today_date
-    ]
-
-    return extracted_uuids
-
-
 def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[UUID]:
     """
     Applying filter to get uuids of persons which have ended their engagements as of today.
@@ -224,7 +149,7 @@ def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[U
     A list of eligible uuid(s) of the person(s) that have ended their engagements as of today.
     """
 
-    def filter_to_today(obj):
+    def filter_to_today(obj: dict):
         return (
             datetime.fromisoformat(one(obj["objects"])["validity"]["to"]).replace(
                 tzinfo=None
@@ -302,9 +227,9 @@ def get_email_address_type_uuid_from_gql(gql_query_dict: dict) -> list:
 
 def persons_details_from_engagement(
     gql_session: SyncClientSession,
-    uuidlist: List[UUID] | set,
+    uuidlist: List[UUID] | set[UUID],
     address_type_uuid_list: List[UUID],
-    started_engagement_details: bool = False,
+    person_details: bool = False,
     ended_engagement_details: bool = False,
 ) -> dict:
     """
@@ -316,19 +241,19 @@ def persons_details_from_engagement(
     List of person uuids to query on.
     List of address type uuids to query on.
 
-    Optional param of either "started_engagement_details" or "ended_engagement_details" to
+    Optional param of either "person_details" or "ended_engagement_details" to
     specify what type of engagement to retrieve details of.
 
     returns:
     A dict with all desired details on person by active engagement.
     """
-    if started_engagement_details:
-        graphql_query = gql(
-            gql_query_persons_details_to_display(started_engagement=True)
-        )
+    if person_details:
+        graphql_query = gql(gql_query_persons_details_to_display(show_new_persons=True))
 
     elif ended_engagement_details:
-        graphql_query = gql(gql_query_persons_details_to_display(ended_engagement=True))
+        graphql_query = gql(
+            gql_query_persons_details_to_display(show_ended_engagements=True)
+        )
 
     variables = {"uuidlist": uuidlist, "email_uuid_list": address_type_uuid_list}
     response = gql_session.execute(
@@ -353,6 +278,8 @@ def gql_get_all_persons_uuids(gql_session: SyncClientSession) -> List[dict]:
      {'uuid': '002a1aed-d015-4b86-86a4-c37cd8df1e18'},
      {'uuid': '00556594-7be8-4c57-ba0a-9d2adefc8d1c'}]
     """
+    # TODO Make these return as set of uuids rather than a list of dict.
+    # {uuid1, uuid2, uuid3}
     graphql_query = gql(
         """
         query MyQuery {
@@ -364,11 +291,11 @@ def gql_get_all_persons_uuids(gql_session: SyncClientSession) -> List[dict]:
     )
 
     all_persons = gql_session.execute(graphql_query)
-
+    # return {x['uuid'] for x in all_persons}
     return all_persons["employees"]
 
 
-def write_report_as_json(gql_object: List[dict], path_to_file):
+def write_report_as_json(gql_object: List[dict], path_to_file: str):
     """
     Function for writing content in JSON format.
 
@@ -387,7 +314,9 @@ def write_report_as_json(gql_object: List[dict], path_to_file):
 
 
 def convert_person_and_engagement_data_to_csv(
-    dict_data: dict, started: bool = False, ended: bool = False
+    dict_data: dict,
+    persons_data_to_csv: bool = False,
+    ended_engagements_data_to_csv: bool = False,
 ):
     """
     Mapping fields of payload from engagement to CSV format.
@@ -396,21 +325,21 @@ def convert_person_and_engagement_data_to_csv(
     A dictionary consisting of a payload with the fields of Person(s) name(s), Person(s) uuid(s),
     User key(s), Organisation unit name(s), CPR number(s), Email(s), Engagement date(s).
 
-    Optional param of either "started" or "ended" to specify what type of engagement to write
-    details of.
+    Optional param of either "persons_data_to_csv" or "ended_engagements_data_to_csv" to specify
+    what kind of detail to write.
 
     returns:
     A CSV format of fields properly mapped to their representative fields.
     """
 
-    def get_ad_it_system_user_key(data_dict: dict) -> Optional[str]:
+    def get_ad_it_system_user_key(data_dict: dict) -> str | None:
         """A helper function to extract the user_key of AD It Systems."""
         for data in data_dict["itusers"]:
             if data is not None and data["itsystem"]["name"] == "Active Directory":
                 return data["user_key"]
         return None
 
-    def get_org_unit_ancestor(gql_data: dict) -> Optional[str]:
+    def get_org_unit_ancestor(gql_data: dict) -> str | None:
         """In case of multiple root Organisations, this function can
         be used to extract the name of the Organisation."""
         for data in gql_data["engagements"]:
@@ -421,7 +350,7 @@ def convert_person_and_engagement_data_to_csv(
             return None
 
     out = []
-    if started:
+    if persons_data_to_csv:
         for employee in dict_data["employees"]:
             for obj in employee["objects"]:
                 out.append(
@@ -450,7 +379,7 @@ def convert_person_and_engagement_data_to_csv(
                     }
                 )
 
-    elif ended:
+    elif ended_engagements_data_to_csv:
         for employee in dict_data["employees"]:
             for obj in employee["objects"]:
                 out.append(
@@ -476,18 +405,7 @@ def convert_person_and_engagement_data_to_csv(
     )
 
 
-# TODO adjust these properly
-
-yesterdays_json_report = read_report_as_json(
-    "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json"
-)
-
-todays_json_report = read_report_as_json(
-    "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
-)
-
-
-def write_file(contents_of_file, path_to_file):
+def write_file(contents_of_file: str, path_to_file: str):
     """
     A generic way of writing a file.
 
@@ -497,84 +415,13 @@ def write_file(contents_of_file, path_to_file):
     returns:
     A written file with the desired contents.
     """
-    with open(path_to_file, "w+", encoding="utf-8") as file:
+    with open(path_to_file, "w", encoding="utf-8") as file:
         file.write(contents_of_file)
 
 
-def display_engagements(
-    gql_session: SyncClientSession,
-    show_ended_engagements: bool = False,
-    show_new_persons: bool = False,
-) -> str:
-    """
-    Calls upon GraphQL queries and various filters defined in this module, to return all
-    relevant data with all the details wanted on an engagement and on a person.
-
-    args:
-    A GraphQL session to execute the graphQL queries.
-    Optional param of either "show_ended_engagements" or "show_new_persons" to
-    specify what type of details to be returned on engagements or persons.
-
-    returns:
-    All relevant details on engagements or persons formatted in CSV form.
-    """
-
-    # Pulling address types so email uuids can be found.
-    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)
-
-    # Finding email uuids.
-    list_of_email_uuids = get_email_address_type_uuid_from_gql(
-        address_type_uuids_and_scopes
-    )
-
-    # Getting engagements that have an end-date with validity field "to" engagements.
-    payload_of_ended_engagements_objects = established_person_engagements(
-        gql_session, validity_field_to=True
-    )
-
-    # Finding uuids of persons that have ended engagements.
-    list_of_person_uuids_ended_engagements = get_filtered_engagements_for_ended_today(
-        payload_of_ended_engagements_objects
-    )
-
-    # Finding newly appeared uuids, which we assume must be new persons in MO.
-    newly_established_uuids_in_mo = get_differences_in_uuids(
-        yesterdays_json_report, todays_json_report
-    )
-
-    # Finding relevant details on new persons from GraphQL calls.
-    details_new_persons_established_in_mo = persons_details_from_engagement(
-        gql_session,
-        newly_established_uuids_in_mo,
-        list_of_email_uuids,
-        started_engagement_details=True,
-    )
-
-    # If the details to be made are on new persons, convert the details to CSV.
-    if show_new_persons:
-        new_persons_in_csv = convert_person_and_engagement_data_to_csv(
-            details_new_persons_established_in_mo, started=True
-        )
-        return new_persons_in_csv
-
-    # Retrieving details on person with ended engagement.
-    details_of_ended_engagements = persons_details_from_engagement(
-        gql_session,
-        list_of_person_uuids_ended_engagements,
-        list_of_email_uuids,
-        ended_engagement_details=True,
-    )
-
-    # If details to be made are on ended engagements, convert the details to CSV.
-    if show_ended_engagements:
-        # Converting details on ended engagements to csv.
-        ended_engagements_data_in_csv = convert_person_and_engagement_data_to_csv(
-            details_of_ended_engagements, ended=True
-        )
-        return ended_engagements_data_in_csv
-
-
-def get_differences_in_uuids(old_report: List[dict], new_report: List[dict]) -> set:
+def get_differences_in_uuids(
+    old_report: List[dict], new_report: List[dict]
+) -> set[UUID]:
     """
     Takes two lists of objects and unpacks each into a set. These sets are each
     compared to each-other to find differences. These differences would indicate
@@ -606,56 +453,101 @@ def main() -> None:
     settings = get_engagement_settings()
     settings.start_logging_based_on_settings()
     gql_session = setup_gql_client(settings=settings)
+    try:  # Read report from yesterday and store the data in variable.
+        yesterdays_report = read_report_as_json(
+            "reports/os2mo_new_and_ended_engagement_reports/employee_uuids.json",
+            # settings.yesterdays_json_report_path
+        )
+        print("Read JSON uuids from yesterdays")
 
-    yesterdays_report = read_report_as_json(
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_yesterday.json",
-        # settings.yesterdays_json_report_path
-    )
-    print("Read JSON uuids from yesterdays")
+    except FileNotFoundError:
+        yesterdays_report = []
+        print("No files found from yesterday")
 
-    list_of_all_new_persons = gql_get_all_persons_uuids(gql_session)
+    # Get uuids on all persons.
+    list_of_all_persons = gql_get_all_persons_uuids(gql_session)
 
-    write_report_as_json(
-        list_of_all_new_persons,
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json",
-        # settings.todays_json_report_path
-    )
-    print("Wrote JSON uuids for today")
+    # Read the report written today with the uuids from all persons.
+    todays_report = list_of_all_persons
 
-    todays_report = read_report_as_json(
-        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids_today.json"
-        # settings.todays_json_report_path
-    )
-
-    # TODO change the functionality of this to main, and remove from other places
-    new_uuids_appeared_in_mo = get_differences_in_uuids(
+    # Find uuid difference in reports from yesterday and from today.
+    # These must be uuids on all new persons established in MO.
+    set_of_newly_established_uuids_in_mo = get_differences_in_uuids(
         yesterdays_report, todays_report
     )
 
-    ended_engagements_to_write = display_engagements(
-        gql_session, show_ended_engagements=True
+    # Pulling address types so email uuids can be found.
+    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)
+
+    # Finding email uuids.
+    list_of_email_uuids = get_email_address_type_uuid_from_gql(
+        address_type_uuids_and_scopes
     )
 
-    new_persons_in_mo_to_write_in_report = display_engagements(
-        gql_session, show_new_persons=True
+    # Getting engagements that have an end-date with validity field "to" engagements.
+    payload_of_ended_engagements_objects = get_gql_query_validity_to(gql_session)
+
+    # Finding uuids of persons that have ended engagements.
+    list_of_person_uuids_ended_engagements = get_filtered_engagements_for_ended_today(
+        payload_of_ended_engagements_objects
     )
 
+    # Finding relevant details on new persons from GraphQL calls.
+    details_of_new_persons_established_in_mo = persons_details_from_engagement(
+        gql_session,
+        set_of_newly_established_uuids_in_mo,
+        list_of_email_uuids,
+        person_details=True,
+    )
+
+    print("Finding all relevant details on new persons today in MO")
+
+    # Finding relevant details on ended engagements from GraphQL calls.
+    details_of_ended_engagements = persons_details_from_engagement(
+        gql_session,
+        list_of_person_uuids_ended_engagements,
+        list_of_email_uuids,
+        ended_engagement_details=True,
+    )
+
+    print("Finding all relevant details on ended engagements today in MO")
+
+    # Details on new persons converted to CSV.
+    new_persons_in_mo_csv_data_to_write = convert_person_and_engagement_data_to_csv(
+        details_of_new_persons_established_in_mo, persons_data_to_csv=True
+    )
+
+    # Details on ended engagements converted to CSV.
+    ended_engagements_in_mo_csv_data_to_write = (
+        convert_person_and_engagement_data_to_csv(
+            details_of_ended_engagements, ended_engagements_data_to_csv=True
+        )
+    )
+
+    # Write CSV report on all new persons.
     write_file(
-        new_persons_in_mo_to_write_in_report,
-        settings.report_new_persons_file_path
+        new_persons_in_mo_csv_data_to_write, settings.report_new_persons_file_path
     )
 
     print("Wrote CSV report for new persons in MO today")
 
-    # Generating a file  on ended engagements.
-
+    # Write CSV report on all ended engagements.
     write_file(
-        ended_engagements_to_write,
-        settings.report_ended_engagements_file_path
+        ended_engagements_in_mo_csv_data_to_write,
+        settings.report_ended_engagements_file_path,
     )
 
     print("Wrote CSV report for ended engagements in MO today")
     print("Report successfully made!")
+
+    # Write a report for today with the uuids from all persons.
+    write_report_as_json(
+        list_of_all_persons,
+        "reports/os2mo_new_and_ended_engagement_reports/employee_uuids.json",
+        # settings.todays_json_report_path
+    )
+
+    print("Wrote JSON uuids for today")
 
 
 if __name__ == "__main__":
