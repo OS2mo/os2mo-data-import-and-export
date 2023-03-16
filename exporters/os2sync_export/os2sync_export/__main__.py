@@ -132,9 +132,9 @@ def read_all_users(
             continue
         user_uuid = UUID(u["Uuid"])
         if res.get(user_uuid):
-            # This might happen if more than one user has the samme uuid in an it-account
+            # This might happen if more than one user has the same uuid in an it-account
             # or one has the same uuid in an it-account as another user without any it-accounts' MO uuid
-            raise ValueError(f"Duplicated uuid: {user_uuid}")
+            logger.error(f"Duplicated uuid: {user_uuid}")
         else:
             res[user_uuid] = u
 
