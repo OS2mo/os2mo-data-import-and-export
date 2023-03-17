@@ -1,4 +1,5 @@
 import copy
+import uuid
 from typing import Callable
 from typing import Dict
 from typing import Optional
@@ -137,6 +138,25 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                 # Assert no AD writes were done
                 None,
             ),
+            # 6. An AD user must *not* be created if the corresponding MO does not
+            # belong to the specified "user trees".
+            (
+                {
+                    # Pretend the AD is empty
+                    "reader": {},
+                    # Pretend the user tree(s) do not include the MO user,
+                    "user_trees": [str(uuid.uuid4())],
+                },
+                # Expected stats
+                lambda instance: {
+                    "not_in_user_tree": 1,
+                    "skipped": instance._get_expected_skipped_entry(
+                        "filter_users_outside_unit_tree"
+                    ),
+                },
+                # Assert no AD writes were done
+                None,
+            ),
         ]
     )
     def test_create_ad_accounts(
@@ -223,6 +243,27 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                 # Assert no AD writes were done
                 None,
             ),
+            # 5. If the MO user exists and has no engagements, but is not in the
+            # "user trees", the corresponding AD user should *not* be disabled.
+            (
+                {
+                    # Pretend AD user already exists
+                    "reader": MockADParameterReader(),
+                    # Pretend the MO user has no engagements
+                    "users_with_engagements": {},
+                    # Pretend the user tree(s) do not include the MO user,
+                    "user_trees": [str(uuid.uuid4())],
+                },
+                # Expected stats
+                lambda instance: {
+                    "not_in_user_tree": 1,
+                    "skipped": instance._get_expected_skipped_entry(
+                        "filter_users_outside_unit_tree"
+                    ),
+                },
+                # Assert no AD writes were done
+                None,
+            ),
         ]
     )
     def test_disable_ad_accounts(
@@ -234,6 +275,8 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         """An AD user must *not* be disabled if present in
         `users_with_engagements`.
         An AD user can only be disabled if already present in the AD.
+        An AD user must *not* be disabled if the MO user exists outside the specified
+        'user trees'.
         """
         instance = self._get_instance(**instance_kwargs)
         stats = instance.disable_ad_accounts()
@@ -394,6 +437,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         users_with_engagements=None,
         create_filters=None,
         disable_filters=None,
+        user_trees=None,
         mock_lora_cache_class=MockLoraCacheExtended,
         **kwargs,
     ):
@@ -404,6 +448,9 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
 
         if disable_filters:
             settings["integrations.ad.lifecycle.disable_filters"] = disable_filters
+
+        if user_trees:
+            settings["integrations.ad.write.create_user_trees"] = user_trees
 
         # Replace `find_primary_engagement` with our mocked version
         self.ad_writer.datasource.find_primary_engagement = (
