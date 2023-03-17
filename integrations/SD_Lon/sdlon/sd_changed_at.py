@@ -1435,12 +1435,12 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
     settings = get_changed_at_settings()
-    settings.start_logging_based_on_settings()
+    settings.job_settings.start_logging_based_on_settings()
 
     run_db = settings.sd_import_run_db
 
-    if settings.sentry_dsn:
-        sentry_sdk.init(dsn=settings.sentry_dsn)
+    if settings.job_settings.sentry_dsn:
+        sentry_sdk.init(dsn=settings.job_settings.sentry_dsn)
 
     logger.info("***************")
     logger.info("Program started")
