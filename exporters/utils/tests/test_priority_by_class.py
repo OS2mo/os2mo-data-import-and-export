@@ -4,7 +4,6 @@ from unittest import TestCase
 
 from parameterized import parameterized
 
-from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
 
 

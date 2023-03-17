@@ -1,4 +1,5 @@
 import logging
+import typing
 import uuid
 from functools import lru_cache
 from functools import partial
@@ -29,7 +30,9 @@ from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
-from exporters.sql_export.lora_cache import LoraCache
+from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
+from exporters.sql_export.old_lora_cache import OldLoraCache
 
 logger = logging.getLogger("CreateAdUsers")
 export_logger = logging.getLogger("export")
@@ -131,7 +134,12 @@ class AdLifeCycle:
 
         return decorator
 
-    def _update_lora_cache(self, dry_run: bool = True) -> Tuple[LoraCache, LoraCache]:
+    def _update_lora_cache(
+        self, dry_run: bool = True
+    ) -> Tuple[
+        typing.Union[OldLoraCache, GQLLoraCache],
+        typing.Union[OldLoraCache, GQLLoraCache],
+    ]:
         """
         Read all information from AD and LoRa.
         :param dry_run: If True, LoRa dump will be read from cache.
@@ -243,7 +251,9 @@ class AdLifeCycle:
                 )
                 return mo_engagement
 
-            lc_engagements: List[List[Dict]] = self.lc.engagements.values()
+            lc_engagements: List[
+                List[Dict]
+            ] = self.lc.engagements.values()  # type:ignore
             engagements: Iterator[Dict] = map(itemgetter(0), lc_engagements)
             lazy_engagements: Iterator[LazyDict] = map(LazyDict, engagements)
             enriched_engagements: Iterator[LazyDict] = map(
@@ -293,7 +303,7 @@ class AdLifeCycle:
 
         filters: List[FilterFunction] = in_filters or []
 
-        lc_employees: List[List[Dict]] = self.lc.users.values()
+        lc_employees: List[List[Dict]] = self.lc.users.values()  # type:ignore
         nonempty_employees = filter(lambda val: len(val) > 0, lc_employees)
         tqdm_employees: List[List[Dict]] = tqdm(nonempty_employees)
         # From employee_effects --> employees

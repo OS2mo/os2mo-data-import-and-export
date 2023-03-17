@@ -8,10 +8,10 @@ from hypothesis.strategies import booleans
 from hypothesis.strategies import lists
 from hypothesis.strategies import uuids
 
-from ..lora_cache import LoraCache
+from ..old_lora_cache import OldLoraCache
 
 
-class LoraCacheTest(LoraCache):
+class LoraCacheTest(OldLoraCache):
     """Subclass to override methods with side-effects."""
 
     def _load_settings(self):

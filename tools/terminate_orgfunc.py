@@ -10,7 +10,7 @@ import sys
 import click
 
 from os2mo_helpers.mora_helpers import MoraHelper
-from exporters.sql_export.lora_cache import LoraCache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
 
 
 LOG_LEVEL = logging.DEBUG

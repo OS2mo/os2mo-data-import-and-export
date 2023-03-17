@@ -13,7 +13,8 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from ra_utils.deprecation import deprecated
 
-from exporters.sql_export.lora_cache import LoraCache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
+import exporters.sql_export.lora_cache
 from exporters.utils.priority_by_class import lc_choose_public_address
 
 
@@ -46,7 +47,7 @@ class ViborgEksterne:
 
     def _configure_logging(self):
         for name in logging.root.manager.loggerDict:
-            if name in ("LoraCache", "mora-helper", "viborg_externe"):
+            if name in ("lora_cache", "mora-helper", "viborg_externe"):
                 logging.getLogger(name).setLevel(self.LOG_LEVEL)
             else:
                 logging.getLogger(name).setLevel(logging.ERROR)
