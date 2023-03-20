@@ -573,6 +573,8 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
         raise ValueError(msg)
 
     sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
+    if settings.os2sync_sync_org_unit_bvn:
+        sts_org_unit["ShortKey"] = base["user_key"]
 
     if base.get("parent") and "uuid" in base["parent"]:
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
