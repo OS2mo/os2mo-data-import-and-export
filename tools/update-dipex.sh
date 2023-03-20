@@ -1,7 +1,7 @@
 #!/bin/bash
 #Install dependencies for dipex
 
-set -e
+set -ex
 
 # Never try to fetch keys from keyring, it can cause horrible DBUS issues
 export PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
