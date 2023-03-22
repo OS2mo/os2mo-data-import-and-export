@@ -5,9 +5,11 @@ from operator import itemgetter
 from typing import List
 from typing import Optional
 from typing import Tuple
+from uuid import UUID
 
 import click
 import httpx
+from gql import gql
 from more_itertools import consume
 from more_itertools import flatten
 from more_itertools import one
@@ -17,6 +19,8 @@ from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
+from raclients.graph.client import GraphQLClient
+from raclients.graph.client import SyncClientSession
 from tqdm import tqdm
 
 from . import sd_payloads
@@ -166,8 +170,65 @@ def fixup(ctx, mo_employees):
         mora_assert(response)
 
 
+def read_associations(session: SyncClientSession, org_unit_uuids: list[UUID]):
+    """Query every association to the provided org_units"""
+    query = gql(
+        """
+        query AssociationsQuery ($org_units: [UUID!]) {
+            associations(org_units: $org_units) {
+                objects {
+                    uuid
+                    association_type_uuid
+                    validity {
+                        from
+                    }
+
+                }
+            }
+        }
+    """
+    )
+    r = session.execute(
+        query, variable_values={"org_units": [str(u) for u in org_unit_uuids]}
+    )
+    return [one(a["objects"]) for a in r["associations"]]
+
+
+def fix_association_types(
+    session: SyncClientSession,
+    uuid: UUID,
+    from_date: str,
+    correct_association_type_uuid: UUID,
+):
+    """Update given associations with the given association type"""
+    query = gql(
+        """
+    mutation UpdateAssociation($uuid: UUID!, $from: DateTime!, $association_type: UUID!) {
+            association_update(
+            input: {uuid: $uuid, validity: {from: $from}, association_type: $association_type}
+            ) {
+                uuid
+            }
+        }
+    """
+    )
+    session.execute(
+        query,
+        variable_values={
+            "uuid": str(uuid),
+            "from": from_date,
+            "association_type": str(correct_association_type_uuid),
+        },
+    )
+
+
 @click.group()
-@click.option("--mora-base", default="http://localhost:5000", help="URL for MO.")
+@click.option(
+    "--mora-base",
+    default="http://localhost:5000",
+    help="URL for MO.",
+    envvar="MORA_BASE",
+)
 @click.option("--json/--no-json", default=False, help="Output as JSON.")
 @click.option("--progress/--no-progress", default=False, help="Print progress.")
 @click.option("--fixup-status-0", default=False, help="Attempt to fix status-0 issues.")
@@ -184,6 +245,7 @@ def cli(ctx, mora_base, **kwargs):
     # ensure that ctx.obj exists and is a dict, no matter how it is called.
     ctx.ensure_object(dict)
     ctx.obj = dict(kwargs)
+    ctx.obj["mora_base"] = mora_base
     ctx.obj["mora_helper"] = MoraHelper(hostname=mora_base, use_cache=False)
 
 
@@ -197,6 +259,67 @@ def fixup_user(ctx, uuid):
     """Fix a single employee."""
     mo_employees = [ctx.obj["mora_helper"].read_user(user_uuid=uuid)]
     fixup(ctx.obj, mo_employees)
+
+
+@cli.command()
+@click.option(
+    "--root-uuid", type=click.UUID, help="UUID of root SD org_unit", required=True
+)
+@click.option(
+    "--client-id", envvar="CLIENT_ID", help="Keycloak client id", default="dipex"
+)
+@click.option(
+    "--client-secret",
+    envvar="CLIENT_SECRET",
+    help="Keycloak client secret",
+)
+@click.option(
+    "--auth-realm", envvar="AUTH_REALM", help="Keycloak auth realm", default="mo"
+)
+@click.option(
+    "--auth-server",
+    envvar="AUTH_SERVER",
+    help="Keycloak auth server",
+    default="http://localhost:5000/auth",
+)
+@click.pass_context
+def fixup_associations(
+    ctx, root_uuid, client_id, client_secret, auth_realm, auth_server
+):
+    """Ensure all associations are of the type "SD-medarbejder"."""
+    click.echo(ctx.obj)
+    mora_helper = ctx.obj["mora_helper"]
+    org = mora_helper.read_organisation()
+
+    org_units = mora_helper.read_ou_root(org, str(root_uuid))
+    org_unit_uuids = [o["uuid"] for o in org_units]
+
+    association_type_uuid = mora_helper.ensure_class_in_facet(
+        "association_type", "SD-Medarbejder"
+    )
+
+    with GraphQLClient(
+        url=f"{ctx.obj['mora_base']}/graphql/v3",
+        client_id=client_id,
+        client_secret=client_secret,
+        auth_realm=auth_realm,
+        auth_server=auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    ) as session:
+        associations = read_associations(session, org_unit_uuids)
+        filtered_associations = {
+            a["uuid"]: a["validity"]["from"]
+            for a in associations
+            if a["association_type_uuid"] != str(association_type_uuid)
+        }
+        if ctx.obj["dry_run"]:
+            click.echo(
+                f"Found {len(list(filtered_associations))} associations that needs to be changed."
+            )
+            return
+        for uuid, from_date in filtered_associations.items():
+            fix_association_types(session, uuid, from_date, association_type_uuid)
 
 
 @cli.command()
