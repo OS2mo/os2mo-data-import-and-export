@@ -674,7 +674,7 @@ class ChangeAtSD:
         if not hit:
             logger.info("Association needs to be created")
             payload = sd_payloads.create_association(
-                department, person_uuid, self.association_uuid, job_id, validity
+                department, person_uuid, str(self.association_uuid), job_id, validity
             )
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
