@@ -11,7 +11,6 @@ import logging
 import sys
 from functools import lru_cache
 from functools import partial
-from logging.handlers import RotatingFileHandler
 from operator import itemgetter
 from pathlib import Path
 from typing import Any
@@ -29,7 +28,9 @@ from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
-from exporters.os2rollekatalog.titles import export_titles
+from .config import RollekatalogSettings
+from .titles import export_titles
+
 
 logger = logging.getLogger(__name__)
 
@@ -65,33 +66,6 @@ def get_employee_from_map(
         )
         sys.exit(3)
     return mapping[employee_uuid]
-
-
-def init_log(log_path: str) -> None:
-    logging.getLogger("urllib3").setLevel(logging.INFO)
-
-    log_format = logging.Formatter(
-        "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s"
-    )
-
-    stdout_log_handler = logging.StreamHandler()
-    stdout_log_handler.setFormatter(log_format)
-    stdout_log_handler.setLevel(logging.DEBUG)  # this can be higher
-    logging.getLogger().setLevel(logging.DEBUG)
-    logging.getLogger().addHandler(stdout_log_handler)
-
-    # The activity log is for everything that isn't debug information. Only
-    # write single lines and no exception tracebacks here as it is harder to
-    # parse.
-    try:
-        log_file_handler = RotatingFileHandler(filename=log_path, maxBytes=1000000)
-    except OSError as err:
-        logger.critical("MOX_ROLLE_LOG_FILE: %s: %r", err.strerror, err.filename)
-        sys.exit(3)
-
-    log_file_handler.setFormatter(log_format)
-    log_file_handler.setLevel(logging.DEBUG)
-    logging.getLogger().addHandler(log_file_handler)
 
 
 def get_parent_org_unit_uuid(
@@ -437,7 +411,8 @@ def main(
     Reads data from OS2mo and exports it to OS2Rollekatalog.
     Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
     """
-    init_log(log_file_path)
+    settings = RollekatalogSettings()
+    settings.start_logging_based_on_settings
 
     if sync_titles:
         export_titles(
