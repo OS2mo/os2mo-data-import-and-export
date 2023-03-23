@@ -21,14 +21,13 @@ from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
 from pydantic import UUID4
-from pydantic.types import Path
 from ra_utils.load_settings import load_settings
 from ra_utils.job_settings import JobSettings
 
 from .models import JobFunction
 
 
-class CommonSettings(JobSettings):
+class CommonSettings(BaseSettings):
     """
     Settings common to both the SD importer and SD-changed-at
     """
@@ -49,6 +48,8 @@ class CommonSettings(JobSettings):
     cpr_uuid_map_path: str = (
         "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv"
     )
+
+    job_settings: JobSettings = JobSettings()
 
 
 def gen_json_file_settings_func(settings_class: Type[CommonSettings]):

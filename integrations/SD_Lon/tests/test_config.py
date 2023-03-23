@@ -32,17 +32,11 @@ DEFAULT_MOCK_SETTINGS = {
 }
 
 DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
-    "auth_realm": "mo",
-    "auth_server": "http://keycloak:8080/auth",
-    "client_id": "dipex",
-    "client_secret": None,
-    "cpr_uuid_map_path": "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv",
-    "log_format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)d:%(name)s: %(message)s",
-    "log_level": "ERROR",
     "mora_base": "http://mo-service:5000",
     "mox_base": "http://mo-service:5000/lora",
     "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
+    "cpr_uuid_map_path": "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv",
     "sd_employment_field": "extension_1",
     "sd_global_from_date": "2022-01-09",
     "sd_import_run_db": "run_db.sqlite",
@@ -59,7 +53,16 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_skip_job_functions": [],
     "sd_use_ad_integration": True,
     "sd_user": "user",
-    "sentry_dsn": None,
+    "job_settings": {
+        "auth_realm": "mo",
+        "auth_server": "http://keycloak:8080/auth",
+        "client_id": "dipex",
+        "client_secret": None,
+        "log_format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)d:%(name)s: %(message)s",
+        "log_level": "ERROR",
+        "mora_base": "http://mo:5000",
+        "sentry_dsn": None,
+    },
 }
 
 DEFAULT_FILTERED_JSON_SETTINGS = {
