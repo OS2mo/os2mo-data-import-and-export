@@ -6,6 +6,8 @@ from unittest import TestCase
 from unittest.mock import MagicMock
 
 from freezegun import freeze_time
+from hypothesis import given
+from hypothesis import strategies as st
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
 from more_itertools import only
@@ -24,6 +26,7 @@ from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
+from .mocks import MO_ROOT_ORG_UNIT_NAME
 from .mocks import MO_UUID
 from .mocks import MockADWriterContext
 from .mocks import MockLoraCacheUnitAddress
@@ -1075,10 +1078,12 @@ class _TestRealADWriter(TestCase):
         template_to_ad_fields_when_disable = kwargs.pop(
             "template_to_ad_fields_when_disable", {}
         )
+        skip_locations = kwargs.pop("skip_locations", None)
         read_ou_addresses = kwargs.pop("read_ou_addresses", None)
         with MockADWriterContext(
             template_to_ad_fields=template_to_ad_fields,
             template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
+            skip_locations=skip_locations,
             read_ou_addresses=read_ou_addresses,
             run_ps_response=kwargs.pop("run_ps_response", None),
         ):
@@ -1459,3 +1464,59 @@ class TestEnableUser(_TestRealADWriter):
         # Assert that this line does not contain any unintended line breaks, caused by
         # forgetting to call `AD.remove_redundant`.
         assert "\n" not in match.group()
+
+
+class TestSkipLocation(_TestRealADWriter):
+    _combinations = [
+        # 1. If `skip_locations` is not set, expect `mo_values` to be present, and
+        # contain the expected location.
+        (
+            # Value of the `skip_locations` setting
+            None,
+            # Assert that `mo_values` is returned and contains the expected location
+            lambda mo_values: mo_values["location"] == MO_ROOT_ORG_UNIT_NAME,
+        ),
+        # 2. If `skip_locations` is set, but does not match the location in `mo_values`,
+        # expect `mo_values` to be present and contain the expected location.
+        (
+            ["Something that is not MO_ROOT_ORG_UNIT_NAME"],
+            lambda mo_values: mo_values["location"] == MO_ROOT_ORG_UNIT_NAME,
+        ),
+        # 3. If `skip_locations` is set, and matches the location in `mo_values`,
+        # expect `mo_values` to be None, indicating that this MO user should be skipped.
+        (
+            [MO_ROOT_ORG_UNIT_NAME],
+            lambda mo_values: mo_values is None,
+        ),
+    ]
+
+    @parameterized.expand(_combinations)
+    def test_skip_location_mo(self, skip_locations, test_condition):
+        """Test `ADWriter.read_ad_information_from_mo` when reading from MO"""
+        ad_writer = self._prepare_adwriter(skip_locations=skip_locations)
+        mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
+        assert test_condition(mo_values)
+
+    @parameterized.expand(_combinations)
+    def test_skip_location_loracache(self, skip_locations, test_condition):
+        """Test `ADWriter.read_ad_information_from_mo` when reading from LoraCache"""
+        lc = MockLoraCacheUnitAddress(address_value=None)
+        ad_writer = self._prepare_adwriter(
+            skip_locations=skip_locations, lc=lc, lc_historic=lc
+        )
+        mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
+        assert test_condition(mo_values)
+
+    @given(
+        st.lists(st.text()) | st.none(),
+        st.builds(lambda xs: "\\".join(xs), st.lists(st.text())) | st.none(),
+    )
+    def test_skip_unit(self, skip_locations, location):
+        ad_writer = self._prepare_adwriter(skip_locations=skip_locations)
+        result = ad_writer._skip_unit({"location": location})
+        if not skip_locations:
+            assert result is False
+        elif location and any(part in skip_locations for part in location.split("\\")):
+            assert result is True
+        else:
+            assert result is None

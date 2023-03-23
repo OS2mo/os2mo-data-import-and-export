@@ -138,3 +138,12 @@ def test_template_to_ad_fields_when_disable():
     assert (
         settings_read["primary_write"]["template_to_ad_fields_when_disable"] == mapping
     )
+
+
+def test_skip_locations():
+    """Test that "skip_locations" is read and included in settings."""
+    value = ["Some unit name"]
+    settings = get_minimum_valid_writer_settings()
+    settings["integrations.ad_writer.skip_locations"] = value
+    settings_read = read_settings(settings)
+    assert settings_read["primary_write"]["skip_locations"] == value
