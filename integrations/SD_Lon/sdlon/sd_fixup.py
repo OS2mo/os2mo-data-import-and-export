@@ -196,7 +196,7 @@ def read_associations(session: SyncClientSession, org_unit_uuids: list[UUID]):
 
 def fix_association_types(
     session: SyncClientSession,
-    uuid: UUID,
+    association_uuid: UUID,
     from_date: str,
     correct_association_type_uuid: UUID,
 ):
@@ -215,7 +215,7 @@ def fix_association_types(
     session.execute(
         query,
         variable_values={
-            "uuid": str(uuid),
+            "uuid": str(association_uuid),
             "from": from_date,
             "association_type": str(correct_association_type_uuid),
         },
@@ -287,7 +287,6 @@ def fixup_associations(
     ctx, root_uuid, client_id, client_secret, auth_realm, auth_server
 ):
     """Ensure all associations are of the type "SD-medarbejder"."""
-    click.echo(ctx.obj)
     mora_helper = ctx.obj["mora_helper"]
     org = mora_helper.read_organisation()
 
@@ -319,7 +318,12 @@ def fixup_associations(
             )
             return
         for uuid, from_date in filtered_associations.items():
-            fix_association_types(session, uuid, from_date, association_type_uuid)
+            fix_association_types(
+                session=session,
+                association_uuid=uuid,
+                from_date=from_date,
+                correct_association_type_uuid=association_type_uuid,
+            )
 
 
 @cli.command()
