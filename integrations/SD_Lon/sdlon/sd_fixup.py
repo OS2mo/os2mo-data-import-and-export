@@ -316,14 +316,18 @@ def fixup_associations(
             click.echo(
                 f"Found {len(list(filtered_associations))} associations that needs to be changed."
             )
+            click.echo(filtered_associations.keys())
             return
         for uuid, from_date in filtered_associations.items():
-            fix_association_types(
-                session=session,
-                association_uuid=uuid,
-                from_date=from_date,
-                correct_association_type_uuid=association_type_uuid,
-            )
+            try:
+                fix_association_types(
+                    session=session,
+                    association_uuid=uuid,
+                    from_date=from_date,
+                    correct_association_type_uuid=association_type_uuid,
+                )
+            except:
+                click.echo(f"Error processing association with {uuid=}")
 
 
 @cli.command()
