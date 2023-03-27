@@ -32,6 +32,7 @@ def run_mo_to_ad_sync(
     mo_uuid_field: str,
     sync_cpr: Optional[str] = None,
     sync_username: Optional[str] = None,
+    dry_run: Optional[bool] = False,
 ):
     if sync_cpr or sync_username:
         print("Warning: --sync-cpr/--sync-username is for testing only")
@@ -84,6 +85,29 @@ def run_mo_to_ad_sync(
     logger.info("Will now attempt to sync {} users".format(len(all_users)))
 
     for user in tqdm(all_users, unit="user"):
+        if dry_run:
+            stats["attempted_users"] += 1
+            mo_uuid = user[mo_uuid_field]
+            mo_values = writer.read_ad_information_from_mo(
+                mo_uuid, ad_dump=all_users, read_manager=False
+            )
+            if mo_values:
+                logger.info(
+                    "Would update AD user %r (MO user = %r, location = %r)",
+                    user["SamAccountName"],
+                    mo_uuid,
+                    mo_values["location"],
+                )
+                stats["updated"] += 1
+            else:
+                logger.info(
+                    "SKIP update of AD user %r (MO user = %r)",
+                    user["SamAccountName"],
+                    mo_uuid,
+                )
+                stats["nothing_to_edit"] += 1
+            continue
+
         stats["attempted_users"] += 1
         msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
@@ -172,6 +196,12 @@ def run_preview_command_for_uuid(
     help="Given a MO user UUID, preview the PowerShell command(s) to run",
     type=click.STRING,
 )
+@click.option(
+    "--dry-run",
+    help="Run dry updates (only verifies if AD user would be updated)",
+    is_flag=True,
+    default=False,
+)
 def main(
     lora_speedup: bool,
     mo_uuid_field: str,
@@ -179,6 +209,7 @@ def main(
     sync_username: Optional[str],
     ignore_occupied_names: bool,
     preview_command_for_uuid: Optional[uuid.UUID],
+    dry_run: bool,
 ):
     start_logging(LOG_FILE)
 
@@ -214,6 +245,7 @@ def main(
         mo_uuid_field,
         sync_cpr=sync_cpr,
         sync_username=sync_username,
+        dry_run=dry_run,
     )
 
 
