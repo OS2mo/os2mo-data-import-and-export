@@ -16,7 +16,6 @@ from .ad_exceptions import ImproperlyConfigured
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 
-LOG_FILE = "sync_mo_uuid_to_ad.log"
 logger = logging.getLogger("MoUuidAdSync")
 
 
@@ -215,7 +214,7 @@ class SyncMoUuidToAd(AD):
 @optgroup.option("--sync-all", is_flag=True)
 @optgroup.option("--sync-cpr")
 def cli(**args):
-    start_logging(LOG_FILE)
+    start_logging(export_log_file="sync_mo_uuid_to_ad.log")
 
     # Set log level according to --debug command line arg
     logger.setLevel(logging.INFO)

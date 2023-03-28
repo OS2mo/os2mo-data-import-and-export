@@ -37,7 +37,7 @@ def find_mo_engagements_without_ad(helper):
 
 
 if __name__ == "__main__":
-    start_logging("ad_helpers.log")
+    start_logging(export_log_file="ad_helpers.log")
     helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
 
     missing_in_ad = find_mo_engagements_without_ad(helper)

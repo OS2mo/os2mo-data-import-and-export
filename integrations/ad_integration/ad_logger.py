@@ -1,4 +1,5 @@
 import logging.config
+import sys
 from pathlib import Path
 
 from ra_utils.load_settings import load_settings
@@ -28,7 +29,7 @@ class PasswordRemovalFormatter(logging.Formatter):
         return s
 
 
-def start_logging(log_file, **kwargs):
+def start_logging(export_log_file, **kwargs):
     settings = load_settings()
 
     config = {
@@ -47,17 +48,16 @@ def start_logging(log_file, **kwargs):
             },
         },
         "handlers": {
-            # Local logging to file in the DIPEX folder, specified by `log_file`
             "local": {
                 "formatter": "default",
-                "class": "logging.FileHandler",
-                "filename": log_file,
+                "class": "logging.StreamHandler",
+                "stream": sys.stdout,
             },
             # Export logs to the MO queries folder
             "export": {
                 "formatter": "export",
                 "class": "logging.FileHandler",
-                "filename": Path(settings["mora.folder.query_export"], log_file),
+                "filename": Path(settings["mora.folder.query_export"], export_log_file),
             },
         },
         "loggers": {

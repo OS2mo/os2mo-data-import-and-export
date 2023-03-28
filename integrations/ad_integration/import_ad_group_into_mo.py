@@ -24,8 +24,6 @@ from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 
 
-LOG_FILE = "external_ad_users.log"
-
 logger = logging.getLogger("ImportADGroup")
 
 
@@ -282,5 +280,5 @@ def import_ad_group(**args):
 
 
 if __name__ == "__main__":
-    start_logging(LOG_FILE)
+    start_logging(export_log_file="external_ad_users.log")
     import_ad_group()

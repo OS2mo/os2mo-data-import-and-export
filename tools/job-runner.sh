@@ -115,17 +115,11 @@ remove_db_from_backup() {
 }
 
 imports_test_ad_connectivity(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/test_connectivity.log"
-    )
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
 }
 
 imports_test_ad_connectivity_writer(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/test_connectivity.log"
-    )
     echo running imports_test_ad_connectivity_writer
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
 }
@@ -182,9 +176,6 @@ imports_sd_update_primary(){
 
 
 imports_ad_sync(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/ad_mo_sync.log"
-    )
     echo running imports_ad_sync
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
 }
@@ -203,9 +194,6 @@ imports_ballerup_udvalg(){
 }
 
 imports_ad_group_into_mo(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/external_ad_users.log"
-    )
     echo running imports_ad_group_into_mo
     ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
 }
@@ -293,25 +281,16 @@ exports_viborg_eksterne(){
 }
 
 exports_ad_life_cycle(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/AD_life_cycle.log"
-    )
     echo "running exports_ad_life_cycle"
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
 exports_ad_life_cycle_disable_accounts(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/AD_life_cycle.log"
-    )
     echo "running exports_ad_life_cycle_disable_accounts"
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
 }
 
 exports_mo_to_ad_sync(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/mo_to_ad_sync.log"
-    )
     echo "running exports_mo_to_ad_sync"
     ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
 }
@@ -389,7 +368,6 @@ exports_os2phonebook_export(){
 }
 
 exports_sync_mo_uuid_to_ad(){
-    BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
     ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
 }
 
