@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import click
 
@@ -9,7 +10,6 @@ from integrations.calculate_primary.common import LOGGER_NAME
 
 def setup_logging():
     LOG_LEVEL = logging.DEBUG
-    LOG_FILE = "calculate_primary.log"
 
     detail_logging = ("mora-helper", LOGGER_NAME)
     for name in logging.root.manager.loggerDict:
@@ -21,7 +21,7 @@ def setup_logging():
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
 
 

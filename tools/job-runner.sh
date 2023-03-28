@@ -164,9 +164,6 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/calculate_primary.log"
-    )
     echo "updating primary engagements"
     ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
