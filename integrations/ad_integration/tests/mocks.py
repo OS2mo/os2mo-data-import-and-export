@@ -16,6 +16,8 @@ from ..ad_writer import MORESTSource
 from .test_utils import TestADWriterMixin
 
 MO_ROOT_ORG_UNIT_UUID = "not-a-mo-org-unit-uuid"
+MO_ROOT_ORG_UNIT_NAME = "not-a-mo-org-unit-name"
+MO_USER_LOCATION = MO_ROOT_ORG_UNIT_NAME
 MO_CHILD_ORG_UNIT_UUID = uuid4()
 MO_UUID = "not-a-uuid"
 AD_UUID_FIELD = "uuidField"
@@ -173,6 +175,11 @@ class MockLoraCacheExtended(MockLoraCache):
             MO_ROOT_ORG_UNIT_UUID: [
                 {
                     "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "name": MO_ROOT_ORG_UNIT_NAME,
+                    "location": MO_ROOT_ORG_UNIT_NAME,
+                    "user_key": None,
+                    "unit_type": None,
+                    "level": None,
                     "parent": None,
                 }
             ]
@@ -320,7 +327,7 @@ class MockMoraHelper(MoraHelper):
 
     def read_ou(self, uuid):
         return {
-            "name": "org_unit_name",
+            "name": MO_ROOT_ORG_UNIT_NAME,
             "user_key": "org_unit_user_key",
             "org_unit_type": {"uuid": "org_unit_type_uuid"},
             "org_unit_level": {"uuid": "org_unit_level_uuid"},
@@ -396,11 +403,14 @@ class MockADWriterContext(ExitStack):
         template_to_ad_fields_when_disable = kwargs.get(
             "template_to_ad_fields_when_disable", {}
         )
+        skip_locations = kwargs.get("skip_locations")
         self._read_ou_addresses = kwargs.get("read_ou_addresses")
         settings["primary_write"]["template_to_ad_fields"].update(template_to_ad_fields)
         settings["primary_write"]["template_to_ad_fields_when_disable"].update(
             template_to_ad_fields_when_disable
         )
+        if skip_locations:
+            settings["primary_write"]["skip_locations"] = skip_locations
         self._settings = settings
 
         self._run_ps_response = kwargs.get("run_ps_response") or MagicMock()

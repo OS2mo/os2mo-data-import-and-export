@@ -30,7 +30,7 @@ _base_settings = {
 class _TestableADWriter(ADWriter):
     def __init__(self, location: str) -> None:
         self.datasource = MockMORESTSourcePreview()
-        self.settings = _base_settings
+        self.settings = self.all_settings = _base_settings
         self._location = location
 
     def _find_unit_info(self, unit_uuid):

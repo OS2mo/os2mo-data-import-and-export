@@ -570,6 +570,11 @@ class ADWriter(AD):
             logger.info("No active engagements found")
             return None
 
+        unit_info = self._find_unit_info(eng_org_unit)
+        if self._skip_unit(unit_info):
+            logger.info("Skipping %r (location=%r)", uuid, unit_info["location"])
+            return None
+
         def split_addresses(addresses):
             try:
                 postal = addresses["postal"]["Adresse"]
@@ -1137,6 +1142,19 @@ class ADWriter(AD):
         response = self._run_ps_script(cmd)  # raises `CommandFailure` if PS fails
         if response == {}:
             return True, "enabled AD user" if enable else "disabled AD user"
+
+    def _skip_unit(self, unit_info):
+        skip_locations = self.all_settings.get("primary_write", {}).get(
+            "skip_locations"
+        )
+        if skip_locations is None:
+            return False  # no skip locations defined
+        if unit_info.get("location"):
+            skip_locations_lower = set(s.lower() for s in skip_locations)
+            location = unit_info["location"]
+            parts = location.split("\\")
+            if any(part.lower() in skip_locations_lower for part in parts):
+                return True
 
 
 @click.command()

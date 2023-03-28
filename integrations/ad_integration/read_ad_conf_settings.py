@@ -165,6 +165,12 @@ def _read_primary_write_information(top_settings):
             "integrations.ad_writer.new_ad_user_path"
         ]
 
+    # If set, makes `ADWriter.read_ad_information_from_mo` return None if the found MO
+    # user has a `location` (organisational path) where one or more parts of the path
+    # match one of the strings in the `skip_locations` list.
+    if "integrations.ad_writer.skip_locations" in top_settings:
+        conf["skip_locations"] = top_settings["integrations.ad_writer.skip_locations"]
+
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = conf["mo_to_ad_fields"]
     template_to_ad_fields = conf["template_to_ad_fields"]
