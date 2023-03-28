@@ -1,18 +1,18 @@
 import logging
+import sys
 
 from ra_utils.load_settings import load_settings
 
 from reports.query_actualstate import list_employees, list_MED_members, run_report
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "Frederikshavn_reports.log"
 
 logger = logging.getLogger("Frederikshavn_reports")
 
 logging.basicConfig(
     format="%(levelname)s %(asctime)s %(name)s %(message)s",
     level=LOG_LEVEL,
-    filename=LOG_FILE,
+    stream=sys.stdout,
 )
 
 if __name__ == "__main__":

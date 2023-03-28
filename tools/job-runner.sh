@@ -405,7 +405,6 @@ reports_viborg_managers(){
 }
 
 reports_frederikshavn(){
-    BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
