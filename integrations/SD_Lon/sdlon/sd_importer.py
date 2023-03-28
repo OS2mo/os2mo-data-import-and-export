@@ -6,6 +6,7 @@
 #
 import datetime
 import logging
+import sys
 import uuid
 from operator import itemgetter
 from typing import Any
@@ -37,7 +38,6 @@ from .sd_common import skip_fictional_users
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_initial_import.log"
 
 HISTORIC = "historic"
 
@@ -755,7 +755,7 @@ def cli():
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
 
 
