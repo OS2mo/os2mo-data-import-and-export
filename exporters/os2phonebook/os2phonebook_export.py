@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import pathlib
+import sys
 import time
 from functools import partial
 from functools import wraps
@@ -32,7 +33,6 @@ from exporters.sql_export.sql_table_defs import Tilknytning
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "os2phonebook_export.log"
 
 logger = logging.getLogger("os2phonebook_export")
 
@@ -579,6 +579,6 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
     cli()
