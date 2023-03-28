@@ -2,9 +2,15 @@ from unittest import mock
 from unittest import TestCase
 from uuid import uuid4
 
+from parameterized import parameterized
+
+from ..ad_writer import ADWriter
 from ..mo_to_ad_sync import run_mo_to_ad_sync
 from ..mo_to_ad_sync import run_preview_command_for_uuid
+from .mocks import MO_UUID
 from .mocks import MockADParameterReader
+from .mocks import MockADWriterContext
+from .mocks import MockLoraCacheExtended
 from .test_utils import dict_modifier
 from .test_utils import TestADWriterMixin
 
@@ -110,3 +116,40 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
                 "no_active_engagement": 0,
             },
         )
+
+
+class TestMoToAdSyncDryRun:
+    @parameterized.expand(
+        [
+            # 1. Engagement in the present, dry run should count it as an update
+            (
+                # `lc` contains (default) primary engagement in the present
+                MockLoraCacheExtended(mo_values={"uuid": MO_UUID}),
+                # Assert that the dry run would count this MO user as one to process
+                lambda stats: stats["attempted_users"] == stats["updated"] == 1,
+            ),
+            # 2. No engagements, dry run should count it as a skipped user
+            (
+                # `lc` contains no engagements
+                MockLoraCacheExtended(mo_values={"uuid": MO_UUID}, mo_engagements=[]),
+                # Assert that the dry run would count this MO user as skipped, due to
+                # having no active primary engagements.
+                lambda stats: stats["attempted_users"] == stats["nothing_to_edit"] == 1,
+            ),
+        ]
+    )
+    def test_dry_run_counts_skipped_when_no_engagements_in_loracache(
+        self, lc, test_stats
+    ):
+        # Arrange
+        reader = MockADParameterReader()
+        with MockADWriterContext() as mock_ad_writer_context:
+            writer = ADWriter(lc=lc, lc_historic=lc)
+            writer.sync_user = mock.MagicMock()
+            # Act
+            stats = run_mo_to_ad_sync(reader, writer, "ObjectGUID", dry_run=True)
+            # Assert stats are as expected
+            assert test_stats(stats)
+            # Assert that no actual Powershell commands were issued
+            writer.sync_user.assert_not_called()
+            mock_ad_writer_context.mock_session.run_ps.assert_not_called()

@@ -37,8 +37,16 @@ class MockADParameterReader(TestADWriterMixin):
 
     generate_dynamic_person = False
 
+    def __init__(self, mo_uuid=MO_UUID):
+        super().__init__()
+        self._mo_uuid = mo_uuid
+
     def read_user(self, cpr=None, **kwargs):
-        return self._prepare_get_from_ad(ad_transformer=None)
+        def _override_objectguid(ad_person):
+            ad_person["ObjectGUID"] = self._mo_uuid
+            return ad_person
+
+        return self._prepare_get_from_ad(ad_transformer=_override_objectguid)
 
     def read_it_all(self, **kwargs):
         return [self.read_user()]
@@ -116,7 +124,7 @@ class MockLoraCache:
     @property
     def engagements(self):
         extensions = {"udvidelse_%d" % n: "old mo value #%d" % n for n in range(1, 11)}
-        if self._mo_engagements:
+        if self._mo_engagements is not None:
             return {
                 eng["uuid"]: [
                     {
@@ -181,13 +189,18 @@ class MockLoraCacheExtended(MockLoraCache):
                     "unit_type": None,
                     "level": None,
                     "parent": None,
+                    "name": MO_ROOT_ORG_UNIT_NAME,
+                    "location": MO_ROOT_ORG_UNIT_NAME,
+                    "user_key": None,
+                    "unit_type": None,
+                    "level": None,
                 }
             ]
         }
 
     @property
     def classes(self):
-        return {None: {}}
+        return {None: {"title": "not-a-title"}}
 
     def _load_settings(self):
         return {}
@@ -424,11 +437,12 @@ class MockADWriterContext(ExitStack):
     @property
     def _context_managers(self):
         prefix = "integrations.ad_integration"
-        mock_session = MagicMock()
-        mock_session.run_ps = MagicMock(return_value=self._run_ps_response)
+        self.mock_session = MagicMock()
+        self.mock_session.run_ps = MagicMock(return_value=self._run_ps_response)
         yield patch(f"{prefix}.ad_common.read_settings", return_value=self._settings)
         yield patch(
-            f"{prefix}.ad_writer.ADWriter._create_session", return_value=mock_session
+            f"{prefix}.ad_writer.ADWriter._create_session",
+            return_value=self.mock_session,
         )
         yield patch(
             f"{prefix}.ad_writer.MORESTSource", return_value=MockMORESTSourcePreview()
