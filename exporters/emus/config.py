@@ -20,6 +20,5 @@ settings = {
 }
 
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
-logfile = "emus_log.txt"
 loggername = "emus"
 loglevel = 10

@@ -259,9 +259,6 @@ exports_cpr_uuid(){
 }
 
 exports_viborg_emus(){
-    BACK_UP_AND_TRUNCATE+=(
-        emus_log.txt
-    )
     echo running viborg_emus
     EMUS_FILENAME="tmp/emus_export.xml"
 
