@@ -327,13 +327,6 @@ def get_users(
     ),
 )
 @click.option(
-    "--log-file-path",
-    default="exports_mox_rollekatalog.log",
-    type=click.Path(),
-    help="Path to write log file.",
-    envvar="MOX_ROLLE_LOG_FILE",
-)
-@click.option(
     "--mapping-file-path",
     default="cpr_mo_ad_map.csv",
     type=click.Path(exists=True),
@@ -396,7 +389,6 @@ def main(
     mo_root_org_unit: UUID,
     ou_filter: bool,
     rollekatalog_root_uuid: UUID,
-    log_file_path: str,
     mapping_file_path: str,
     client_id: str,
     client_secret: str,
@@ -412,7 +404,7 @@ def main(
     Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
     """
     settings = RollekatalogSettings()
-    settings.start_logging_based_on_settings
+    settings.start_logging_based_on_settings()
 
     if sync_titles:
         export_titles(
