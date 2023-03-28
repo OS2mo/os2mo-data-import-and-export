@@ -4,6 +4,7 @@ import logging
 import os
 import pickle
 import re
+import sys
 import time
 import urllib
 from collections import defaultdict
@@ -36,7 +37,6 @@ DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "lora_cache.log"
 
 
 def get_rel_uuid_or_none(uuid, rel, item_name) -> Optional[str]:
@@ -1417,7 +1417,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
 
     cli()

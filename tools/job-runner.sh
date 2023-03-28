@@ -419,7 +419,6 @@ reports_csv(){
 }
 
 exports_lc_for_jobs_db(){
-    BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
     [ -z "${actual_db_name}" ] && echo "actual_db_name not specified" && exit 1
     db_file="${actual_db_name}.db"
