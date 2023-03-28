@@ -5,6 +5,7 @@
 import datetime
 import logging
 import pathlib
+import sys
 import time
 
 import click
@@ -21,7 +22,6 @@ logger = logging.getLogger("viborg_externe")
 
 class ViborgEksterne:
     LOG_LEVEL = logging.DEBUG
-    LOG_FILE = "viborg_externe.log"
 
     fieldnames = [
         "OrganisationsenhedUUID",
@@ -54,7 +54,7 @@ class ViborgEksterne:
         logging.basicConfig(
             format="%(levelname)s %(asctime)s %(name)s %(message)s",
             level=self.LOG_LEVEL,
-            filename=self.LOG_FILE,
+            stream=sys.stdout,
         )
 
     def run(self, speedup=False, dry_run=True):
