@@ -13,10 +13,9 @@ import csv
 import json
 import logging
 import pathlib
-
+import sys
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'export_compare.log'
 
 logger = logging.getLogger('mo_lora_compare')
 
@@ -29,7 +28,7 @@ for name in logging.root.manager.loggerDict:
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
-    filename=LOG_FILE
+    stream=sys.stdout,
 )
 
 
