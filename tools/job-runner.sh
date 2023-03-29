@@ -14,6 +14,25 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
+MAX_RETRIES=5
+RETRY_DELAY=120
+
+retry_job() {
+    for i in $(seq 1 $MAX_RETRIES); do
+        echo "Running job again, attempt $i"
+        "$@"
+        if [ $? -eq 0 ]; then
+            echo "Job ran successfully!"
+            return 0
+        else
+            echo "Job failed, retrying again in $RETRY_DELAY seconds"
+            sleep $RETRY_DELAY
+        fi
+    done
+    echo "Job still failed after $MAX_RETRIES attempts"
+    return 1
+}
+
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
@@ -234,13 +253,13 @@ exports_mox_rollekatalog(){
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
     export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
 
-    ${VENV}/bin/python3 -m exporters.os2rollekatalog.os2rollekatalog_integration
+    retry_job ${VENV}/bin/python3 -m exporters.os2rollekatalog.os2rollekatalog_integration
 }
 
 exports_os2sync(){
     echo running exports_os2sync
     cd exporters/os2sync_export || exit 1
-    ${POETRYPATH} run python -m os2sync_export
+    retry_job ${POETRYPATH} run python -m os2sync_export
     EXIT_CODE=$?
     cd ../..
     return $EXIT_CODE
@@ -254,7 +273,7 @@ exports_cpr_uuid(){
     )
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
+        retry_job ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
     )
 }
 
@@ -265,13 +284,13 @@ exports_viborg_emus(){
     echo running viborg_emus
     EMUS_FILENAME="tmp/emus_export.xml"
 
-    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
-    ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
+    retry_job ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
+    retry_job ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
 }
 
 exports_viborg_eksterne(){
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
+    retry_job ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
     (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -303,7 +322,7 @@ exports_ad_life_cycle(){
         "${DIPEXAR}/AD_life_cycle.log"
     )
     echo "running exports_ad_life_cycle"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
+    retry_job ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
 exports_ad_life_cycle_disable_accounts(){
@@ -311,7 +330,7 @@ exports_ad_life_cycle_disable_accounts(){
         "${DIPEXAR}/AD_life_cycle.log"
     )
     echo "running exports_ad_life_cycle_disable_accounts"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
+    retry_job ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
 }
 
 exports_mo_to_ad_sync(){
@@ -319,12 +338,12 @@ exports_mo_to_ad_sync(){
         "${DIPEXAR}/mo_to_ad_sync.log"
     )
     echo "running exports_mo_to_ad_sync"
-    ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
+    retry_job ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
 }
 
 exports_ad_enddate_fixer(){
     echo "Fixing enddates in AD of terminated engagements"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_fix_enddate
+    retry_job ${VENV}/bin/python3 -m integrations.ad_integration.ad_fix_enddate
 }
 
 exports_plan2learn(){
@@ -336,7 +355,7 @@ exports_plan2learn(){
 	organisation
 	stillingskode
     )
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
 
     (
         # get OUT_DIR and EXPORTS_DIR
@@ -344,7 +363,7 @@ exports_plan2learn(){
 	[ -z "$query_export" ] && exit 1
 	for f in "${CSV_FILES[@]}"
 	do
-	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
+	    retry_job ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
 		   ${query_export}/plan2learn_${f}.csv ${f}.csv
 	done
     )
@@ -364,7 +383,7 @@ exports_queries_ballerup(){
         [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
-        ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        retry_job ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
         local STATUS=$?
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
         return $STATUS
@@ -375,7 +394,7 @@ exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
 
-    ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
@@ -383,7 +402,7 @@ exports_actual_state_export(){
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
 
-    ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar --historic
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar --historic
     EXIT_CODE=$?
     return $EXIT_CODE
 }
@@ -391,36 +410,36 @@ exports_historic_sql_export(){
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
 
 exports_sync_mo_uuid_to_ad(){
     BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
-    ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
+    retry_job ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
 }
 
 reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
 reports_frederikshavn(){
     BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
 reports_svendborg(){
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
 }
 
 reports_svendborg_engagements(){
   echo running reports_svendborg_engagements
-  ${VENV}/bin/python3 ${DIPEXAR}/reports/os2mo_new_and_ended_engagement_reports/get_engagements.py
+  retry_job ${VENV}/bin/python3 ${DIPEXAR}/reports/os2mo_new_and_ended_engagement_reports/get_engagements.py
 }
 
 reports_csv(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
 
 exports_lc_for_jobs_db(){
@@ -430,7 +449,7 @@ exports_lc_for_jobs_db(){
     db_file="${actual_db_name}.db"
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
-    ${POETRYPATH} run python -m exporters.sql_export.lc_for_jobs_db sql-export --resolve-dar
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.lc_for_jobs_db sql-export --resolve-dar
     local STATUS=$?
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
     return $STATUS
@@ -439,7 +458,7 @@ exports_lc_for_jobs_db(){
 exports_cache_loracache() {
     echo "Building cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/!(*_historic).p"  # delete old non-historic pickle files
-    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --no-historic --resolve-dar
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.lora_cache --no-historic --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
@@ -447,7 +466,7 @@ exports_cache_loracache() {
 exports_historic_cache_loracache() {
     echo "Building full historic cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic.p"  # delete old pickle files
-    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --resolve-dar
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
@@ -455,19 +474,19 @@ exports_historic_cache_loracache() {
 exports_historic_skip_past_cache_loracache() {
     echo "Building historic WITHOUT past cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic_skip_past.p"  # delete old pickle files
-    ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --skip-past --resolve-dar
+    retry_job ${POETRYPATH} run python -m exporters.sql_export.lora_cache --historic --skip-past --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
 
 
 reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+    retry_job ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
 reports_sd_db_overview(){
     echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
+    retry_job ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
     local STATUS=$?
     return $STATUS
 }
