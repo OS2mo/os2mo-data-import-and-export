@@ -1520,3 +1520,18 @@ class TestSkipLocation(_TestRealADWriter):
             assert result is True
         else:
             assert result is None
+
+
+class TestRenameADUser(_TestRealADWriter):
+    def test_sleep(self):
+        # Arrange: mock a successful WinRM invocation
+        run_ps_response = MagicMock()
+        run_ps_response.status_code = 0
+        run_ps_response.std_out = "{}"
+        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+
+        with mock.patch("time.sleep") as mock_time_sleep:
+            # Act
+            ad_writer._rename_ad_user("user_sam", "New Name")
+            # Assert
+            mock_time_sleep.assert_called_once_with(1)
