@@ -132,13 +132,17 @@ class SyncMoUuidToAd(AD):
 
         # Actually fire the powershell scripts, and trigger side-effects
         for ps_script in users:
-            response = self._run_ps_script(ps_script)
-            logger.debug("Response: {}".format(response))
-            if response:
-                msg = "Unexpected response: {}".format(response)
-                logger.exception(msg)
-                raise Exception(msg)
-            self.stats["updated"] += 1
+            try:
+                response = self._run_ps_script(ps_script)
+            except Exception:
+                logger.exception("failed to write MO UUID (ps_script=%r)", ps_script)
+            else:
+                logger.debug("Response: {}".format(response))
+                if response:
+                    msg = "Unexpected response: {}".format(response)
+                    logger.exception(msg)
+                    raise Exception(msg)
+                self.stats["updated"] += 1
         print(self.stats)
         logger.info(self.stats)
 

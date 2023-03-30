@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from logging import ERROR
 from unittest import mock
 from unittest import TestCase
 
@@ -35,6 +36,12 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
 
     def _run_ps_script(self, ps_script):
         self._scripts.append(ps_script)
+
+
+class _SyncMoUuidToAdRunPSScriptFails(_SyncMoUuidToAd):
+    def _run_ps_script(self, ps_script):
+        super()._run_ps_script(ps_script)
+        raise Exception("an exception!")
 
 
 # Based on this example:
@@ -74,6 +81,9 @@ def test_invalid_configuration(example_input, expectation):
 class TestSyncMoUuidToAd(TestCase):
     """Test `sync_mo_uuid_to_ad`"""
 
+    _ad_cpr_field_name = "extensionAttribute1"
+    _mo_cpr_no = "0123456789"
+
     def test_sync_one(self):
         instance = self._get_instance()
         instance.sync_one(instance._ad_cpr_no)
@@ -93,23 +103,35 @@ class TestSyncMoUuidToAd(TestCase):
             instance.sync_one(UNKNOWN_CPR_NO)
 
     def test_sync_one_uses_morahelper(self):
-        cpr_no = "mo-cpr-no"
         instance = self._get_instance()
-        instance.sync_one(cpr_no)
+        instance.sync_one(self._mo_cpr_no)
         # Assert that our mocked `MoraHelper` recorded one call to `read_user`
         # with the expected CPR as its only argument.
-        self.assertListEqual(instance.helper._read_user_calls, [cpr_no])
+        self.assertListEqual(instance.helper._read_user_calls, [self._mo_cpr_no])
 
     def test_sync_all(self):
         instance = self._get_instance()
         instance.sync_all()
         self._assert_script_contents_ok(instance)
 
-    def _get_instance(self, settings=None, reader=None):
+    def test_perform_sync_handles_run_ps_script_exception(self):
+        ad_users = [
+            {
+                self._ad_cpr_field_name: self._mo_cpr_no,
+                "SamAccountName": "example",
+            }
+        ]
+        mo_users = {self._mo_cpr_no: MO_UUID}
+        instance = self._get_instance(cls=_SyncMoUuidToAdRunPSScriptFails)
+        with self.assertLogs("MoUuidAdSync", ERROR) as cm:
+            instance.perform_sync(ad_users, mo_users)
+            self.assertIn("failed to write MO UUID", cm.records[0].message)
+
+    def _get_instance(self, settings=None, reader=None, cls=_SyncMoUuidToAd):
         _settings = {
             "integrations.ad.write.uuid_field": AD_UUID_FIELD,
             "integrations.ad": [{"properties": [AD_UUID_FIELD]}],
-            "primary": {"cpr_field": "extensionAttribute1", "cpr_separator": "-"},
+            "primary": {"cpr_field": self._ad_cpr_field_name, "cpr_separator": "-"},
             "global": {},
         }
 
@@ -136,12 +158,12 @@ class TestSyncMoUuidToAd(TestCase):
             new=lambda: reader,
         )
 
-        ad_cpr_no = reader.read_user()["extensionAttribute1"]
+        ad_cpr_no = reader.read_user()[self._ad_cpr_field_name]
 
         with read_settings_mock:
             with load_settings_mock:
                 with reader_mock:
-                    instance = _SyncMoUuidToAd(ad_cpr_no)
+                    instance = cls(ad_cpr_no)
                     return instance
 
     def _assert_script_contents_ok(self, instance):
