@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pydantic import Extra
-from pydantic import Field
 
 
 class OrgUnit(BaseModel):
@@ -44,39 +43,36 @@ class OrgUnit(BaseModel):
     """
 
     class Config:
-        allow_population_by_field_name = True
         extra = Extra.ignore
 
     def json(self):
         return jsonable_encoder(self.dict())
 
-    Uuid: UUID = Field(..., alias="uuid")
-    ShortKey: Optional[str] = Field(None, alias="shortKey")
-    Name: Optional[str] = Field(..., alias="name")
-    ParentOrgUnitUuid: Optional[UUID] = Field(..., alias="parentOrgUnitUuid")
-    PayoutUnitUuid: Optional[UUID] = Field(None, alias="payoutUnitUuid")
-    ManagerUuid: Optional[UUID] = Field(None, alias="managerUuid")
-    # Timestamp: Optional[str] = Field(None, alias="timestamp")
-    PhoneNumber: Optional[str] = Field(None, alias="phoneNumber")
-    Email: Optional[str] = Field(None, alias="email")
-    Location: Optional[str] = Field(None, alias="location")
-    LOSShortName: Optional[str] = Field(None, alias="losShortName")
-    LOSId: Optional[str] = Field(None, alias="losId")
-    DtrId: Optional[str] = Field(None, alias="dtrId")
-    ContactOpenHours: Optional[str] = Field(None, alias="contactOpenHours")
-    EmailRemarks: Optional[str] = Field(None, alias="emailRemarks")
-    Contact: Optional[str] = Field(None, alias="contact")
-    PostReturn: Optional[str] = Field(None, alias="postReturn")
-    PhoneOpenHours: Optional[str] = Field(None, alias="phoneOpenHours")
-    Ean: Optional[str] = Field(None, alias="ean")
-    Url: Optional[str] = Field(None, alias="url")
-    Landline: Optional[str] = Field(None, alias="landline")
-    Post: Optional[str] = Field(None, alias="post")
-    FOA: Optional[str] = Field(None, alias="foa")
-    PNR: Optional[str] = Field(None, alias="pnr")
-    SOR: Optional[str] = Field(None, alias="sor")
-    # Type: Optional[str] = Field(None, alias="type")
-    Tasks: Set[UUID] = Field(set(), alias="tasks")
-    ItSystems: Set[UUID] = Field(set(), alias="itSystems")
-    ContactForTasks: Set[UUID] = Field(set(), alias="contactForTasks")
-    ContactPlaces: Set[UUID] = Field(set(), alias="contactPlaces")
+    Uuid: UUID
+    ShortKey: Optional[str] = None
+    Name: Optional[str]
+    ParentOrgUnitUuid: Optional[UUID]
+    PayoutUnitUuid: Optional[UUID] = None
+    ManagerUuid: Optional[UUID] = None
+    PhoneNumber: Optional[str] = None
+    Email: Optional[str] = None
+    Location: Optional[str] = None
+    LOSShortName: Optional[str] = None
+    LOSId: Optional[str] = None
+    DtrId: Optional[str] = None
+    ContactOpenHours: Optional[str] = None
+    EmailRemarks: Optional[str] = None
+    Contact: Optional[str] = None
+    PostReturn: Optional[str] = None
+    PhoneOpenHours: Optional[str] = None
+    Ean: Optional[str] = None
+    Url: Optional[str] = None
+    Landline: Optional[str] = None
+    Post: Optional[str] = None
+    FOA: Optional[str] = None
+    PNR: Optional[str] = None
+    SOR: Optional[str] = None
+    Tasks: Set[UUID] = set()
+    ItSystems: Set[UUID] = set()
+    ContactForTasks: Set[UUID] = set()
+    ContactPlaces: Set[UUID] = set()
