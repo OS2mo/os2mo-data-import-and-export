@@ -752,7 +752,7 @@ class ADWriter(AD):
         logger.debug("Wait for replication")
         # Todo: In principle we should ask all DCs, bu this will happen
         # very rarely, performance is not of great importance
-        time.sleep(10)
+        time.sleep(1)
 
     def _get_rename_ad_user_command(self, user_sam, new_name):
         # Todo: This code is a duplicate of code found elsewhere
