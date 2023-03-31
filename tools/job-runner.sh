@@ -638,9 +638,9 @@ exports(){
 # reports are typically not interdependent
 reports(){
     #set -x # debug log
-    [ "${IMPORTS_OK}" == "false" ] \
-        && echo ERROR: imports are in error - skipping reports \
-        && return 1 # reports depend on imports
+    [ "${PREPARE_EXPORTS_OK}" == "false" ] \
+        && echo "ERROR in preparing exports" \
+        && return 1 
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         run-job reports_sd_db_overview &
