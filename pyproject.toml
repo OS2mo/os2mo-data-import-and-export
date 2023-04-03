@@ -4,7 +4,6 @@ version = "0.0.0"  # versioning handled by conventional commits
 authors = ["Magenta ApS <info@magenta.dk>"]
 description = "OS2mo-data-import-and-export"
 license = "MPL-2.0"
-readme = "README.rst"
 homepage = "https://magenta.dk/"
 repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
 keywords = ["DIPEX", "OS2mo-data-import-and-export"]
