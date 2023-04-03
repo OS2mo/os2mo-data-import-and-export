@@ -1,22 +1,20 @@
-import functools
-import json
-import logging
-import os
-import pathlib
-import sys
-from abc import ABC, abstractmethod
-from collections import defaultdict
-from enum import Enum
 import datetime
+import functools
+import logging
+import sys
+from abc import ABC
+from abc import abstractmethod
+from enum import Enum
+from typing import Any
 
 import requests
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.headers import TokenSettings
+from ra_utils.load_settings import load_settings
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import KLE
-
-from ra_utils.load_settings import load_settings
-from os2mo_data_import.helpers import MoraHelper
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -47,12 +45,12 @@ class KLEAnnotationIntegration(ABC):
     # something like a Strategy here. However, maybe YAGNI.
 
     def __init__(self):
-        
+
         self.settings = load_settings()
 
         self.mora_base = self.settings.get("mora.base")
-        self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
-        self.helper = MoraHelper(hostname=self.settings.get('mora.base'))
+        self.mora_session = self._get_mora_session()
+        self.helper = MoraHelper(hostname=self.settings.get("mora.base"))
         self.org_uuid = self.helper.read_organisation()
 
         kle_classes = self.get_kle_classes_from_mo()
@@ -63,11 +61,12 @@ class KLEAnnotationIntegration(ABC):
             ASPECT_MAP[clazz["scope"]]: clazz["uuid"] for clazz in aspect_classes
         }
 
-    def _get_mora_session(self, token) -> requests.Session:
+    def _get_mora_session(self) -> requests.Session:
         s = requests.Session()
-        if token is not None:
-            s.headers.update({"SESSION": token})
-        s.headers.update({"SESSION": token})
+        session_headers = TokenSettings().get_headers()
+
+        if session_headers:
+            s.headers.update(session_headers)
         s.verify = False
         return s
 
@@ -84,13 +83,13 @@ class KLEAnnotationIntegration(ABC):
     def get_kle_classes_from_mo(self) -> list:
         """Get all of the kle_number 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE numbers from OS2mo")
-        kle_numbers,  _ = self.helper.read_classes_in_facet('kle_number')
+        kle_numbers, _ = self.helper.read_classes_in_facet("kle_number")
         return kle_numbers
 
     def get_aspect_classes_from_mo(self) -> list:
         """Get all of the kle_aspect 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE aspect classes from OS2mo")
-        kle_aspects,  _ = self.helper.read_classes_in_facet('kle_aspect')
+        kle_aspects, _ = self.helper.read_classes_in_facet("kle_aspect")
         return kle_aspects
 
     def get_all_org_units_from_mo(self) -> list:
@@ -363,9 +362,9 @@ class OpgavefordelerImporter(KLEAnnotationIntegration):
         org_unit_map = {}
 
         aspect_map = {
-            'Udførende': Aspects.Udfoerende,
-            'Indsigt': Aspects.Indsigt,
-            'Ansvarlig': Aspects.Ansvarlig,
+            "Udførende": Aspects.Udfoerende,
+            "Indsigt": Aspects.Indsigt,
+            "Ansvarlig": Aspects.Ansvarlig,
         }
 
         for row in mo_kle:
@@ -398,7 +397,7 @@ class OpgavefordelerImporter(KLEAnnotationIntegration):
             Aspects.Udfoerende: udfoerende,
         }
 
-        org_unit_map = {}
+        org_unit_map: dict[str, Any] = {}
         for aspect, aspect_map in aspect_maps.items():
             for org_uuid, kle_uuids in aspect_map.items():
                 for kle_uuid in kle_uuids:
