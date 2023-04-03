@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import pathlib
+import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -16,10 +17,9 @@ from exporters.sql_export.sql_table_defs import KLE
 
 from ra_utils.load_settings import load_settings
 from os2mo_data_import.helpers import MoraHelper
-LOG_FILE = 'opgavefordeler.log'
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, filename=LOG_FILE)
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
 
 class Aspects(Enum):

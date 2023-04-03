@@ -1,4 +1,5 @@
 import logging
+import sys
 from functools import partial
 from operator import methodcaller
 from typing import Any
@@ -79,7 +80,7 @@ def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh._write_csv(fields, employee_dicts, output_file_path)
 
 
-def init_log(log_path: str) -> None:
+def init_log() -> None:
     LOG_LEVEL = logging.DEBUG
 
     # detail_logging = ('AdCommon', 'mora-helper', 'AdReader', 'cpr_uuid')
@@ -93,7 +94,7 @@ def init_log(log_path: str) -> None:
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=log_path,
+        stream=sys.stdout,
     )
 
 
@@ -110,24 +111,15 @@ def init_log(log_path: str) -> None:
     help="Enrich with AD data.",
 )
 @click.option(
-    "--log-file-path",
-    default="cpr_uuid_export.log",
-    type=click.Path(),
-    help="Path to write log file.",
-    show_default=True,
-)
-@click.option(
     "--output-file-path",
     default="cpr_mo_ad_map.csv",
     type=click.Path(),
     help="Path to write output file to.",
     show_default=True,
 )
-def cli(
-    mora_base: str, use_ad: bool, log_file_path: str, output_file_path: str
-) -> None:
+def cli(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     """MO CPR, MO UUID, AD GUID, AD SAM CSV Exporter."""
-    init_log(log_file_path)
+    init_log()
     main(mora_base, use_ad, output_file_path)
 
 

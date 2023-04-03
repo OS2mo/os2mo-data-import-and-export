@@ -865,5 +865,5 @@ def sync(sync_user):
 
 
 if __name__ == "__main__":
-    start_logging("ad_mo_sync.log")
+    start_logging(export_log_file="ad_mo_sync.log")
     sync()

@@ -4,6 +4,7 @@ by customers. It is meant to be run just after the nightly imports
 to be used as a speed up in comparison with hitting MO's rest interface.
 """
 import logging
+import sys
 
 import click
 from ra_utils.load_settings import load_settings
@@ -12,7 +13,6 @@ from sqlalchemy import create_engine
 from .sql_export import SqlExport
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "lc-for-jobs.log"
 
 logger = logging.getLogger("lc-for-jobs")
 
@@ -69,6 +69,6 @@ if __name__ == "__main__":
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
     cli()

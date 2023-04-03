@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import sys
 from functools import partial
 from itertools import chain
 from typing import Any
@@ -28,7 +29,6 @@ from .sd_common import sd_lookup
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "fix_sd_departments.log"
 
 logger = logging.getLogger("fixDepartments")
 
@@ -44,7 +44,7 @@ def setup_logging():
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
 
 

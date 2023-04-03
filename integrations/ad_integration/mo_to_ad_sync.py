@@ -20,8 +20,6 @@ from .ad_writer import ADWriter
 from exporters.sql_export.lora_cache import fetch_loracache
 
 
-LOG_FILE = "mo_to_ad_sync.log"
-
 logger = logging.getLogger("MoAdSync")
 export_logger = logging.getLogger("export")
 
@@ -211,7 +209,7 @@ def main(
     preview_command_for_uuid: Optional[uuid.UUID],
     dry_run: bool,
 ):
-    start_logging(LOG_FILE)
+    start_logging(export_log_file="mo_to_ad_sync.log")
 
     settings = load_settings()
     if "crontab.SENTRY_DSN" in settings:

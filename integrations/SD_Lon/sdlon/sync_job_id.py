@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import click
 import requests
@@ -12,7 +13,6 @@ from .sd_payloads import edit_klasse_title
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "sync_job_id.log"
 
 logger = logging.getLogger("sdSyncJobId")
 
@@ -27,7 +27,7 @@ def setup_logging():
     logging.basicConfig(
         format="%(levelname)s %(asctime)s %(name)s %(message)s",
         level=LOG_LEVEL,
-        filename=LOG_FILE,
+        stream=sys.stdout,
     )
 
 

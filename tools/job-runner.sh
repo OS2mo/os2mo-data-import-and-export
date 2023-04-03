@@ -115,17 +115,11 @@ remove_db_from_backup() {
 }
 
 imports_test_ad_connectivity(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/test_connectivity.log"
-    )
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
 }
 
 imports_test_ad_connectivity_writer(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/test_connectivity.log"
-    )
     echo running imports_test_ad_connectivity_writer
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
 }
@@ -140,9 +134,6 @@ imports_test_sd_connectivity(){
 }
 
 imports_sd_fix_departments(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/fix_sd_departments.log"
-    )
     echo running imports_sd_fix_departments
     ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py
 }
@@ -170,9 +161,6 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/calculate_primary.log"
-    )
     echo "updating primary engagements"
     ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
@@ -182,9 +170,6 @@ imports_sd_update_primary(){
 
 
 imports_ad_sync(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/ad_mo_sync.log"
-    )
     echo running imports_ad_sync
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
 }
@@ -203,9 +188,6 @@ imports_ballerup_udvalg(){
 }
 
 imports_ad_group_into_mo(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/external_ad_users.log"
-    )
     echo running imports_ad_group_into_mo
     ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
 }
@@ -249,9 +231,6 @@ exports_os2sync(){
 
 exports_cpr_uuid(){
     echo running exports_cpr_uuid
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/cpr_uuid_export.log"
-    )
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
         ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
@@ -259,9 +238,6 @@ exports_cpr_uuid(){
 }
 
 exports_viborg_emus(){
-    BACK_UP_AND_TRUNCATE+=(
-        emus_log.txt
-    )
     echo running viborg_emus
     EMUS_FILENAME="tmp/emus_export.xml"
 
@@ -299,25 +275,16 @@ exports_viborg_eksterne(){
 }
 
 exports_ad_life_cycle(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/AD_life_cycle.log"
-    )
     echo "running exports_ad_life_cycle"
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
 exports_ad_life_cycle_disable_accounts(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/AD_life_cycle.log"
-    )
     echo "running exports_ad_life_cycle_disable_accounts"
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
 }
 
 exports_mo_to_ad_sync(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/mo_to_ad_sync.log"
-    )
     echo "running exports_mo_to_ad_sync"
     ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
 }
@@ -390,13 +357,11 @@ exports_historic_sql_export(){
 
 exports_os2phonebook_export(){
     # kører en test-kørsel
-    BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
 
 exports_sync_mo_uuid_to_ad(){
-    BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
     ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
 }
 
@@ -405,7 +370,6 @@ reports_viborg_managers(){
 }
 
 reports_frederikshavn(){
-    BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
@@ -424,7 +388,6 @@ reports_csv(){
 }
 
 exports_lc_for_jobs_db(){
-    BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
     [ -z "${actual_db_name}" ] && echo "actual_db_name not specified" && exit 1
     db_file="${actual_db_name}.db"

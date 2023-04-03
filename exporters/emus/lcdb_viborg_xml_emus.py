@@ -40,7 +40,7 @@ from exporters.utils.priority_by_class import lcdb_choose_public_address
 
 logging.basicConfig(
     format=config.logformat,
-    filename=config.logfile,
+    stream=sys.stdout,
     level=config.loglevel,
 )
 

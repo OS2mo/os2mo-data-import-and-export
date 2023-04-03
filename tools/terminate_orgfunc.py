@@ -5,6 +5,7 @@ import json
 import logging
 import pathlib
 import datetime
+import sys
 
 import click
 
@@ -13,7 +14,6 @@ from exporters.sql_export.lora_cache import LoraCache
 
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'terminate_orgfunc.log'
 
 logger = logging.getLogger('terminate_orgfunc')
 
@@ -26,7 +26,7 @@ for name in logging.root.manager.loggerDict:
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
-    filename=LOG_FILE
+    stream=sys.stdout,
 )
 
 

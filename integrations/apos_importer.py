@@ -9,6 +9,8 @@
 import os
 import pickle
 import logging
+import sys
+
 import requests
 import xmltodict
 import collections
@@ -17,7 +19,6 @@ from datetime import datetime
 from uuid import UUID
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("aposImport")
 
@@ -31,7 +32,7 @@ for name in logging.root.manager.loggerDict:
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
-    filename=LOG_FILE
+    stream=sys.stdout,
 )
 
 logger.info('Apos import started')

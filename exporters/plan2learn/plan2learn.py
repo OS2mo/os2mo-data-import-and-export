@@ -8,6 +8,7 @@ Helper class to make a number of pre-defined queries into MO
 import datetime
 import logging
 import pathlib
+import sys
 import time
 from functools import partial
 from operator import itemgetter
@@ -26,7 +27,6 @@ from exporters.utils.priority_by_class import choose_public_address
 from exporters.utils.priority_by_class import lc_choose_public_address
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "plan2learn.log"
 
 logger = logging.getLogger("plan2learn")
 
@@ -39,7 +39,7 @@ for name in logging.root.manager.loggerDict:
 logging.basicConfig(
     format="%(levelname)s %(asctime)s %(name)s %(message)s",
     level=LOG_LEVEL,
-    filename=LOG_FILE,
+    stream=sys.stdout,
 )
 
 SETTINGS = load_settings()

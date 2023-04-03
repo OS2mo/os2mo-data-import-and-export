@@ -230,5 +230,5 @@ def cli(**args):
 
 if __name__ == "__main__":
     check_settings(SETTINGS)
-    start_logging("test_connectivity.log")
+    start_logging(export_log_file="test_connectivity.log")
     cli()

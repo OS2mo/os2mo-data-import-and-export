@@ -1,4 +1,5 @@
 import logging
+import sys
 from datetime import datetime
 from operator import itemgetter
 from pathlib import Path
@@ -26,7 +27,6 @@ from integrations.opus.opus_exceptions import UnknownOpusUnit
 logger = logging.getLogger("opusDiff")
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_integrations.log"
 
 logger = logging.getLogger("opusImport")
 
@@ -48,7 +48,7 @@ for name in logging.root.manager.loggerDict:
 logging.basicConfig(
     format="%(levelname)s %(asctime)s %(name)s %(message)s",
     level=LOG_LEVEL,
-    filename=LOG_FILE,
+    stream=sys.stdout,
 )
 UNIT_ADDRESS_CHECKS = {
     "seNr": constants.addresses_unit_se,
