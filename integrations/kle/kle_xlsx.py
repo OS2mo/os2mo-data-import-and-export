@@ -22,6 +22,10 @@ class KLEXLSXIntegration(KLEAnnotationIntegration, ABC):
 
 class KLEXLSXExporter(KLEXLSXIntegration):
     """Export KLE annotation as CSV files bundled in a spreadsheet."""
+    def __init__(self, multiple_responsible=False):
+        self.multiple_responsible = multiple_responsible
+        super().__init__()
+
 
     @staticmethod
     def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
@@ -94,21 +98,20 @@ class KLEXLSXExporter(KLEXLSXIntegration):
 
         self.write_rows(worksheet, rows)
 
-    def add_indsigt_and_udfoerende_sheet(self, workbook, kle_numbers, org_units):
-        for sheet_name in ['Indsigt', 'Udførende']:
-            worksheet = workbook.add_worksheet(name=sheet_name)
+    def add_kle_relation_sheet(self, sheet_name, workbook, kle_numbers, org_units):
+        worksheet = workbook.add_worksheet(name=sheet_name)
 
-            rows = [('EnhedNavn', 'KLE')]
+        rows = [('EnhedNavn', 'KLE')]
 
-            worksheet.data_validation(*self.get_org_unit_validation('A'))
-            worksheet.data_validation(*self.get_kle_validation('B'))
+        worksheet.data_validation(*self.get_org_unit_validation('A'))
+        worksheet.data_validation(*self.get_kle_validation('B'))
 
-            worksheet.set_column(
-                0, 0, width=self.get_column_width(org_units, 'combined')
-            )
-            worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'name'))
+        worksheet.set_column(
+            0, 0, width=self.get_column_width(org_units, 'combined')
+        )
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'name'))
 
-            self.write_rows(worksheet, rows)
+        self.write_rows(worksheet, rows)
 
     @staticmethod
     def convert_org_units(org_units):
@@ -151,8 +154,14 @@ class KLEXLSXExporter(KLEXLSXIntegration):
 
         self.add_org_unit_sheet(workbook, org_units)
         self.add_kle_sheet(workbook, kle)
-        self.add_ansvarlig_sheet(workbook, kle, org_units)
-        self.add_indsigt_and_udfoerende_sheet(workbook, kle, org_units)
+        
+        if self.multiple_responsible:
+            self.add_kle_relation_sheet("Ansvarlig", workbook, kle, org_units)
+        else:
+            self.add_ansvarlig_sheet(workbook, kle, org_units)
+
+        self.add_kle_relation_sheet("Indsigt", workbook, kle, org_units)
+        self.add_kle_relation_sheet("Udførende", workbook, kle, org_units)
 
         # Bold column headers for all sheets
         bold = workbook.add_format({'bold': 1})
@@ -203,7 +212,7 @@ class KLEXLSXImporter(KLEXLSXIntegration):
         self.handle_sheet(
             sheets['Ansvarlig'],
             org_unit_field='EnhedNavn',
-            kle_field='EmneTitel',
+            kle_field='KLE',
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
@@ -260,13 +269,14 @@ class KLEXLSXImporter(KLEXLSXIntegration):
 @optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
 @optgroup.option("--import", is_flag=True)
 @optgroup.option("--export", is_flag=True)
+@click.option("--multiple-responsible", is_flag=True)
 def cli(**args):
     if args['import']:
         importer = KLEXLSXImporter()
         importer.run()
 
     if args['export']:
-        exporter = KLEXLSXExporter()
+        exporter = KLEXLSXExporter(args['multiple_responsible'])
         exporter.run()
 
 
