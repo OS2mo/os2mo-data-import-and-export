@@ -177,26 +177,6 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
 def get_hierarchy(
     client: requests.Session, os2sync_api_url: str, request_uuid: UUID
 ) -> Tuple[Set[UUID], Set[UUID]]:
-    """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready"""
-    r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
-    r.raise_for_status()
-    hierarchy = r.json()["result"]
-    if hierarchy is None:
-        raise ConnectionError("Check connection to FK-ORG")
-    existing_os2sync_org_units = {UUID(o["uuid"]) for o in hierarchy["oUs"]}
-    existing_os2sync_users = {UUID(u["uuid"]) for u in hierarchy["users"]}
-    return existing_os2sync_org_units, existing_os2sync_users
-
-
-@retry(
-    wait=wait_fixed(5),
-    reraise=True,
-    stop=stop_after_delay(10 * 60),
-    retry=retry_if_exception_type(requests.HTTPError),
-)
-def get_hierarchy_v3(
-    client: requests.Session, os2sync_api_url: str, request_uuid: UUID
-) -> Tuple[Set[UUID], Set[UUID]]:
     """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready."""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
