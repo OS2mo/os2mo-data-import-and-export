@@ -6,15 +6,15 @@ from os2sync_export.os2sync_models import OrgUnit
 from .helpers import dummy_settings
 
 uuid = uuid4()
-o = OrgUnit(name="test", uuid=uuid, parentOrgUnitUuid=None)
+o = OrgUnit(Name="test", Uuid=uuid, ParentOrgUnitUuid=None)
 o2 = OrgUnit(
-    name="test",
-    uuid=uuid,
-    parentOrgUnitUuid=None,
+    Name="test",
+    Uuid=uuid,
+    ParentOrgUnitUuid=None,
     LOSShortName="Some losShortName",
-    payoutUnitUuid=uuid4(),
-    contactPlaces=[uuid4()],
-    tasks=[uuid4()],
+    PayoutUnitUuid=uuid4(),
+    ContactPlaces=[uuid4()],
+    Tasks=[uuid4()],
 )
 
 
