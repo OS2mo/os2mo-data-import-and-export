@@ -1,3 +1,6 @@
+default_language_version:
+  python: python3.11
+
 repos:
   - repo: https://github.com/pycqa/flake8
     rev: 3.9.1
@@ -6,12 +9,19 @@ repos:
         entry: pflake8
         additional_dependencies: [pyproject-flake8]
 
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.3.1
+    hooks:
+      - id: pyupgrade
+        args: ["--py311-plus"]
+
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 23.3.0
     hooks:
       - id: black
+
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
+    rev: v1.2.0
     hooks:
       - id: mypy
         additional_dependencies:
@@ -19,11 +29,11 @@ repos:
           - types-requests
           - types-python-dateutil
           - types-paramiko
-        args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
+        args: [ "--ignore-missing-imports", "--no-strict-optional", "--explicit-package-bases", "--namespace-packages"]
         exclude: integrations/opus/
 
   - repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.5.0
+    rev: v3.9.0
     hooks:
       - id: reorder-python-imports
 
