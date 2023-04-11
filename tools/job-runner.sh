@@ -9,7 +9,6 @@ export BACKUP_MAX_SECONDS_AGE=${BACKUP_MAX_SECONDS_AGE:=120}
 export VENV=${VENV:=${DIPEXAR}/.venv}
 export POETRYPATH=${POETRYPATH:=/home/$(whoami)/.local/bin/poetry}
 export IMPORTS_OK=false
-export PREPARE_EXPORTS_OK=false
 export EXPORTS_OK=false
 export REPORTS_OK=false
 export BACKUP_OK=true
@@ -55,6 +54,7 @@ BACK_UP_BEFORE_JOBS+=(
 # files that need to be backed up AFTER running the jobs
 # should be appended to BACK_UP_AFTER_JOBS
 declare -a BACK_UP_AFTER_JOBS=(
+    ${CRON_LOG_FILE}
     # 2 files only exists at SD customers running changed at/cpr_uuid
     # always take them if they are there
     $([ -f "${DIPEXAR}/cpr_mo_ad_map.csv" ] && echo "${DIPEXAR}/cpr_mo_ad_map.csv")
@@ -503,15 +503,11 @@ imports(){
 
 }
 
-prepare_exports(){
+# exports may also be interdependent: -e
+exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
-
-    # these particular exports are not allowed to fail:
-    if [ "${RUN_CPR_UUID}" == "true" ]; then
-        run-job exports_cpr_uuid || return 2
-    fi
 
     if [ "${RUN_CACHE_LORACACHE}" == "true" ]; then
         run-job exports_cache_loracache || return 2
@@ -524,52 +520,50 @@ prepare_exports(){
     if [ "${RUN_CACHE_HISTORIC_SKIP_PAST_LORACACHE}" == "true" ]; then
         run-job exports_historic_skip_past_cache_loracache || return 2
     fi
-    
+
     if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
         run-job exports_lc_for_jobs_db || return 2
     fi
-}
 
-exports(){
-    [ "${PREPARE_EXPORTS_OK}" == "false" ] \
-        && echo "ERROR in preparing exports" \
-        && return 1 
-    # Remaining exports are independent an can be run concurrently
-    
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
-        run-job exports_actual_state_export &
+        run-job exports_actual_state_export || return 2
     fi
 
     if [ "${RUN_HISTORIC_SQL_EXPORT}" == "true" ]; then
-        run-job exports_historic_sql_export &
+        run-job exports_historic_sql_export || return 2
     fi
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
-        run-job exports_os2sync &
+        run-job exports_os2sync || return 2
     fi
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
-        run-job exports_queries_ballerup &
+        run-job exports_queries_ballerup || return 2
     fi
 
     if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
-        run-job exports_viborg_emus &
+        run-job exports_viborg_emus || return 2
     fi
 
     if [ "${RUN_EXPORTS_VIBORG_EKSTERNE}" == "true" ]; then
-        run-job exports_viborg_eksterne &
+        run-job exports_viborg_eksterne || return 2
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
-        run-job exports_os2phonebook_export &
+        run-job exports_os2phonebook_export || return 2
     fi
 
     if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
-        run-job exports_sync_mo_uuid_to_ad &
+        run-job exports_sync_mo_uuid_to_ad || return 2
+    fi
+
+    if [ "${RUN_CPR_UUID}" == "true" ]; then
+        # this particular report is not allowed to fail
+        run-job exports_cpr_uuid || return 2
     fi
 
     if [ "${RUN_EXPORTS_AD_LIFE_CYCLE}" == "true" ]; then
-        run-job exports_ad_life_cycle &
+        run-job exports_ad_life_cycle || return 2
     fi
 
     if [ "${RUN_EXPORTS_AD_LIFE_CYCLE_DISABLE_ACCOUNTS}" == "true" ]; then
@@ -601,28 +595,32 @@ exports(){
 # reports are typically not interdependent
 reports(){
     #set -x # debug log
-    [ "${PREPARE_EXPORTS_OK}" == "false" ] \
-        && echo "ERROR in preparing exports" \
-        && return 1 
+    [ "${IMPORTS_OK}" == "false" ] \
+        && echo ERROR: imports are in error - skipping reports \
+        && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview &
+        run-job reports_sd_db_overview || return 2
     fi
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
-        run-job reports_viborg_managers &
+        run-job reports_viborg_managers || return 2
     fi
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
-        run-job reports_frederikshavn &
+        run-job reports_frederikshavn || return 2
     fi
 
     if [ "${RUN_REPORTS_SVENDBORG}" == "true" ]; then
-        run-job reports_svendborg &
+        run-job reports_svendborg || return 2
+    fi
+
+    if [ "${RUN_REPORTS_SVENDBORG_ENGAGEMENTS}" == "true" ]; then
+        run-job reports_svendborg_engagements || return 2
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
-        run-job reports_csv &
+        run-job reports_csv || return 2
     fi
 
 }
@@ -724,57 +722,46 @@ post_backup(){
 }
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
-    
-    # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
+    (
+        # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
 
-    if [ ! -d "${VENV}" ]; then
-        REASON="FATAL: python env not found"
-        echo ${REASON}
-        exit 2 # error
-    fi
-
-    if [ ! -d "${CRON_BACKUP}" ]; then
-        REASON="FATAL: Backup directory non existing"
-        echo ${REASON}
-        exit 2
-    fi
-
-    if [[ ${RUN_DB_BACKUP} == "true" ]] && [[ ! -f "${SNAPSHOT_LORA}" ]]; then
-        REASON="FATAL: Database snapshot does not exist"
-        echo ${REASON}
-        exit 2
-    fi
-
-    if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-        [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-        kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-            REASON="WARNING: not able to refresh kerberos auth - authentication failure"
+        if [ ! -d "${VENV}" ]; then
+            REASON="FATAL: python env not found"
             echo ${REASON}
-        )
-    else
-        REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-        echo ${REASON}
-    fi
+            exit 2 # error
+        fi
 
-    # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
-    rm tmp/*.p 2>/dev/null || :
+        if [ ! -d "${CRON_BACKUP}" ]; then
+            REASON="FATAL: Backup directory non existing"
+            echo ${REASON}
+            exit 2
+        fi
 
-    export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
+        if [[ ${RUN_DB_BACKUP} == "true" ]] && [[ ! -f "${SNAPSHOT_LORA}" ]]; then
+            REASON="FATAL: Database snapshot does not exist"
+            echo ${REASON}
+            exit 2
+        fi
 
-    pre_backup
+        # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
+        rm tmp/*.p 2>/dev/null || :
 
-    if [[ ${RUN_MO_DATA_SANITY_CHECK} == "true" ]]; then
-        run-job sanity_check_mo_data || echo Sanity check failed
-    else
-        echo "Skipping MO data sanity check"
-    fi
-    imports && IMPORTS_OK=true
-    prepare_exports && PREPARE_EXPORTS_OK=true
-    exports &
-    reports &
-    echo
+        export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
-    post_backup
+        pre_backup
+
+        if [[ ${RUN_MO_DATA_SANITY_CHECK} == "true" ]]; then
+            run-job sanity_check_mo_data || echo Sanity check failed
+        else
+            echo "Skipping MO data sanity check"
+        fi
+        imports && IMPORTS_OK=true
+        exports && EXPORTS_OK=true
+        reports && REPORTS_OK=true
+        echo
+
+        post_backup
+    ) > ${CRON_LOG_FILE} 2>&1
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
         echo "running single job function '$1'"

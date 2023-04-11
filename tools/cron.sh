@@ -1,13 +1,16 @@
 #!/bin/bash
 
-# DIPEX' main cron job. 
-# Takes a backup and then starts job-runner.sh
+# Usage:
+# 1. Create the folder /opt/cron/
+# 2. Copy this script to /opt/cron/os2mo-data.sh
+# 3. Add the script to root's crontab: "05 06 * SCRIPT=/.../job-runner.sh /opt/cron/os2mo-data.sh"
+# 4. Verify
 
 # Configuration
 #--------------
 # Absolute path to the job-runner.sh script
 # SCRIPT=... (must be set via environmental variable).
-set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 SCRIPT=${SCRIPT:-${DIR}/job-runner.sh}
 BACKUP_SCRIPT=${BACKUP_SCRIPT:-${DIR}/backup.sh}
@@ -18,6 +21,9 @@ RUN_DB_BACKUP=true
 
 # Unix service account to run job-runner.sh under
 RUNAS=${RUNAS:-sys_magenta_dipex}
+
+# Installation type for backup (docker, legacy or none)
+INSTALLATION_TYPE=${INSTALLATION_TYPE:-docker}
 
 # Preconditions
 #--------------
@@ -43,11 +49,30 @@ fi
 
 # Database snapshot
 #------------------
-source ${DIR}/prefixed_settings.sh
-if [[ ${RUN_DB_BACKUP} == "true" ]]; then
-    bash ${BACKUP_SCRIPT}
+if [ "${INSTALLATION_TYPE}" == "docker" ]; then
+    (
+        source ${DIR}/prefixed_settings.sh
+        if [[ ${RUN_DB_BACKUP} == "true" ]]; then
+            bash ${BACKUP_SCRIPT}
+            EXIT_CODE=$?
+            if [ ${EXIT_CODE} -ne 0 ]; then
+                exit 1
+            fi
+        else
+            echo "Skip DB snapshot due to e.g. lack of disk space"
+        fi
+    )
+elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
+    echo "Unsupported installation type: legacy"
+    exit 1
+elif [ "${INSTALLATION_TYPE}" == "none" ]; then
+    echo "WARNING: No snapshotting configured"
+else
+    echo "Unknown installation type: ${INSTALLATION_TYPE}"
+    exit 1
 fi
+
 
 # Run script
 #-----------
-su --shell /bin/bash --command "${SCRIPT} |& systemd-cat -t 'dipex:job-runner.sh'" ${RUNAS} 
+su --shell /bin/bash --command "${SCRIPT}" ${RUNAS}
