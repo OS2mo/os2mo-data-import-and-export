@@ -107,6 +107,7 @@ def write_multiple_managers_from_graphql_payload(
                 )
             )
             return {"E-mail": one(filtered_email_address_object)["name"]}
+
         return None
 
     def get_phone_from_address_object(data_dict: dict) -> dict[str, Any] | None:
@@ -131,6 +132,7 @@ def write_multiple_managers_from_graphql_payload(
                 )
             )
             return {"Telefon": one(filtered_phone_address_object)["name"]}
+
         return None
 
     def get_name_from_manager_object(data_dict: dict) -> dict[str, Any] | None:
@@ -148,6 +150,7 @@ def write_multiple_managers_from_graphql_payload(
         """
         if data_dict["employee"] is not None:
             return {"Navn": one(data_dict["employee"])["name"]}
+
         return None
 
     def get_responsibilities_from_manager_object(
@@ -185,29 +188,42 @@ def write_multiple_managers_from_graphql_payload(
                 return {
                     "Ansvar": data_dict["responsibilities"][-1]["full_name"]
                 }  # Default in MoraHelpers.
+
         return None
 
     fieldnames = mh._create_fieldnames(nodes)
     fieldnames += ["Ansvar", "Navn", "Telefon", "E-mail"]
     rows = []
-    for node in PreOrderIter(nodes["root"]):  # Finding Organisation Unit nodes recursively.
+    for node in PreOrderIter(
+        nodes["root"]
+    ):  # Finding Organisation Unit nodes recursively.
         list_of_manager_object_data = get_managers_for_export(gql_session, node.name)
         if list_of_manager_object_data:  # If managers are found.
             for manager in list_of_manager_object_data:
                 row = {}
                 # Finding all the OUs children and writing a "sub org" field for each child node.
                 root_org_and_all_its_children = mh._create_path_dict(fieldnames, node)
-                name_of_manager = get_name_from_manager_object(manager)  # Name of the manager.
-                responsibilities = get_responsibilities_from_manager_object(manager)  # Responsibility.
-                email_address = get_email_from_address_object(manager)  # Retrieving e-mail.
-                phone_address = get_phone_from_address_object(manager)  # Retrieving phone number.
+                name_of_manager = get_name_from_manager_object(
+                    manager
+                )  # Name of the manager.
+                responsibilities = get_responsibilities_from_manager_object(
+                    manager
+                )  # Responsibility.
+                email_address = get_email_from_address_object(
+                    manager
+                )  # Retrieving e-mail.
+                phone_address = get_phone_from_address_object(
+                    manager
+                )  # Retrieving phone number.
                 row.update(root_org_and_all_its_children)
                 row.update(name_of_manager)
                 row.update(responsibilities)
                 row.update(email_address)
                 row.update(phone_address)
                 rows.append(row)
-        if not list_of_manager_object_data:  # If not managers are found, write empty values to CSV.
+        if (
+            not list_of_manager_object_data
+        ):  # If not managers are found, write empty values to CSV.
             row = {}
             root_org_and_all_its_children = mh._create_path_dict(fieldnames, node)
             row.update(root_org_and_all_its_children)  # Path
@@ -247,36 +263,54 @@ if __name__ == "__main__":
         print("Initiating a GraphQL session.")
         print("Retrieving queries to write from.")
 
-        write_multiple_managers_from_graphql_payload(mh, session, settings.alle_leder_funktioner_file_path)
+        write_multiple_managers_from_graphql_payload(
+            mh, session, settings.alle_leder_funktioner_file_path
+        )
         print("Successfully wrote all necessary manager details to csv.")
 
     print(f"Alle ledere: {time.time() - t}s")
 
     cq.export_all_employees(mh, nodes, settings.alle_bk_stilling_email_file_path)
-    print('AlleBK-stilling-email: {}s'.format(time.time() - t))
+    print("AlleBK-stilling-email: {}s".format(time.time() - t))
 
     cq.export_orgs(mh, nodes, settings.ballerup_org_inc_medarbejdere_file_path)
-    print('Ballerup org incl medarbejdere: {}s'.format(time.time() - t))
+    print("Ballerup org incl medarbejdere: {}s".format(time.time() - t))
 
-    cq.export_adm_org(mh, nodes, settings.adm_org_incl_start_og_stopdata_og_enhedstyper_file_path)
-    print('Adm-org-incl-start-stop: {}s'.format(time.time() - t))
+    cq.export_adm_org(
+        mh, nodes, settings.adm_org_incl_start_og_stopdata_og_enhedstyper_file_path
+    )
+    print("Adm-org-incl-start-stop: {}s".format(time.time() - t))
 
     cq.export_all_teams(mh, nodes, settings.teams_tilknyttede_file_path)
-    print('Teams: {}s'.format(time.time() - t))
+    print("Teams: {}s".format(time.time() - t))
 
     nodes = mh.read_ou_tree(sd)
-    cq.export_orgs(mh, nodes, settings.sd_loen_org_med_pnr_file_path, include_employees=False)
-    print('SD-løn: {}'.format(time.time() - t))
+    cq.export_orgs(
+        mh, nodes, settings.sd_loen_org_med_pnr_file_path, include_employees=False
+    )
+    print("SD-løn: {}".format(time.time() - t))
 
     nodes = mh.read_ou_tree(udvalg)
-    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
-    org_types = ['AMR']
-    export_udvalg(mh, nodes, settings.amr_udvalgsmedlemmer_i_hieraki_file_path, fieldnames, org_types)
-    print('AMR: {}'.format(time.time() - t))
+    fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
+    org_types = ["AMR"]
+    export_udvalg(
+        mh,
+        nodes,
+        settings.amr_udvalgsmedlemmer_i_hieraki_file_path,
+        fieldnames,
+        org_types,
+    )
+    print("AMR: {}".format(time.time() - t))
 
-    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
-    org_types = ['H-MED', 'C-MED', 'L-MED']
-    export_udvalg(mh, nodes, settings.med_udvalgsmedlemmer_i_hieraki_file_path, fieldnames, org_types)
-    print('MED: {}'.format(time.time() - t))
+    fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
+    org_types = ["H-MED", "C-MED", "L-MED"]
+    export_udvalg(
+        mh,
+        nodes,
+        settings.med_udvalgsmedlemmer_i_hieraki_file_path,
+        fieldnames,
+        org_types,
+    )
+    print("MED: {}".format(time.time() - t))
 
-    print('Export completed')
+    print("Export completed")
