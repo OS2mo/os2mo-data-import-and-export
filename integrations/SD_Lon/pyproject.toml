@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "OS2mo SDLoen integration"
 authors = ["Magenta <info@magenta.dk>"]
 license = "MPL-2.0"
-readme = "README.rst"
 homepage = "https://magenta.dk/"
 repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
 keywords = ["os2mo", "dipex", "sdloen"]
