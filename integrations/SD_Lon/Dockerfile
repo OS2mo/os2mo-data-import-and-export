@@ -6,6 +6,11 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
 
+# These have to be installed manually for debugging everytime a Kubernetes pod
+# is recreated which is very annoying. Let's include them for now until the
+# SD code becomes more stable
+RUN apt-get install -y sqlite3 screen
+
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
