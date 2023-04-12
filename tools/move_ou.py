@@ -131,8 +131,13 @@ def move(
 
 
 @cli.command()
+@click.option(
+    "--new-parent",
+    type=click.UUID,
+    required=True,
+)
 @click.pass_context
-def move_all_to_new_parent(ctx):
+def move_all_to_new_parent(ctx, new_parent):
     """
     Move all "old" root org unit to "new" parent root org unit.
     The new parent root org unit must be created manually before
@@ -169,7 +174,7 @@ def move_all_to_new_parent(ctx):
         click.echo(f"Moving org unit: {str(_uuid)}")
         _move(
             _uuid,
-            ctx.obj["PARENT_UUID"],
+            new_parent,
             ctx.obj["BASE_URL"],
             ctx.obj["AUTH_SERVER"],
             ctx.obj["AUTH_REALM"],
