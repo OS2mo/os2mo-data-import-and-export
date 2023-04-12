@@ -10,6 +10,7 @@ class DefaultDates(BaseModel):
     ActivationDate: date
     DeactivationDate: date
 
+
 class Department(DefaultDates):
     DepartmentIdentifier: str
     DepartmentLevelIdentifier: str
