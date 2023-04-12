@@ -1,4 +1,5 @@
 from uuid import UUID
+from typing import Any
 
 from more_itertools import one
 
@@ -8,7 +9,7 @@ from gql.client import SyncClientSession
 
 def get_managers_for_export(
     gql_session: SyncClientSession, org_uuid: list[UUID]
-) -> list:
+) -> list[dict[str, Any]]:
     """
     Makes a GraphQL call, to retrieve an Organisation Units' manager(s)
     and all relevant details.
