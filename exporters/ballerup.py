@@ -15,6 +15,7 @@ from typing import Any
 import common_queries as cq
 from anytree import PreOrderIter
 from gql.client import SyncClientSession
+from more_itertools import first
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -81,11 +82,11 @@ def write_multiple_managers_from_graphql_payload(
     If no managers are found, the fields will be written with empty values.
 
     :args:
-    MoraHelpers to
-    A GraphQL session to perform queries upon, and write data from.
+    MoraHelpers to find Organisation Units recursively.
+    A GraphQL session to perform queries.
     """
 
-    def get_email_from_address_object(data_dict: dict) -> dict[str, Any] | None:
+    def get_email_from_address_object(employee: dict) -> str | None:
         """
         Function for extracting the e-mail address of the manager.
 
@@ -93,24 +94,25 @@ def write_multiple_managers_from_graphql_payload(
         A Manager response with an "addresses" object.
 
         :returns:
-        The e-mail address of the manager, if the filter applied is successful.
+        The first e-mail address of the manager, if the filter applied is successful.
+        Will return None, if no email was found.
 
         :example:
-        "{'E-mail': 'benth@kolding.dk'}"
+        "'benth@kolding.dk'"
         """
-        if data_dict["employee"] is not None:
-            filtered_email_address_object = list(
-                filter(
-                    lambda address_type: address_type["address_type"]["scope"]
-                    == "EMAIL",
-                    one(data_dict["employee"])["addresses"],
-                )
+        filtered_email_address_object = list(
+            filter(
+                lambda address_type: address_type["address_type"]["scope"]
+                == "EMAIL",
+                one(one(employee["objects"])["employee"])["addresses"],
             )
-            return {"E-mail": one(filtered_email_address_object)["name"]}
+        )
+        if filtered_email_address_object:
+            return first(filtered_email_address_object)["name"]
+        else:
+            return None  # Empty E-mails.
 
-        return None
-
-    def get_phone_from_address_object(data_dict: dict) -> dict[str, Any] | None:
+    def get_phone_from_address_object(employee: dict) -> str | None:
         """
         Function for extracting the phone number of the manager.
 
@@ -118,44 +120,42 @@ def write_multiple_managers_from_graphql_payload(
         A Manager response with an "addresses" object.
 
         :returns:
-        The phone number of the manager, if the filter applied is successful.
+        The first phone number of the manager, if the filter applied is successful.
+        Will return None, if no phone number was found.
 
         :example:
-        "{'Telefon': '67338448'}"
+        "'67338448'"
         """
-        if data_dict["employee"] is not None:
-            filtered_phone_address_object = list(
-                filter(
-                    lambda address_type: address_type["address_type"]["scope"]
-                    == "PHONE",
-                    one(data_dict["employee"])["addresses"],
-                )
+        filtered_phone_address_object = list(
+            filter(
+                lambda address_type: address_type["address_type"]["scope"]
+                == "PHONE",
+                one(one(employee["objects"])["employee"])["addresses"],
             )
-            return {"Telefon": one(filtered_phone_address_object)["name"]}
+        )
+        if filtered_phone_address_object:
+            return first(filtered_phone_address_object)["name"]
+        else:
+            return None  # Empty phones.
 
-        return None
-
-    def get_name_from_manager_object(data_dict: dict) -> dict[str, Any] | None:
+    def get_name_from_manager_object(employee: dict) -> str | None:
         """
         Function for extracting the name of the manager.
 
         :args:
-        A Manager response with an "employee" object.
+        A Manager object.
 
         :returns:
         The name of the manager.
 
         :example:
-        "{'Navn': 'Bent Lindstrøm Hansen'}"
+        "'Bent Lindstrøm Hansen'"
         """
-        if data_dict["employee"] is not None:
-            return {"Navn": one(data_dict["employee"])["name"]}
-
-        return None
+        return one(one(employee["objects"])["employee"])["name"]
 
     def get_responsibilities_from_manager_object(
-        data_dict: dict,
-    ) -> dict[str, Any] | None:
+        manager_responsibility: dict,
+    ) -> str | None:
         """
         This function will extract the primary responsibility of a manager.
         According to old logic from MoraHelpers, the main responsibility is
@@ -167,29 +167,30 @@ def write_multiple_managers_from_graphql_payload(
 
         :returns:
         The name of the primary responsibility, if the filter applied is successful.
-        Otherwise, will return the last element in the "responsibilities" list.
+        Will return the last element in the "responsibilities" list, if filter did
+        not find primary responsibility.
+        Will return None, if manager has no responsibilities.
 
         :example:
-        "{'Ansvar': 'Personale: ansættelse/afskedigelse'}" if successful.
-        Or, if not successful:
-        "{'Ansvar': 'Personale: MUS-kompetence''}"
-        """
-        if data_dict["responsibilities"] is not None:
-            filtered_respopnsibility_object = list(
-                filter(
-                    lambda primary_responsibility: primary_responsibility["full_name"]
-                    == "Personale: ansættelse/afskedigelse",  # According to MoraHelpers.
-                    data_dict["responsibilities"],
-                )
-            )
-            if filtered_respopnsibility_object:
-                return {"Ansvar": one(filtered_respopnsibility_object)["full_name"]}
-            else:
-                return {
-                    "Ansvar": data_dict["responsibilities"][-1]["full_name"]
-                }  # Default in MoraHelpers.
+        "'Personale: ansættelse/afskedigelse'" if successful.
 
-        return None
+        "'Personale: MUS-kompetence'" if filter was not successful:
+        """
+
+        responsibilities = one(manager_responsibility["objects"])["responsibilities"]
+        filtered_responsibility_object = list(
+            filter(
+                lambda primary_responsibility: primary_responsibility["full_name"]
+                == "Personale: ansættelse/afskedigelse",  # According to MoraHelpers.
+                one(manager_responsibility["objects"])["responsibilities"],
+            )
+        )
+        if filtered_responsibility_object:
+            return first(filtered_responsibility_object)["full_name"]
+        elif responsibilities:  # Default in MoraHelpers.
+            return responsibilities[-1]["full_name"]
+        else:  # In case of no responsibilities found.
+            return None
 
     fieldnames = mh._create_fieldnames(nodes)
     fieldnames += ["Ansvar", "Navn", "Telefon", "E-mail"]
@@ -198,28 +199,25 @@ def write_multiple_managers_from_graphql_payload(
         nodes["root"]
     ):  # Finding Organisation Unit nodes recursively.
         list_of_manager_object_data = get_managers_for_export(gql_session, node.name)
+        assert 1 == 1
         if list_of_manager_object_data:  # If managers are found.
             for manager in list_of_manager_object_data:
                 row = {}
                 # Finding all the OUs children and writing a "sub org" field for each child node.
                 root_org_and_all_its_children = mh._create_path_dict(fieldnames, node)
-                name_of_manager = get_name_from_manager_object(
-                    manager
-                )  # Name of the manager.
-                responsibilities = get_responsibilities_from_manager_object(
-                    manager
-                )  # Responsibility.
-                email_address = get_email_from_address_object(
-                    manager
-                )  # Retrieving e-mail.
-                phone_address = get_phone_from_address_object(
-                    manager
-                )  # Retrieving phone number.
                 row.update(root_org_and_all_its_children)
-                row.update(name_of_manager)
-                row.update(responsibilities)
-                row.update(email_address)
-                row.update(phone_address)
+                row["Navn"] = get_name_from_manager_object(
+                    manager
+                ) if manager else None  # Name of the manager.
+                row["Ansvar"] = get_responsibilities_from_manager_object(
+                    manager
+                ) if manager else None  # Responsibility.
+                row["E-mail"] = get_email_from_address_object(
+                    manager
+                ) if manager else None  # Retrieving e-mail.
+                row["Telefon"] = get_phone_from_address_object(
+                    manager
+                ) if manager else None  # Retrieving phone number.
                 rows.append(row)
         if (
             not list_of_manager_object_data
