@@ -100,15 +100,16 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'benth@kolding.dk'"
         """
-        filtered_email_address_object = list(
-            filter(
-                lambda address_type: address_type["address_type"]["scope"]
-                == "EMAIL",
-                one(one(employee["objects"])["employee"])["addresses"],
+        if employee.get("objects")[0]["employee"] is not None:
+            filtered_email_address_object = list(
+                filter(
+                    lambda address_type: address_type["address_type"]["scope"]
+                    == "EMAIL",
+                    one(one(employee["objects"])["employee"])["addresses"],
+                )
             )
-        )
-        if filtered_email_address_object:
-            return first(filtered_email_address_object)["name"]
+            if filtered_email_address_object:
+                return first(filtered_email_address_object)["name"]
         else:
             return None  # Empty E-mails.
 
@@ -126,15 +127,16 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'67338448'"
         """
-        filtered_phone_address_object = list(
-            filter(
-                lambda address_type: address_type["address_type"]["scope"]
-                == "PHONE",
-                one(one(employee["objects"])["employee"])["addresses"],
+        if employee.get("objects")[0]["employee"] is not None:
+            filtered_phone_address_object = list(
+                filter(
+                    lambda address_type: address_type["address_type"]["scope"]
+                    == "PHONE",
+                    one(one(employee["objects"])["employee"])["addresses"],
+                )
             )
-        )
-        if filtered_phone_address_object:
-            return first(filtered_phone_address_object)["name"]
+            if filtered_phone_address_object:
+                return first(filtered_phone_address_object)["name"]
         else:
             return None  # Empty phones.
 
@@ -151,7 +153,11 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'Bent Lindstrøm Hansen'"
         """
-        return one(one(employee["objects"])["employee"])["name"]
+        if employee.get("objects") and employee["objects"][0].get("employee") and employee["objects"][0]["employee"][
+            0].get("name"):
+            return employee["objects"][0]["employee"][0]["name"]
+        else:
+            return None
 
     def get_responsibilities_from_manager_object(
         manager_responsibility: dict,
@@ -176,13 +182,12 @@ def write_multiple_managers_from_graphql_payload(
 
         "'Personale: MUS-kompetence'" if filter was not successful:
         """
-
         responsibilities = one(manager_responsibility["objects"])["responsibilities"]
         filtered_responsibility_object = list(
             filter(
                 lambda primary_responsibility: primary_responsibility["full_name"]
                 == "Personale: ansættelse/afskedigelse",  # According to MoraHelpers.
-                one(manager_responsibility["objects"])["responsibilities"],
+                responsibilities,
             )
         )
         if filtered_responsibility_object:
@@ -199,7 +204,6 @@ def write_multiple_managers_from_graphql_payload(
         nodes["root"]
     ):  # Finding Organisation Unit nodes recursively.
         list_of_manager_object_data = get_managers_for_export(gql_session, node.name)
-        assert 1 == 1
         if list_of_manager_object_data:  # If managers are found.
             for manager in list_of_manager_object_data:
                 row = {}
@@ -208,16 +212,16 @@ def write_multiple_managers_from_graphql_payload(
                 row.update(root_org_and_all_its_children)
                 row["Navn"] = get_name_from_manager_object(
                     manager
-                ) if manager else None  # Name of the manager.
+                )  # Name of the manager.
                 row["Ansvar"] = get_responsibilities_from_manager_object(
                     manager
-                ) if manager else None  # Responsibility.
+                )  # Responsibility.
                 row["E-mail"] = get_email_from_address_object(
                     manager
-                ) if manager else None  # Retrieving e-mail.
+                ) # Retrieving e-mail.
                 row["Telefon"] = get_phone_from_address_object(
                     manager
-                ) if manager else None  # Retrieving phone number.
+                )  # Retrieving phone number.
                 rows.append(row)
         if (
             not list_of_manager_object_data
@@ -262,7 +266,7 @@ if __name__ == "__main__":
         print("Retrieving queries to write from.")
 
         write_multiple_managers_from_graphql_payload(
-            mh, session, settings.alle_leder_funktioner_file_path
+            mh, session, "exporters/yolololo.csv"  # settings.alle_leder_funktioner_file_path
         )
         print("Successfully wrote all necessary manager details to csv.")
 
