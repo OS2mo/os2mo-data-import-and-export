@@ -24,6 +24,7 @@ from more_itertools import only
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
 from os2sync_export.os2sync_models import OrgUnit
+from os2sync_export.priority_by_class import choose_public_address
 from os2sync_export.templates import Person
 from os2sync_export.templates import User
 from ra_utils.headers import TokenSettings
@@ -31,7 +32,6 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
-from exporters.utils.priority_by_class import choose_public_address
 
 logger = logging.getLogger(__name__)
 retry_max_time = 60
