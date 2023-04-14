@@ -280,7 +280,12 @@ def has_sd_status8(
          "in later runs (useful to avoid unnecessary load on SD during "
          "development)"
 )
-# TODO: add dry run
+@click.option(
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    help="Do not perform any changes in MO"
+)
 def main(
     username: str,
     password: str,
@@ -289,7 +294,8 @@ def main(
     client_id: str,
     client_secret: str,
     mo_base_url: str,
-    use_pickle: bool
+    use_pickle: bool,
+    dry_run: bool,
 ):
     # Get the SD status employments
     if use_pickle:
@@ -321,8 +327,8 @@ def main(
             terminate = has_sd_status8(sd_employments, employee.cpr_no, eng["user_key"])
             if terminate:
                 print(employee.cpr_no, eng["user_key"], terminate)
-                terminate_engagement(gql_client, eng["uuid"], eng["from"])
-                # input("Next")  # If you want to avoid messing up too much in one go :-)
+                if not dry_run:
+                    terminate_engagement(gql_client, eng["uuid"], eng["from"])
 
 
 if __name__ == "__main__":
