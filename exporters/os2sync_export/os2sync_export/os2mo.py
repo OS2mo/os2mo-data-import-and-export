@@ -456,7 +456,7 @@ def addresses_to_orgunit(orgunit, addresses):
         elif a["address_type"]["scope"] == "DAR":
             orgunit["Post"] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
-            orgunit["Location"] = a["name"]
+            orgunit["PNR"] = a["name"]
         elif address_type_is(a, user_key="ContactOpenHours"):
             orgunit["ContactOpenHours"] = a["name"]
         elif address_type_is(a, user_key="DtrId"):
