@@ -22,7 +22,6 @@ from sdlon.sdclient.requests import GetEmploymentRequest
 from sdlon.sdclient.responses import GetEmploymentResponse
 from sdlon.sdclient.responses import Person
 from ramodels.mo.employee import Employee
-from ramodels.mo._shared import validate_cpr
 
 def get_sd_employments(
     username: str, password: str, institution_identifier: str
@@ -111,16 +110,14 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
 
     employees = []
     for employee in r["employees"]:
-        cpr = one(employee["objects"])["cpr_no"]
         try:
-            validated_cpr = validate_cpr(cpr)
             employees.append(
                 Employee(
-                    cpr_no=validated_cpr,
+                    cpr_no=one(employee["objects"])["cpr_no"],
                     uuid=employee["uuid"]
                 )
             )
-        except ValueError as err:
+        except ValueError:
             print("Found invalid CPR!")
             print(employee)
 
