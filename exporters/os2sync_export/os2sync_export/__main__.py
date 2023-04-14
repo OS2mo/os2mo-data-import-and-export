@@ -7,7 +7,6 @@
 import json
 import logging
 import pathlib
-from functools import partial
 from operator import itemgetter
 from typing import Dict
 from typing import Set
@@ -16,7 +15,6 @@ from uuid import UUID
 import sentry_sdk
 from gql.client import SyncClientSession
 from more_itertools import flatten
-from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.config import get_os2sync_settings
@@ -143,12 +141,6 @@ def read_all_users(
     retry=retry_if_exception_type(ConnectionError),
 )
 def main(settings: Settings):
-
-    if settings.os2sync_use_lc_db:
-        engine = lcdb_os2mo.get_engine()
-        session = lcdb_os2mo.get_session(engine)
-        os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
-        os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)

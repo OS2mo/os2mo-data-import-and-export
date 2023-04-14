@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -6,8 +5,6 @@ from typing import Tuple
 from uuid import UUID
 
 import click
-from os2sync_export import lcdb_os2mo
-from os2sync_export import os2mo
 from os2sync_export import os2sync
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.config import Settings
@@ -20,10 +17,6 @@ from os2sync_export.os2sync_models import OrgUnit
 def update_single_user(
     uuid: UUID, settings: Settings, dry_run: bool
 ) -> List[Optional[Dict]]:
-    if settings.os2sync_use_lc_db:
-        engine = lcdb_os2mo.get_engine()
-        session = lcdb_os2mo.get_session(engine)
-        os2mo.get_sts_user_raw = partial(lcdb_os2mo.get_sts_user_raw, session)
 
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:

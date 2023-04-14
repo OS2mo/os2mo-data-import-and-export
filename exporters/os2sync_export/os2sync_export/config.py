@@ -66,7 +66,6 @@ class Settings(JobSettings):
         AnyHttpUrl, "http://localhost:8081/api"
     )
 
-    os2sync_use_lc_db: bool = False
     os2sync_hash_cache: Path = Path("/opt/dipex/os2sync_hash_cache")
     os2sync_xfer_cpr: bool = False
 

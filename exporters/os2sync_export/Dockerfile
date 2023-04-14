@@ -4,8 +4,6 @@
 FROM python:3.11
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
-
 WORKDIR /app
 
 ENV POETRY_HOME=/opt/poetry \
@@ -15,7 +13,7 @@ ENV POETRY_HOME=/opt/poetry \
 RUN curl -sSL https://install.python-poetry.org | python3 - 
 COPY pyproject.toml poetry.lock ./
 
-RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root --only main
+RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root
 
 COPY ./ ./
 
