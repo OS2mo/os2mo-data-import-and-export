@@ -158,7 +158,6 @@ def terminate_engagement(
 def get_mo_engagements(
     gql_client: GraphQLClient, employee_uuid: UUID
 ) -> list[dict[str, str]]:
-    # Use QuickType for the return type?... Nah - not worth the effort here
     """
     Get MO engagements for a given employee.
 
