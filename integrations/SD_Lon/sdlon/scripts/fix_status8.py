@@ -15,7 +15,7 @@ from uuid import UUID
 import click
 from gql import gql
 from more_itertools import one, exactly_n
-from raclients.graph.client import PersistentGraphQLClient
+from raclients.graph.client import GraphQLClient
 
 from sdlon.sdclient.client import SDClient
 from sdlon.sdclient.requests import GetEmploymentRequest
@@ -59,7 +59,7 @@ def get_mo_client(
     client_secret: str,
     mo_base_url: str,
     timeout: int = 600
-) -> PersistentGraphQLClient:
+) -> GraphQLClient:
     """
     Get the GraphQL client for calling MO.
 
@@ -74,7 +74,7 @@ def get_mo_client(
         A persistent GraphQL client
     """
 
-    return PersistentGraphQLClient(
+    return GraphQLClient(
         url=f"{mo_base_url}/graphql/v3",
         client_id=client_id,
         client_secret=client_secret,
@@ -86,7 +86,7 @@ def get_mo_client(
     )
 
 
-def get_mo_employees(gql_client: PersistentGraphQLClient) -> List[Employee]:
+def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
     """
     Get all MO employees
 
@@ -128,7 +128,7 @@ def get_mo_employees(gql_client: PersistentGraphQLClient) -> List[Employee]:
 
 
 def terminate_engagement(
-        gql_client: PersistentGraphQLClient,
+        gql_client: GraphQLClient,
         engagement_uuid: str,
         termination_date: str
 ) -> None:
@@ -159,7 +159,7 @@ def terminate_engagement(
 
 
 def get_mo_engagements(
-    gql_client: PersistentGraphQLClient, employee_uuid: UUID
+    gql_client: GraphQLClient, employee_uuid: UUID
 ) -> list[dict[str, str]]:
     # Use QuickType for the return type?... Nah - not worth the effort here
     """
