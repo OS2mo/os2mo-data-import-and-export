@@ -227,6 +227,7 @@ def has_sd_status8(
     "--username",
     "username",
     type=click.STRING,
+    envvar="SD_USER",
     required=True,
     help="SD username"
 )
@@ -234,6 +235,7 @@ def has_sd_status8(
     "--password",
     "password",
     type=click.STRING,
+    envvar="SD_PASSWORD",
     required=True,
     help="SD password"
 )
@@ -241,6 +243,7 @@ def has_sd_status8(
     "--institution-identifier",
     "institution_identifier",
     type=click.STRING,
+    envvar="SD_INSTITUTION_IDENTIFIER",
     required=True,
     help="SD institution identifier"
 )
