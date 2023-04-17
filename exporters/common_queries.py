@@ -96,7 +96,7 @@ def export_adm_org(mh, nodes, filename):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def export_managers(mh, nodes, filename, empty_manager_fields: bool = False):
+def export_managers(mh, nodes, filename):
     """Traverses a tree of OUs, for each OU finds the manager of the OU.
     If an eligible manager is not found, and empty_manager_fields is set to True,
     the manager fields will be written as empty values.
@@ -115,11 +115,6 @@ def export_managers(mh, nodes, filename, empty_manager_fields: bool = False):
             row.update(path_dict)  # Path
             row.update(manager)    # Navn, Ansvar
             row.update(address)    # E-mail, Telefon
-            rows.append(row)
-        elif empty_manager_fields:
-            row = {}
-            path_dict = mh._create_path_dict(fieldnames, node)
-            row.update(path_dict)  # Path
             rows.append(row)
 
     mh._write_csv(fieldnames, rows, filename)

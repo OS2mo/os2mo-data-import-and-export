@@ -30,7 +30,7 @@ class QueryTests(unittest.TestCase):
         cq.export_orgs(self.morah, self.nodes, 'all_employees.csv')
         cq.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
                        include_employees=False)
-        cq.export_managers(self.morah, self.nodes, 'all_managers.csv', empty_manager_fields=True)
+        cq.export_managers(self.morah, self.nodes, 'all_managers.csv')
         cq.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
 
     @classmethod
