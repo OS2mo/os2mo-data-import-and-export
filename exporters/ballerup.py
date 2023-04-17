@@ -67,7 +67,7 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
 
 
 def write_multiple_managers_from_graphql_payload(
-    mh: MoraHelper, gql_session: SyncClientSession, filename
+    mh: MoraHelper, gql_session: SyncClientSession, name_of_file: str
 ) -> None:
     """
     This function will call upon GraphQL queries to retrieve necessary manager
@@ -231,12 +231,13 @@ def write_multiple_managers_from_graphql_payload(
             row.update(root_org_and_all_its_children)  # Path
             rows.append(row)
 
-    mh._write_csv(fieldnames, rows, filename)
+    mh._write_csv(fieldnames, rows, name_of_file)
 
 
 if __name__ == "__main__":
     settings = get_common_query_export_settings()
     settings.start_logging_based_on_settings()
+    file_path = settings.file_export_path
     gql_client = setup_gql_client(settings=settings)
     threaded_speedup = False
     t = time.time()
@@ -265,51 +266,59 @@ if __name__ == "__main__":
         print("Initiating a GraphQL session.")
         print("Retrieving queries to write from.")
 
+        filename = "Alle_lederfunktioner_os2mo.csv"
         write_multiple_managers_from_graphql_payload(
-            mh, session, "exporters/yolololo.csv"  # settings.alle_leder_funktioner_file_path
+            mh, session, file_path / filename
         )
         print("Successfully wrote all necessary manager details to csv.")
 
     print(f"Alle ledere: {time.time() - t}s")
 
-    cq.export_all_employees(mh, nodes, settings.alle_bk_stilling_email_file_path)
+    filename = "AlleBK-stilling-email_os2mo.csv"
+    cq.export_all_employees(mh, nodes, file_path / filename)
     print("AlleBK-stilling-email: {}s".format(time.time() - t))
 
-    cq.export_orgs(mh, nodes, settings.ballerup_org_inc_medarbejdere_file_path)
+    filename = "Ballerup_org_incl-medarbejdere_os2mo.csv"
+    cq.export_orgs(mh, nodes, file_path / filename)
     print("Ballerup org incl medarbejdere: {}s".format(time.time() - t))
 
+    filename = "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv"
     cq.export_adm_org(
-        mh, nodes, settings.adm_org_incl_start_og_stopdata_og_enhedstyper_file_path
+        mh, nodes, file_path / filename
     )
     print("Adm-org-incl-start-stop: {}s".format(time.time() - t))
 
-    cq.export_all_teams(mh, nodes, settings.teams_tilknyttede_file_path)
+    filename = "teams-tilknyttede-os2mo.csv"
+    cq.export_all_teams(mh, nodes, file_path / filename)
     print("Teams: {}s".format(time.time() - t))
 
     nodes = mh.read_ou_tree(sd)
+    filename = "SD-løn org med Pnr_os2mo.csv"
     cq.export_orgs(
-        mh, nodes, settings.sd_loen_org_med_pnr_file_path, include_employees=False
+        mh, nodes, file_path / filename, include_employees=False
     )
     print("SD-løn: {}".format(time.time() - t))
 
     nodes = mh.read_ou_tree(udvalg)
+    filename = "AMR-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
     org_types = ["AMR"]
     export_udvalg(
         mh,
         nodes,
-        settings.amr_udvalgsmedlemmer_i_hieraki_file_path,
+        file_path / filename,
         fieldnames,
         org_types,
     )
     print("AMR: {}".format(time.time() - t))
 
+    filename = "MED-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
     org_types = ["H-MED", "C-MED", "L-MED"]
     export_udvalg(
         mh,
         nodes,
-        settings.med_udvalgsmedlemmer_i_hieraki_file_path,
+        file_path / filename,
         fieldnames,
         org_types,
     )
