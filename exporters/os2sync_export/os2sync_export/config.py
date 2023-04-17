@@ -9,8 +9,10 @@ from typing import Literal
 from typing import Tuple
 from uuid import UUID
 
+from fastramqpi.config import Settings as FastRAMQPISettings  # type: ignore
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
+from pydantic import Field
 from ra_utils.apply import apply
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
@@ -54,7 +56,11 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 
 
 class Settings(JobSettings):
-    # common:
+
+    fastramqpi: FastRAMQPISettings = Field(
+        default_factory=FastRAMQPISettings, description="FastRAMQPI settings"
+    )
+
     municipality: str  # Called "municipality.cvr" in settings.json
     mora_base: AnyHttpUrl = cast(
         AnyHttpUrl, "http://localhost:5000"
@@ -94,6 +100,8 @@ class Settings(JobSettings):
 
     class Config:
 
+        frozen = True
+        env_nested_delimiter = "__"
         env_file_encoding = "utf-8"
 
         @classmethod

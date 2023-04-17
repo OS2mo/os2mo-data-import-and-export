@@ -17,4 +17,4 @@ RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root
 
 COPY ./ ./
 
-CMD ["uvicorn", "os2sync_export.main:app", "--host", "0.0.0.0"]
+CMD ["uvicorn", "os2sync_export.main:create_app", "--host", "0.0.0.0"]
