@@ -15,6 +15,7 @@ from pydantic import Field
 from .helpers import HelperMixin
 from .helpers import mock_config
 from .helpers import mock_create_mox_helper
+from .helpers import mock_gql_execute
 from .strategies import csv_buf_from_model
 
 
@@ -82,9 +83,12 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
 
         with mock_config():
             instance = los_stam.StamImporter(self._datetime_last_imported)
-            with mock_create_mox_helper(los_stam) as mh:
+            with mock_create_mox_helper(los_stam) as mh, mock_gql_execute(
+                {"classes": []}
+            ):
                 mox_helper = mh.return_value
                 mox_helper.read_element_klassifikation_facet.return_value = uuid.uuid4()
+
                 self._run_until_complete(
                     instance._create_classes_from_csv(MockStamCSV, rows)
                 )

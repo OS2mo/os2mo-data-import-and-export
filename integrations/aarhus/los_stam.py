@@ -417,7 +417,7 @@ class StamImporter:
 
         # Find class UUIDs currently in facet
         gql_client = config.setup_gql_client(settings=settings)
-        classes = gql_get_classes(gql_client, facet_uuid)
+        classes = gql_get_classes(gql_client, str(facet_uuid))
         facet_class_uuids = [uuid.UUID(c["uuid"]) for c in classes]
 
         # Find rows to insert (classes in CSV but not yet in LoRa)
