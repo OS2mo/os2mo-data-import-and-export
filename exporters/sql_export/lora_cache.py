@@ -1190,6 +1190,7 @@ class LoraCache:
                 it_connections_file = "tmp/it_connections_historic_skip_past.p"
                 kles_file = "tmp/kles_historic_skip_past.p"
                 related_file = "tmp/related_historic_skip_past.p"
+                dar_file = "tmp/dar_historic_skip_past.p"
             else:
                 facets_file = "tmp/facets_historic.p"
                 classes_file = "tmp/classes_historic.p"
@@ -1205,6 +1206,7 @@ class LoraCache:
                 it_connections_file = "tmp/it_connections_historic.p"
                 kles_file = "tmp/kles_historic.p"
                 related_file = "tmp/related_historic.p"
+                dar_file = "tmp/dar_historic.p"
         else:
             facets_file = "tmp/facets.p"
             classes_file = "tmp/classes.p"
@@ -1220,6 +1222,7 @@ class LoraCache:
             it_connections_file = "tmp/it_connections.p"
             kles_file = "tmp/kles.p"
             related_file = "tmp/related.p"
+            dar_file = "tmp/dar.p"
 
         if dry_run:
             logger.info("LoRa cache dry run - no actual read")
@@ -1254,7 +1257,8 @@ class LoraCache:
                 self.kles = pickle.load(f)
             with open(related_file, "rb") as f:
                 self.related = pickle.load(f)
-            self.dar_cache = {}
+            with open(dar_file, "rb") as f:
+                self.dar_cache = pickle.load(f)
             return
 
         t = time.time()  # noqa: F841
@@ -1284,6 +1288,7 @@ class LoraCache:
         def read_addresses():
             logger.info("Læs adresser:")
             self.addresses = self._cache_lora_address()
+            self.dar_cache = self._cache_dar()
             return self.addresses
 
         def read_engagements():
@@ -1333,9 +1338,8 @@ class LoraCache:
 
         def read_dar():
             logger.info("Læs dar")
-            self.dar_cache = self._cache_dar()
-            # with open(cache_file, 'wb') as f:
-            #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
+            # Actually already read when processing adresses
+            return self.dar_cache
 
         tasks = []
         tasks.append((read_facets, facets_file))
@@ -1353,7 +1357,7 @@ class LoraCache:
         tasks.append((read_it_connections, it_connections_file))
         tasks.append((read_kles, kles_file))
         tasks.append((read_related, related_file))
-        tasks.append((read_dar, None))
+        tasks.append((read_dar, dar_file))
 
         for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
             data = task()
