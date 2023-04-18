@@ -10,7 +10,6 @@ Helper class to make a number of pre-defined queries into MO
 """
 import os
 import time
-from typing import Any
 
 import common_queries as cq
 from anytree import PreOrderIter
@@ -67,7 +66,7 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
 
 
 def write_multiple_managers_from_graphql_payload(
-    mh: MoraHelper, gql_session: SyncClientSession, name_of_file: str
+    mh: MoraHelper, gql_session: SyncClientSession, name_of_file
 ) -> None:
     """
     This function will call upon GraphQL queries to retrieve necessary manager
