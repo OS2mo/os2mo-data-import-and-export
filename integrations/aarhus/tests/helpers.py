@@ -1,6 +1,5 @@
 import asyncio
 from types import ModuleType
-from typing import Any
 from typing import Optional
 from typing import Tuple
 from unittest import mock
@@ -10,7 +9,6 @@ import config
 import initial
 import los_files
 import util
-from raclients.graph.client import GraphQLClient
 
 from integrations.dar_helper import dar_helper
 
@@ -98,7 +96,3 @@ def mock_create_mox_helper(module: ModuleType = initial):
     mock_mox_helper = mock.AsyncMock()
     mock_mox_helper.return_value = mock.AsyncMock()
     return mock.patch.object(module, "create_mox_helper", return_value=mock_mox_helper)
-
-
-def mock_gql_execute(execute_return: Any | None = None):
-    return mock.patch.object(GraphQLClient, "execute", return_value=execute_return)
