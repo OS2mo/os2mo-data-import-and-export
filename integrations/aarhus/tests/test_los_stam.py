@@ -126,10 +126,23 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         side_effect = ClientResponseError(request_info=None, history=None)
         side_effect.status = HttpBadRequest.code
 
+        # Existing rows returned by GraphQL
+        mock_gql_execute_return = {
+            "classes": [
+                {
+                    "uuid": existing_class_uuid,
+                    "full_name": "Test-assoc-type-1",
+                    "published": "Publiceret",
+                },
+            ]
+        }
+
         # Arrange
         with mock_config():
             instance = los_stam.StamImporter(self._datetime_last_imported)
-            with mock_create_mox_helper(los_stam) as mh:
+            with mock_create_mox_helper(los_stam) as mh, mock_gql_execute(
+                mock_gql_execute_return
+            ):
                 mox_helper = mh.return_value
                 mox_helper._search.return_value = [existing_class_uuid]
                 mox_helper._update.side_effect = side_effect
