@@ -6,7 +6,7 @@ from raclients.graph.client import GraphQLClient
 
 class CommonQueryExportSettings(JobSettings):
     # common settings for clients:
-    file_export_path: Path = Path("/opt/docker/os2mo")
+    file_export_path: Path = Path("/opt/docker/os2mo/queries")
 
 
 @lru_cache()
