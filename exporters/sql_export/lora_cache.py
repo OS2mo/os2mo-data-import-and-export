@@ -30,13 +30,11 @@ from ra_utils.tqdm_wrapper import tqdm
 from retrying import retry
 
 
-logger = logging.getLogger("LoraCache")
+logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
 
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
-
-LOG_LEVEL = logging.DEBUG
 
 
 def get_rel_uuid_or_none(uuid, rel, item_name) -> Optional[str]:
@@ -1411,7 +1409,7 @@ def cli(historic, skip_past, resolve_dar, read_from_cache):
 
 
 if __name__ == "__main__":
-
+    LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")
     for name in logging.root.manager.loggerDict:  # type: ignore
         if name in ("LoraCache"):
             logging.getLogger(name).setLevel(LOG_LEVEL)
