@@ -13,7 +13,7 @@ class TestSdConnectivity(object):
         self.validation_error = None
         try:
             self.settings = get_changed_at_settings()
-            self.settings.start_logging_based_on_settings()
+            self.settings.job_settings.start_logging_based_on_settings()
         except ValidationError as err:
             self.validation_error = err
 
