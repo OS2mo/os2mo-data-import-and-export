@@ -27,6 +27,12 @@ class TestMOGraphqlSource(TestCase):
         ]
         mock_source = mock_MOGraphqlSource(test_data)
         assert mock_source.manager_map == {"0004b952-a513-430b-b696-8d393d7eb2bb": None}
+        assert (
+            mock_source.get_manager_uuid(
+                {"uuid": "0004b952-a513-430b-b696-8d393d7eb2bb"}, None
+            )
+            is None
+        )
 
     def test_create_manager_map_has_manager(self):
         test_data = [
@@ -58,6 +64,12 @@ class TestMOGraphqlSource(TestCase):
         assert mock_source.manager_map == {
             "002a1aed-d015-4b86-86a4-c37cd8df1e18": "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
         }
+        assert (
+            mock_source.get_manager_uuid(
+                {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"}, None
+            )
+            == "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
+        )
 
     def test_create_manager_map_has_manager_not_primary(self):
         test_data = [
@@ -87,6 +99,12 @@ class TestMOGraphqlSource(TestCase):
         ]
         mock_source = mock_MOGraphqlSource(test_data)
         assert mock_source.manager_map == {"002a1aed-d015-4b86-86a4-c37cd8df1e18": None}
+        assert (
+            mock_source.get_manager_uuid(
+                {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"}, None
+            )
+            is None
+        )
 
 
 class TestLoraCacheSource(TestCase):

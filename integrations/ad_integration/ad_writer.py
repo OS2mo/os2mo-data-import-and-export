@@ -333,9 +333,9 @@ class MOGraphqlSource:
         )
         return {e["uuid"]: manager_uuid.search(e) for e in employees}
 
-    def get_manager_uuid(self, mo_user, eng_uuid):
+    def get_manager_uuid(self, mo_user: dict, eng_uuid):
         """Lookup manager for employee"""
-        return self.manager_map[mo_user]
+        return self.manager_map[mo_user["uuid"]]
 
 
 class MORESTSource(MODataSource):
