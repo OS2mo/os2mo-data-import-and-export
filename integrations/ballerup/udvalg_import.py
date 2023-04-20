@@ -6,11 +6,11 @@ import hashlib
 import requests
 import datetime
 import pathlib
-import json
 
 from anytree import Node
 from logging.handlers import RotatingFileHandler
 from chardet.universaldetector import UniversalDetector
+from ra_utils.job_settings import JobSettings
 
 INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
@@ -30,8 +30,6 @@ activity_log_handler = RotatingFileHandler(
 activity_log_handler.setFormatter(log_format)
 activity_log_handler.setLevel(INFO_LEVEL)
 logger.addHandler(activity_log_handler)
-
-
 
 
 def _find_class(find_facet, find_class):
@@ -56,7 +54,7 @@ def _mo_lookup(uuid, details=''):
         url = BASE_URL + 'e/{}/details/' + details
     response = SESSION.get(url.format(uuid))
     response.raise_for_status()
-    return(response.json())
+    return (response.json())
 
 
 def _find_org():
@@ -64,9 +62,9 @@ def _find_org():
     response = SESSION.get(url)
     response.raise_for_status()
     response = response.json()
-    assert(len(response) == 1)
+    assert (len(response) == 1)
     uuid = response[0]['uuid']
-    return(uuid)
+    return (uuid)
 
 
 def _search_mo_name(name, user_key):
@@ -83,7 +81,7 @@ def _search_mo_name(name, user_key):
         uuid = employee['uuid']
         mo_user = _mo_lookup(uuid)
         if mo_user['user_key'] == user_key:
-            return(employee['uuid'])
+            return (employee['uuid'])
     # Still no success, give up and return None
     return None
 
@@ -134,7 +132,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
         'org_unit_type': {'uuid': ou_type},
         'parent': {'uuid': parent},
         'validity': {'from': '1930-01-01',
-                     'to':  None}
+                     'to': None}
     }
 
     url = BASE_URL + 'ou/create'
@@ -277,23 +275,29 @@ def create_tree(file_name):
     return nodes
 
 
+class Settings(JobSettings):
+    mora_base: str = "http://localhost:5000"
+    client_id: str = "dipex"
+    client_secret: str
+    auth_realm: str = "mo"
+    auth_server: str = "http://localhost:5000/auth"
+
+
 if __name__ == '__main__':
     logger.info('Program started')
 
     settingsfile = pathlib.Path("settings") / "settings.json"
-    settings = json.loads(settingsfile.read_text())
-
+    settings = Settings()
 
     SESSION = requests.Session()
-    if settings.get("crontab.SAML_TOKEN", None) is not None:
-        SESSION.headers["SESSION"] = settings["crontab.SAML_TOKEN"]
-
+    if settings.client_secret is not None:
+        SESSION.headers["SESSION"] = settings.client_secret
 
     ROOT = _find_org()
 
-    orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv'
-    amr_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/AMR-medlemmer.csv'
-    med_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/MED-medlemmer.csv'
+    orgtyper_file = "/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv"
+    amr_medlemmer_file = "/opt/customer/dataimport/ballerup_udvalg/AMR-medlemmer.csv"
+    med_medlemmer_file = "/opt/customer/dataimport/ballerup_udvalg/MED-medlemmer.csv"
 
     if True:
         nodes = create_tree(orgtyper_file)
