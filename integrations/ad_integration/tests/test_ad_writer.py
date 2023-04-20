@@ -26,6 +26,9 @@ from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
+from .mocks import MO_MANAGER_CPR
+from .mocks import MO_MANAGER_SAM
+from .mocks import MO_MANAGER_UUID
 from .mocks import MO_ROOT_ORG_UNIT_NAME
 from .mocks import MO_UUID
 from .mocks import MockADWriterContext
@@ -1080,6 +1083,7 @@ class _TestRealADWriter(TestCase):
         )
         skip_locations = kwargs.pop("skip_locations", None)
         read_ou_addresses = kwargs.pop("read_ou_addresses", None)
+        get_from_ad = kwargs.pop("get_from_ad", lambda *_args, **_kwargs: {})
         with MockADWriterContext(
             template_to_ad_fields=template_to_ad_fields,
             template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
@@ -1088,7 +1092,7 @@ class _TestRealADWriter(TestCase):
             run_ps_response=kwargs.pop("run_ps_response", None),
         ):
             instance = ADWriter(**kwargs)
-            instance.get_from_ad = lambda *_args, **_kwargs: {}
+            instance.get_from_ad = get_from_ad
             return instance
 
 
@@ -1535,3 +1539,22 @@ class TestRenameADUser(_TestRealADWriter):
             ad_writer._rename_ad_user("user_sam", "New Name")
             # Assert
             mock_time_sleep.assert_called_once_with(1)
+
+
+class TestGetManagerUUID(_TestRealADWriter):
+    def test_get_manager_uuid(self):
+        # Provide a mock implementation of `ADWriter.get_from_ad` which can look up the
+        # manager's 'SamAccountName'.
+        def get_from_ad(user=None, cpr=None, server=None):
+            if cpr == MO_MANAGER_CPR:
+                return [{"SamAccountName": MO_MANAGER_SAM}]
+
+        ad_writer = self._prepare_adwriter(get_from_ad=get_from_ad)
+        mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
+        assert mo_values["_manager_uuid"] == MO_MANAGER_UUID
+        assert mo_values["_manager_mo_user"]["uuid"] == MO_MANAGER_UUID
+        assert mo_values["read_manager"] is True
+        assert mo_values["manager_name"] == mo_values["_manager_mo_user"]["name"]
+        assert mo_values["manager_cpr"] == mo_values["_manager_mo_user"]["cpr_no"]
+        assert mo_values["manager_mail"] == "address-value"
+        assert mo_values["manager_sam"] == MO_MANAGER_SAM
