@@ -10,7 +10,7 @@ import pathlib
 from anytree import Node
 from logging.handlers import RotatingFileHandler
 from chardet.universaldetector import UniversalDetector
-from ra_utils.job_settings import JobSettings
+from ra_utils.headers import TokenSettings
 
 INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
@@ -275,23 +275,24 @@ def create_tree(file_name):
     return nodes
 
 
-class Settings(JobSettings):
-    mora_base: str = "http://localhost:5000"
-    client_id: str = "dipex"
-    client_secret: str
-    auth_realm: str = "mo"
-    auth_server: str = "http://localhost:5000/auth"
+# class Settings(TokenSettings):
+#     mora_base: str = "http://localhost:5000"
+#     client_id: str = "dipex"
+#     client_secret: str
+#     auth_realm: str = "mo"
+#     auth_server: str = "http://localhost:5000/auth"
 
 
 if __name__ == '__main__':
     logger.info('Program started')
 
     settingsfile = pathlib.Path("settings") / "settings.json"
-    settings = Settings()
+    session_headers = TokenSettings().get_headers()
 
     SESSION = requests.Session()
-    if settings.client_secret is not None:
-        SESSION.headers["SESSION"] = settings.client_secret
+    if session_headers:
+        SESSION.headers.update(session_headers)
+        # SESSION.headers["SESSION"] = settings.client_secret
 
     ROOT = _find_org()
 
