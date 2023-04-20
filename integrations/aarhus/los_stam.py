@@ -15,12 +15,13 @@ import pydantic
 import uuids
 from aiohttp import ClientResponseError
 from aiohttp.http_exceptions import HttpBadRequest
+from gql import gql
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import.mox_data_types import Facet
 from os2mo_data_import.mox_data_types import Itsystem
 from pydantic import Field
-
+from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 
@@ -415,18 +416,9 @@ class StamImporter:
         facet_uuid = await self._get_or_create_facet(csv_class, mox_helper)
 
         # Find class UUIDs currently in facet
-        facet_class_uuids = list(
-            map(
-                uuid.UUID,
-                set(
-                    await mox_helper._search(
-                        "klassifikation",
-                        "klasse",
-                        {"vilkaarligrel": str(facet_uuid)},
-                    )
-                ),
-            )
-        )
+        gql_client = config.setup_gql_client(settings=settings)
+        classes = gql_get_classes(gql_client, str(facet_uuid))
+        facet_class_uuids = [uuid.UUID(c["uuid"]) for c in classes]
 
         # Find rows to insert (classes in CSV but not yet in LoRa)
         rows_class_uuids = set(row.class_uuid for row in rows)
@@ -445,6 +437,21 @@ class StamImporter:
             )
             await mox_helper.insert_klassifikation_klasse(klasse, str(row.class_uuid))
             logger.info("Created LoRa class %r", row.class_uuid)
+
+        # Find classes with updated data
+        classes_with_changed_name = list(
+            filter(
+                lambda csv_row: any(  # type: ignore
+                    str(csv_row.class_uuid) == lora_class["uuid"]  # type: ignore
+                    and csv_row.role != lora_class["full_name"]  # type: ignore
+                    for lora_class in classes
+                ),
+                rows,
+            )
+        )
+
+        for changed_class in classes_with_changed_name:
+            gql_create_class(gql_client, changed_class, str(uuids.ORG_UUID), facet_uuid)  # type: ignore
 
         # Find classes to terminate (classes in LoRa but no longer in CSV file)
         class_uuids_to_terminate = [
@@ -529,3 +536,49 @@ class StamImporter:
             await mox_helper.insert_klassifikation_facet(facet.build(), facet_uuid)
 
         return facet_uuid
+
+
+def gql_get_classes(gql_client: GraphQLClient, facet_uuid: str) -> List[dict]:
+    graphql_query = gql(
+        """
+        query GetFacetClasses($uuid: [UUID!]) {
+        classes(facets: $uuid) {
+                uuid
+                full_name
+                published
+            }
+        }
+        """
+    )
+
+    response = gql_client.execute(graphql_query, variable_values={"uuid": [facet_uuid]})
+    return response["classes"]
+
+
+def gql_create_class(
+    gql_client: GraphQLClient,
+    changed_class: StamCSV,
+    org_uuid: str,
+    facet_uuid: str,
+):
+    graphql_query = gql(
+        """
+        mutation CreateClass($input: ClassCreateInput!) {
+            class_create(input: $input) {
+                uuid
+            }
+        }
+        """
+    )
+
+    data = {
+        "uuid": str(changed_class.class_uuid),
+        "org_uuid": org_uuid,
+        "facet_uuid": facet_uuid,
+        "name": changed_class.title,
+        "user_key": changed_class.bvn,
+        "scope": "TEXT",
+    }
+
+    response = gql_client.execute(graphql_query, variable_values={"input": data})
+    return response["class_create"]

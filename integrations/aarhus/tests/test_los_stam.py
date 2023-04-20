@@ -2,6 +2,8 @@ import logging
 import uuid
 from datetime import datetime
 from unittest import mock
+from unittest.mock import ANY
+from unittest.mock import patch
 
 import los_files
 import los_stam
@@ -76,7 +78,8 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
             result = self._run_load_csv_if_newer()
             assert result is None
 
-    def test_create_classes_from_csv(self):
+    @patch("los_stam.gql_get_classes", return_value=[])
+    def test_create_classes_from_csv(self, mock_gql_get_classes):
         # Pretend we are adding exactly one LoRa class based on a single-item CSV file
         rows = [MockStamCSV()]
 
@@ -106,7 +109,10 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 # Assert that we convert the class UUID to string
                 assert isinstance(class_uuid, str)
 
-    def test_unpublish_handles_already_unpublished_class(self, caplog):
+    @patch("los_stam.gql_get_classes")
+    def test_unpublish_handles_already_unpublished_class(
+        self, mock_gql_get_classes, caplog
+    ):
         # When trying to unpublish a LoRa class which has already been unpublished in a
         # a previous LOS import run, make sure that we handle the error raised by
         # `mox_helper._update`. (#54283)
@@ -121,6 +127,15 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         # However, doing this more than once will trigger a `ClientResponseError`.
         side_effect = ClientResponseError(request_info=None, history=None)
         side_effect.status = HttpBadRequest.code
+
+        # Existing rows returned by GraphQL
+        mock_gql_get_classes.return_value = [
+            {
+                "uuid": existing_class_uuid,
+                "full_name": "Test-assoc-type-1",
+                "published": "Publiceret",
+            },
+        ]
 
         # Arrange
         with mock_config():
@@ -200,6 +215,39 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
                 )
                 # Assert that we got the facet UUID that we constructed ourselves
                 assert result == expected_facet_uuid
+
+    @patch("los_stam.gql_create_class")
+    @patch("los_stam.gql_get_classes")
+    def test_update_existing_class_from_csv(
+        self, mock_gql_get_classes, mock_gql_create_class
+    ):
+        updated_class = los_stam.Tilknytningsrolle(
+            TilknytningsrolleUUID=uuid.uuid4(),
+            Tilknytningsrolle="Test-assoc-type-1 UPDATED",
+            Loadtime="2023-04-01 14:37:22.643",
+        )
+
+        mock_gql_get_classes.return_value = [
+            {
+                "uuid": str(updated_class.class_uuid),
+                "full_name": "Test-assoc-type-1",
+                "published": "Publiceret",
+            },
+        ]
+
+        with mock_config():
+            instance = los_stam.StamImporter(self._datetime_last_imported)
+            with mock_create_mox_helper(los_stam) as mh:
+                mox_helper = mh.return_value
+                mox_helper.read_element_klassifikation_facet.return_value = uuid.uuid4()
+
+                # Invoke the method we want to test
+                self._run_until_complete(
+                    instance._create_classes_from_csv(MockStamCSV, [updated_class])
+                )
+
+                # Asserts
+                mock_gql_create_class.assert_called_with(ANY, updated_class, ANY, ANY)
 
     def _run_load_csv_if_newer(self):
         instance = los_stam.StamImporter(self._datetime_last_imported)

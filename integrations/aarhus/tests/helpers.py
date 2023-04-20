@@ -79,6 +79,11 @@ class HelperMixin:
 def mock_config(**kwargs):
     class MockConfig:
         mox_base = "unused"
+        mora_base = "unused"
+        client_id = "unused"
+        client_secret = "unused"
+        auth_server = "http://localhost:8081"
+        auth_realm = "mo"
 
     instance = MockConfig()
     for name, val in kwargs.items():
