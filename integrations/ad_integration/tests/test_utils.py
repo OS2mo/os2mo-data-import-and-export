@@ -5,6 +5,7 @@ from functools import partial
 from itertools import chain
 from random import choice
 from random import randint
+from unittest.mock import patch
 
 from ..ad_sync import AdMoSync
 from ..ad_writer import ADWriter
@@ -367,12 +368,20 @@ class TestADWriterMixin(TestADMixin):
         )
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
-        self.ad_writer = ADWriterTestSubclass(
-            all_settings=self.settings,
-            read_ad_information_from_mo=self.mo_values_func,
-            ad_values_func=self.ad_values_func,
-            **kwargs,
-        )
+
+        # Avoid circular import
+        from .mocks import MockMOGraphqlSource
+
+        with patch(
+            "integrations.ad_integration.ad_writer.MOGraphqlSource",
+            new=MockMOGraphqlSource,
+        ):
+            self.ad_writer = ADWriterTestSubclass(
+                all_settings=self.settings,
+                read_ad_information_from_mo=self.mo_values_func,
+                ad_values_func=self.ad_values_func,
+                **kwargs,
+            )
 
 
 class AdMoSyncTestSubclass(AdMoSync):

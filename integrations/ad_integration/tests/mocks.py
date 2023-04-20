@@ -20,6 +20,9 @@ MO_ROOT_ORG_UNIT_NAME = "not-a-mo-org-unit-name"
 MO_USER_LOCATION = MO_ROOT_ORG_UNIT_NAME
 MO_CHILD_ORG_UNIT_UUID = uuid4()
 MO_UUID = "not-a-uuid"
+MO_MANAGER_UUID = "mo-manager-uuid"
+MO_MANAGER_CPR = "mo-manager-cpr"
+MO_MANAGER_SAM = "mo-manager-sam"
 AD_UUID_FIELD = "uuidField"
 UNKNOWN_CPR_NO = "not-a-cpr-no"
 MO_AD_IT_SYSTEM_UUID = uuid4()
@@ -96,13 +99,21 @@ class MockMORESTSourcePreview(MORESTSource):
         return "employment-number", "title", "eng-org-unit", "eng-uuid"
 
     def read_user(self, uuid):
-        mo_user = self.helper.read_user()
+        mo_user = copy.deepcopy(self.helper.read_user())
         mo_user.update(
             {
                 "givenname": "Tester",
                 "surname": "Testesen",
             }
         )
+        if uuid == MO_MANAGER_UUID:
+            mo_user.update(
+                {
+                    "uuid": MO_MANAGER_UUID,
+                    "cpr_no": MO_MANAGER_CPR,
+                    "name": "Leder Ledersen",
+                }
+            )
         return mo_user
 
     def get_engagement_dates(self, uuid):
@@ -376,6 +387,16 @@ class MockMoraHelper(MoraHelper):
         return mock_response
 
 
+class MockMOGraphqlSource:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get_manager_uuid(self, mo_user: dict, eng_uuid: str) -> str | None:
+        if mo_user["uuid"] == MO_UUID:
+            return MO_MANAGER_UUID
+        return None
+
+
 class MockADWriterContext(ExitStack):
     """Mock enough of `ADWriter` dependencies to allow it to instantiate in a test.
     Usage:
@@ -458,3 +479,4 @@ class MockADWriterContext(ExitStack):
                 read_ou_addresses=self._read_ou_addresses,
             ),
         )
+        yield patch(f"{prefix}.ad_writer.MOGraphqlSource", new=MockMOGraphqlSource)
