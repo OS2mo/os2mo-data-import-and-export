@@ -26,12 +26,8 @@ def _get_class_uuid(department_level_identifier: str) -> UUID:
 
 
 @click.command()
-@click.option(
-    "--department-level-identifier",
-    type=click.STRING,
-    required=True,
-    help="The SD DepartmentLevelIdentifier for the department"
-)
+# The SD DepartmentLevelIdentifier for the department
+@click.argument("department_level_identifier")
 def get_class_uuid(department_level_identifier: str) -> None:
     click.echo(_get_class_uuid(department_level_identifier))
 
