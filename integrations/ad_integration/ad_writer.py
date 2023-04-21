@@ -285,57 +285,77 @@ class MOGraphqlSource:
     """MO Graphql."""
 
     def __init__(self, settings):
-        self.employees = self._read_employees(settings)
-        self.manager_map = self._create_manager_map(self.employees)
+        self._settings = settings
 
-    def _read_employees(self, settings):
-        query = gql(
-            """query read_employees {
-            employees(to_date: null) {
-                uuid
-                objects {
-                engagements {
-                    employee_uuid
-                    uuid
-                    is_primary(show_is_primary: true)
-                    org_unit {
-                    managers(inherit: true) {
-                        employee_uuid
-                    }
-                    }
-                }
-                }
-            }
-        }
-        """
+        # For each employee we need to find the manager uuid which is associated by the
+        # org_unit of the primary engagement.
+        # So the path is engagements - filter by primary, org_unit, manager, uuid
+        # At last the result is piped into [0] to get the value and not an array.
+        # https://jmespath.org/tutorial.html#pipe-expressions
+        self._get_manager_uuid = jmespath.compile(
+            "objects[0].engagements[?is_primary].org_unit[0].managers[0].employee_uuid | [0]"
         )
-        with GraphQLClient(
-            url=f"{settings['global']['mora.base']}/graphql",
+
+        self._response = self._read_employees()
+        self._manager_map = self._create_manager_map()
+
+    def _get_client(self):
+        return GraphQLClient(
+            url=f"{self._settings['global']['mora.base']}/graphql/v3",
             client_id=os.environ.get("CLIENT_ID", "dipex"),
             client_secret=os.environ["CLIENT_SECRET"],
             auth_realm=os.environ.get("AUTH_REALM", "mo"),
             auth_server=os.environ["AUTH_SERVER"],
             sync=True,
             httpx_client_kwargs={"timeout": None},
-        ) as session:
-
-            r = session.execute(query)
-        return r["employees"]
-
-    def _create_manager_map(self, employees):
-        """Create mapping between employees and managers"""
-        # For each employee we need to find the manager uuid which is associated by the org_unit of the primary engagement.
-        # So the path is engagements - filter by primary, org_unit, manager, uuid
-        # At last the result is piped into [0] to get the value and not an array.
-        # https://jmespath.org/tutorial.html#pipe-expressions
-        manager_uuid = jmespath.compile(
-            "objects[0].engagements[?is_primary].org_unit[0].managers[0].employee_uuid | [0]"
         )
-        return {e["uuid"]: manager_uuid.search(e) for e in employees}
+
+    def _read_employees(self):
+        query = gql(
+            """
+            query read_employees {
+              employees(to_date: null) {
+                uuid
+                objects {
+                  engagements {
+                    employee_uuid
+                    uuid
+                    is_primary
+                    org_unit {
+                      managers(inherit: true) {
+                        employee_uuid
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """
+        )
+        with self._get_client() as session:
+            return session.execute(query)
+
+    def _is_primary_engagement(self, employee: dict) -> bool:
+        for obj in employee["objects"]:
+            for eng in obj["engagements"]:
+                if eng["is_primary"] is True:
+                    return True
+        return False
+
+    def _create_manager_map(self):
+        """Create mapping between employees and managers"""
+        return {
+            e["uuid"]: (
+                self._get_manager_uuid.search(e)
+                if self._is_primary_engagement(e)
+                else None
+            )
+            for e in self._response["employees"]
+        }
 
     def get_manager_uuid(self, mo_user: dict, eng_uuid):
-        """Lookup manager for employee"""
-        return self.manager_map[mo_user["uuid"]]
+        """Look up manager UUID for employee"""
+        return self._manager_map[mo_user["uuid"]]
 
 
 class MORESTSource(MODataSource):

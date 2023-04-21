@@ -12,7 +12,7 @@ from .mocks import MockMORESTSource
 
 def mock_MOGraphqlSource(return_value):
     mock_source = MOGraphqlSource
-    mock_source._read_employees = lambda x, y: return_value
+    mock_source._read_employees = lambda x: {"employees": return_value}
     return mock_source({})
 
 
@@ -26,7 +26,9 @@ class TestMOGraphqlSource(TestCase):
             }
         ]
         mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source.manager_map == {"0004b952-a513-430b-b696-8d393d7eb2bb": None}
+        assert mock_source._manager_map == {
+            "0004b952-a513-430b-b696-8d393d7eb2bb": None
+        }
         assert (
             mock_source.get_manager_uuid(
                 {"uuid": "0004b952-a513-430b-b696-8d393d7eb2bb"}, None
@@ -61,7 +63,7 @@ class TestMOGraphqlSource(TestCase):
             }
         ]
         mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source.manager_map == {
+        assert mock_source._manager_map == {
             "002a1aed-d015-4b86-86a4-c37cd8df1e18": "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
         }
         assert (
@@ -98,7 +100,9 @@ class TestMOGraphqlSource(TestCase):
             }
         ]
         mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source.manager_map == {"002a1aed-d015-4b86-86a4-c37cd8df1e18": None}
+        assert mock_source._manager_map == {
+            "002a1aed-d015-4b86-86a4-c37cd8df1e18": None
+        }
         assert (
             mock_source.get_manager_uuid(
                 {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"}, None
