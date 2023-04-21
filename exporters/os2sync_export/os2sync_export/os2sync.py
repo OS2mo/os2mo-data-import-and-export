@@ -27,14 +27,14 @@ logger = logging.getLogger(__name__)
 hash_cache: Dict = {}
 
 
-def get_os2sync_session():
-
-    os2sync_session = requests.os2sync_session()
+def get_os2sync_session(settings=None):
+    settings = settings or config.get_os2sync_settings()
+    os2sync_session = requests.session()
 
     if settings.os2sync_api_url == "stub":
         from os2sync_export import stub
 
-        os2sync_session = stub.os2sync_session()
+        os2sync_session = stub.Session()
 
     os2sync_session.verify = settings.os2sync_ca_verify_os2sync
     os2sync_session.headers["User-Agent"] = "os2mo-data-import-and-export"

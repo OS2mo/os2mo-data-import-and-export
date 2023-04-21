@@ -1,11 +1,16 @@
 import json
 import logging
+from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
 
 
 class Session:
+    headers: dict[str, str] = {}
+    text = str(uuid4())
+    status_code = 404
+
     def raise_for_status(self):
         pass
 
