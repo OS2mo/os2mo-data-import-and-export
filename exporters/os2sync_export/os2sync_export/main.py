@@ -10,6 +10,7 @@ from fastapi import Query
 from fastapi import Response
 from fastapi import status
 from os2sync_export import os2mo
+from os2sync_export import os2sync
 from os2sync_export.__main__ import main
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.os2sync_models import OrgUnit
@@ -18,10 +19,23 @@ from os2sync_export.os2synccli import update_single_user
 
 logger = logging.getLogger(__name__)
 
+
+def create_context():
+    # TODO: replace with real fastapi lifespan
+    context = {}
+    settings = get_os2sync_settings()
+    settings.start_logging_based_on_settings()
+
+    context["settings"] = settings
+    context["os2mo_session"] = os2mo.get_mo_session()
+    context["os2sync_session"] = os2sync.get_os2sync_session()
+    return context
+
+
+context = create_context()
+
+
 app = FastAPI()
-# TODO: wrap in a function read on fastapi startup
-settings = get_os2sync_settings()
-settings.start_logging_based_on_settings()
 
 
 def clear_caches():
@@ -41,7 +55,12 @@ async def index() -> Dict[str, str]:
 @app.post("/trigger", status_code=202)
 async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
     clear_caches()
-    background_tasks.add_task(main, settings=settings)
+    background_tasks.add_task(
+        main,
+        os2mo_session=context["os2mo_session"],
+        os2sync_session=context["os2sync_session"],
+        settings=context["settings"],
+    )
     return {"triggered": "OK"}
 
 
@@ -51,7 +70,13 @@ async def trigger_user(
     dry_run: bool = False,
 ) -> List[Optional[Dict[str, str]]]:
     clear_caches()
-    return update_single_user(uuid, settings, dry_run)
+    return update_single_user(
+        uuid,
+        os2mo_session=context["os2mo_session"],
+        os2sync_session=context["os2sync_session"],
+        settings=context["settings"],
+        dry_run=dry_run,
+    )
 
 
 @app.post("/trigger/orgunit/{uuid}", status_code=200)
@@ -61,7 +86,13 @@ async def trigger_orgunit(
     response: Response,
 ) -> Optional[OrgUnit]:
     clear_caches()
-    org_unit, changes = update_single_orgunit(uuid, settings, dry_run)
+    org_unit, changes = update_single_orgunit(
+        uuid,
+        os2mo_session=context["os2mo_session"],
+        os2sync_session=context["os2sync_session"],
+        settings=context["settings"],
+        dry_run=dry_run,
+    )
     if changes:
         response.status_code = status.HTTP_201_CREATED
     if not org_unit:

@@ -29,20 +29,17 @@ hash_cache: Dict = {}
 
 def get_os2sync_session():
 
-    session = requests.Session()
+    os2sync_session = requests.os2sync_session()
 
     if settings.os2sync_api_url == "stub":
         from os2sync_export import stub
 
-        session = stub.Session()
+        os2sync_session = stub.os2sync_session()
 
-    session.verify = settings.os2sync_ca_verify_os2sync
-    session.headers["User-Agent"] = "os2mo-data-import-and-export"
-    session.headers["CVR"] = settings.municipality
-    return session
-
-
-session = get_os2sync_session()
+    os2sync_session.verify = settings.os2sync_ca_verify_os2sync
+    os2sync_session.headers["User-Agent"] = "os2mo-data-import-and-export"
+    os2sync_session.headers["CVR"] = settings.municipality
+    return os2sync_session
 
 
 def already_xferred(url, params, method):
@@ -71,26 +68,26 @@ def os2sync_url(url):
     stop=stop_after_delay(10 * 60),
     retry=retry_if_exception_type(requests.HTTPError),
 )
-def os2sync_get(url, **params) -> Dict:
+def os2sync_get(os2sync_session, url, **params) -> Dict:
     url = os2sync_url(url)
-    r = session.get(url, params=params)
+    r = os2sync_session.get(url, params=params)
     if r.status_code == 404:
         raise KeyError(f"No object found at {url=}, {params=}")
     r.raise_for_status()
     return r.json()
 
 
-def os2sync_get_org_unit(api_url: str, uuid: UUID) -> OrgUnit:
+def os2sync_get_org_unit(os2sync_session, api_url: str, uuid: UUID) -> OrgUnit:
 
-    current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
+    current = os2sync_get(os2sync_session, f"{api_url}/orgUnit/{str(uuid)}")
 
     return OrgUnit(**current)
 
 
-def os2sync_delete(url, **params):
+def os2sync_delete(os2sync_session, url, **params):
     url = os2sync_url(url)
     try:
-        r = session.delete(url, **params)
+        r = os2sync_session.delete(url, **params)
         r.raise_for_status()
         return r
     except requests.HTTPError as e:
@@ -99,46 +96,48 @@ def os2sync_delete(url, **params):
             return r
 
 
-def os2sync_post(url, **params):
+def os2sync_post(os2sync_session, url, **params):
     url = os2sync_url(url)
-    r = session.post(url, **params)
+    r = os2sync_session.post(url, **params)
     r.raise_for_status()
     return r
 
 
-def delete_user(uuid):
+def delete_user(os2sync_session, uuid):
     if not already_xferred("/user/" + uuid, {}, "delete"):
         logger.debug("delete user %s", uuid)
-        os2sync_delete("{BASE}/user/" + uuid)
+        os2sync_delete(os2sync_session, "{BASE}/user/" + uuid)
     else:
         logger.debug("delete user %s - cached", uuid)
 
 
-def upsert_user(user):
+def upsert_user(os2sync_session, user):
     if not already_xferred("/user/" + user["Uuid"], user, "upsert"):
         logger.debug("upsert user %s", user["Uuid"])
-        os2sync_post("{BASE}/user", json=user)
+        os2sync_post(os2sync_session, "{BASE}/user", json=user)
     else:
         logger.debug("upsert user %s - cached", user["Uuid"])
 
 
-def delete_orgunit(uuid: UUID):
+def delete_orgunit(os2sync_session, uuid: UUID):
     logger.debug("delete orgunit %s", uuid)
-    os2sync_delete("{BASE}/orgUnit/" + str(uuid))
+    os2sync_delete(os2sync_session, "{BASE}/orgUnit/" + str(uuid))
 
 
 def upsert_org_unit(
-    org_unit: OrgUnit, os2sync_api_url: str, dry_run: bool = False
+    os2sync_session, org_unit: OrgUnit, os2sync_api_url: str, dry_run: bool = False
 ) -> bool:
     try:
-        current = os2sync_get_org_unit(api_url=os2sync_api_url, uuid=org_unit.Uuid)
+        current = os2sync_get_org_unit(
+            os2sync_session, api_url=os2sync_api_url, uuid=org_unit.Uuid
+        )
     except KeyError:
         logger.info(f"OrgUnit not found in os2sync - creating {org_unit.Uuid=}")
-        os2sync_post("{BASE}/orgUnit/", json=org_unit.json())
+        os2sync_post(os2sync_session, "{BASE}/orgUnit/", json=org_unit.json())
         return True
 
     # Avoid overwriting information that we cannot provide from os2mo.
-    org_unit.LOSShortName = current.LOSShortName
+    org_unit.LOSShortName = current.LOSShortName or current.LOSShortName
     org_unit.Tasks = org_unit.Tasks or current.Tasks
     org_unit.ShortKey = org_unit.ShortKey or current.ShortKey
     org_unit.PayoutUnitUuid = org_unit.PayoutUnitUuid or current.PayoutUnitUuid
@@ -153,11 +152,11 @@ def upsert_org_unit(
         return False
 
     logger.info(f"Syncing org_unit {org_unit}")
-    os2sync_post("{BASE}/orgUnit/", json=org_unit.json())
+    os2sync_post(os2sync_session, "{BASE}/orgUnit/", json=org_unit.json())
     return True
 
 
-def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
+def trigger_hierarchy(client, os2sync_api_url: str) -> UUID:
     """ "Triggers a job in the os2sync container that gathers the entire hierarchy from FK-ORG
 
     Returns: UUID
@@ -175,7 +174,7 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
     retry=retry_if_exception_type(requests.HTTPError),
 )
 def get_hierarchy(
-    client: requests.Session, os2sync_api_url: str, request_uuid: UUID
+    client, os2sync_api_url: str, request_uuid: UUID
 ) -> Tuple[Set[UUID], Set[UUID]]:
     """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready."""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")

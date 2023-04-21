@@ -51,7 +51,7 @@ def log_mox_counters(counter: collections.Counter):
         logger.info("    %s: %r", k, v)
 
 
-def read_all_org_units(settings, counter: collections.Counter) -> Dict[UUID, OrgUnit]:
+def read_all_org_units(settings, os2mo_session) -> Dict[UUID, OrgUnit]:
     """Read all current org_units from OS2MO
 
     Returns a dict mapping uuids to os2sync payload for each org_unit
@@ -59,13 +59,12 @@ def read_all_org_units(settings, counter: collections.Counter) -> Dict[UUID, Org
     logger.info("read_all_org_units starting")
     # Read all relevant org_unit uuids from os2mo
     os2mo_uuids_present = os2mo.org_unit_uuids(
+        session=os2mo_session,
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=os2mo.get_org_unit_hierarchy(
-            settings.os2sync_filter_hierarchy_names
+            os2mo_session, settings.os2sync_filter_hierarchy_names
         ),
     )
-
-    counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
 
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
@@ -73,14 +72,15 @@ def read_all_org_units(settings, counter: collections.Counter) -> Dict[UUID, Org
 
     # Create os2sync payload for all org_units:
     org_units = (
-        os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
+        os2mo.get_sts_orgunit(i, session=os2mo_session, settings=settings)
+        for i in os2mo_uuids_present
     )
     # TODO: Check that only one org_unit has parent=None
 
     return {ou.Uuid: ou for ou in org_units if ou}
 
 
-def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
+def read_all_user_uuids(session, org_uuid: str, limit: int = 1_000) -> Set[str]:
     """Return a set of all employee uuids in MO.
 
     :param limit: Size of pagination groups. Set to 0 to skip pagination and fetch all users in one request.
@@ -92,7 +92,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     all_employee_uuids = set()
     while start < total:
         employee_list = os2mo.os2mo_get(
-            f"{{BASE}}/o/{org_uuid}/e/?limit={limit}&start={start}"
+            session, f"{{BASE}}/o/{org_uuid}/e/?limit={limit}&start={start}"
         ).json()
 
         batch = set(map(itemgetter("uuid"), employee_list["items"]))
@@ -103,7 +103,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
 
 
 def read_all_users(
-    gql_session: SyncClientSession, settings: Settings, counter: collections.Counter
+    os2mo_session, gql_session: SyncClientSession, settings: Settings
 ) -> Dict[UUID, Dict]:
     """Read all current users from OS2MO
 
@@ -115,9 +115,7 @@ def read_all_users(
     org_uuid = os2mo.organization_uuid()
 
     logger.info("read_all_users getting list of users from os2mo")
-    os2mo_uuids_present = read_all_user_uuids(org_uuid)
-
-    counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
+    os2mo_uuids_present = read_all_user_uuids(session=os2mo_session, org_uuid=org_uuid)
 
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
@@ -125,7 +123,12 @@ def read_all_users(
 
     # Create os2sync payload for all org_units:
     all_users = flatten(
-        os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
+        os2mo.get_sts_user(
+            uuid,
+            os2mo_session=os2mo_session,
+            gql_session=gql_session,
+            settings=settings,
+        )
         for uuid in os2mo_uuids_present
     )
     res: Dict[UUID, Dict] = {}
@@ -150,8 +153,9 @@ def read_all_users(
     stop=stop_after_attempt(5),
     retry=retry_if_exception_type(ConnectionError),
 )
-def main(settings: Settings):
-
+def main(settings: Settings, os2mo_session=None, os2sync_session=None):
+    os2mo_session = os2mo_session or os2mo.get_mo_session()
+    os2sync_session = os2sync_session or os2sync.get_os2sync_session()
     if settings.os2sync_use_lc_db:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
@@ -169,16 +173,15 @@ def main(settings: Settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
-    os2sync_client = os2sync.get_os2sync_session()
     request_uuid = os2sync.trigger_hierarchy(
-        os2sync_client, os2sync_api_url=settings.os2sync_api_url
+        os2sync_session, os2sync_api_url=settings.os2sync_api_url
     )
-    mo_org_units = read_all_org_units(settings, counter)
+    mo_org_units = read_all_org_units(settings, os2mo_session)
 
     counter["Orgenheder som tjekkes i OS2Sync"] = len(mo_org_units)
 
     changed = [
-        os2sync.upsert_org_unit(org_unit, settings.os2sync_api_url)
+        os2sync.upsert_org_unit(session, org_unit, settings.os2sync_api_url)
         for org_unit in tqdm(
             mo_org_units.values(), desc="Updating OrgUnits in fk-org", unit="OrgUnit"
         )
@@ -187,7 +190,7 @@ def main(settings: Settings):
     counter["Orgenheder som blev ændret i OS2Sync"] = sum(changed)
 
     existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
-        os2sync_client,
+        os2sync_session,
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
@@ -197,7 +200,7 @@ def main(settings: Settings):
         terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
         counter["Orgenheder som slettes i OS2Sync"] = len(terminated_org_units)
         for uuid in terminated_org_units:
-            os2sync.delete_orgunit(uuid)
+            os2sync.delete_orgunit(os2sync_session, uuid)
 
     logger.info("sync_os2sync_orgunits done")
 
@@ -205,9 +208,7 @@ def main(settings: Settings):
     gql_client = setup_gql_client(settings)
     with gql_client as gql_session:
         mo_users = read_all_users(
-            gql_session=gql_session,
-            settings=settings,
-            counter=counter,
+            os2mo_session=os2mo_session, gql_session=gql_session, settings=settings
         )
     assert (
         mo_users
@@ -215,13 +216,13 @@ def main(settings: Settings):
     # Create or update users
     counter["Medarbejdere overført til OS2SYNC"] = len(mo_users)
     for user in mo_users.values():
-        os2sync.upsert_user(user)
+        os2sync.upsert_user(os2sync_session, user)
 
     # Delete any user not in os2mo
     terminated_users = existing_os2sync_users - set(mo_users)
     counter["Medarbejdere slettes i OS2Sync"] = len(terminated_users)
     for uuid in terminated_users:
-        os2sync.delete_user(str(uuid))
+        os2sync.delete_user(os2sync_session, str(uuid))
 
     logger.info("sync users done")
     if hash_cache_file:

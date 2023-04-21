@@ -125,19 +125,17 @@ def strip_truncate_and_warn(d, root, length):
     wait=wait_exponential(multiplier=1, min=4, max=10),
     stop=stop_after_delay(retry_max_time),
 )
-def os2mo_get(url, **params):
+def os2mo_get(session, url, **params):
     # format url like {BASE}/service
     mora_base = get_os2sync_settings().mora_base
-
     url = url.format(BASE=f"{mora_base}/service")
-    session = get_mo_session()
     r = session.get(url, params=params)
     r.raise_for_status()
     return r
 
 
-def has_kle():
-    os2mo_config = os2mo_get("{BASE}/configuration").json()
+def has_kle(session):
+    os2mo_config = os2mo_get(session, "{BASE}/configuration").json()
     return os2mo_config["show_kle"]
 
 
@@ -192,11 +190,11 @@ def engagements_to_user(user, engagements, allowed_unitids):
             )
 
 
-def try_get_it_user_key(uuid: str, user_key_it_system_name) -> Optional[str]:
+def try_get_it_user_key(session, uuid: str, user_key_it_system_name) -> Optional[str]:
     """
     fetches all it-systems related to a user and return the ad-user_key if exists
     """
-    it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
+    it_response = os2mo_get(session, "{BASE}/e/" + uuid + "/details/it").json()
     it_systems = IT.from_mo_json(it_response)
     it_systems = list(
         filter(lambda x: x.system_name == user_key_it_system_name, it_systems)
@@ -262,12 +260,12 @@ def overwrite_position_uuids(sts_user: Dict, os2sync_uuid_from_it_systems: List)
 
 
 @lru_cache
-def get_org_unit_hierarchy(titles: Tuple) -> Optional[Tuple[UUID, ...]]:
+def get_org_unit_hierarchy(session, titles: Tuple) -> Optional[Tuple[UUID, ...]]:
     """Find uuids of org_unit_hierarchy classes with the specified titles"""
     if not titles:
         return None
     org_unit_hierarchy_classes = os2mo_get(
-        f"{{BASE}}/o/{organization_uuid()}/f/org_unit_hierarchy/"
+        session, f"{{BASE}}/o/{organization_uuid(session)}/f/org_unit_hierarchy/"
     ).json()
     filtered_hierarchies = list(
         filter(
@@ -282,6 +280,7 @@ def get_org_unit_hierarchy(titles: Tuple) -> Optional[Tuple[UUID, ...]]:
 
 
 def get_sts_user_raw(
+    session,
     uuid: str,
     settings: Settings,
     fk_org_uuid: Optional[str] = None,
@@ -289,7 +288,7 @@ def get_sts_user_raw(
     engagement_uuid: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
 
-    employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
+    employee = os2mo_get(session, "{BASE}/e/" + uuid + "/").json()
     user = User(
         dict(
             uuid=fk_org_uuid or uuid,
@@ -308,13 +307,16 @@ def get_sts_user_raw(
 
     # use calculate_primary flag to get the is_primary boolean used in getting work-address
     engagements = os2mo_get(
-        "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
+        session, "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
     if engagement_uuid:
         engagements = filter(lambda e: e["uuid"] == engagement_uuid, engagements)
     allowed_unitids = org_unit_uuids(
+        session,
         root=settings.os2sync_top_unit_uuid,
-        hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
+        hierarchy_uuids=get_org_unit_hierarchy(
+            session, settings.os2sync_filter_hierarchy_names
+        ),
     )
     engagements_to_user(sts_user, engagements, allowed_unitids)
 
@@ -324,7 +326,7 @@ def get_sts_user_raw(
     if settings.os2sync_uuid_from_it_systems:
         overwrite_position_uuids(sts_user, settings.os2sync_uuid_from_it_systems)
 
-    addresses = os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
+    addresses = os2mo_get(session, "{BASE}/e/" + uuid + "/details/address").json()
     if engagement_uuid is not None:
         addresses = filter(lambda a: a["engagement_uuid"] == engagement_uuid, addresses)
     addresses_to_user(
@@ -377,7 +379,7 @@ def group_accounts(
 
 
 def get_sts_user(
-    mo_uuid: str, gql_session: SyncClientSession, settings: Settings
+    mo_uuid: str, os2mo_session, gql_session: SyncClientSession, settings: Settings
 ) -> List[Optional[Dict[str, Any]]]:
 
     users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
@@ -393,8 +395,9 @@ def get_sts_user(
 
     sts_users = [
         get_sts_user_raw(
-            mo_uuid,
-            settings,
+            session=os2mo_session,
+            uuid=mo_uuid,
+            settings=settings,
             fk_org_uuid=it["uuid"],
             user_key=it["user_key"],
             engagement_uuid=it["engagement_uuid"],
@@ -405,24 +408,24 @@ def get_sts_user(
 
 
 @lru_cache()
-def organization_uuid() -> str:
-    return one(os2mo_get("{BASE}/o/").json())["uuid"]
+def organization_uuid(session) -> str:
+    return one(os2mo_get(session, "{BASE}/o/").json())["uuid"]
 
 
 @lru_cache
-def org_unit_uuids(**kwargs: Any) -> Set[str]:
-    org_uuid = organization_uuid()
+def org_unit_uuids(session, **kwargs: Any) -> Set[str]:
+    org_uuid = organization_uuid(session)
     hierarchy_uuids = kwargs.get("hierarchy_uuids")
     if hierarchy_uuids:
         kwargs["hierarchy_uuids"] = tuple(str(u) for u in hierarchy_uuids)
-    ous = os2mo_get(f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs).json()[
-        "items"
-    ]
+    ous = os2mo_get(
+        session, f"{{BASE}}/o/{org_uuid}/ou/", limit=999999, **kwargs
+    ).json()["items"]
     return set(map(itemgetter("uuid"), ous))
 
 
-def manager_to_orgunit(unit_uuid: str) -> Optional[str]:
-    manager = os2mo_get("{BASE}/ou/" + unit_uuid + "/details/manager").json()
+def manager_to_orgunit(session, unit_uuid: str) -> Optional[str]:
+    manager = os2mo_get(session, "{BASE}/ou/" + unit_uuid + "/details/manager").json()
     if not manager:
         return None
     return one(manager)["person"]["uuid"]
@@ -540,10 +543,12 @@ def is_ignored(unit, settings):
     )
 
 
-def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List):
+def overwrite_unit_uuids(
+    session, sts_org_unit: Dict, os2sync_uuid_from_it_systems: List
+):
     # Overwrite UUIDs with values from it-account
     uuid = sts_org_unit["Uuid"]
-    it = os2mo_get(f"{{BASE}}/ou/{uuid}/details/it").json()
+    it = os2mo_get(session, f"{{BASE}}/ou/{uuid}/details/it").json()
     sts_org_unit["Uuid"] = get_fk_org_uuid(it, uuid, os2sync_uuid_from_it_systems)
     # Also check if parent unit has a UUID from an it-account
     parent_uuid = sts_org_unit.get("ParentOrgUnitUuid")
@@ -554,8 +559,8 @@ def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List)
         )
 
 
-def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
-    base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
+def get_sts_orgunit(uuid: str, session, settings) -> Optional[OrgUnit]:
+    base = parent = os2mo_get(session, "{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
         logger.info("Ignoring %r", base)
@@ -581,28 +586,30 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
 
     itsystems_to_orgunit(
         sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/it").json(),
+        os2mo_get(session, "{BASE}/ou/" + uuid + "/details/it").json(),
         uuid_from_it_systems=settings.os2sync_uuid_from_it_systems,
     )
     addresses_to_orgunit(
         sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
+        os2mo_get(session, "{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
     if settings.os2sync_sync_managers:
-        manager_uuid = manager_to_orgunit(uuid)
+        manager_uuid = manager_to_orgunit(session, uuid)
         if manager_uuid:
             sts_org_unit["managerUuid"] = manager_uuid
 
-    if has_kle():
+    if has_kle(session):
         kle_to_orgunit(
             sts_org_unit,
-            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+            os2mo_get(session, "{BASE}/ou/" + uuid + "/details/kle").json(),
             use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
         )
 
     if settings.os2sync_uuid_from_it_systems:
-        overwrite_unit_uuids(sts_org_unit, settings.os2sync_uuid_from_it_systems)
+        overwrite_unit_uuids(
+            session, sts_org_unit, settings.os2sync_uuid_from_it_systems
+        )
 
     strip_truncate_and_warn(
         sts_org_unit, sts_org_unit, settings.os2sync_truncate_length
@@ -639,18 +646,3 @@ def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[D
     res = gql_session.execute(q, variable_values={"uuids": mo_uuid})
     objects = one(res["employees"])["objects"]
     return one(objects)["itusers"]
-
-
-def show_all_details(uuid, objtyp):
-    import pprint
-
-    print(" ---- details ----\n")
-    for d, has_detail in (
-        os2mo_get("{BASE}/" + objtyp + "/" + uuid + "/details").json().items()
-    ):
-        if has_detail:
-            print("------------ detail ---- " + d)
-            pprint.pprint(
-                os2mo_get("{BASE}/" + objtyp + "/" + uuid + "/details/" + d).json()
-            )
-    print(" ---- end of details ----\n")
