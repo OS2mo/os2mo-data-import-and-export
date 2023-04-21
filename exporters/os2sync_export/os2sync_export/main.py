@@ -18,8 +18,12 @@ from os2sync_export.config import get_os2sync_settings
 from os2sync_export.os2sync_models import OrgUnit
 from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
+from ramqp.depends import RoutingKey
+from ramqp.depends import SleepOnError
 from ramqp.mo import MORouter  # type: ignore
-from ramqp.mo.models import PayloadType  # type: ignore
+from ramqp.mo import MORoutingKey
+from ramqp.mo import PayloadType  # type: ignore
+
 
 # from ramqp.utils import SleepOnError
 
@@ -58,12 +62,12 @@ async def trigger_all(
     return {"triggered": "OK"}
 
 
-@amqp_router.register("employee.*.*")
+@amqp_router.register("employee")
 async def amqp_trigger_employee(
-    context: dict, payload: PayloadType, **kwargs: Any
+    context: dict, routing_key: RoutingKey, _: SleepOnError, **kwargs: Any
 ) -> None:
     clear_caches()
-    user = update_single_user(payload.uuid, settings=context["settings"], dry_run=False)
+    user = update_single_user(routing_key.uuid, settings=context["settings"], dry_run=False)
     logger.info("Synced user to fk-org", user)
 
 
@@ -77,16 +81,16 @@ async def trigger_user(
     return update_single_user(uuid, settings=context["settings"], dry_run=dry_run)
 
 
-@amqp_router.register("org_unit.*.*")
-async def amqp_trigger_org_unit(
-    context: dict, payload: PayloadType, **kwargs: Any
-) -> None:
-    logger.info(f"Changes triggered sync of org_unit {payload.uuid}")
-    org_unit, changes = update_single_orgunit(
-        payload.uuid, settings=context["settings"], dry_run=False
-    )
-    status_msg = "Synced to FK-org" if changes else "No changes found - not synced."
-    logger.debug(status_msg + f"{org_unit=}")
+# @amqp_router.register("org_unit.*.*")
+# async def amqp_trigger_org_unit(
+#     context: dict, payload: PayloadType, _: SleepOnError, **kwargs: Any
+# ) -> None:
+#     logger.info(f"Changes triggered sync of org_unit {payload.uuid}")
+#     org_unit, changes = update_single_orgunit(
+#         payload.uuid, settings=context["settings"], dry_run=False
+#     )
+#     status_msg = "Synced to FK-org" if changes else "No changes found - not synced."
+#     logger.debug(status_msg + f"{org_unit=}")
 
 
 @fastapi_router.post("/trigger/orgunit/{uuid}", status_code=200)
