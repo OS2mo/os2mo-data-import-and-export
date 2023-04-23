@@ -126,16 +126,26 @@ def _create_mo_ou(name, parent, org_type, bvn):
     if parent == 'root':
         parent = ROOT
     payload = {
-        'uuid': uuid,
-        'user_key': str(bvn),
-        'name': '{} {}'.format(org_type, name),
-        'org_unit_type': {'uuid': ou_type},
-        'parent': {'uuid': parent},
-        'validity': {'from': '1930-01-01',
-                     'to': None}
+        "name": "{} {}".format(org_type, name),
+        "parent": {"uuid": parent},
+        "org_unit_type": {"uuid": ou_type},
+        "uuid": uuid,
+        "user_key": str(bvn),
+        "validity": {"from": "1930-01-01",
+                     "to": None}
     }
+    # {
+    #     'uuid': uuid,
+    #     'user_key': str(bvn),
+    #     'name': '{} {}'.format(org_type, name),
+    #     'org_unit_type': {'uuid': ou_type},
+    #     'parent': {'uuid': parent},
+    #     'validity': {'from': '1930-01-01',
+    #                  'to': None}
+    # }
 
-    url = BASE_URL + 'ou/create'
+
+    url = BASE_URL + 'ou/create/?force=true'
     params = {'force': 1}
     response = SESSION.post(url, json=payload, params=params)
     response.raise_for_status()
