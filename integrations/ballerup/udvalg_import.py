@@ -37,7 +37,7 @@ def _find_class(find_facet, find_class):
         return CACHE[find_class]
     uuid = None
     url = BASE_URL + 'o/{}/f/{}/'
-    response = SESSION.get(url.format(ROOT, find_facet))
+    response = requests.get(url.format(ROOT, find_facet))
     response.raise_for_status()
     response = response.json()
     for actual_class in response['data']['items']:
@@ -52,14 +52,14 @@ def _mo_lookup(uuid, details=''):
         url = BASE_URL + 'e/{}/'
     else:
         url = BASE_URL + 'e/{}/details/' + details
-    response = SESSION.get(url.format(uuid))
+    response = requests.get(url.format(uuid))
     response.raise_for_status()
     return (response.json())
 
 
 def _find_org():
     url = BASE_URL + 'o/'
-    response = SESSION.get(url)
+    response = requests.get(url)
     response.raise_for_status()
     response = response.json()
     assert (len(response) == 1)
@@ -69,12 +69,12 @@ def _find_org():
 
 def _search_mo_name(name, user_key):
     url = BASE_URL + 'o/{}/e?query={}'
-    response = SESSION.get(url.format(ROOT, name))
+    response = requests.get(url.format(ROOT, name))
     result = response.json()
     if len(result['items']) == 1:
         return result['items'][0]['uuid']
     # Did not succeed with simple search, try user_Key
-    response = SESSION.get(url.format(ROOT, user_key))
+    response = requests.get(url.format(ROOT, user_key))
     response.raise_for_status()
     result = response.json()
     for employee in result['items']:
@@ -125,6 +125,15 @@ def _create_mo_ou(name, parent, org_type, bvn):
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent == 'root':
         parent = ROOT
+    # payload = {
+    #     'uuid': uuid,
+    #     'user_key': str(bvn),
+    #     'name': '{} {}'.format(org_type, name),
+    #     'org_unit_type': {'uuid': ou_type},
+    #     'parent': {'uuid': parent},
+    #     'validity': {'from': '1930-01-01',
+    #                  'to': None}
+    # }
     payload = {
         "name": "{} {}".format(org_type, name),
         "parent": {"uuid": parent},
@@ -134,20 +143,10 @@ def _create_mo_ou(name, parent, org_type, bvn):
         "validity": {"from": "1930-01-01",
                      "to": None}
     }
-    # {
-    #     'uuid': uuid,
-    #     'user_key': str(bvn),
-    #     'name': '{} {}'.format(org_type, name),
-    #     'org_unit_type': {'uuid': ou_type},
-    #     'parent': {'uuid': parent},
-    #     'validity': {'from': '1930-01-01',
-    #                  'to': None}
-    # }
 
-
-    url = BASE_URL + 'ou/create/?force=true'
+    url = BASE_URL + "ou/create"
     params = {'force': 1}
-    response = SESSION.post(url, json=payload, params=params)
+    response = requests.post(url, json=payload, params=params)
     response.raise_for_status()
     uuid = response.json()
     return uuid
@@ -172,7 +171,7 @@ def _create_mo_association(user, org_unit, association_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = SESSION.post(url, json=payload, params=params)
+        response = requests.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
@@ -200,7 +199,7 @@ def _create_mo_role(user, org_unit, role_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = SESSION.post(url, json=payload, params=params)
+        response = requests.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
@@ -302,7 +301,6 @@ if __name__ == '__main__':
     SESSION = requests.Session()
     if session_headers:
         SESSION.headers.update(session_headers)
-        # SESSION.headers["SESSION"] = settings.client_secret
 
     ROOT = _find_org()
 
