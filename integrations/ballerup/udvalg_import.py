@@ -14,7 +14,7 @@ from ra_utils.headers import TokenSettings
 
 INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
-BASE_URL = 'http://localhost:5000/service/'
+BASE_URL = "http://localhost:5000/service/"
 CACHE = {}
 SESSION = None 
 
@@ -36,7 +36,7 @@ def _find_class(find_facet, find_class):
     if find_class in CACHE:
         return CACHE[find_class]
     uuid = None
-    url = BASE_URL + 'o/{}/f/{}'
+    url = BASE_URL + 'o/{}/f/{}/'
     response = SESSION.get(url.format(ROOT, find_facet))
     response.raise_for_status()
     response = response.json()
@@ -49,7 +49,7 @@ def _find_class(find_facet, find_class):
 
 def _mo_lookup(uuid, details=''):
     if not details:
-        url = BASE_URL + 'e/{}'
+        url = BASE_URL + 'e/{}/'
     else:
         url = BASE_URL + 'e/{}/details/' + details
     response = SESSION.get(url.format(uuid))
@@ -58,7 +58,7 @@ def _mo_lookup(uuid, details=''):
 
 
 def _find_org():
-    url = BASE_URL + 'o'
+    url = BASE_URL + 'o/'
     response = SESSION.get(url)
     response.raise_for_status()
     response = response.json()
