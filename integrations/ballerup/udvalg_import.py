@@ -16,7 +16,7 @@ INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
 BASE_URL = "http://localhost:5000/service/"
 CACHE = {}
-SESSION = None 
+# SESSION = None
 
 logger = logging.getLogger()
 log_format = logging.Formatter(
@@ -123,25 +123,18 @@ def generate_uuid(value, org_name):
 def _create_mo_ou(name, parent, org_type, bvn):
     uuid = generate_uuid(bvn, ROOT)
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
+    ou_level = _find_class(find_facet='org_unit_level', find_class='MED-enhed')
     if parent == 'root':
         parent = ROOT
-    # payload = {
-    #     'uuid': uuid,
-    #     'user_key': str(bvn),
-    #     'name': '{} {}'.format(org_type, name),
-    #     'org_unit_type': {'uuid': ou_type},
-    #     'parent': {'uuid': parent},
-    #     'validity': {'from': '1930-01-01',
-    #                  'to': None}
-    # }
     payload = {
-        "name": "{} {}".format(org_type, name),
-        "parent": {"uuid": parent},
-        "org_unit_type": {"uuid": ou_type},
-        "uuid": uuid,
-        "user_key": str(bvn),
-        "validity": {"from": "1930-01-01",
-                     "to": None}
+        'uuid': uuid,
+        'user_key': str(bvn),
+        'name': '{} {}'.format(org_type, name),
+        'org_unit_type': {'uuid': ou_type},
+        'org_unit_level': {'uuid': ou_level},
+        'parent': {'uuid': parent},
+        'validity': {'from': '1930-01-01',
+                     'to': None}
     }
 
     url = BASE_URL + "ou/create"
@@ -284,21 +277,15 @@ def create_tree(file_name):
     return nodes
 
 
-# class Settings(TokenSettings):
-#     mora_base: str = "http://localhost:5000"
-#     client_id: str = "dipex"
-#     client_secret: str
-#     auth_realm: str = "mo"
-#     auth_server: str = "http://localhost:5000/auth"
-
-
 if __name__ == '__main__':
     logger.info('Program started')
 
-    settingsfile = pathlib.Path("settings") / "settings.json"
-    session_headers = TokenSettings().get_headers()
+    # settingsfile = pathlib.Path("settings") / "settings.json"
+    # settings = json.loads(settingsfile.read_text())
 
     SESSION = requests.Session()
+    session_headers = TokenSettings().get_headers()
+
     if session_headers:
         SESSION.headers.update(session_headers)
 
