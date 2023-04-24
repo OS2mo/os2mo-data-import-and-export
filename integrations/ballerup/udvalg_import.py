@@ -5,7 +5,6 @@ import logging
 import hashlib
 import requests
 import datetime
-import pathlib
 
 from anytree import Node
 from logging.handlers import RotatingFileHandler
@@ -67,21 +66,22 @@ def _find_org():
     return (uuid)
 
 
-def _search_mo_name(name, user_key):
+def _search_mo_name(name, user_key=None):
     url = BASE_URL + 'o/{}/e?query={}'
     response = SESSION.get(url.format(ROOT, name))
     result = response.json()
     if len(result['items']) == 1:
         return result['items'][0]['uuid']
     # Did not succeed with simple search, try user_Key
-    response = SESSION.get(url.format(ROOT, user_key))
-    response.raise_for_status()
-    result = response.json()
-    for employee in result['items']:
-        uuid = employee['uuid']
-        mo_user = _mo_lookup(uuid)
-        if mo_user['user_key'] == user_key:
-            return (employee['uuid'])
+    if user_key:
+        response = SESSION.get(url.format(ROOT, user_key))
+        response.raise_for_status()
+        result = response.json()
+        for employee in result['items']:
+            uuid = employee['uuid']
+            mo_user = _mo_lookup(uuid)
+            if mo_user['user_key'] == user_key:
+                return (employee['uuid'])
     # Still no success, give up and return None
     return None
 
@@ -215,8 +215,13 @@ def create_udvalg(nodes, file_name):
             role_type = None
 
         org_id = int(row['Id'])
-        uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
-                               row['BrugerID'])
+
+        if "Fornavn" and "Efternavn" in row:
+            uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
+                                   row['BrugerID'])
+        else:
+            uuid = _search_mo_name(row['Navn'])
+
         try:
             from_string = datetime.datetime.strftime(
                 datetime.datetime.strptime(row['StartDato'], '%d-%b-%y'),
@@ -277,9 +282,6 @@ def create_tree(file_name):
 
 if __name__ == '__main__':
     logger.info('Program started')
-
-    # settingsfile = pathlib.Path("settings") / "settings.json"
-    # settings = json.loads(settingsfile.read_text())
 
     SESSION = requests.Session()
     session_headers = TokenSettings().get_headers()
