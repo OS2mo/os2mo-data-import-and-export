@@ -79,8 +79,8 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
                 uuid4(),  # MO user UUID
                 sync_cpr="cpr",
             )
-            self.assertEqual(mock_echo.call_count, 3)
-            self.assertEqual(len(commands), 3)
+            self.assertEqual(mock_echo.call_count, 4)
+            self.assertEqual(len(commands), 4)
             for cmd in commands:
                 self.assertIsInstance(cmd, str)
 

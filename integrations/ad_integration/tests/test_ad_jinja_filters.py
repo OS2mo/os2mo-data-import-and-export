@@ -33,7 +33,7 @@ class TestFirstAddressOfTypeIntegration(_TestRealADWriter):
         ad_writer = self._prepare_adwriter(
             template_to_ad_fields=self._template_to_ad_fields
         )
-        sync_cmd, _, _ = ad_writer._preview_sync_command(MO_UUID, "user_sam")
+        sync_cmd, _, _, _ = ad_writer._preview_sync_command(MO_UUID, "user_sam")
         self.assertIn(self._expected_fragment, sync_cmd)
 
 

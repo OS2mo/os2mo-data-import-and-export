@@ -948,6 +948,7 @@ class ADWriter(AD):
         sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
         rename_cmd = ""
         rename_cmd_target = ""
+        add_manager_cmd = ""
 
         try:
             mismatch = self._sync_compare(mo_values, ad_dump)
@@ -960,6 +961,8 @@ class ADWriter(AD):
             rename_cmd_target = "<nonexistent AD user>"
         else:
             # We found an actual AD user by CPR
+
+            # Preview 'rename' command, if the name differs between MO and AD
             if "name" in mismatch:
                 # A rename command is necessary, as the new username differs from the
                 # current username in AD.
@@ -968,7 +971,13 @@ class ADWriter(AD):
                 rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
                 rename_cmd_target = mismatch["name"][0]  # = previous username
 
-        return sync_cmd, rename_cmd, rename_cmd_target
+            # Preview 'add manager' command, if the manager differs between MO and AD
+            if sync_manager and "manager" in mismatch:
+                add_manager_cmd = self._get_add_manager_command(
+                    user_sam, mo_values["manager_sam"]
+                )
+
+        return sync_cmd, rename_cmd, rename_cmd_target, add_manager_cmd
 
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)

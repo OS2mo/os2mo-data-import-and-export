@@ -1076,6 +1076,28 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
 
 class _TestRealADWriter(TestCase):
+    @staticmethod
+    def _get_from_ad_matching_nothing(user=None, cpr=None, server=None):
+        # Provide a mock implementation of `ADWriter.get_from_ad` which returns nothing
+        return {}
+
+    @staticmethod
+    def _get_from_ad_matching_manager(user=None, cpr=None, server=None):
+        # Provide a mock implementation of `ADWriter.get_from_ad` which can look up the
+        # manager's 'SamAccountName'.
+        employee_ad_user = {
+            "SamAccountName": "user_sam",
+            "Manager": None,
+        }
+        manager_ad_user = {
+            "SamAccountName": MO_MANAGER_SAM,
+            "DistinguishedName": "manager-dn",
+        }
+        if cpr == "cpr":  # == the MO employee's own CPR
+            return [employee_ad_user]
+        if cpr == MO_MANAGER_CPR:
+            return [manager_ad_user]
+
     def _prepare_adwriter(self, **kwargs):
         template_to_ad_fields = kwargs.pop("template_to_ad_fields", {})
         template_to_ad_fields_when_disable = kwargs.pop(
@@ -1083,7 +1105,7 @@ class _TestRealADWriter(TestCase):
         )
         skip_locations = kwargs.pop("skip_locations", None)
         read_ou_addresses = kwargs.pop("read_ou_addresses", None)
-        get_from_ad = kwargs.pop("get_from_ad", lambda *_args, **_kwargs: {})
+        get_from_ad = kwargs.pop("get_from_ad", self._get_from_ad_matching_nothing)
         with MockADWriterContext(
             template_to_ad_fields=template_to_ad_fields,
             template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
@@ -1294,11 +1316,16 @@ class TestPreview(_TestRealADWriter):
         self.assertIn("New-ADUser", create_cmds[0])
         self.assertIn("Set-ADUser -Manager", create_cmds[1])
 
-    def test_preview_sync_command(self):
-        ad_writer = self._prepare_adwriter()
-        sync_cmd, rename_cmd, rename_cmd_target = ad_writer._preview_sync_command(
-            MO_UUID, "user_sam"
+    def test_preview_sync_command_can_rename_(self):
+        ad_writer = self._prepare_adwriter(
+            get_from_ad=self._get_from_ad_matching_nothing
         )
+        (
+            sync_cmd,
+            rename_cmd,
+            rename_cmd_target,
+            add_manager_cmd,
+        ) = ad_writer._preview_sync_command(MO_UUID, "user_sam")
         # Examine 'sync_cmd'
         self.assertIn("Get-ADUser", sync_cmd)
         self.assertIn("Set-ADUser", sync_cmd)
@@ -1307,6 +1334,28 @@ class TestPreview(_TestRealADWriter):
         self.assertIn("Rename-ADobject", rename_cmd)
         self.assertIn('-NewName "<new name>"', rename_cmd)
         self.assertEqual("<nonexistent AD user>", rename_cmd_target)
+        # Examine 'add_manager_cmd'
+        self.assertEqual("", add_manager_cmd)
+
+    def test_preview_sync_command_can_add_manager(self):
+        ad_writer = self._prepare_adwriter(
+            get_from_ad=self._get_from_ad_matching_manager
+        )
+        (
+            sync_cmd,
+            rename_cmd,
+            rename_cmd_target,
+            add_manager_cmd,
+        ) = ad_writer._preview_sync_command(MO_UUID, "user_sam")
+        # Examine 'sync_cmd'
+        self.assertIn("Get-ADUser", sync_cmd)
+        self.assertIn("Set-ADUser", sync_cmd)
+        # Examine 'rename_cmd'
+        self.assertEqual("", rename_cmd)
+        # Examine 'add_manager_cmd'
+        self.assertIn("Get-ADUser", add_manager_cmd)
+        self.assertIn("Set-ADUser", add_manager_cmd)
+        self.assertIn(f"-Manager {MO_MANAGER_SAM}", add_manager_cmd)
 
     @parameterized.expand(
         [
@@ -1543,13 +1592,9 @@ class TestRenameADUser(_TestRealADWriter):
 
 class TestGetManagerUUID(_TestRealADWriter):
     def test_get_manager_uuid(self):
-        # Provide a mock implementation of `ADWriter.get_from_ad` which can look up the
-        # manager's 'SamAccountName'.
-        def get_from_ad(user=None, cpr=None, server=None):
-            if cpr == MO_MANAGER_CPR:
-                return [{"SamAccountName": MO_MANAGER_SAM}]
-
-        ad_writer = self._prepare_adwriter(get_from_ad=get_from_ad)
+        ad_writer = self._prepare_adwriter(
+            get_from_ad=self._get_from_ad_matching_manager
+        )
         mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
         assert mo_values["_manager_uuid"] == MO_MANAGER_UUID
         assert mo_values["_manager_mo_user"]["uuid"] == MO_MANAGER_UUID

@@ -157,13 +157,17 @@ def run_preview_command_for_uuid(
     sync_cpr: Optional[str] = None,
 ) -> Tuple[str]:
     ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
-    sync_cmd, rename_cmd, rename_cmd_target = writer._preview_sync_command(
-        mo_uuid, sync_username, ad_dump=ad_dump
-    )
+    (
+        sync_cmd,
+        rename_cmd,
+        rename_cmd_target,
+        add_manager_cmd,
+    ) = writer._preview_sync_command(mo_uuid, sync_username, ad_dump=ad_dump)
     click.echo_via_pager(sync_cmd)
     click.echo_via_pager(rename_cmd)
     click.echo_via_pager(f"Rename targets AD user: {rename_cmd_target!r}")
-    return sync_cmd, rename_cmd, rename_cmd_target  # type: ignore
+    click.echo_via_pager(add_manager_cmd)
+    return sync_cmd, rename_cmd, rename_cmd_target, add_manager_cmd  # type: ignore
 
 
 @click.command()
