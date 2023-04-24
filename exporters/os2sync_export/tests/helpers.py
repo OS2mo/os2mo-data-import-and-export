@@ -22,6 +22,9 @@ class MockOs2moGet:
     def json(self):
         return self.return_value
 
+    def raise_for_status(self):
+        pass
+
 
 class MoEmployeeMixin:
     def mock_employee(self, cpr="0101012222", nickname=False):

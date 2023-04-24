@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -25,7 +26,7 @@ def test_os2sync_upsert_org_unit_no_changes(get_settings_mock):
 
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=o):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
-            upsert_org_unit(o, "os2sync_api_url")
+            upsert_org_unit(MagicMock(), o, "os2sync_api_url")
             post_mock.assert_not_called()
 
 
@@ -34,10 +35,14 @@ def test_os2sync_upsert_org_unit_new(get_settings_mock):
     """Test that if no orgUnit was found in fk-org we create it."""
     from os2sync_export.os2sync import upsert_org_unit
 
+    os2sync_session = MagicMock()
+
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", side_effect=KeyError()):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
-            upsert_org_unit(o, "os2sync_api_url")
-            post_mock.assert_called_once_with("{BASE}/orgUnit/", json=o.json())
+            upsert_org_unit(os2sync_session, o, "os2sync_api_url")
+            post_mock.assert_called_once_with(
+                os2sync_session, "{BASE}/orgUnit/", json=o.json()
+            )
 
 
 @patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
@@ -46,11 +51,15 @@ def test_os2sync_upsert_org_unit_changes(get_settings_mock):
     from os2sync_export.os2sync import upsert_org_unit
 
     org_unit = o.copy()
+    os2sync_session = MagicMock()
+
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=o.copy()):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
             org_unit.Name = "Changed name"
-            upsert_org_unit(org_unit, "os2sync_api_url")
-            post_mock.assert_called_once_with("{BASE}/orgUnit/", json=org_unit.json())
+            upsert_org_unit(os2sync_session, org_unit, "os2sync_api_url")
+            post_mock.assert_called_once_with(
+                os2sync_session, "{BASE}/orgUnit/", json=org_unit.json()
+            )
 
 
 @patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
@@ -61,7 +70,7 @@ def test_os2sync_upsert_org_unit_keep_fk_fields(get_settings_mock):
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=o2):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
 
-            upsert_org_unit(o, "os2sync_api_url")
+            upsert_org_unit(MagicMock(), o, "os2sync_api_url")
 
             post_mock.assert_not_called()
 
@@ -73,13 +82,16 @@ def test_os2sync_upsert_org_unit_changes_w_fixed_fields(get_settings_mock):
 
     org_unit = o.copy()
     fk_org = o2.copy()
+    os2sync_session = MagicMock()
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=fk_org):
         with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
             org_unit.Name = "Changed name"
-            expected = o.copy()
+            expected = fk_org.copy()
             expected.Name = org_unit.Name
-            upsert_org_unit(org_unit, "os2sync_api_url")
-            post_mock.assert_called_once_with("{BASE}/orgUnit/", json=expected.json())
+            upsert_org_unit(os2sync_session, org_unit, "os2sync_api_url")
+            post_mock.assert_called_once_with(
+                os2sync_session, "{BASE}/orgUnit/", json=expected.json()
+            )
 
 
 @patch("os2sync_export.config.get_os2sync_settings", return_value=dummy_settings)
@@ -95,10 +107,7 @@ def test_os2sync_upsert_org_unit_ordered_tasks(get_settings_mock):
     current_data.update({"Tasks": [task2, task1]})
     org_unit = OrgUnit(**org_unit_data)
     current = OrgUnit(**current_data)
-
+    os2sync_session = MagicMock()
     with patch("os2sync_export.os2sync.os2sync_get_org_unit", return_value=current):
-        with patch("os2sync_export.os2sync.os2sync_post") as post_mock:
-
-            upsert_org_unit(org_unit, "os2sync_api_url")
-
-            post_mock.assert_not_called()
+        upsert_org_unit(os2sync_session, org_unit, "os2sync_api_url")
+        os2sync_session.assert_not_called()

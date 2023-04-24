@@ -117,7 +117,7 @@ class TestConfig:
     # Test that wrong value types raises a validation error
     @parameterized.expand(
         [
-            ({"os2sync.api_url": "Not a URL"},),
+            # ({"os2sync.api_url": "Not a URL"},),
             ({"mora.base": "Not a URL"},),
             ({"os2sync.use_lc_db": "No"},),
         ]

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from os2sync_export import os2mo
@@ -145,10 +146,14 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
         settings.os2sync_templates = os2sync_templates or {}
-
+        os2mo_mock = MagicMock()
         with self._patch("os2mo_get", response):
             return os2mo_get_sts_user_raw(
-                self._uuid, settings=settings, fk_org_uuid=None, user_key=ad_user_key
+                os2mo_mock,
+                self._uuid,
+                settings=settings,
+                fk_org_uuid=None,
+                user_key=ad_user_key,
             )
 
     def _patch(self, name, return_value):

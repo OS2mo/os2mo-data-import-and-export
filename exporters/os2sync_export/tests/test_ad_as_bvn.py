@@ -376,6 +376,10 @@ class TestsMOAd(unittest.TestCase):
         settings = dummy_settings
         settings.os2sync_xfer_cpr = True
         actual = get_sts_user_raw(
-            uuid, settings=settings, fk_org_uuid=None, user_key="SolveigK_AD_logon"
+            None,
+            uuid,
+            settings=settings,
+            fk_org_uuid=None,
+            user_key="SolveigK_AD_logon",
         )
         self.assertEqual(expected, actual)

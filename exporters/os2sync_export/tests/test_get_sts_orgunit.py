@@ -1,3 +1,4 @@
+from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -19,4 +20,4 @@ class TestGetOrgUnit:
     @patch("os2sync_export.os2mo.is_ignored", return_value=False)
     def test_get_sts_orgunit(self, mock_os2mo_get, ignored_mock):
         with pytest.raises(ValueError):
-            get_sts_orgunit("test", settings=dummy_settings)
+            get_sts_orgunit(MagicMock(), "test", settings=dummy_settings)
