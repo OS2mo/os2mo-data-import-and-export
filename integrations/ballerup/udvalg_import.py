@@ -16,7 +16,7 @@ INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
 BASE_URL = "http://localhost:5000/service/"
 CACHE = {}
-# SESSION = None
+SESSION = None
 
 logger = logging.getLogger()
 log_format = logging.Formatter(
