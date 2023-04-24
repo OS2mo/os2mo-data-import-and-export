@@ -67,7 +67,7 @@ def _find_org():
 
 
 def _search_mo_name(name, user_key=None):
-    url = BASE_URL + 'o/{}/e?query={}'
+    url = BASE_URL + 'o/{}/e/?query={}'
     response = SESSION.get(url.format(ROOT, name))
     result = response.json()
     if len(result['items']) == 1:
@@ -215,13 +215,8 @@ def create_udvalg(nodes, file_name):
             role_type = None
 
         org_id = int(row['Id'])
-
-        if "Fornavn" and "Efternavn" in row:
-            uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
-                                   row['BrugerID'])
-        else:
-            uuid = _search_mo_name(row['Navn'])
-
+        uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
+                               row['BrugerID'])
         try:
             from_string = datetime.datetime.strftime(
                 datetime.datetime.strptime(row['StartDato'], '%d-%b-%y'),
@@ -249,6 +244,60 @@ def create_udvalg(nodes, file_name):
                                                row['BrugerID'])
             )
     return nodes
+
+
+def create_amr_udvalg(nodes: dict, file_name: str):
+    rows = _load_csv(file_name)
+    for row in rows:
+        if ('Formand' in row) and (row['Formand'] == 'x'.upper()):  # Inconsistency of "x" and "X" in data.
+            association_type = _find_class('association_type', 'Formand')
+
+        elif ('Næstformand' in row) and (row['Næstformand'] == 'x'.upper()):
+            association_type = _find_class('association_type', 'Næstformand')
+
+        else:
+            association_type = _find_class('association_type', 'Medarbejder')
+
+        if ('Arbejdsmiljø-repræsentant (AMR)' in row) and (row['Arbejdsmiljø-repræsentant (AMR)'] == 'x'.upper()):
+            role_type = _find_class('role_type', 'Arbejdsmiljø-repræsentant (AMR)')
+
+        elif ('Arbejdsmiljø-leder (AML)' in row) and (row['Arbejdsmiljø-leder (AML)'] == 'x'.upper()):
+            role_type = _find_class('role_type', 'Arbejdsmiljø-leder (AML)')
+
+        elif ('Tillidsrepræ-sentant (TR)' in row) and (row['Tillidsrepræ-sentant (TR)'] == 'x'.upper()):
+            role_type = _find_class('role_type', 'Tillidrepræ-sentant')
+
+        else:
+            role_type = None
+
+        org_id = int(row['Parent id'])
+
+        uuid = _search_mo_name(row['Navn'])
+
+        start = '1930-01-01'
+
+        if uuid:
+            nodes[uuid] = Node(row['Navn'],
+                               uuid=uuid,
+                               org_type=row['Prefix'],  # From clients' own current CSV data.
+                               parent=nodes[org_id])  # The parents ID.
+            _create_mo_association(uuid,
+                                   nodes[org_id].uuid,
+                                   association_type,
+                                   start)
+    return nodes
+        # name = row['Navn'] if row['Navn'] else None
+        # email = row['E-mail'] if row['E-mail'] else None
+        # center = row['Center'] if row['Center'] else None
+        # unit = row['Enhed'] if row['Enhed'] else None
+        # manager = row['Leder'] if row['Leder'] else None
+        # amr = row['Arbejdsmiljø-repræsentant (AMR)'] if row['Arbejdsmiljø-repræsentant (AMR)'] else None
+        # aml = row['Arbejdsmiljø-leder (AML)'] if row['Arbejdsmiljø-leder (AML)'] else None
+        # tr = row['Tillidsrepræ-sentant (TR)'] if row['Tillidsrepræ-sentant (TR)'] else None
+        # med_ed = row['MED-uddannelse  gennemført'] if row['MED-uddannelse  gennemført'] else None
+        # am_ed = row['Arbejdsmiljø-uddannelse gennemført'] if row['Arbejdsmiljø-uddannelse gennemført'] else None
+        # prefix = row['Prefix'] if row['Prefix'] else None
+        # parent_id = row['Parent id'] if row['Parent id'] else None
 
 
 def create_tree(file_name):
@@ -304,7 +353,7 @@ if __name__ == '__main__':
         nodes = pickle.load(f)
 
     logger.info('Create AMR')
-    nodes = create_udvalg(nodes, amr_medlemmer_file)
+    nodes = create_amr_udvalg(nodes, amr_medlemmer_file)
     logger.info('Create MED')
     nodes = create_udvalg(nodes, med_medlemmer_file)
 
