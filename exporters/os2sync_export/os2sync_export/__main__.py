@@ -194,6 +194,9 @@ def main(settings: Settings):
 
     if settings.os2sync_autowash:
         # Delete any org_unit not in os2mo
+        assert (
+            mo_org_units
+        ), "No org_units were found in os2mo. Stopping os2sync_export to ensure we won't delete every org_unit from fk-org"
         terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
         counter["Orgenheder som slettes i OS2Sync"] = len(terminated_org_units)
         for uuid in terminated_org_units:
