@@ -1,11 +1,16 @@
 import json
 import logging
+from uuid import uuid4
 
 
 logger = logging.getLogger(__name__)
 
 
 class Session:
+    headers: dict[str, str] = {}
+    text = str(uuid4())
+    status_code = 404
+
     def raise_for_status(self):
         pass
 
@@ -20,3 +25,6 @@ class Session:
     def post(self, *args, **kwargs):
         logger.info("POST %r %r", args, json.dumps(kwargs))
         return self
+
+    def json(self):
+        return {"Result": {"OUs": [], "Users": []}}
