@@ -1,6 +1,5 @@
 from unittest import mock
 from unittest import TestCase
-from uuid import uuid4
 
 from parameterized import parameterized
 
@@ -9,8 +8,10 @@ from ..mo_to_ad_sync import run_mo_to_ad_sync
 from ..mo_to_ad_sync import run_preview_command_for_uuid
 from .mocks import MO_UUID
 from .mocks import MockADParameterReader
+from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
 from .mocks import MockLoraCacheExtended
+from .mocks import MockLoraCacheWithManager
 from .test_utils import dict_modifier
 from .test_utils import TestADWriterMixin
 
@@ -70,19 +71,6 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
                 self.assertRegex(
                     cm.records[0].message, r"Error updating AD user '.*?': .*"
                 )
-
-    def test_preview_command_for_uuid(self, *args):
-        with mock.patch("click.echo_via_pager") as mock_echo:
-            commands = run_preview_command_for_uuid(
-                self._mock_reader,
-                self.ad_writer,
-                uuid4(),  # MO user UUID
-                sync_cpr="cpr",
-            )
-            self.assertEqual(mock_echo.call_count, 4)
-            self.assertEqual(len(commands), 4)
-            for cmd in commands:
-                self.assertIsInstance(cmd, str)
 
     def _run(self, mo_uuid_field="ObjectGUID", **kwargs):
         return run_mo_to_ad_sync(
@@ -153,3 +141,25 @@ class TestMoToAdSyncDryRun:
             # Assert that no actual Powershell commands were issued
             writer.sync_user.assert_not_called()
             mock_ad_writer_context.mock_session.run_ps.assert_not_called()
+
+
+class TestMoToAdSyncPreview:
+    def test_preview_command_for_uuid(self, *args):
+        # Arrange
+        reader = MockADParameterReaderWithManager()
+        lc = MockLoraCacheWithManager()
+        with MockADWriterContext():
+            writer = ADWriter(lc=lc, lc_historic=lc)
+            with mock.patch("click.echo_via_pager") as mock_echo:
+                # Act
+                commands = run_preview_command_for_uuid(
+                    reader,
+                    writer,
+                    MO_UUID,
+                    sync_username="user_sam",
+                )
+                # Assert
+                assert mock_echo.call_count == 4
+                assert len(commands) == 4
+                for cmd in commands:
+                    assert isinstance(cmd, str)

@@ -154,19 +154,32 @@ def run_preview_command_for_uuid(
     writer: ADWriter,
     mo_uuid: uuid.UUID,
     sync_username: Optional[str] = None,
-    sync_cpr: Optional[str] = None,
 ) -> Tuple[str]:
-    ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
+    mo_values = writer.read_ad_information_from_mo(mo_uuid)
+
+    ad_dump = [
+        # Retrieve AD user data for employee
+        reader.read_user(user=sync_username),
+        # Retrieve AD user data for manager, if available
+        (
+            reader.read_user(cpr=mo_values["manager_cpr"])
+            if mo_values.get("manager_cpr")
+            else {}
+        ),
+    ]
+
     (
         sync_cmd,
         rename_cmd,
         rename_cmd_target,
         add_manager_cmd,
     ) = writer._preview_sync_command(mo_uuid, sync_username, ad_dump=ad_dump)
+
     click.echo_via_pager(sync_cmd)
     click.echo_via_pager(rename_cmd)
     click.echo_via_pager(f"Rename targets AD user: {rename_cmd_target!r}")
     click.echo_via_pager(add_manager_cmd)
+
     return sync_cmd, rename_cmd, rename_cmd_target, add_manager_cmd  # type: ignore
 
 
@@ -231,12 +244,17 @@ def main(
         skip_occupied_names=ignore_occupied_names,
     )
 
-    if preview_command_for_uuid and (sync_cpr or sync_username):
+    if preview_command_for_uuid:
+        if sync_cpr:
+            raise click.ClickException("you cannot use --sync-cpr with this option")
+        if not sync_username:
+            raise click.ClickException(
+                "please specify --sync-username (samAccountName)"
+            )
         run_preview_command_for_uuid(
             reader,
             writer,
             preview_command_for_uuid,
-            sync_cpr=sync_cpr,
             sync_username=sync_username,
         )
         return
