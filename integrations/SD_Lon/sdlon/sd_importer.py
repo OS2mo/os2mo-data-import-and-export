@@ -577,6 +577,24 @@ class SdImport:
         for person in people:
             self.create_employee(person, skip_manager=skip_manager)
 
+    def _get_employee_target_unit_uuid(
+        self, too_deep: list[str], original_unit_uuid: uuid.UUID
+    ) -> uuid.UUID:
+        # Employees are not allowed to be in these units (although
+        # we do make an association). We must instead find the lowest
+        # higher level to put she or he.
+
+        unit_uuid = str(original_unit_uuid)
+
+        while self.nodes[unit_uuid].name in too_deep:
+            if self.nodes[unit_uuid].parent is None:
+                unit_uuid = str(original_unit_uuid)
+                break
+            else:
+                unit_uuid = self.nodes[unit_uuid].parent.uuid
+
+        return uuid.UUID(unit_uuid)
+
     def create_employee(self, person, skip_manager=False):
         logger.debug(79 * "-")
         logger.debug("Person object to create: {}".format(person))
@@ -667,12 +685,10 @@ class SdImport:
                     date_to=date_to_str,
                 )
 
-            # Employees are not allowed to be in these units (allthough
-            # we do make an association). We must instead find the lowest
-            # higher level to put she or he.
             too_deep = self.settings.sd_import_too_deep
-            while self.nodes[unit].name in too_deep:
-                unit = self.nodes[unit].parent.uuid
+            unit = str(
+                self._get_employee_target_unit_uuid(too_deep, uuid.UUID(original_unit))
+            )
 
             ext_field = self.settings.sd_employment_field
             extention = {}
