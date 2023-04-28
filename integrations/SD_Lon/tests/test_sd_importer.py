@@ -692,13 +692,17 @@ def test_employment_date_as_engagement_start_date_disabled_per_default():
 @parameterized.expand(
     [
         (
+            # Test that the employee is moved from an "Afdelings-niveau" to
+            # the above "NY1-niveau"
             ["Afdelings-niveau"],
             UUID("00000000-0000-0000-0000-000000000000"),
             UUID("10000000-0000-0000-0000-000000000000"),
         ),
         (
+            # Test that the employee is moved from an "Afdelings-niveau" to
+            # the "NY2-niveau" two levels above
             ["NY1-niveau", "Afdelings-niveau"],
-            UUID("10000000-0000-0000-0000-000000000000"),
+            UUID("00000000-0000-0000-0000-000000000000"),
             UUID("20000000-0000-0000-0000-000000000000"),
         ),
     ]
@@ -731,6 +735,11 @@ def test_get_employee_target_unit_uuid(
 
 
 def test_get_employee_target_unit_uuid_afd_is_top_level() -> None:
+    """
+    Test that the MO target unit is the original "Afdelings-niveau" unit if
+    the unit is located directly below the SD institution.
+    """
+
     # Arrange
     sd = get_sd_importer()
 
