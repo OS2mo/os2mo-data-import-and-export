@@ -1,18 +1,15 @@
 # SPDX-FileCopyrightText: 2023 Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
-import json
 import logging
-import pathlib
 
 import requests
 import xmltodict
-
 from kle import payloads
+from ra_utils.headers import TokenSettings
+from ra_utils.job_settings import JobSettings
 
-LOG_FILE = "kle_online.log"
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, filename=LOG_FILE)
 
 # Facetter
 # Emne: http://api.kle-online.dk/resources/kle/emneplan
@@ -34,7 +31,7 @@ class KleImporter(object):
     necessary with seperate templates for the various levels.
     """
 
-    def __init__(self, mox_base, mora_base, api_token=None):
+    def __init__(self, mox_base, mora_base):
         """
         Init function
         :para hostname: hostname for the rest interface
@@ -42,8 +39,7 @@ class KleImporter(object):
         self.mox_base = mox_base
         self.mora_base = mora_base
         self.mo_session = requests.Session()
-        if api_token:
-            self.mo_session.headers = {"SESSION": api_token}
+        self.mo_session.headers = TokenSettings().get_headers()
 
     def _read_kle_dict(self, facet="emne", local=False):
         """Read the entire KLE file
@@ -324,15 +320,12 @@ class KleImporter(object):
 
 
 if __name__ == "__main__":
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
+    settings = JobSettings()
+    settings.start_logging_based_on_settings()
 
-    mora_base = settings["mora.base"]
-    mox_base = settings["mox.base"]
-    api_token = settings.get("crontab.SAML_TOKEN")
+    mora_base = settings.mora_base
+    mox_base = settings.mox_base
 
-    kle = KleImporter(mox_base, mora_base, api_token)
+    kle = KleImporter(mox_base, mora_base)
     kle.import_kle()
     logger.info("program has ended")
