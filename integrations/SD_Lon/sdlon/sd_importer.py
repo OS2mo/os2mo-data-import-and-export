@@ -610,7 +610,7 @@ class SdImport:
 
         return uuid.UUID(unit_uuid)
 
-    def create_employee(self, person, skip_manager=False):
+    def create_employee(self, person):
         logger.debug(79 * "-")
         logger.debug("Person object to create: {}".format(person))
 
