@@ -577,6 +577,39 @@ class SdImport:
         for person in people:
             self.create_employee(person, skip_manager=skip_manager)
 
+    def _get_employee_target_unit_uuid(
+        self, too_deep: list[str], original_unit_uuid: uuid.UUID
+    ) -> uuid.UUID:
+        """
+        The employees in SD are located in the units which have org_unit_level
+        set to "Afdelings-niveau" for SD salary technical reasons (details
+        unknown to us). In MO, however, the employees must be moved to a proper
+        "NY-niveau" located higher up in the OU tree (e.g. necessary for the
+        export to FK-org). This function calculates the MO target unit based
+        on the argument "too deep" (i.e. the org_unit_levels in which employees
+        are not allowed) which is typically just set to ["Afdelings-niveau"],
+        but in some municipalities ["Afdelings-niveau", "NY1-niveau"] are also
+        used.
+
+        Args:
+            too_deep: the org_unit_levels in which employees are not allowed
+            original_unit_uuid: the SD unit where the employee is located
+
+        Returns:
+            The MO target unit for the employee
+        """
+
+        unit_uuid = str(original_unit_uuid)
+
+        while self.nodes[unit_uuid].name in too_deep:
+            if self.nodes[unit_uuid].parent is None:
+                unit_uuid = str(original_unit_uuid)
+                break
+            else:
+                unit_uuid = self.nodes[unit_uuid].parent.uuid
+
+        return uuid.UUID(unit_uuid)
+
     def create_employee(self, person, skip_manager=False):
         logger.debug(79 * "-")
         logger.debug("Person object to create: {}".format(person))
@@ -667,12 +700,10 @@ class SdImport:
                     date_to=date_to_str,
                 )
 
-            # Employees are not allowed to be in these units (allthough
-            # we do make an association). We must instead find the lowest
-            # higher level to put she or he.
             too_deep = self.settings.sd_import_too_deep
-            while self.nodes[unit].name in too_deep:
-                unit = self.nodes[unit].parent.uuid
+            unit = str(
+                self._get_employee_target_unit_uuid(too_deep, uuid.UUID(original_unit))
+            )
 
             ext_field = self.settings.sd_employment_field
             extention = {}

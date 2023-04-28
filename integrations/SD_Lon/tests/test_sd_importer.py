@@ -6,6 +6,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+from anytree import Node
 import hypothesis.strategies as st
 import pytest
 from hypothesis import given
@@ -134,10 +135,10 @@ def test_create_employee(create_associations: bool):
         }
     )
 
-    sd.nodes["org_unit_uuid"] = attrdict(
-        {"name": "org_unit", "date_from": "1900-01-01"}
-    )
-    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+    org_unit_uuid = str(uuid4())
+
+    sd.nodes[org_unit_uuid] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
+    sd.importer.organisation_units[org_unit_uuid] = OrganisationUnitType(
         name="org_unit",
         type_ref="type_ref",
         date_from="1900-01-01",
@@ -168,7 +169,7 @@ def test_create_employee(create_associations: bool):
                     "EmploymentIdentifier": "TEST123",
                     "WorkingTime": {"OccupationRate": 1},
                     "EmploymentDepartment": {
-                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                        "DepartmentUUIDIdentifier": org_unit_uuid,
                     },
                 }
             ],
@@ -230,7 +231,7 @@ def test_create_employee(create_associations: bool):
         assert association.date_from == "1970-01-01"
         assert association.date_to is None
         assert association.user_key == "TEST123"
-        assert association.org_unit_ref == "org_unit_uuid"
+        assert association.org_unit_ref == org_unit_uuid
         assert association.type_ref == "SD-medarbejder"
     else:
         # We expect just an engagement
@@ -243,7 +244,7 @@ def test_create_employee(create_associations: bool):
     assert engagement.user_key == "TEST123"
     assert engagement.fraction == 1000000
     assert engagement.primary_ref == "non-primary"
-    assert engagement.org_unit_ref == "org_unit_uuid"
+    assert engagement.org_unit_ref == org_unit_uuid
     assert engagement.type_ref == "engagement_typejob_id_123"
     assert engagement.job_function_ref == "job_id_123"
 
@@ -415,11 +416,10 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
+    org_unit_uuid = str(uuid4())
 
-    sd.nodes["org_unit_uuid"] = attrdict(
-        {"name": "org_unit", "date_from": "1900-01-01"}
-    )
-    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+    sd.nodes[org_unit_uuid] = attrdict({"name": "org_unit", "date_from": "1900-01-01"})
+    sd.importer.organisation_units[org_unit_uuid] = OrganisationUnitType(
         name="org_unit",
         type_ref="type_ref",
         date_from="1900-01-01",
@@ -453,7 +453,7 @@ def test_set_engagement_on_leave(mock_uuid4):
                     "EmploymentIdentifier": "TEST123",
                     "WorkingTime": {"OccupationRate": 1},
                     "EmploymentDepartment": {
-                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                        "DepartmentUUIDIdentifier": org_unit_uuid,
                     },
                 }
             ],
@@ -480,11 +480,12 @@ def test_manager_dates_set_correctly(mock_uuid4):
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer()
+    org_unit_uuid = str(uuid4())
 
     ou = attrdict({"name": "org_unit", "date_from": "1960-01-01"})
 
-    sd.nodes["org_unit_uuid"] = ou
-    sd.importer.organisation_units["org_unit_uuid"] = ou
+    sd.nodes[org_unit_uuid] = ou
+    sd.importer.organisation_units[org_unit_uuid] = ou
 
     cpr_no = "0101709999"
     sd.importer.add_employee(
@@ -518,7 +519,7 @@ def test_manager_dates_set_correctly(mock_uuid4):
                     "EmploymentIdentifier": "TEST123",
                     "WorkingTime": {"OccupationRate": 1},
                     "EmploymentDepartment": {
-                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                        "DepartmentUUIDIdentifier": org_unit_uuid,
                     },
                 }
             ],
@@ -550,15 +551,16 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
     mock_uuid4.side_effect = ["historic_org_unit_uuid", "engagement_uuid"]
     sd = get_sd_importer()
+    org_unit_uuid = str(uuid4())
 
-    sd.nodes["org_unit_uuid"] = attrdict(
+    sd.nodes[org_unit_uuid] = attrdict(
         {
             "name": "org_unit",
             "date_from": "2000-01-01",  # Later than 1970-01-01 (see below)
         }
     )
 
-    sd.importer.organisation_units["org_unit_uuid"] = OrganisationUnitType(
+    sd.importer.organisation_units[org_unit_uuid] = OrganisationUnitType(
         name="org_unit",
         type_ref="type_ref",
         date_from="2000-01-01",  # Later than 1970-01-01 (see below)
@@ -592,7 +594,7 @@ def test_create_historic_dummy_engagement(mock_uuid4):
                     "EmploymentIdentifier": "TEST123",
                     "WorkingTime": {"OccupationRate": 1},
                     "EmploymentDepartment": {
-                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                        "DepartmentUUIDIdentifier": org_unit_uuid,
                     },
                 }
             ],
@@ -685,3 +687,69 @@ def test_skip_creating_status_let_go_engagement_when_date_from_older_than_org_un
 def test_employment_date_as_engagement_start_date_disabled_per_default():
     sd = get_sd_importer()
     assert sd.employment_date_as_engagement_start_date is False
+
+
+@parameterized.expand(
+    [
+        (
+            # Test that the employee is moved from an "Afdelings-niveau" to
+            # the above "NY1-niveau"
+            ["Afdelings-niveau"],
+            UUID("00000000-0000-0000-0000-000000000000"),
+            UUID("10000000-0000-0000-0000-000000000000"),
+        ),
+        (
+            # Test that the employee is moved from an "Afdelings-niveau" to
+            # the "NY2-niveau" two levels above
+            ["NY1-niveau", "Afdelings-niveau"],
+            UUID("00000000-0000-0000-0000-000000000000"),
+            UUID("20000000-0000-0000-0000-000000000000"),
+        ),
+    ]
+)
+def test_get_employee_target_unit_uuid(
+    too_deep: list[str], original_unit_uuid: UUID, expected: UUID
+) -> None:
+    # Arrange
+    sd = get_sd_importer()
+
+    ny2_uuid = UUID("20000000-0000-0000-0000-000000000000")
+    ny1_uuid = UUID("10000000-0000-0000-0000-000000000000")
+    afd_uuid = UUID("00000000-0000-0000-0000-000000000000")
+
+    ny2_node = Node("NY2-niveau", uuid=str(ny2_uuid))
+    ny1_node = Node("NY1-niveau", uuid=str(ny1_uuid), parent=ny2_node)
+    afd_node = Node("Afdelings-niveau", uuid=str(afd_uuid), parent=ny1_node)
+
+    sd.nodes = {
+        str(ny2_uuid): ny2_node,
+        str(ny1_uuid): ny1_node,
+        str(afd_uuid): afd_node,
+    }
+
+    # Act
+    target_unit_uuid = sd._get_employee_target_unit_uuid(too_deep, original_unit_uuid)
+
+    # Assert
+    assert target_unit_uuid == expected
+
+
+def test_get_employee_target_unit_uuid_afd_is_top_level() -> None:
+    """
+    Test that the MO target unit is the original "Afdelings-niveau" unit if
+    the unit is located directly below the SD institution.
+    """
+
+    # Arrange
+    sd = get_sd_importer()
+
+    afd_uuid = UUID("00000000-0000-0000-0000-000000000000")
+    afd_node = Node("Afdelings-niveau", uuid=str(afd_uuid))
+
+    sd.nodes = {str(afd_uuid): afd_node}
+
+    # Act
+    target_unit_uuid = sd._get_employee_target_unit_uuid(["Afdelings-niveau"], afd_uuid)
+
+    # Assert
+    assert target_unit_uuid == afd_uuid
