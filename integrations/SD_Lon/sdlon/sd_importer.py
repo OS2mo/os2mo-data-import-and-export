@@ -621,6 +621,8 @@ class SdImport:
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
             )
+            if status in EmploymentStatus.let_go():
+                continue
 
             # Job_position_id: Klassificeret liste over stillingstyper.
             # job_name: Fritekstfelt med stillingsbetegnelser.

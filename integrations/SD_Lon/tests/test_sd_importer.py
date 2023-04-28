@@ -623,6 +623,30 @@ def test_create_historic_dummy_engagement(mock_uuid4):
 
 
 @parameterized.expand([("7",), ("8",), ("9",)])
+def test_skip_creation_of_sd_let_go_employments(employment_status: str) -> None:
+    """
+    Test that engagements are not created for SD employees with an SD "let go"
+    (i.e. retired etc.) employment status
+    """
+    # Arrange
+    sd = get_sd_importer()
+    sd.importer = MagicMock()
+
+    person = {
+        "PersonCivilRegistrationIdentifier": "1234567890",
+        "Employment": [
+            {"EmploymentStatus": {"EmploymentStatusCode": employment_status}}
+        ],
+    }
+
+    # Act
+    sd.create_employee(person)
+
+    # Assert
+    sd.importer.add_engagement.assert_not_called()
+
+
+@parameterized.expand([("7",), ("8",), ("9",)])
 def test_skip_creating_status_let_go_engagement_when_date_from_older_than_org_unit(
     status_code: str,
 ):
