@@ -514,7 +514,7 @@ class ADWriter(AD):
                     raise ReplicationFailedException()
 
                 for server in self.all_settings["global"]["servers"]:
-                    user = self.get_from_ad(user=sam, server=server)
+                    user = self.read_user(user=sam, server=server)
                     logger.debug("Testing {}, found: {}".format(server, len(user)))
                     if user:
                         logger.debug("Found successfully")
@@ -1189,10 +1189,10 @@ class ADWriter(AD):
         return path_argument
 
     def _check_if_ad_user_exists(self, sam_account_name, cpr):
-        if sam_account_name and self.get_from_ad(user=sam_account_name):
+        if sam_account_name and self.read_user(user=sam_account_name):
             logger.error("SamAccount already in use: {}".format(sam_account_name))
             raise SamAccountNameNotUnique(sam_account_name)
-        if cpr and self.get_from_ad(cpr=cpr):
+        if cpr and self.read_user(cpr=cpr):
             logger.error(f"cpr already in use: {cpr[:6]}-xxxx")
             raise CprNotNotUnique()
 
@@ -1302,7 +1302,7 @@ def cli(**args):
     if args.get("read_ad_information"):
         print("AD information on user:")
         sam = args["read_ad_information"]
-        user = ad_writer.get_from_ad(user=sam)
+        user = ad_writer.read_user(user=sam)
         if not user:
             print("User not found")
         else:
