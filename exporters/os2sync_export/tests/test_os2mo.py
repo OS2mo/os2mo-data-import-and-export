@@ -10,6 +10,7 @@ from os2sync_export.os2mo import get_org_unit_hierarchy
 from os2sync_export.os2mo import get_work_address
 from os2sync_export.os2mo import is_ignored
 from os2sync_export.os2mo import kle_to_orgunit
+from os2sync_export.os2mo import manager_to_orgunit
 from os2sync_export.os2mo import org_unit_uuids
 from os2sync_export.os2mo import os2mo_get
 from os2sync_export.os2mo import overwrite_position_uuids
@@ -260,3 +261,27 @@ def test_get_org_unit_hierarchy(root_mock):
     ):
         hierarchy_uuids = get_org_unit_hierarchy("Linjeorganisation")
     assert hierarchy_uuids == (UUID("f805eb80-fdfe-8f24-9367-68ea955b9b9b"),)
+
+
+def test_manager_to_orgunit():
+    manager_uuid = uuid4()
+    person = {"uuid": manager_uuid}
+    with patch("os2sync_export.os2mo.os2mo_get") as session_mock:
+        session_mock.return_value = MockOs2moGet([{"person": person}])
+        manager_uuid = manager_to_orgunit("org_unit_uuid")
+    assert manager_uuid == manager_uuid
+
+
+def test_manager_to_orgunit_no_manager():
+    with patch("os2sync_export.os2mo.os2mo_get") as session_mock:
+        session_mock.return_value = MockOs2moGet([])
+        manager_uuid = manager_to_orgunit("org_unit_uuid")
+    assert manager_uuid is None
+
+
+def test_manager_to_orgunit_vacant():
+    person = None
+    with patch("os2sync_export.os2mo.os2mo_get") as session_mock:
+        session_mock.return_value = MockOs2moGet([{"person": person}])
+        manager_uuid = manager_to_orgunit("org_unit_uuid")
+    assert manager_uuid is None

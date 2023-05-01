@@ -423,7 +423,8 @@ def org_unit_uuids(**kwargs: Any) -> Set[str]:
 
 def manager_to_orgunit(unit_uuid: str) -> Optional[str]:
     manager = os2mo_get("{BASE}/ou/" + unit_uuid + "/details/manager").json()
-    if not manager:
+    # Return None if the orgunit has no manager or if the manager-role is vacant
+    if not manager or one(manager)["person"] is None:
         return None
     return one(manager)["person"]["uuid"]
 
