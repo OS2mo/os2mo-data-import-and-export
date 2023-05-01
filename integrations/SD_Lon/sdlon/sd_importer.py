@@ -570,12 +570,12 @@ class SdImport:
         self._create_employees(active_people)
 
         logger.info("Create employees from passive SD employees...")
-        self._create_employees(passive_people, skip_manager=True)
+        self._create_employees(passive_people)
 
-    def _create_employees(self, persons, skip_manager=False):
+    def _create_employees(self, persons):
         people = filter(skip_fictional_users, persons)
         for person in people:
-            self.create_employee(person, skip_manager=skip_manager)
+            self.create_employee(person)
 
     def _get_employee_target_unit_uuid(
         self, too_deep: list[str], original_unit_uuid: uuid.UUID
