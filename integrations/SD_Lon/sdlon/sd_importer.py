@@ -610,7 +610,7 @@ class SdImport:
 
         return uuid.UUID(unit_uuid)
 
-    def create_employee(self, person, skip_manager=False):
+    def create_employee(self, person):
         logger.debug(79 * "-")
         logger.debug("Person object to create: {}".format(person))
 
@@ -621,6 +621,8 @@ class SdImport:
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
             )
+            if status in EmploymentStatus.let_go():
+                continue
 
             # Job_position_id: Klassificeret liste over stillingstyper.
             # job_name: Fritekstfelt med stillingsbetegnelser.
