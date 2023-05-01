@@ -5,6 +5,7 @@ from typing import Any
 from typing import cast
 from typing import Dict
 from typing import List
+from typing import Literal
 from typing import Tuple
 from uuid import UUID
 
@@ -61,7 +62,9 @@ class Settings(JobSettings):
 
     # os2sync:
     os2sync_top_unit_uuid: UUID
-    os2sync_api_url: AnyHttpUrl = cast(AnyHttpUrl, "http://localhost:8081/api")
+    os2sync_api_url: AnyHttpUrl | Literal["stub"] = cast(
+        AnyHttpUrl, "http://localhost:8081/api"
+    )
 
     os2sync_use_lc_db: bool = False
     os2sync_hash_cache: Path = Path("/opt/dipex/os2sync_hash_cache")
