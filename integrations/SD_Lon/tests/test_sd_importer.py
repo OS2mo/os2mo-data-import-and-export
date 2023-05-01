@@ -622,7 +622,7 @@ def test_create_historic_dummy_engagement(mock_uuid4):
     assert engagement_historic_dummy.type_ref == "historisk"
 
 
-@parameterized.expand([("7",), ("8",), ("9",)])
+@pytest.mark.parametrize("employment_status", ("7", "8", "9"))
 def test_skip_creation_of_sd_let_go_employments(employment_status: str) -> None:
     """
     Test that engagements are not created for SD employees with an SD "let go"
