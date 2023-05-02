@@ -5,7 +5,6 @@ import pathlib
 import re
 import sqlite3
 import uuid
-from collections import OrderedDict
 from functools import lru_cache
 from operator import itemgetter
 from typing import Dict
@@ -365,9 +364,9 @@ def split_employees_leaves(employees: List[Dict]) -> Tuple[Iterable, Iterable]:
     return partition(lambda empl: empl.get("@action") == "leave", employees)
 
 
-def read_cpr(employee: OrderedDict) -> str:
+def read_cpr(employee: dict) -> str:
     cpr = employee.get("cpr")
-    if isinstance(cpr, OrderedDict):
+    if isinstance(cpr, dict):
         cpr = employee["cpr"]["#text"]
     elif isinstance(cpr, str):
         assert isinstance(int(cpr), int)

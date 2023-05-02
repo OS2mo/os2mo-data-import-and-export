@@ -1,5 +1,4 @@
 import unittest
-from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 from unittest import TestCase
@@ -48,8 +47,8 @@ class test_opus_helpers(TestCase):
         self.units, self.employees = opus_helpers.parser(file)
         self.assertIsInstance(self.units, list)
         self.assertIsInstance(self.employees, list)
-        self.assertIsInstance(self.units[0], OrderedDict)
-        self.assertIsInstance(self.employees[0], OrderedDict)
+        self.assertIsInstance(self.units[0], dict)
+        self.assertIsInstance(self.employees[0], dict)
 
     @parameterized.expand(
         [
