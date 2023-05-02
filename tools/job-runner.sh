@@ -537,63 +537,63 @@ exports(){
     # Remaining exports are independent an can be run concurrently
     
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
-        run-job exports_actual_state_export &
+        run-job exports_actual_state_export ||  printf "exports_actual_state_export exited with an error"
     fi
 
     if [ "${RUN_HISTORIC_SQL_EXPORT}" == "true" ]; then
-        run-job exports_historic_sql_export &
+        run-job exports_historic_sql_export ||  printf "exports_historic_sql_export exited with an error"
     fi
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
-        run-job exports_os2sync &
+        run-job exports_os2sync ||  printf "exports_os2sync exited with an error"
     fi
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
-        run-job exports_queries_ballerup &
+        run-job exports_queries_ballerup ||  printf "exports_queries_ballerup exited with an error"
     fi
 
     if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
-        run-job exports_viborg_emus &
+        run-job exports_viborg_emus ||  printf "exports_viborg_emus exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_VIBORG_EKSTERNE}" == "true" ]; then
-        run-job exports_viborg_eksterne &
+        run-job exports_viborg_eksterne ||  printf "exports_viborg_eksterne exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
-        run-job exports_os2phonebook_export &
+        run-job exports_os2phonebook_export ||  printf "exports_os2phonebook_export exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
-        run-job exports_sync_mo_uuid_to_ad &
+        run-job exports_sync_mo_uuid_to_ad ||  printf "exports_sync_mo_uuid_to_ad exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_AD_LIFE_CYCLE}" == "true" ]; then
-        run-job exports_ad_life_cycle &
+        run-job exports_ad_life_cycle ||  printf "exports_ad_life_cycle exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_AD_LIFE_CYCLE_DISABLE_ACCOUNTS}" == "true" ]; then
-        run-job exports_ad_life_cycle_disable_accounts || return 2
+        run-job exports_ad_life_cycle_disable_accounts ||  printf "exports_ad_life_cycle_disable_accounts exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
-        run-job exports_mo_to_ad_sync || return 2
+        run-job exports_mo_to_ad_sync ||  printf "exports_mo_to_ad_sync exited with an error"
     fi
 
     if [ "${RUN_AD_ENDDATE_FIXER}" == "true" ]; then
-        run-job exports_ad_enddate_fixer || return 2
+        run-job exports_ad_enddate_fixer ||  printf "exports_ad_enddate_fixer exited with an error"
     fi
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
-        run-job exports_mox_rollekatalog || return 2
+        run-job exports_mox_rollekatalog ||  printf "exports_mox_rollekatalog exited with an error"
     fi
 
     if [ "${RUN_PLAN2LEARN}" == "true" ]; then
-        run-job exports_plan2learn || return 2
+        run-job exports_plan2learn ||  printf "exports_plan2learn exited with an error"
     fi
 
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
-        run-job exports_test || return 2
+        run-job exports_test ||  printf "exports_test exited with an error"
     fi
 
 }
@@ -606,23 +606,23 @@ reports(){
         && return 1 
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview &
+        run-job reports_sd_db_overview ||  printf "reports_sd_db_overview exited with an error"
     fi
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
-        run-job reports_viborg_managers &
+        run-job reports_viborg_managers ||  printf "reports_viborg_managers exited with an error"
     fi
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
-        run-job reports_frederikshavn &
+        run-job reports_frederikshavn ||  printf "reports_frederikshavn exited with an error"
     fi
 
     if [ "${RUN_REPORTS_SVENDBORG}" == "true" ]; then
-        run-job reports_svendborg &
+        run-job reports_svendborg ||  printf "reports_svendborg exited with an error"
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
-        run-job reports_csv &
+        run-job reports_csv ||  printf "reports_csv exited with an error"
     fi
 
 }
