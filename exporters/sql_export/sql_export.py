@@ -643,7 +643,7 @@ def wrap_export(args: dict, settings: dict) -> None:
 
 
 @click.command(help="SQL export")
-@click.option("--resolve-dar", is_flag=True)
+@click.option("--resolve-dar", is_flag=True, envvar="RESOLVE_DAR")
 @click.option("--historic", is_flag=True)
 @click.option("--read-from-cache", is_flag=True, envvar="USE_CACHED_LORACACHE")
 @click.option("--force-sqlite", is_flag=True)
