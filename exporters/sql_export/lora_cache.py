@@ -29,7 +29,6 @@ from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
 from retrying import retry
 
-
 logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
@@ -1392,7 +1391,10 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     "--skip-past", is_flag=True, default=False, help="Skip past in historic export"
 )
 @click.option(
-    "--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses"
+    "--resolve-dar/--no-resolve-dar",
+    default=False,
+    envvar="RESOLVE_DAR",
+    help="Resolve DAR addresses",
 )
 @click.option("--read-from-cache", is_flag=True)
 def cli(historic, skip_past, resolve_dar, read_from_cache):
