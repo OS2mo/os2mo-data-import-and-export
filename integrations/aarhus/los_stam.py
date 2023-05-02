@@ -439,18 +439,18 @@ class StamImporter:
             logger.info("Created LoRa class %r", row.class_uuid)
 
         # Find classes with updated data
-        classes_with_changed_name = list(
+        classes_with_changes = list(
             filter(
                 lambda csv_row: any(  # type: ignore
                     str(csv_row.class_uuid) == lora_class["uuid"]  # type: ignore
-                    and csv_row.role != lora_class["full_name"]  # type: ignore
+                    and csv_row.title != lora_class["full_name"]  # type: ignore
                     for lora_class in classes
                 ),
                 rows,
             )
         )
 
-        for changed_class in classes_with_changed_name:
+        for changed_class in classes_with_changes:
             gql_create_class(gql_client, changed_class, str(uuids.ORG_UUID), facet_uuid)  # type: ignore
 
         # Find classes to terminate (classes in LoRa but no longer in CSV file)
