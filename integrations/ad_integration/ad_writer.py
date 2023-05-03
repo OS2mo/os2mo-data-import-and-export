@@ -1112,8 +1112,7 @@ class ADWriter(AD):
         :param mo_uuid: uuid for the MO user we want to add to AD.
         :param create_manager: If True, an AD link will be added between the user
         object and the AD object of the users manager.
-        :param dry_run: Not yet implemented. Should return whether the user is
-        expected to be able to be created in AD and the expected SamAccountName.
+        :param dry_run: generates a username and checks wheter the user exists in AD.
         :return: The generated SamAccountName for the new user
         """
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
@@ -1128,6 +1127,8 @@ class ADWriter(AD):
         self._check_if_ad_user_exists(sam_account_name, mo_values["cpr"])
 
         ps_script = self._get_create_user_command(mo_values, sam_account_name)
+        if dry_run:
+            return (True, sam_account_name)
 
         response = self._run_ps_script(ps_script)
         if not response == {}:
