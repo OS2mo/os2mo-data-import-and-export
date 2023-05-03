@@ -5,13 +5,15 @@ services:
     build:
       context: .
     environment:
-      MUNICIPALITY: 1234
-      OS2SYNC_TOP_UNIT_UUID: f06ee470-9f17-566f-acbe-e938112d46d9
-      MORA_BASE: http://mo:80
+      
+      AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-      AUTH_SERVER: "http://keycloak:8080/auth"
-      OS2SYNC_API_URL: "http://os2sync:5000/api"
+      MORA_BASE: http://mo:80
+      MUNICIPALITY: 1234
+      OS2SYNC_API_URL: "stub"
+      OS2SYNC_HASH_CACHE: /tmp/hash_cache
+      OS2SYNC_TOP_UNIT_UUID: "f06ee470-9f17-566f-acbe-e938112d46d9"
       LOG_LEVEL: INFO
 
     command: "uvicorn os2sync_export.main:app --host 0.0.0.0 --reload"
