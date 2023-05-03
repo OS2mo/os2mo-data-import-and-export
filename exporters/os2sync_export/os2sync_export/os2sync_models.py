@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from typing import Set
 from uuid import UUID
@@ -5,6 +6,8 @@ from uuid import UUID
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from pydantic import Extra
+
+logger = logging.getLogger(__name__)
 
 
 class OrgUnit(BaseModel):
@@ -42,9 +45,6 @@ class OrgUnit(BaseModel):
     public List<string> ContactForTasks;
     """
 
-    class Config:
-        extra = Extra.ignore
-
     def json(self):
         return jsonable_encoder(self.dict())
 
@@ -76,3 +76,17 @@ class OrgUnit(BaseModel):
     ItSystems: Set[UUID] = set()
     ContactForTasks: Set[UUID] = set()
     ContactPlaces: Set[UUID] = set()
+
+    def from_gql_payload(payload, settings):
+        current = payload["current"]
+        logger.info(current)
+        uuid = current["uuid"]
+        name = current["name"]
+        parent = current["parent_uuid"]
+        manager = current["managers"]["uuid"] if settings.sync_managers else None
+        import pdb
+
+        pdb.set_trace()
+        o = OrgUnit(Uuid=uuid, Name=name, ParentOrgUnitUuid=parent, ManagerUuid=manager)
+        logger.info(o)
+        return o

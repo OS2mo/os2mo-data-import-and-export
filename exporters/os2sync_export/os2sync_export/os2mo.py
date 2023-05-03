@@ -555,6 +555,58 @@ def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List)
         )
 
 
+def get_org_units(
+    gql_session, uuids: list[UUID], hierarchies: list[UUID] = []
+) -> list[OrgUnit]:
+    q = gql(
+        """
+    query MyQuery($uuids: [UUID!]) {
+        org_units(uuids: $uuids) {
+            current {
+                name
+                parent_uuid
+                uuid
+                user_key
+                kles {
+                    kle_number {
+                    full_name
+                    }
+                    kle_aspects {
+                    name
+                    }
+                }
+                itusers {
+                    user_key
+                    itsystem {
+                    name
+                    }
+                }
+                managers {
+                    uuid
+                }
+                addresses {
+                    address_type {
+                    name
+                    scope
+                    }
+                    value
+                }
+            }
+        }
+       }
+    """
+    )
+    res = gql_session.execute(
+        q,
+        variable_values={
+            "uuids": [str(u) for u in uuids] if uuids else None,
+            "hierarchies": [str(h) for h in hierarchies] if hierarchies else None,
+        },
+    )
+
+    return [OrgUnit.from_gql_payload(o) for o in res["org_units"]]
+
+
 def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 

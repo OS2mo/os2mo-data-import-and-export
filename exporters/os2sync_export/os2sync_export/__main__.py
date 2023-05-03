@@ -59,10 +59,6 @@ def read_all_org_units(settings) -> Dict[UUID, OrgUnit]:
 
     logger.info(f"Aktive Orgenheder fundet i OS2MO {len(os2mo_uuids_present)}")
 
-    os2mo_uuids_present = tqdm(
-        os2mo_uuids_present, desc="Reading org_units from OS2MO", unit="org_unit"
-    )
-
     # Create os2sync payload for all org_units:
     org_units = (
         os2mo.get_sts_orgunit(i, settings=settings) for i in os2mo_uuids_present
@@ -164,7 +160,17 @@ def main(settings: Settings):
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
-    mo_org_units = read_all_org_units(settings)
+    gql_client = setup_gql_client(settings)
+    OrgUnit.from_gql_payload = partial(OrgUnit.from_gql_payload, settings=settings)
+    with gql_client as gql_session:
+
+        mo_org_units = os2mo.get_org_units(
+            gql_session,
+            uuids=[],
+            hierarchies=os2mo.get_org_unit_hierarchy(
+                settings.os2sync_filter_hierarchy_names
+            ),
+        )
 
     logger.info(f"Orgenheder som tjekkes i OS2Sync: {len(mo_org_units)}")
 
