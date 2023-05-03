@@ -20,20 +20,12 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
-retry_max_time = 60 * 5
-
-PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
+RETRY_MAX_TIME = 60 * 5
 
 
 class GqlLoraCacheSettings(JobSettings):
     class Config:
         settings_json_prefix = ""
-
-
-def _init_settings() -> GqlLoraCacheSettings:
-    pydantic_settings = GqlLoraCacheSettings()
-    pydantic_settings.start_logging_based_on_settings()
-    return pydantic_settings
 
 
 logger = logging.getLogger(__name__)
@@ -100,7 +92,7 @@ class GQLLoraCache:
         resolve_dar: bool = True,
         full_history: bool = False,
         skip_past: bool = False,
-        settings: typing.Optional[GqlLoraCacheSettings] = None,
+        settings: GqlLoraCacheSettings | None = None,
     ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
@@ -108,7 +100,7 @@ class GQLLoraCache:
         self.concurrency = 5
         self.resolve_dar = resolve_dar
 
-        self.settings: GqlLoraCacheSettings = settings or _init_settings()
+        self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
 
         self.additional = {"relationer": ("tilknyttedeorganisationer", "tilhoerer")}
 
@@ -134,6 +126,8 @@ class GQLLoraCache:
         self.gql_queue: asyncio.Queue = asyncio.Queue()
         self.gql_client = self._setup_gql_client()
 
+        self.settings.start_logging_based_on_settings()
+
     def _setup_gql_client(self) -> PersistentGraphQLClient:
         return PersistentGraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v3",
@@ -141,12 +135,11 @@ class GQLLoraCache:
             client_secret=self.settings.client_secret,
             auth_realm=self.settings.auth_realm,
             auth_server=self.settings.auth_server,
-            sync=False,
             httpx_client_kwargs={"timeout": None},
             execute_timeout=None,
         )
 
-    async def worker(self) -> None:
+    async def worker(self):
         while True:
 
             async def do(t):
@@ -170,7 +163,7 @@ class GQLLoraCache:
     @retry(
         reraise=True,
         wait=wait_exponential(multiplier=1, min=4, max=10),
-        stop=stop_after_delay(retry_max_time),
+        stop=stop_after_delay(RETRY_MAX_TIME),
     )
     async def _execute_query(
         self,
@@ -1684,7 +1677,7 @@ class GQLLoraCache:
             logger.debug(f"writing {name}")
             if filename:
                 async with aiofiles.open(filename, "wb") as fw:
-                    pickle.dump(cache, fw, PICKLE_PROTOCOL)
+                    pickle.dump(cache, fw, pickle.DEFAULT_PROTOCOL)
             logger.debug(f"done with {name}")
 
         exec_writes = [
