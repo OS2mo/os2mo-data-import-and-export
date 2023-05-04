@@ -51,6 +51,7 @@ scope_to_scope = {
     "Ansvarlig": "ANSVARLIG",
     "Udførende": "UDFOERENDE",
     "Indsigt": "INDSIGT",
+    "Url": "URL",
 }
 
 
