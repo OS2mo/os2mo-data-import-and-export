@@ -999,11 +999,16 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Test what happens if `create_user` encounters an already existing AD
         # user (either by username or CPR number lookup.)
 
+        # Avoid circular import
+        from .mocks import MockADParameterReader
+
         def assert_adwriter_get_ad_user_raises(matching_kwarg, expected_exception):
             self._setup_adwriter()
-            # Replace `get_from_ad` with function returning True if the lookup
-            # kwarg matches `matching_kwarg`.
-            self.ad_writer.get_from_ad = lambda **kwargs: matching_kwarg in kwargs
+            # Replace `ADWriter._reader` with mock `ADParameterReader` which always
+            # returns an AD user for any `user` or `cpr` argument. This means that
+            # `ADWriter.create_user` will always raise an error claiming that the user
+            # already exists.
+            self.ad_writer._reader = MockADParameterReader()
             # Assert we bail early with the proper exception
             with self.assertRaises(expected_exception):
                 self.ad_writer.create_user(mo_uuid="mo-user-uuid", create_manager=False)
