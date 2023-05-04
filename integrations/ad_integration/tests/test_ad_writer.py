@@ -128,7 +128,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
         # Expected outputs
-        num_expected_scripts = 3
+        num_expected_scripts = 1
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
@@ -310,7 +310,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
         # Expected outputs
-        num_expected_scripts = 3
+        num_expected_scripts = 1
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
@@ -322,7 +322,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        create_user_ps = self._get_script_contents(index=2)
+        create_user_ps = self._get_script_contents(index=0)
 
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
 

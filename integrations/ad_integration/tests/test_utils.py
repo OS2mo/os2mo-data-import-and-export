@@ -83,6 +83,12 @@ class ADWriterTestSubclass(ADWriter):
         if kwargs.get("mock_find_ad_user", True):
             self._find_ad_user = lambda ad_user, ad_dump=None: ad_values_func()
 
+        # Avoid circular import
+        from .mocks import MockEmptyADReader
+
+        # Mock `ADWriter._reader` (which is usually an instance of `ADParameterReader`)
+        self._reader = MockEmptyADReader()
+
     def _init_name_creator(self):
         """Mocked to pretend no names are occupied.
 
