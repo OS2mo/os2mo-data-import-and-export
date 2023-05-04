@@ -516,6 +516,10 @@ class MockADWriterContext(ExitStack):
             return_value=MockADParameterReader(),
         )
         yield patch(
+            f"{prefix}.ad_writer.ADParameterReader",
+            return_value=MockADParameterReader(),
+        )
+        yield patch(
             f"{prefix}.ad_writer.MoraHelper",
             return_value=MockMoraHelper(
                 cpr="",

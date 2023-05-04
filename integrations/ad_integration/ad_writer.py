@@ -481,6 +481,11 @@ class ADWriter(AD):
 
         self._environment = self._get_jinja_environment()
 
+        self._reader = ADParameterReader()
+
+    def read_user(self, user=None, cpr=None):
+        return self._reader.read_user(user=user, cpr=cpr)
+
     def _init_name_creator(self):
         self.name_creator = UserNameGen.get_implementation()
         if not self.skip_occupied_names:
