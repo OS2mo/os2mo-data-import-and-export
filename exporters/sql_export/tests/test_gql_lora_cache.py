@@ -119,19 +119,10 @@ class TestEquivalence:
             skip_addresses=skip_addresses,
         )
 
-        tasks = []
-        task = asyncio.create_task(lc.worker())
-        tasks.append(task)
-        # await asyncio.sleep(60/self.concurrency)
+        async with asyncio.TaskGroup() as tg:
+            while not lc.gql_queue.empty():
+                tg.create_task(lc.gql_queue.get_nowait())
 
-        # Wait until the queue is fully processed.
-        await lc.gql_queue.join()
-
-        # Cancel our worker tasks.
-        for task in tasks:
-            task.cancel()
-        # Wait until all worker tasks are cancelled.
-        await asyncio.gather(*tasks, return_exceptions=True)
 
         if not skip_facets:
             return lc.facets

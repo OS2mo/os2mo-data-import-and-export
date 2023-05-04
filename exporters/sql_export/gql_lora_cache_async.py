@@ -107,7 +107,7 @@ class GQLLoraCache:
     ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
-        self.std_page_size = 100
+        self.std_page_size = 500
         self.concurrency = 5
         self.resolve_dar = resolve_dar
 
@@ -278,7 +278,7 @@ class GQLLoraCache:
 
         if uuids is None:
             self.gql_queue.put_nowait(
-                self._execute_query(
+                await self._execute_query(
                     query=query,
                     query_type=query_type,
                     variable_values=variable_values,
@@ -1000,229 +1000,233 @@ class GQLLoraCache:
             self.gql_queue.put_nowait(progress(True, "it systems"))
             self.gql_queue.put_nowait(self._cache_lora_itsystems())
             self.gql_queue.put_nowait(progress(False, "it systems"))
-
-        if not skip_addresses:
-            addresses = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: addresses(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+        async with asyncio.TaskGroup() as tg:
+            if not skip_addresses:
+                addresses = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: addresses(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(addresses, self._cache_lora_address, "addresses")
+                    """
+                )
+                tg.create_task(run(addresses, self._cache_lora_address, "addresses"))
 
-        if not skip_units:
-            units = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: org_units(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_units:
+                units = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: org_units(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(units, self._cache_lora_units, "org units")
+                    """
+                )
+                tg.create_task(run(units, self._cache_lora_units, "org units"))
 
-        if not skip_it_connections:
-            itusers = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: itusers(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_it_connections:
+                itusers = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: itusers(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(itusers, self._cache_lora_it_connections, "it users")
+                    """
+                )
+                tg.create_task(
+                    run(itusers, self._cache_lora_it_connections, "it users"))
 
-        if not skip_engagements:
-            engagements = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: engagements (
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_engagements:
+                engagements = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: engagements (
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(engagements, self._cache_lora_engagements, "engagements")
+                    """
+                )
+                tg.create_task(
+                    run(engagements, self._cache_lora_engagements, "engagements"))
 
-        if not skip_users:
-            employees = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: employees(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_users:
+                employees = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: employees(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(employees, self._cache_lora_users, "employees")
+                    """
+                )
+                tg.create_task(run(employees, self._cache_lora_users, "employees"))
 
-        if not skip_managers:
-            managers = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: managers(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_managers:
+                managers = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: managers(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(managers, self._cache_lora_managers, "managers")
+                    """
+                )
+                tg.create_task(run(managers, self._cache_lora_managers, "managers"))
 
-        if not skip_associations:
-            associations = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: associations(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_associations:
+                associations = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: associations(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(associations, self._cache_lora_associations, "associations")
+                    """
+                )
+                tg.create_task(
+                    run(associations, self._cache_lora_associations, "associations"))
 
-        if not skip_leaves:
-            leaves = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime) {
-                    page: leaves(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
-                    ) {
-                        uuid
+            if not skip_leaves:
+                leaves = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime) {
+                        page: leaves(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(leaves, self._cache_lora_leaves, "leaves")
+                    """
+                )
+                tg.create_task(run(leaves, self._cache_lora_leaves, "leaves"))
 
-        if not skip_roles:
-            roles = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime
-                ) {
-                    page: roles(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
+            if not skip_roles:
+                roles = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime
                     ) {
-                        uuid
+                        page: roles(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(roles, self._cache_lora_roles, "roles")
+                    """
+                )
+                tg.create_task(run(roles, self._cache_lora_roles, "roles"))
 
-        if not skip_kles:
-            kles = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime
-                ) {
-                    page: kles(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
+            if not skip_kles:
+                kles = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime
                     ) {
-                        uuid
+                        page: kles(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(kles, self._cache_lora_kles, "kles")
+                    """
+                )
+                tg.create_task(run(kles, self._cache_lora_kles, "kles"))
 
-        if not skip_related:
-            related_units = gql(
-                """
-                query ($from_date: DateTime,
-                       $limit: int,
-                       $offset: int,
-                       $to_date: DateTime
-                ) {
-                    page: related_units(
-                        limit: $limit
-                        offset: $offset
-                        from_date: $from_date
-                        to_date: $to_date
+            if not skip_related:
+                related_units = gql(
+                    """
+                    query ($from_date: DateTime,
+                           $limit: int,
+                           $offset: int,
+                           $to_date: DateTime
                     ) {
-                        uuid
+                        page: related_units(
+                            limit: $limit
+                            offset: $offset
+                            from_date: $from_date
+                            to_date: $to_date
+                        ) {
+                            uuid
+                        }
                     }
-                }
-                """
-            )
-            await run(related_units, self._cache_lora_related, "related units")
+                    """
+                )
+                tg.create_task(
+                    run(related_units, self._cache_lora_related, "related units"))
 
     async def populate_cache_async(self, dry_run=None, skip_associations=False):
         """
@@ -1338,23 +1342,9 @@ class GQLLoraCache:
             skip_addresses=False,
         )
 
-        # Create three worker tasks to process the queue concurrently.
-        tasks = []
-        for i in range(self.concurrency):
-            task = asyncio.create_task(self.worker())
-            tasks.append(task)
-            # spread out the workers a little
-            # await asyncio.sleep(60/self.concurrency)
-
-        # Wait until the queue is fully processed.
-        await self.gql_queue.join()
-
-        # Cancel our worker tasks.
-        for task in tasks:
-            task.cancel()
-
-        # Wait until all worker tasks are cancelled.
-        await asyncio.gather(*tasks, return_exceptions=True)
+        async with asyncio.TaskGroup() as tg:
+            while not self.gql_queue.empty():
+                tg.create_task(self.gql_queue.get_nowait())
 
         async def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")
@@ -1363,27 +1353,27 @@ class GQLLoraCache:
                     pickle.dump(cache, fw, pickle.DEFAULT_PROTOCOL)
             logger.debug(f"done with {name}")
 
-        exec_writes = [
-            write_caches(self.facets, facets_file, "facets"),
-            write_caches(self.engagements, engagements_file, "engagements"),
-            write_caches(self.classes, classes_file, "classes"),
-            write_caches(self.users, users_file, "users"),
-            write_caches(self.units, units_file, "units"),
-            write_caches(self.managers, managers_file, "managers"),
-            write_caches(self.leaves, leaves_file, "leaves"),
-            write_caches(self.addresses, addresses_file, "addresses"),
-            write_caches(self.roles, roles_file, "roles"),
-            write_caches(self.itsystems, itsystems_file, "itsystems"),
-            write_caches(self.it_connections, it_connections_file, "it_connections"),
-            write_caches(self.kles, kles_file, "kles"),
-            write_caches(self.related, related_file, "related"),
-        ]
-        if not skip_associations:
-            exec_writes.append(
-                write_caches(self.associations, associations_file, "associations")
-            )
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(write_caches(self.facets, facets_file, "facets")),
+            tg.create_task(
+                write_caches(self.engagements, engagements_file, "engagements")),
+            tg.create_task(write_caches(self.classes, classes_file, "classes")),
+            tg.create_task(write_caches(self.users, users_file, "users")),
+            tg.create_task(write_caches(self.units, units_file, "units")),
+            tg.create_task(write_caches(self.managers, managers_file, "managers")),
+            tg.create_task(write_caches(self.leaves, leaves_file, "leaves")),
+            tg.create_task(write_caches(self.addresses, addresses_file, "addresses")),
+            tg.create_task(write_caches(self.roles, roles_file, "roles")),
+            tg.create_task(write_caches(self.itsystems, itsystems_file, "itsystems")),
+            tg.create_task(write_caches(self.it_connections, it_connections_file,
+                                        "it_connections")),
+            tg.create_task(write_caches(self.kles, kles_file, "kles")),
+            tg.create_task(write_caches(self.related, related_file, "related")),
 
-        await gather_with_concurrency(3, *exec_writes)
+            if not skip_associations:
+                tg.create_task(
+                    write_caches(self.associations, associations_file, "associations")
+                )
 
     @async_to_sync
     async def populate_cache(self, dry_run=None, skip_associations=False):
