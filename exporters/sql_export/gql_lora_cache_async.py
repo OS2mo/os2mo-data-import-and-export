@@ -1,25 +1,25 @@
 import asyncio
 import datetime
+import itertools
 import logging
 import os
 import pickle
 import time
 import typing
+from enum import Enum
 from pathlib import Path
 
 import aiofiles
 from dateutil.parser import parse as parse_date
 from gql import gql
-from graphql import DocumentNode
+from iteration_utilities import one
 from ra_utils.async_to_sync import async_to_sync
-from ra_utils.asyncio_utils import gather_with_concurrency
 from ra_utils.job_settings import JobSettings
-from raclients.graph.client import PersistentGraphQLClient, GraphQLClient
-from raclients.graph.util import execute_paged
+from raclients.graph.client import GraphQLClient
+from raclients.graph.client import PersistentGraphQLClient
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
-from enum import Enum
 
 RETRY_MAX_TIME = 60 * 5
 
@@ -46,19 +46,20 @@ def insert_obj(obj: dict, cache: dict) -> None:
         cache[obj["uuid"]] = obj["obj"]
 
 
-# when getting a query using current, the object is a single dict. When getting a historic
-# query it is a list of dicts. in order to uniformly process the two states we wrap the 
-# current object in a list
+# when getting a query using current, the object is a single dict. When getting a
+# historic query it is a list of dicts. in order to uniformly process the two states
+# we wrap the current object in a list
 def align_current(item: dict) -> dict:
     item["obj"] = [item["obj"]]
     return item
 
 
+# Does various transformations on a cache to align it with the old lora cache
 def convert_dict(
-        query_res: dict,
-        resolve_object: bool = True,
-        resolve_validity: bool = True,
-        replace_dict: dict = {},
+    query_res: dict,
+    resolve_object: bool = True,
+    resolve_validity: bool = True,
+    replace_dict: dict = {},
 ) -> dict:
     def replace(d: dict, dictionary: dict):
         for replace_from, replace_to in dictionary.items():
@@ -99,15 +100,15 @@ def convert_dict(
 
 class GQLLoraCache:
     def __init__(
-            self,
-            resolve_dar: bool = True,
-            full_history: bool = False,
-            skip_past: bool = False,
-            settings: GqlLoraCacheSettings | None = None,
+        self,
+        resolve_dar: bool = True,
+        full_history: bool = False,
+        skip_past: bool = False,
+        settings: GqlLoraCacheSettings | None = None,
     ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
-        self.std_page_size = 500
+        self.std_page_size = 100
         self.concurrency = 5
         self.resolve_dar = resolve_dar
 
@@ -131,13 +132,12 @@ class GQLLoraCache:
         self.kles: dict = {}
         self.related: dict = {}
 
-        self.gql_queue: asyncio.Queue = asyncio.Queue()
-        self.gql_client = self._setup_gql_client()
+        self.gql_client_session: GraphQLClient
 
         self.settings.start_logging_based_on_settings()
         self.org_uuid = self._get_org_uuid()
 
-    def _setup_gql_client(self) -> PersistentGraphQLClient:
+    def _setup_gql_client(self) -> GraphQLClient:
         return PersistentGraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v3",
             client_id=self.settings.client_id,
@@ -148,32 +148,10 @@ class GQLLoraCache:
             execute_timeout=None,
         )
 
-    async def worker(self):
-        while True:
-
-            async def do(t):
-                try:
-                    await t
-                except Exception as e:
-                    # import traceback
-                    import sys
-
-                    logger.error(e)
-                    # traceback.print_exc()
-                    # if something goes wrong, kill it with fire!
-                    # otherwise the program will just hang forever. There's probably
-                    # nicer ways to do this, but this is adequately fiery
-                    sys.exit(1)
-
-            task = await self.gql_queue.get()
-            await do(task)
-            self.gql_queue.task_done()
-
     def get_historic_query(self) -> dict:
         params: typing.Dict[str, typing.Optional[str]] = {
             "to_date": str(datetime.datetime.now()),
-            "from_date": str(
-                (datetime.datetime.now() - datetime.timedelta(minutes=1))),
+            "from_date": str((datetime.datetime.now() - datetime.timedelta(minutes=1))),
         }
         if self.full_history:
             params["to_date"] = None
@@ -184,14 +162,15 @@ class GQLLoraCache:
             )
         return params
 
-    async def construct_query(self,
-                              query_type: str,
-                              paged_query: bool,
-                              query: str,
-                              variable_values: dict | None,
-                              page_size: int | None,
-                              offset: int,
-                              uuids: typing.List[str] | None):
+    async def construct_query(
+        self,
+        query_type: str,
+        simple_query: bool,
+        query: str,
+        variable_values: dict | None,
+        page_size: int | None,
+        offset: int,
+    ):
         if variable_values is None:
             variable_values = {}
 
@@ -201,94 +180,94 @@ class GQLLoraCache:
                         }"""
         query_header = ""
 
-        if paged_query:
-            query_header = """
-                query ($limit: int, $offset: int) {
-                    page: """ + query_type + """ (limit: $limit, offset: $offset){
+        if simple_query:
+            query_header = (
+                """
+                        query ($limit: int, $offset: int) {
+                            page: """
+                + query_type
+                + """ (limit: $limit, offset: $offset){
                     """
+            )
             query_footer = """
                                         }
                                     }"""
-            if page_size is None:
-                page_size = self.std_page_size
-            variable_values.update({'limit': page_size, 'offset': offset})
 
-        if not paged_query:
-            variable_values.update({'uuids': uuids})
-        if not paged_query and not self.full_history:
-            query_header = """
-            query ($uuids: [UUID!]) {
-                page: """ + query_type + """ (uuids: $uuids){
-                    uuid
-                    obj: current {"""
+        else:
+            if not self.full_history:
+                query_header = (
+                    """
+                        query ($limit: int, $offset: int) {
+                            page: """
+                    + query_type
+                    + """ (limit: $limit, offset: $offset){
+                        uuid
+                        obj: current {"""
+                )
 
-        if not paged_query and self.full_history:
-            query_header = """
-            query ($to_date: DateTime, 
-                   $from_date: DateTime,
-                   $uuids: [UUID!]) {
-                page: """ + query_type + """ (from_date: $from_date, 
-                                                 to_date: $to_date,
-                                                 uuids: $uuids) {
-                    uuid
-                    obj: objects {
-                         """
-            variable_values.update(self.get_historic_query())
+            if self.full_history:
+                query_header = (
+                    """
+                        query ($to_date: DateTime,
+                               $from_date: DateTime,
+                               $limit: int,
+                               $offset: int) {
+                            page: """
+                    + query_type
+                    + """ (from_date: $from_date,
+                                                     to_date: $to_date,
+                                                     limit: $limit,
+                                                     offset: $offset) {
+                        uuid
+                        obj: objects {
+                             """
+                )
+                variable_values.update(self.get_historic_query())
+
+        if page_size is None:
+            page_size = self.std_page_size
+        variable_values.update({"limit": page_size, "offset": offset})
 
         return gql(query_header + query + query_footer), variable_values
 
-    # @retry(
-    #     reraise=True,
-    #     wait=wait_exponential(multiplier=1, min=4, max=10),
-    #     stop=stop_after_delay(RETRY_MAX_TIME),
-    # )
+    @retry(
+        reraise=True,
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        stop=stop_after_delay(RETRY_MAX_TIME),
+    )
     async def _execute_query(
-            self,
-            query: str,
-            query_type: str,
-            callback_function,
-            variable_values: typing.Optional[dict] = None,
-            paged_query: bool = False,
-            page_size: typing.Optional[int] = None,
-            offset: int = 0,
-            uuids: typing.Optional[typing.List[str]] = None,
-    ) -> None:
-        gql_query, gql_variable_values = \
-            await self.construct_query(query=query,
-                                       query_type=query_type,
-                                       variable_values=variable_values,
-                                       page_size=page_size,
-                                       offset=offset,
-                                       paged_query=paged_query,
-                                       uuids=uuids)
+        self,
+        query: str,
+        query_type: str,
+        variable_values: typing.Optional[dict] = None,
+        simple_query: bool = False,
+        page_size: typing.Optional[int] = None,
+        offset: int = 0,
+    ):
+        gql_query, gql_variable_values = await self.construct_query(
+            query=query,
+            query_type=query_type,
+            variable_values=variable_values,
+            page_size=page_size,
+            offset=offset,
+            simple_query=simple_query,
+        )
 
         # This does not return a dict when using get_execution_result=True
         # it returns a tuple
-        result = await self.gql_client.execute(
-            gql_query,
-            variable_values=gql_variable_values,
-            get_execution_result=True,
-        )
-
-        # therefore, this
-        for obj in result.data["page"]:
-            await callback_function(obj)
-        if result.extensions and result.extensions.get("__page_out_of_range"):
-            return
-
-        if uuids is None:
-            self.gql_queue.put_nowait(
-                await self._execute_query(
-                    query=query,
-                    query_type=query_type,
-                    variable_values=variable_values,
-                    callback_function=callback_function,
-                    paged_query=paged_query,
-                    page_size=page_size,
-                    offset=(offset + gql_variable_values['limit']),
-                    uuids=uuids,
-                )
+        for offset in itertools.count(step=page_size or self.std_page_size):
+            gql_variable_values["offset"] = offset
+            result = await self.gql_client_session.execute(
+                gql_query,
+                variable_values=gql_variable_values,
+                get_execution_result=True,
             )
+
+            # therefore, this
+            for obj in result.data["page"]:
+                yield obj
+            if result.extensions and result.extensions.get("__page_out_of_range"):
+                return
 
     # Used to set a value in the __init__, if this was async, init would have to be
     # as well, which would mean that the new cache could only be initiated from
@@ -304,49 +283,33 @@ class GQLLoraCache:
             """
         )
         with GraphQLClient(
-                url=f"{self.settings.mora_base}/graphql/v3",
-                client_id=self.settings.client_id,
-                client_secret=self.settings.client_secret,
-                auth_realm=self.settings.auth_realm,
-                auth_server=self.settings.auth_server,
-                sync=True,
-                httpx_client_kwargs={"timeout": None},
-                execute_timeout=None,
+            url=f"{self.settings.mora_base}/graphql/v3",
+            client_id=self.settings.client_id,
+            client_secret=self.settings.client_secret,
+            auth_realm=self.settings.auth_realm,
+            auth_server=self.settings.auth_server,
+            sync=True,
+            httpx_client_kwargs={"timeout": None},
+            execute_timeout=None,
         ) as session:
             org = session.execute(query)["org"]["uuid"]
         return org
 
     async def _cache_lora_facets(self) -> None:
-        async def process_facet(query_obj):
-            query_obj = convert_dict(
-                query_obj, resolve_object=False, resolve_validity=False
-            )
-            self.facets.update(query_obj)
-
         query = """
                 uuid
                 user_key
             """
 
-        await self._execute_query(
+        async for obj in self._execute_query(
             query=query,
-            query_type='facets',
-            callback_function=process_facet,
-            paged_query=True
-        )
+            query_type="facets",
+            simple_query=True,
+        ):
+            obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
+            self.facets.update(obj)
 
     async def _cache_lora_classes(self) -> None:
-        async def process_classes(query_obj):
-            dictionary = {"name": "title", "facet_uuid": "facet"}
-
-            query_obj = convert_dict(
-                query_obj,
-                resolve_object=False,
-                resolve_validity=False,
-                replace_dict=dictionary,
-            )
-            self.classes.update(query_obj)
-
         query = """
                     uuid
                     user_key
@@ -354,51 +317,38 @@ class GQLLoraCache:
                     scope
                     facet_uuid
             """
-        await self._execute_query(
+
+        dictionary = {"name": "title", "facet_uuid": "facet"}
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='classes',
-            paged_query=True,
-            callback_function=process_classes,
-        )
+            query_type="classes",
+            simple_query=True,
+        ):
+            obj = convert_dict(
+                obj,
+                resolve_object=False,
+                resolve_validity=False,
+                replace_dict=dictionary,
+            )
+            self.classes.update(obj)
 
     async def _cache_lora_itsystems(self) -> None:
-        async def process_itsystem(query_obj):
-            query_obj = convert_dict(
-                query_obj, resolve_object=False, resolve_validity=False
-            )
-            self.itsystems.update(query_obj)
-
         query = """
                     uuid
                     user_key
                     name
             """
 
-        await self._execute_query(
+        async for obj in self._execute_query(
             query=query,
-            query_type='itsystems',
-            paged_query=True,
-            callback_function=process_itsystem,
-        )
+            query_type="itsystems",
+            simple_query=True,
+        ):
+            obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
+            self.itsystems.update(obj)
 
-    async def _cache_lora_users(self, uuids: typing.List[str]) -> None:
-        async def process_users(query_obj):
-            dictionary = {
-                "cpr_no": "cpr",
-                "givenname": "fornavn",
-                "surname": "efternavn",
-                "name": "navn",
-                "nickname": "kaldenavn",
-                "nickname_givenname": "kaldenavn_fornavn",
-                "nickname_surname": "kaldenavn_efternavn",
-            }
-
-            if not self.full_history:
-                query_obj = align_current(query_obj)
-
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.users)
-
+    async def _cache_lora_users(self) -> None:
         query = """
                         uuid
                         cpr_no
@@ -415,56 +365,49 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        dictionary = {
+            "cpr_no": "cpr",
+            "givenname": "fornavn",
+            "surname": "efternavn",
+            "name": "navn",
+            "nickname": "kaldenavn",
+            "nickname_givenname": "kaldenavn_fornavn",
+            "nickname_surname": "kaldenavn_efternavn",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='employees',
-            uuids=uuids,
-            callback_function=process_users,
-        )
-
-    async def _cache_lora_units(self, uuids: typing.List[str]) -> None:
-        async def process_units(query_obj):
-            async def format_managers_and_location(qr: dict):
-                for obj in qr["obj"]:
-                    if not self.full_history:
-                        if obj["manager_uuid"]:
-                            obj["manager_uuid"] = obj["manager_uuid"][0]["uuid"]
-                        else:
-                            obj["manager_uuid"] = None
-
-                        if obj["acting_manager_uuid"]:
-                            obj["acting_manager_uuid"] = obj["acting_manager_uuid"][0][
-                                "uuid"
-                            ]
-                        else:
-                            obj["acting_manager_uuid"] = None
-
-                        ancestors = obj.pop("ancestors")
-                        location = obj["name"]
-                        for ancestor in ancestors:
-                            location = ancestor["name"] + "\\" + location
-
-                        obj["location"] = location
-                return qr
-
+            query_type="employees",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "org_unit_level_uuid": "level",
-                "org_unit_hierarchy_uuid": "org_unit_hierarchy",
-                "parent_uuid": "parent",
-                "unit_type_uuid": "unit_type",
-            }
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.users)
 
-            for item in query_obj["obj"]:
-                if item["parent_uuid"] == self.org_uuid:
-                    item["parent_uuid"] = None
+    async def _cache_lora_units(self) -> None:
+        async def format_managers_and_location(qr: dict):
+            for obj in qr["obj"]:
+                if not self.full_history:
+                    if obj["manager_uuid"]:
+                        obj["manager_uuid"] = one(obj["manager_uuid"])["uuid"]
+                    else:
+                        obj["manager_uuid"] = None
 
-            query_obj = await format_managers_and_location(query_obj)
+                    if obj["acting_manager_uuid"]:
+                        obj["acting_manager_uuid"] = one(obj["acting_manager_uuid"])[
+                            "uuid"
+                        ]
+                    else:
+                        obj["acting_manager_uuid"] = None
 
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.units)
+                    ancestors = obj.pop("ancestors")
+                    location = obj["name"]
+                    for ancestor in ancestors:
+                        location = ancestor["name"] + "\\" + location
+
+                    obj["location"] = location
+            return qr
 
         if self.full_history:
             query = """
@@ -506,39 +449,39 @@ class GQLLoraCache:
                             }
                 """
 
-        await self._execute_query(
+        dictionary = {
+            "org_unit_level_uuid": "level",
+            "org_unit_hierarchy_uuid": "org_unit_hierarchy",
+            "parent_uuid": "parent",
+            "unit_type_uuid": "unit_type",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='org_units',
-            uuids=uuids,
-            callback_function=process_units,
-        )
-
-    async def _cache_lora_engagements(self, uuids: typing.List[str]) -> None:
-        async def process_engagements(query_obj):
-            def collect_extensions(d: dict):
-                for ext_obj in d["obj"]:
-                    ed = {}
-                    for i in range(1, 11):
-                        ed[f"udvidelse_{i}"] = ext_obj.pop(f"extension_{i}")
-
-                    ext_obj["extensions"] = ed
-
-                return d
-
+            query_type="org_units",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "employee_uuid": "user",
-                "engagement_type_uuid": "engagement_type",
-                "job_function_uuid": "job_function",
-                "org_unit_uuid": "unit",
-                "primary_uuid": "primary_type",
-            }
+            for item in obj["obj"]:
+                if item["parent_uuid"] == self.org_uuid:
+                    item["parent_uuid"] = None
 
-            query_obj = collect_extensions(query_obj)
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.engagements)
+            obj = await format_managers_and_location(obj)
+
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.units)
+
+    async def _cache_lora_engagements(self) -> None:
+        def collect_extensions(d: dict):
+            for ext_obj in d["obj"]:
+                ed = {}
+                for i in range(1, 11):
+                    ed[f"udvidelse_{i}"] = ext_obj.pop(f"extension_{i}")
+
+                ext_obj["extensions"] = ed
+
+            return d
 
         query = """
                         uuid
@@ -565,27 +508,26 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        dictionary = {
+            "employee_uuid": "user",
+            "engagement_type_uuid": "engagement_type",
+            "job_function_uuid": "job_function",
+            "org_unit_uuid": "unit",
+            "primary_uuid": "primary_type",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='engagements',
-            uuids=uuids,
-            callback_function=process_engagements,
-        )
-
-    async def _cache_lora_roles(self, uuids: typing.List[str]) -> None:
-        async def process_roles(query_obj):
+            query_type="engagements",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "employee_uuid": "user",
-                "org_unit_uuid": "unit",
-                "role_type_uuid": "role_type",
-            }
+            obj = collect_extensions(obj)
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.engagements)
 
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.roles)
-
+    async def _cache_lora_roles(self) -> None:
         query = """
                         uuid
                         employee_uuid
@@ -597,27 +539,23 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        dictionary = {
+            "employee_uuid": "user",
+            "org_unit_uuid": "unit",
+            "role_type_uuid": "role_type",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='roles',
-            uuids=uuids,
-            callback_function=process_roles,
-        )
-
-    async def _cache_lora_leaves(self, uuids: typing.List[str]) -> None:
-        async def process_leaves(query_obj):
+            query_type="roles",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            replace_dictionary = {
-                "employee_uuid": "user",
-                "leave_type_uuid": "leave_type",
-                "engagement_uuid": "engagement",
-            }
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.roles)
 
-            query_obj = convert_dict(query_obj, replace_dict=replace_dictionary)
-            insert_obj(query_obj, self.leaves)
-
+    async def _cache_lora_leaves(self) -> None:
         query = """
                         uuid
                         employee_uuid
@@ -630,38 +568,32 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        replace_dictionary = {
+            "employee_uuid": "user",
+            "leave_type_uuid": "leave_type",
+            "engagement_uuid": "engagement",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='leaves',
-            uuids=uuids,
-            callback_function=process_leaves,
-        )
-
-    async def _cache_lora_it_connections(self, uuids: typing.List[str]) -> None:
-        async def process_it_connections(query_obj):
-            async def set_primary_boolean(res: dict) -> dict:
-                for obj in res["obj"]:
-                    prim = obj.pop("primary_uuid")
-                    if prim:
-                        obj["primary_boolean"] = True
-                    else:
-                        obj["primary_boolean"] = None
-
-                return res
-
+            query_type="leaves",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "employee_uuid": "user",
-                "itsystem_uuid": "itsystem",
-                "org_unit_uuid": "unit",
-                "user_key": "username",
-            }
+            obj = convert_dict(obj, replace_dict=replace_dictionary)
+            insert_obj(obj, self.leaves)
 
-            query_obj = await set_primary_boolean(query_obj)
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.it_connections)
+    async def _cache_lora_it_connections(self) -> None:
+        async def set_primary_boolean(res: dict) -> dict:
+            for obj in res["obj"]:
+                prim = obj.pop("primary_uuid")
+                if prim:
+                    obj["primary_boolean"] = True
+                else:
+                    obj["primary_boolean"] = None
+
+            return res
 
         query = """
                         uuid
@@ -675,42 +607,38 @@ class GQLLoraCache:
                         }
                         primary_uuid
             """
+        dictionary = {
+            "employee_uuid": "user",
+            "itsystem_uuid": "itsystem",
+            "org_unit_uuid": "unit",
+            "user_key": "username",
+        }
 
-        await self._execute_query(
+        async for obj in self._execute_query(
             query=query,
-            query_type='itusers',
-            uuids=uuids,
-            callback_function=process_it_connections,
-        )
-
-    async def _cache_lora_kles(self, uuids: typing.List[str]) -> None:
-        async def process_kles(query_obj):
-            async def format_aspects(d: dict) -> dict:
-                new_obj_list = []
-                for obj in d["obj"]:
-                    asp_list = []
-                    asps = obj.pop("kle_aspect_uuids")
-                    for a_uuid in asps:
-                        aspect = obj.copy()
-                        aspect["kle_aspect_uuid"] = a_uuid
-                        asp_list.append(aspect)
-                    new_obj_list.extend(asp_list)
-                d["obj"] = new_obj_list
-
-                return d
-
+            query_type="itusers",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "kle_aspect_uuid": "kle_aspect",
-                "kle_number_uuid": "kle_number",
-                "org_unit_uuid": "unit",
-            }
+            obj = await set_primary_boolean(obj)
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.it_connections)
 
-            query_obj = await format_aspects(query_obj)
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.kles)
+    async def _cache_lora_kles(self) -> None:
+        async def format_aspects(d: dict) -> dict:
+            new_obj_list = []
+            for obj in d["obj"]:
+                asp_list = []
+                asps = obj.pop("kle_aspect_uuids")
+                for a_uuid in asps:
+                    aspect = obj.copy()
+                    aspect["kle_aspect_uuid"] = a_uuid
+                    asp_list.append(aspect)
+                new_obj_list.extend(asp_list)
+            d["obj"] = new_obj_list
+
+            return d
 
         query = """
                         uuid
@@ -724,31 +652,31 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        dictionary = {
+            "kle_aspect_uuid": "kle_aspect",
+            "kle_number_uuid": "kle_number",
+            "org_unit_uuid": "unit",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='kles',
-            uuids=uuids,
-            callback_function=process_kles,
-        )
-
-    async def _cache_lora_related(self, uuids: typing.List[str]) -> None:
-        async def process_related(query_obj):
-            def format_related(d: dict):
-                for rel_obj in d["obj"]:
-                    rel_uuids_list = rel_obj.pop("org_unit_uuids")
-                    for i in range(1, (len(rel_uuids_list) + 1)):
-                        rel_obj[f"unit{i}_uuid"] = rel_uuids_list[i - 1]
-
-                return d
-
+            query_type="kles",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            query_obj = format_related(query_obj)
+            obj = await format_aspects(obj)
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.kles)
 
-            query_obj = convert_dict(query_obj)
+    async def _cache_lora_related(self) -> None:
+        def format_related(d: dict):
+            for rel_obj in d["obj"]:
+                rel_uuids_list = rel_obj.pop("org_unit_uuids")
+                for i in range(1, (len(rel_uuids_list) + 1)):
+                    rel_obj[f"unit{i}_uuid"] = rel_uuids_list[i - 1]
 
-            insert_obj(query_obj, self.related)
+            return d
 
         query = """
                         uuid
@@ -759,29 +687,20 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        async for obj in self._execute_query(
             query=query,
-            query_type='related_units',
-            uuids=uuids,
-            callback_function=process_related,
-        )
-
-    async def _cache_lora_managers(self, uuids: typing.List[str]) -> None:
-        async def process_managers(query_obj):
+            query_type="related_units",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            dictionary = {
-                "employee_uuid": "user",
-                "manager_level_uuid": "manager_level",
-                "manager_type_uuid": "manager_type",
-                "responsibility_uuids": "manager_responsibility",
-                "org_unit_uuid": "unit",
-            }
+            obj = format_related(obj)
 
-            query_obj = convert_dict(query_obj, replace_dict=dictionary)
-            insert_obj(query_obj, self.managers)
+            obj = convert_dict(obj)
 
+            insert_obj(obj, self.related)
+
+    async def _cache_lora_managers(self) -> None:
         query = """
                         uuid
                         employee_uuid
@@ -795,45 +714,40 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        dictionary = {
+            "employee_uuid": "user",
+            "manager_level_uuid": "manager_level",
+            "manager_type_uuid": "manager_type",
+            "responsibility_uuids": "manager_responsibility",
+            "org_unit_uuid": "unit",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='managers',
-            uuids=uuids,
-            callback_function=process_managers,
-        )
-
-    async def _cache_lora_associations(self, uuids: typing.List[str]) -> None:
-        async def process_associations(query_obj):
-            async def process_associations_helper(res: dict) -> dict:
-                for obj in res["obj"]:
-                    prim = obj.pop("primary")
-                    if prim:
-                        if prim["user_key"] == "primary":
-                            obj["primary_boolean"] = True
-                        else:
-                            obj["primary_boolean"] = False
-                    else:
-                        obj["primary_boolean"] = None
-
-                    if not obj["it_user_uuid"]:
-                        obj["job_function_uuid"] = None
-
-                return res
-
+            query_type="managers",
+        ):
             if not self.full_history:
-                query_obj = align_current(query_obj)
+                obj = align_current(obj)
 
-            replace_dict = {
-                "employee_uuid": "user",
-                "association_type_uuid": "association_type",
-                "it_user_uuid": "it_user",
-                "job_function_uuid": "job_function",
-                "org_unit_uuid": "unit",
-            }
+            obj = convert_dict(obj, replace_dict=dictionary)
+            insert_obj(obj, self.managers)
 
-            query_obj = await process_associations_helper(query_obj)
-            query_obj = convert_dict(query_obj, replace_dict=replace_dict)
-            insert_obj(query_obj, self.associations)
+    async def _cache_lora_associations(self) -> None:
+        async def process_associations_helper(res: dict) -> dict:
+            for obj in res["obj"]:
+                prim = obj.pop("primary")
+                if prim:
+                    if prim["user_key"] == "primary":
+                        obj["primary_boolean"] = True
+                    else:
+                        obj["primary_boolean"] = False
+                else:
+                    obj["primary_boolean"] = None
+
+                if not obj["it_user_uuid"]:
+                    obj["job_function_uuid"] = None
+
+            return res
 
         # TODO job_function_uuid  # Should be None if it_user_uuid is None,
         #  ask Mads why?! #48316 !764 5dc0d245 . Mads is always busy
@@ -854,69 +768,43 @@ class GQLLoraCache:
                         }
             """
 
-        await self._execute_query(
+        replace_dict = {
+            "employee_uuid": "user",
+            "association_type_uuid": "association_type",
+            "it_user_uuid": "it_user",
+            "job_function_uuid": "job_function",
+            "org_unit_uuid": "unit",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='associations',
-            uuids=uuids,
-            callback_function=process_associations,
-        )
+            query_type="associations",
+        ):
+            if not self.full_history:
+                obj = align_current(obj)
+
+            obj = await process_associations_helper(obj)
+            obj = convert_dict(obj, replace_dict=replace_dict)
+            insert_obj(obj, self.associations)
 
     async def _cache_lora_address(self, uuids=None):
-        async def process_addresses(query_obj: dict):
-            async def prep_address(d: dict) -> dict:
-                for obj in d["obj"]:
-                    scope = obj.pop("address_type")["scope"]
+        async def prep_address(d: dict) -> dict:
+            for obj in d["obj"]:
+                scope = obj.pop("address_type")["scope"]
 
-                    obj["scope"] = scope_map[scope]
+                obj["scope"] = scope_map[scope]
 
-                    if scope == "DAR":
-                        obj["dar_uuid"] = obj["value"]
-                    else:
-                        obj["dar_uuid"] = None
+                if scope == "DAR":
+                    obj["dar_uuid"] = obj["value"]
+                else:
+                    obj["dar_uuid"] = None
 
-                    if self.resolve_dar:
-                        obj["value"] = obj.pop("name")
-                    else:
-                        obj.pop("name")
+                if self.resolve_dar:
+                    obj["value"] = obj.pop("name")
+                else:
+                    obj.pop("name")
 
-                return d
-
-            if not self.full_history:
-                query_obj = align_current(query_obj)
-
-            scope_map = {
-                "EMAIL": "E-mail",
-                "WWW": "Url",
-                "PHONE": "Telefon",
-                "PNUMBER": "P-nummer",
-                "EAN": "EAN",
-                "TEXT": "Text",
-                "MULTIFIELD_TEXT": "Multifield_text",
-                "DAR": "DAR",
-            }
-
-            replace_dict = {
-                "employee_uuid": "user",
-                "org_unit_uuid": "unit",
-                "address_type_uuid": "adresse_type",
-                "visibility_uuid": "visibility",
-            }
-
-            # Skip if both of the below are None, should really be an invariant in MO
-            # employee_uuid
-            # org_unit_uuid
-            if any(
-                    map(
-                        lambda o: o["employee_uuid"] is None and o[
-                            "org_unit_uuid"] is None,
-                        query_obj["obj"],
-                    )
-            ):
-                return
-
-            query_obj = await prep_address(query_obj)
-            query_obj = convert_dict(query_obj, replace_dict=replace_dict)
-            insert_obj(query_obj, self.addresses)
+            return d
 
         query = """
                         address_type_uuid
@@ -934,299 +822,45 @@ class GQLLoraCache:
                             to
                         }
             """
+        scope_map = {
+            "EMAIL": "E-mail",
+            "WWW": "Url",
+            "PHONE": "Telefon",
+            "PNUMBER": "P-nummer",
+            "EAN": "EAN",
+            "TEXT": "Text",
+            "MULTIFIELD_TEXT": "Multifield_text",
+            "DAR": "DAR",
+        }
 
-        await self._execute_query(
+        replace_dict = {
+            "employee_uuid": "user",
+            "org_unit_uuid": "unit",
+            "address_type_uuid": "adresse_type",
+            "visibility_uuid": "visibility",
+        }
+
+        async for obj in self._execute_query(
             query=query,
-            query_type='addresses',
-            callback_function=process_addresses,
-            uuids=uuids,
-        )
+            query_type="addresses",
+        ):
+            if not self.full_history:
+                obj = align_current(obj)
 
-    async def init_caching(
-            self,
-            skip_facets=True,
-            skip_classes=True,
-            skip_it_systems=True,
-            skip_users=True,
-            skip_units=True,
-            skip_engagements=True,
-            skip_roles=True,
-            skip_leaves=True,
-            skip_it_connections=True,
-            skip_kles=True,
-            skip_related=True,
-            skip_managers=True,
-            skip_associations=True,
-            skip_addresses=True,
-    ):
-        async def progress(start, name):
-            if start:
-                logger.info(f"Starting {name} cache")
-            else:
-                logger.info(f"Finished caching {name}")
-
-        async def run(query, task, name):
-            objs = []
-            self.gql_queue.put_nowait(progress(True, name))
-            async with self._setup_gql_client() as session:
-                async for obj in execute_paged(
-                        gql_session=session,
-                        document=query,
-                        variable_values=hist,
-                        per_page=5000,
-                ):
-                    objs.append(obj["uuid"])
-                    if len(objs) == self.std_page_size:
-                        self.gql_queue.put_nowait(task(uuids=objs))
-                        objs = []
-                self.gql_queue.put_nowait(task(uuids=objs))
-
-            self.gql_queue.put_nowait(progress(False, name))
-
-        logger.info("start init")
-        hist = self.get_historic_query()
-
-        if not skip_facets:
-            self.gql_queue.put_nowait(progress(True, "facets"))
-            self.gql_queue.put_nowait(self._cache_lora_facets())
-            self.gql_queue.put_nowait(progress(False, "facets"))
-
-        if not skip_classes:
-            self.gql_queue.put_nowait(progress(True, "classes"))
-            self.gql_queue.put_nowait(self._cache_lora_classes())
-            self.gql_queue.put_nowait(progress(False, "classes"))
-
-        if not skip_it_systems:
-            self.gql_queue.put_nowait(progress(True, "it systems"))
-            self.gql_queue.put_nowait(self._cache_lora_itsystems())
-            self.gql_queue.put_nowait(progress(False, "it systems"))
-        async with asyncio.TaskGroup() as tg:
-            if not skip_addresses:
-                addresses = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: addresses(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
+            # Skip if both of the below are None, should really be an invariant in MO
+            # employee_uuid
+            # org_unit_uuid
+            if any(
+                map(
+                    lambda o: o["employee_uuid"] is None and o["org_unit_uuid"] is None,
+                    obj["obj"],
                 )
-                tg.create_task(run(addresses, self._cache_lora_address, "addresses"))
+            ):
+                return
 
-            if not skip_units:
-                units = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: org_units(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(units, self._cache_lora_units, "org units"))
-
-            if not skip_it_connections:
-                itusers = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: itusers(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(
-                    run(itusers, self._cache_lora_it_connections, "it users"))
-
-            if not skip_engagements:
-                engagements = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: engagements (
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(
-                    run(engagements, self._cache_lora_engagements, "engagements"))
-
-            if not skip_users:
-                employees = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: employees(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(employees, self._cache_lora_users, "employees"))
-
-            if not skip_managers:
-                managers = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: managers(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(managers, self._cache_lora_managers, "managers"))
-
-            if not skip_associations:
-                associations = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: associations(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(
-                    run(associations, self._cache_lora_associations, "associations"))
-
-            if not skip_leaves:
-                leaves = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime) {
-                        page: leaves(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(leaves, self._cache_lora_leaves, "leaves"))
-
-            if not skip_roles:
-                roles = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime
-                    ) {
-                        page: roles(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(roles, self._cache_lora_roles, "roles"))
-
-            if not skip_kles:
-                kles = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime
-                    ) {
-                        page: kles(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(run(kles, self._cache_lora_kles, "kles"))
-
-            if not skip_related:
-                related_units = gql(
-                    """
-                    query ($from_date: DateTime,
-                           $limit: int,
-                           $offset: int,
-                           $to_date: DateTime
-                    ) {
-                        page: related_units(
-                            limit: $limit
-                            offset: $offset
-                            from_date: $from_date
-                            to_date: $to_date
-                        ) {
-                            uuid
-                        }
-                    }
-                    """
-                )
-                tg.create_task(
-                    run(related_units, self._cache_lora_related, "related units"))
+            obj = await prep_address(obj)
+            obj = convert_dict(obj, replace_dict=replace_dict)
+            insert_obj(obj, self.addresses)
 
     async def populate_cache_async(self, dry_run=None, skip_associations=False):
         """
@@ -1324,27 +958,24 @@ class GQLLoraCache:
 
         t = time.time()  # noqa: F841
         msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
-
-        await self.init_caching(
-            skip_facets=False,
-            skip_classes=False,
-            skip_it_systems=False,
-            skip_users=False,
-            skip_units=False,
-            skip_engagements=False,
-            skip_roles=False,
-            skip_leaves=False,
-            skip_it_connections=False,
-            skip_kles=False,
-            skip_related=False,
-            skip_managers=False,
-            skip_associations=skip_associations,
-            skip_addresses=False,
-        )
-
-        async with asyncio.TaskGroup() as tg:
-            while not self.gql_queue.empty():
-                tg.create_task(self.gql_queue.get_nowait())
+        async with self._setup_gql_client() as session:
+            self.gql_client_session = session
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(self._cache_lora_address())
+                tg.create_task(self._cache_lora_units())
+                tg.create_task(self._cache_lora_engagements())
+                tg.create_task(self._cache_lora_facets())
+                tg.create_task(self._cache_lora_classes())
+                tg.create_task(self._cache_lora_users())
+                tg.create_task(self._cache_lora_managers())
+                if not skip_associations:
+                    tg.create_task(self._cache_lora_associations())
+                tg.create_task(self._cache_lora_leaves())
+                tg.create_task(self._cache_lora_roles())
+                tg.create_task(self._cache_lora_itsystems())
+                tg.create_task(self._cache_lora_it_connections())
+                tg.create_task(self._cache_lora_kles())
+                tg.create_task(self._cache_lora_related())
 
         async def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")
@@ -1356,7 +987,8 @@ class GQLLoraCache:
         async with asyncio.TaskGroup() as tg:
             tg.create_task(write_caches(self.facets, facets_file, "facets")),
             tg.create_task(
-                write_caches(self.engagements, engagements_file, "engagements")),
+                write_caches(self.engagements, engagements_file, "engagements")
+            ),
             tg.create_task(write_caches(self.classes, classes_file, "classes")),
             tg.create_task(write_caches(self.users, users_file, "users")),
             tg.create_task(write_caches(self.units, units_file, "units")),
@@ -1365,8 +997,9 @@ class GQLLoraCache:
             tg.create_task(write_caches(self.addresses, addresses_file, "addresses")),
             tg.create_task(write_caches(self.roles, roles_file, "roles")),
             tg.create_task(write_caches(self.itsystems, itsystems_file, "itsystems")),
-            tg.create_task(write_caches(self.it_connections, it_connections_file,
-                                        "it_connections")),
+            tg.create_task(
+                write_caches(self.it_connections, it_connections_file, "it_connections")
+            ),
             tg.create_task(write_caches(self.kles, kles_file, "kles")),
             tg.create_task(write_caches(self.related, related_file, "related")),
 
@@ -1380,7 +1013,6 @@ class GQLLoraCache:
         await self.populate_cache_async(
             dry_run=dry_run, skip_associations=skip_associations
         )
-        self.gql_client.close()
 
     def calculate_primary_engagements(self):
         # Needed for compatibility reasons

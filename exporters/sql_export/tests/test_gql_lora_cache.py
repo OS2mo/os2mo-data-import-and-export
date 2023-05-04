@@ -1,4 +1,3 @@
-import asyncio
 import time
 import typing
 from pprint import pprint
@@ -11,6 +10,8 @@ from ..gql_lora_cache_async import GQLLoraCache
 from ..old_lora_cache import OldLoraCache as LoraCache
 
 
+# This is an equivalency test, an integration test, and is thus only designed to
+# be run manually
 class TestEquivalence:
     # The old lora cache had some bugs, this accounts for them when comparing.
     # History and end dates for units, it connections, and managers were bugged, and
@@ -23,17 +24,8 @@ class TestEquivalence:
 
         lc_gql = GQLLoraCache(resolve_dar=True, full_history=True, skip_past=False)
 
-        if cache_type == "units":
-            self.gen_single_cache(lc_gql, skip_units=False)
-            ref_cache = lc_gql.units
-
-        if cache_type == "it_connections":
-            self.gen_single_cache(lc_gql, skip_it_connections=False)
-            ref_cache = lc_gql.it_connections
-
-        if cache_type == "managers":
-            self.gen_single_cache(lc_gql, skip_managers=False)
-            ref_cache = lc_gql.managers
+        if cache_type != "addresses":
+            ref_cache = self.new_cache_helper(lc_gql, cache_type)
 
         if cache_type == "addresses":
             for k, ocl in old_cache.items():
@@ -84,139 +76,52 @@ class TestEquivalence:
 
     # Used as an entry generate a single cache, and get it
     @async_to_sync
-    async def gen_single_cache(
-        self,
-        lc: GQLLoraCache,
-        skip_facets=True,
-        skip_classes=True,
-        skip_it_systems=True,
-        skip_users=True,
-        skip_units=True,
-        skip_engagements=True,
-        skip_roles=True,
-        skip_leaves=True,
-        skip_it_connections=True,
-        skip_kles=True,
-        skip_related=True,
-        skip_managers=True,
-        skip_associations=True,
-        skip_addresses=True,
-    ):
-        await lc.init_caching(
-            skip_facets=skip_facets,
-            skip_classes=skip_classes,
-            skip_it_systems=skip_it_systems,
-            skip_users=skip_users,
-            skip_units=skip_units,
-            skip_engagements=skip_engagements,
-            skip_roles=skip_roles,
-            skip_leaves=skip_leaves,
-            skip_it_connections=skip_it_connections,
-            skip_kles=skip_kles,
-            skip_related=skip_related,
-            skip_managers=skip_managers,
-            skip_associations=skip_associations,
-            skip_addresses=skip_addresses,
-        )
-
-        async with asyncio.TaskGroup() as tg:
-            while not lc.gql_queue.empty():
-                tg.create_task(lc.gql_queue.get_nowait())
-
-
-        if not skip_facets:
-            return lc.facets
-        if not skip_classes:
-            return lc.classes
-        if not skip_it_systems:
-            return lc.itsystems
-        if not skip_users:
-            return lc.users
-        if not skip_units:
-            return lc.units
-        if not skip_engagements:
-            return lc.engagements
-        if not skip_roles:
-            return lc.roles
-        if not skip_leaves:
-            return lc.leaves
-        if not skip_it_connections:
-            return lc.it_connections
-        if not skip_kles:
-            return lc.kles
-        if not skip_related:
-            return lc.related
-        if not skip_managers:
-            return lc.managers
-        if not skip_associations:
-            return lc.associations
-        if not skip_addresses:
-            return lc.addresses
-
-    # Helper for the above func
-    def new_cache_helper(self, lc, cache_name):
-        skip_facets = True
-        skip_classes = True
-        skip_it_systems = True
-        skip_users = True
-        skip_units = True
-        skip_engagements = True
-        skip_roles = True
-        skip_leaves = True
-        skip_it_connections = True
-        skip_kles = True
-        skip_related = True
-        skip_managers = True
-        skip_associations = True
-        skip_addresses = True
-
-        match cache_name:
-            case "facets":
-                skip_facets = False
-            case "classes":
-                skip_classes = False
-            case "it_systems":
-                skip_it_systems = False
-            case "users":
-                skip_users = False
-            case "units":
-                skip_units = False
-            case "engagements":
-                skip_engagements = False
-            case "roles":
-                skip_roles = False
-            case "leaves":
-                skip_leaves = False
-            case "it_connections":
-                skip_it_connections = False
-            case "kles":
-                skip_kles = False
-            case "related":
-                skip_related = False
-            case "managers":
-                skip_managers = False
-            case "associations":
-                skip_associations = False
-            case "addresses":
-                skip_addresses = False
-
-        return self.gen_single_cache(
-            lc=lc,
-            skip_facets=skip_facets,
-            skip_classes=skip_classes,
-            skip_it_systems=skip_it_systems,
-            skip_users=skip_users,
-            skip_units=skip_units,
-            skip_engagements=skip_engagements,
-            skip_roles=skip_roles,
-            skip_leaves=skip_leaves,
-            skip_it_connections=skip_it_connections,
-            skip_kles=skip_kles,
-            skip_related=skip_related,
-            skip_managers=skip_managers,
-            skip_associations=skip_associations,
-            skip_addresses=skip_addresses,
-        )
+    async def new_cache_helper(self, lc, cache_name):
+        async with lc._setup_gql_client() as session:
+            lc.gql_client_session = session
+            match cache_name:
+                case "facets":
+                    await lc._cache_lora_facets()
+                    return lc.facets
+                case "classes":
+                    await lc._cache_lora_classes()
+                    return lc.classes
+                case "it_systems":
+                    await lc._cache_lora_itsystems()
+                    return lc.itsystems
+                case "users":
+                    await lc._cache_lora_users()
+                    return lc.users
+                case "units":
+                    await lc._cache_lora_units()
+                    return lc.units
+                case "engagements":
+                    await lc._cache_lora_engagements()
+                    return lc.facets
+                case "roles":
+                    await lc._cache_lora_roles()
+                    return lc.roles
+                case "leaves":
+                    await lc._cache_lora_leaves()
+                    return lc.leaves
+                case "it_connections":
+                    await lc._cache_lora_it_connections()
+                    return lc.it_connections
+                case "kles":
+                    await lc._cache_lora_kles()
+                    return lc.kles
+                case "related":
+                    await lc._cache_lora_related()
+                    return lc.related
+                case "managers":
+                    await lc._cache_lora_managers()
+                    return lc.managers
+                case "associations":
+                    await lc._cache_lora_associations()
+                    return lc.associations
+                case "addresses":
+                    await lc._cache_lora_address()
+                    return lc.addresses
 
     # Compare the caches one by one, run with
     # poetry run pytest -s
