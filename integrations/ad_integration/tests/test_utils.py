@@ -83,12 +83,6 @@ class ADWriterTestSubclass(ADWriter):
         if kwargs.get("mock_find_ad_user", True):
             self._find_ad_user = lambda ad_user, ad_dump=None: ad_values_func()
 
-        # Avoid circular import
-        from .mocks import MockEmptyADReader
-
-        # Mock `ADWriter._reader` (which is usually an instance of `ADParameterReader`)
-        self._reader = MockEmptyADReader()
-
     def _init_name_creator(self):
         """Mocked to pretend no names are occupied.
 
@@ -375,19 +369,25 @@ class TestADWriterMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
 
-        # Avoid circular import
+        # Avoid circular imports
+        from .mocks import MockEmptyADReader
         from .mocks import MockMOGraphqlSource
 
         with patch(
             "integrations.ad_integration.ad_writer.MOGraphqlSource",
             new=MockMOGraphqlSource,
         ):
-            self.ad_writer = ADWriterTestSubclass(
-                all_settings=self.settings,
-                read_ad_information_from_mo=self.mo_values_func,
-                ad_values_func=self.ad_values_func,
-                **kwargs,
-            )
+            # Patch `ADWriter._reader` to be an instance of `MockEmptyADReader`
+            with patch(
+                "integrations.ad_integration.ad_writer.ADParameterReader",
+                MockEmptyADReader,
+            ):
+                self.ad_writer = ADWriterTestSubclass(
+                    all_settings=self.settings,
+                    read_ad_information_from_mo=self.mo_values_func,
+                    ad_values_func=self.ad_values_func,
+                    **kwargs,
+                )
 
 
 class AdMoSyncTestSubclass(AdMoSync):
