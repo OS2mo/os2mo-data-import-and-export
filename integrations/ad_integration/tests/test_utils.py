@@ -377,10 +377,9 @@ class TestADWriterMixin(TestADMixin):
             "integrations.ad_integration.ad_writer.MOGraphqlSource",
             new=MockMOGraphqlSource,
         ):
-            # Patch `ADWriter._reader` to be an instance of `MockEmptyADReader`
             with patch(
                 "integrations.ad_integration.ad_writer.ADParameterReader",
-                MockEmptyADReader,
+                kwargs.get("mock_ad_reader_class", MockEmptyADReader),
             ):
                 self.ad_writer = ADWriterTestSubclass(
                     all_settings=self.settings,

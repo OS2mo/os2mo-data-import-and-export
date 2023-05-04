@@ -97,6 +97,18 @@ class MockADParameterReaderWithManager(MockADParameterReader):
             }
 
 
+class MockOnlyCPRADParameterReader(MockADParameterReader):
+    """Mock an `ADParameterReader` which only returns an AD user if given a CPR (and
+    returns None if given a username.)
+    """
+
+    def read_user(self, cpr=None, user=None, **kwargs):
+        if user:
+            return None
+        if cpr:
+            return super().read_user(cpr=cpr, **kwargs)
+
+
 class MockMORESTSource(MORESTSource):
     def __init__(self, from_date, to_date):
         self.from_date = from_date

@@ -999,22 +999,34 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Test what happens if `create_user` encounters an already existing AD
         # user (either by username or CPR number lookup.)
 
-        # Avoid circular import
+        # Avoid circular imports
         from .mocks import MockADParameterReader
+        from .mocks import MockOnlyCPRADParameterReader
 
-        def assert_adwriter_get_ad_user_raises(matching_kwarg, expected_exception):
-            self._setup_adwriter()
-            # Replace `ADWriter._reader` with mock `ADParameterReader` which always
-            # returns an AD user for any `user` or `cpr` argument. This means that
-            # `ADWriter.create_user` will always raise an error claiming that the user
-            # already exists.
-            self.ad_writer._reader = MockADParameterReader()
+        def assert_adwriter_get_ad_user_raises(
+            mock_ad_reader_class, expected_exception
+        ):
+            self._setup_adwriter(mock_ad_reader_class=mock_ad_reader_class)
             # Assert we bail early with the proper exception
             with self.assertRaises(expected_exception):
-                self.ad_writer.create_user(mo_uuid="mo-user-uuid", create_manager=False)
+                self.ad_writer.create_user(mo_uuid=MO_UUID, create_manager=False)
 
-        assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
-        assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
+        # Replace `ADWriter._reader` with mock `ADParameterReader` which always returns
+        # an AD user for *any* `user` or `cpr` argument.
+        # This means that `ADWriter._check_if_user_exists` will "see" a mock AD user
+        # when calling `ADWriter._reader.read_user(user=...)` and bail early.
+        assert_adwriter_get_ad_user_raises(
+            MockADParameterReader, SamAccountNameNotUnique
+        )
+
+        # Replace `ADWriter._reader` with mock `ADParameterReader` which returns None
+        # when called with the `user` keyword argument, and a mock AD user when called
+        # with the `cpr` keyword argument
+        # This means that `ADWriter._check_if_user_exists` will "see" a mock AD user
+        # when calling `ADWriter._reader.read_user(cpr=...)` and bail early.
+        assert_adwriter_get_ad_user_raises(
+            MockOnlyCPRADParameterReader, CprNotNotUnique
+        )
 
     def test_other_attributes_skip_empty(self):
         # Configure template which tries to write `mo_values['foobar']` to the
