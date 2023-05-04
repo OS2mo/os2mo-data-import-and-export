@@ -171,7 +171,10 @@ def main(settings: Settings):
     changed = [
         os2sync.upsert_org_unit(org_unit, settings.os2sync_api_url)
         for org_unit in tqdm(
-            mo_org_units.values(), desc="Updating OrgUnits in fk-org", unit="OrgUnit"
+            # Sorting to get a consistent run each time, which makes comparing logs easier
+            sorted(mo_org_units.values(), key=lambda o: o.Uuid),
+            desc="Updating OrgUnits in fk-org",
+            unit="OrgUnit",
         )
     ]
 
@@ -207,7 +210,8 @@ def main(settings: Settings):
     ), "No mo-users were found. Stopping os2sync_export to ensure we won't delete every user from fk-org. Again"
     # Create or update users
     logger.info(f"Medarbejdere overført til OS2SYNC: {len(mo_users)}")
-    for user in mo_users.values():
+    # Sorting to get a consistent run each time, which makes comparing logs easier
+    for user in sorted(mo_users.values(), key=lambda u: u["Uuid"]):
         os2sync.upsert_user(user)
 
     # Delete any user not in os2mo

@@ -8,6 +8,7 @@
 import hashlib
 import json
 import logging
+from functools import lru_cache
 from typing import Dict
 from typing import Set
 from typing import Tuple
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 hash_cache: Dict = {}
 
 
+@lru_cache
 def get_os2sync_session():
 
     session = requests.Session()
