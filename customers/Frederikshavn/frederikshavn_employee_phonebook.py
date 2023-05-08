@@ -37,9 +37,9 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         session.query(Adresse.værdi)
         .filter(
             Adresse.adressetype_titel
-            == settings.sql_cell_phone_number_field,  # "AD-Mobil"
+            == "AD-Mobil",  # settings.sql_cell_phone_number_field,  # "AD-Mobil"
             and_(
-                Adresse.synlighed_scope != settings.sql_visibility_scope_field
+                Adresse.synlighed_scope != "SECRET",  # settings.sql_visibility_scope_field
             ),  # "SECRET"
         )
         .subquery()
@@ -49,16 +49,16 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         session.query(Adresse.værdi)
         .filter(
             Adresse.adressetype_titel
-            == settings.sql_phone_number_field,  # "AD-Telefonnummer"
+            == "AD-Telefonnummer",  # settings.sql_phone_number_field,
             and_(
-                Adresse.synlighed_scope != settings.sql_visibility_scope_field
-            ),  # "SECRET"
+                Adresse.synlighed_scope != "SECRET"  # settings.sql_visibility_scope_field
+            ),
         )
         .subquery()
     )
 
     Afdelinger = session.query(Enhed.navn).filter(
-        Enhed.bvn != settings.sql_excluded_organisation_units_user_key  # 1018136
+        Enhed.bvn != "1018136"  # settings.sql_excluded_organisation_units_user_key  # 1018136
     )
 
     query = (
@@ -71,15 +71,14 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         )
         .filter(
             Enhed.uuid == Engagement.enhed_uuid,
-            and_(
-                Engagement.enhed_uuid.in_(alle_enheder),
-                Engagement.enhed_uuid != settings.sql_excluded_organisation_units_uuid,
-            ),
+            Engagement.enhed_uuid.in_(alle_enheder),
+            Engagement.enhed_uuid != "f11963f6-2df5-9642-f1e3-0983dad332f4",  # settings
+            # .sql_excluded_organisation_units_uuid,
             Engagement.bruger_uuid == Bruger.uuid,
         )
-        .join(Cellphonenr, Cellphonenr.c.værdi == Bruger.fornavn, isouter=True)
-        .join(Phonenr, Phonenr.c.værdi == Bruger.fornavn, isouter=True)
-        .join(Afdelinger, Afdelinger.c.navn == Bruger.fornavn, isouter=True)
+        .join(Cellphonenr, Cellphonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(Afdelinger, Afdelinger.c.navn == Enhed.navn, isouter=True)
         .order_by(Bruger.efternavn)
     )
     data = query.all()
@@ -104,9 +103,11 @@ if __name__ == "__main__":
     settings.start_logging_based_on_settings()
     file_path = settings.report_dir_path
 
+    print("Initiating report.")
     run_report(
         list_employees_for_phonebook,
         "Medarbejdertelefonbog",
         "Frederikshavn Kommune",
-        file_path + "/Medarbejdertelefonbog.xlsx",
+        file_path + "/TestMedarbejdertelefonbog.xlsx",
     )
+    print("Report successfully done!")
