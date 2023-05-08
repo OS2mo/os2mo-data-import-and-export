@@ -7,8 +7,8 @@ from exporters.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_table_defs import Bruger
 from exporters.sql_export.sql_table_defs import Engagement
 from exporters.sql_export.sql_table_defs import Enhed
-from reports.query_actualstate import expand_org_path
 from reports.query_actualstate import run_report
+from reports.query_actualstate import run_report_as_csv
 from reports.query_actualstate import set_of_org_units
 
 
@@ -34,31 +34,38 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     alle_enheder = set_of_org_units(session, org_name)
 
     Cellphonenr = (
-        session.query(Adresse.værdi)
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
             Adresse.adressetype_titel
             == "AD-Mobil",  # settings.sql_cell_phone_number_field,  # "AD-Mobil"
             and_(
-                Adresse.synlighed_scope != "SECRET",  # settings.sql_visibility_scope_field
+                Adresse.synlighed_scope
+                != "SECRET",  # settings.sql_visibility_scope_field
             ),  # "SECRET"
         )
         .subquery()
     )
 
     Phonenr = (
-        session.query(Adresse.værdi)
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
             Adresse.adressetype_titel
             == "AD-Telefonnummer",  # settings.sql_phone_number_field,
             and_(
-                Adresse.synlighed_scope != "SECRET"  # settings.sql_visibility_scope_field
+                Adresse.synlighed_scope
+                != "SECRET"  # settings.sql_visibility_scope_field
             ),
         )
         .subquery()
     )
 
-    Afdelinger = session.query(Enhed.navn).filter(
-        Enhed.bvn != "1018136"  # settings.sql_excluded_organisation_units_user_key  # 1018136
+    Afdelinger = (
+        session.query(Enhed.navn)
+        .filter(
+            Enhed.bvn
+            != "1018136"  # settings.sql_excluded_organisation_units_user_key  # 1018136
+        )
+        .subquery()
     )
 
     query = (
@@ -92,7 +99,8 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
             "Stilling",
         ],
     )
-    data_df = expand_org_path(data_df, "Sti")
+    print(data_df.columns)
+
     # Return data as a list of tuples with columns as the first element
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
     return parsed_data
@@ -111,3 +119,11 @@ if __name__ == "__main__":
         file_path + "/TestMedarbejdertelefonbog.xlsx",
     )
     print("Report successfully done!")
+
+    print("Initiating CSV report.")
+    run_report_as_csv(
+        list_employees_for_phonebook,
+        "Frederikshavn Kommune",
+        file_path + "/TestMedarbejdertelefonbog.csv",
+    )
+    print("CSV report successfully done!")
