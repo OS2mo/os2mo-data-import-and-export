@@ -5,6 +5,7 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
+import csv
 from typing import Dict, List
 
 import jmespath
@@ -42,8 +43,13 @@ def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
 
 def set_of_org_units(session, org_name: str) -> set:
     """Find all uuids of org_units under the organisation  :code:`org_name`."""
+    query_result = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
 
-    hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
+    if query_result is None:
+        raise ValueError(f"No organization unit found with name '{org_name}'")
+
+    else:
+        hoved_enhed = query_result[0]
 
     # Find all children of the unit and collect in a set
     def find_children(enheder):
@@ -365,3 +371,19 @@ def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
     excel = XLSXExporter(xlsx_file)
     excel.add_sheet(workbook, sheetname, data)
     workbook.close()
+
+
+def run_report_as_csv(reporttype, org_name: str, file_name: str):
+
+    # Make a sqlalchemy session - Name of database is read from settings
+    session = sessionmaker(bind=get_engine(), autoflush=False)()
+
+    # Make the query
+    data = reporttype(session, org_name)
+
+    # write data as csv file
+    with open(file_name, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(data.columns)
+        for row in data.itertuples(index=False):
+            writer.writerow(row)
