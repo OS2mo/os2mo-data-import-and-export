@@ -165,8 +165,8 @@ def main(settings: Settings):
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
     gql_client = setup_gql_client(settings)
-    assert (
-        not settings.os2sync_use_lc_db and settings.os2sync_use_graphql
+    assert not (
+        settings.os2sync_use_lc_db and settings.os2sync_use_graphql
     ), "Configuration error. lc_db and use_graphql are mutually exclusive"
     if settings.os2sync_use_graphql:
         with gql_client as gql_session:

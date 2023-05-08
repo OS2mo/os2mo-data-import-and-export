@@ -658,7 +658,9 @@ def show_all_details(uuid, objtyp):
 
 
 def get_address_from_scope(addresses: dict, scope: str) -> str | None:
-    return first(filter(lambda a: a["address_type"]["scope"] == scope, addresses))
+    return first(filter(lambda a: a["address_type"]["scope"] == scope, addresses))[
+        "value"
+    ]
 
 
 class OS2syncExporter:
@@ -793,7 +795,7 @@ class OS2syncExporter:
         os2sync_org_units: list[OrgUnit] = []
         for o in org_units_info:
             try:
-                self._create_os2sync_org_unit_payload(o)
+                os2sync_org_units.append(self._create_os2sync_org_unit_payload(o))
             except ValueError:
                 logger.debug("ignored unit")
 
