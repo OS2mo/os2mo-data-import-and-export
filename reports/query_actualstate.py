@@ -92,12 +92,10 @@ def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
 
 def set_of_org_units(session, org_name: str) -> set:
     """Find all uuids of org_units under the organisation  :code:`org_name`."""
-    query_result = (
-        session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
-    )
+    query_result = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
 
     if query_result is None:
-        raise ValueError(f'No organisation unit was found with name: "{org_name}"')
+        raise ValueError(f"No organization unit found with name '{org_name}'")
 
     else:
         hoved_enhed = query_result[0]
@@ -124,7 +122,7 @@ def set_of_org_units(session, org_name: str) -> set:
     return alle_enheder
 
 
-class Settings(BaseSettings):  # type: ignore
+class Settings(BaseSettings):
     mora_base: str = "http://localhost:5000"
     client_id: str = "dipex"
     client_secret: str
