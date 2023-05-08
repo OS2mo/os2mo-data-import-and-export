@@ -164,7 +164,16 @@ def main(settings: Settings):
     request_uuid = os2sync.trigger_hierarchy(
         os2sync_client, os2sync_api_url=settings.os2sync_api_url
     )
-    mo_org_units = read_all_org_units(settings)
+    gql_client = setup_gql_client(settings)
+    assert (
+        not settings.os2sync_use_lc_db and settings.os2sync_use_graphql
+    ), "Configuration error. lc_db and use_graphql are mutually exclusive"
+    if settings.os2sync_use_graphql:
+        with gql_client as gql_session:
+            exporter = os2mo.OS2syncExporter(settings, gql_session)
+            mo_org_units = exporter.get_org_units()
+    else:
+        mo_org_units = read_all_org_units(settings)
 
     logger.info(f"Orgenheder som tjekkes i OS2Sync: {len(mo_org_units)}")
 

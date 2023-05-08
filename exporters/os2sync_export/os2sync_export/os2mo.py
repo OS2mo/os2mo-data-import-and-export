@@ -655,3 +655,146 @@ def show_all_details(uuid, objtyp):
                 os2mo_get("{BASE}/" + objtyp + "/" + uuid + "/details/" + d).json()
             )
     print(" ---- end of details ----\n")
+
+
+def get_address_from_scope(addresses: dict, scope: str) -> str | None:
+    return first(filter(lambda a: a["address_type"]["scope"] == scope, addresses))
+
+
+class OS2syncExporter:
+    def __init__(self, settings: Settings, gql_session):
+        self.settings = settings
+        self.gql_session = gql_session
+
+    def _fetch_org_unit_info(self, uuids) -> list[dict]:
+        q = gql(
+            """
+        query MyQuery($uuids: [UUID!]) {
+        org_units(uuids: $uuids) {
+            current {
+                name
+                parent {
+                 itusers {
+                    user_key
+                    itsystem {
+                    name
+                    }
+                }
+                }
+                org_unit_level_uuid
+                unit_type_uuid
+                uuid
+                user_key
+                kles {
+                    kle_number {
+                        full_name
+                        uuid
+                    }
+                    kle_aspects {
+                        name
+                        uuid
+                    }
+                }
+                itusers {
+                    user_key
+                    itsystem {
+                        name
+                        uuid
+                    }
+                }
+                managers {
+                    uuid
+                }
+                addresses {
+                    address_type {
+                    name
+                    scope
+                    }
+                    value
+                }
+            }
+        }
+       }
+        """
+        )
+        res = self.gql_session.execute(
+            q,
+            variable_values={
+                "uuids": [str(u) for u in uuids] if uuids else None,
+                "hierarchies": [
+                    str(h) for h in self.settings.os2sync_filter_hierarchy_names
+                ]
+                if self.settings.os2sync_filter_hierarchy_names
+                else None,
+            },
+        )
+
+        return [o["current"] for o in res["org_units"]]
+
+    def _create_os2sync_org_unit_payload(self, org_unit_info) -> OrgUnit:
+        logger.info(org_unit_info)
+        if (
+            UUID(org_unit_info["org_unit_level_uuid"])
+            in self.settings.os2sync_ignored_unit_levels
+            or UUID(org_unit_info["unit_type_uuid"])
+            in self.settings.os2sync_ignored_unit_types
+        ):
+            raise ValueError("Ignored unit level or type")
+        uuid = get_fk_org_uuid(
+            org_unit_info["itusers"],
+            org_unit_info["uuid"],
+            self.settings.os2sync_uuid_from_it_systems,
+        )
+        name = org_unit_info["name"]
+        parent = (
+            get_fk_org_uuid(
+                org_unit_info["parent"].get("itusers"),
+                org_unit_info["parent"].get("uuid"),
+                self.settings.os2sync_uuid_from_it_systems,
+            )
+            if org_unit_info["parent"]
+            else None
+        )
+
+        manager = (
+            org_unit_info["managers"]["uuid"]
+            if self.settings.os2sync_sync_managers
+            else None
+        )
+        email = get_address_from_scope(org_unit_info["addresses"], "EMAIL")
+        pnr = get_address_from_scope(org_unit_info["addresses"], "PNUMBER")
+        ean = get_address_from_scope(org_unit_info["addresses"], "EAN")
+        kles, contactfortasks = partition_kle(
+            org_unit_info["kles"], self.settings.os2sync_use_contact_for_tasks
+        )
+        itsystems: dict[str, list[str]] = {"ItSystemUuids": []}
+        itsystems_to_orgunit(
+            itsystems,
+            org_unit_info["itusers"],
+            self.settings.os2sync_uuid_from_it_systems,
+        )
+        it_uuids = itsystems["ItSystemUuids"]
+        o = OrgUnit(
+            Uuid=uuid,
+            Name=name,
+            ParentOrgUnitUuid=parent,
+            ManagerUuid=manager,
+            PNR=pnr,
+            EAN=ean,
+            Email=email,
+            ItSystems=it_uuids,
+            tasks=kles,
+        )
+        logger.info(o)
+        return o
+
+    def get_org_units(self, uuids: list[UUID] | None = None) -> dict[UUID, OrgUnit]:
+        org_units_info = self._fetch_org_unit_info(uuids)
+        os2sync_org_units: list[OrgUnit] = []
+        for o in org_units_info:
+            try:
+                self._create_os2sync_org_unit_payload(o)
+            except ValueError:
+                logger.debug("ignored unit")
+
+        return {o.Uuid: o for o in os2sync_org_units}
