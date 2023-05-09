@@ -31,6 +31,7 @@ from exporters.sql_export.sql_table_defs import (
 )
 
 
+
 class XLSXExporter:
     """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its
     content.
@@ -70,6 +71,12 @@ class XLSXExporter:
         worksheet.set_row(0, cell_format=bold)
 
         self.write_rows(worksheet, data)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
+from reports.XLSXExporter import XLSXExporter
 
 
 def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
@@ -85,10 +92,12 @@ def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
 
 def set_of_org_units(session, org_name: str) -> set:
     """Find all uuids of org_units under the organisation  :code:`org_name`."""
-    query_result = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
+    query_result = (
+        session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
+    )
 
     if query_result is None:
-        raise ValueError(f"No organization unit found with name '{org_name}'")
+        raise ValueError(f'No organisation unit was found with name: "{org_name}"')
 
     else:
         hoved_enhed = query_result[0]
@@ -423,9 +432,11 @@ def run_report_as_csv(reporttype, org_name: str, file_name: str):
     # Make the query
     data = reporttype(session, org_name)
 
+    data_df = pd.DataFrame(data)
+
     # write data as csv file
-    with open(file_name, 'w', newline='', encoding='utf-8') as csvfile:
+    with open(file_name, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(data.columns)
-        for row in data.itertuples(index=False):
+        writer.writerow(data_df.columns)
+        for row in data_df.itertuples(index=False):
             writer.writerow(row)
