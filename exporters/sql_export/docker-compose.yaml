@@ -12,13 +12,14 @@ services:
       MORA_BASE: "http://mo"
       MOX_BASE: "http://mo/lora"
 
-      LOG_LEVEL: INFO
+      LOG_LEVEL: DEBUG
 
       ACTUAL_STATE__TYPE: Postgres
       ACTUAL_STATE__HOST: export-db
       ACTUAL_STATE__DB_NAME: actualstate
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
+      ENABLE_METRICS: "false"
     ports:
       - 8000:8000/tcp
     volumes:

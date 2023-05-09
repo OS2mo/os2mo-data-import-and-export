@@ -12,7 +12,7 @@ from pathlib import Path
 import aiofiles
 from dateutil.parser import parse as parse_date
 from gql import gql
-from iteration_utilities import one
+from more_itertools import one
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
