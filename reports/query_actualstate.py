@@ -92,10 +92,12 @@ def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
 
 def set_of_org_units(session, org_name: str) -> set:
     """Find all uuids of org_units under the organisation  :code:`org_name`."""
-    query_result = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
+    query_result = (
+        session.query(Enhed.uuid).filter(Enhed.navn == org_name).one_or_none()
+    )
 
     if query_result is None:
-        raise ValueError(f"No organization unit found with name '{org_name}'")
+        raise ValueError(f'No organisation unit was found with name: "{org_name}"')
 
     else:
         hoved_enhed = query_result[0]
@@ -433,7 +435,7 @@ def run_report_as_csv(reporttype, org_name: str, file_name: str):
     data_df = pd.DataFrame(data)
 
     # write data as csv file
-    with open(file_name, "w+", newline="", encoding="utf-8") as csvfile:
+    with open(file_name, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(data_df.columns)
         for row in data_df.itertuples(index=False):
