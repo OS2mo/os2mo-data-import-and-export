@@ -198,7 +198,6 @@ class TestEquivalence:
         lc_gql = GQLLoraCache(
             resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
         )
-        lc_gql.concurrency = 2
 
         if name == "it_connections" or name == "associations":
             lc_old.classes = lc_old._cache_lora_classes()

@@ -109,7 +109,6 @@ class GQLLoraCache:
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
         self.std_page_size = 100
-        self.concurrency = 5
         self.resolve_dar = resolve_dar
 
         self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
@@ -131,6 +130,7 @@ class GQLLoraCache:
         self.it_connections: dict = {}
         self.kles: dict = {}
         self.related: dict = {}
+        self.dar_cache: dict = {}
 
         self.gql_client_session: GraphQLClient
 
