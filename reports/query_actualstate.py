@@ -155,7 +155,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
 
     """
 
-    settings = Settings()
+    settings = Settings()  # type: ignore
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {
@@ -435,7 +435,7 @@ def run_report_as_csv(reporttype, org_name: str, file_name: str):
     data_df = pd.DataFrame(data)
 
     # write data as csv file
-    with open(file_name, "w", newline="", encoding="utf-8") as csvfile:
+    with open(file_name, "w+", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(data_df.columns)
         for row in data_df.itertuples(index=False):
