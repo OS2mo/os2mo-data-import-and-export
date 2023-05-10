@@ -91,10 +91,10 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         data,
         columns=[
             "Navn",
-            "AD-Mobil",
-            "AD-Telefonnummer",
-            "Enhed",
-            "Stilling",
+            "Mobil nr.",
+            "Telefon nr.",
+            "Afdeling",
+            "Stillingsbetegnelse",
         ],
     )
     print(data_df.columns)
