@@ -40,8 +40,8 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
             == "AD-Mobil",  # settings.sql_cell_phone_number_field,  # "AD-Mobil"
             and_(
                 Adresse.synlighed_scope
-                != "SECRET",  # settings.sql_visibility_scope_field
-            ),  # "SECRET"
+                != "SECRET",  # settings.sql_visibility_scope_field "SECRET"
+            ),
         )
         .subquery()
     )
@@ -49,12 +49,11 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel
-            == "AD-Telefonnummer",  # settings.sql_phone_number_field,
-            and_(
-                Adresse.synlighed_scope
-                != "SECRET"  # settings.sql_visibility_scope_field
-            ),
+            Adresse.adressetype_titel.in_(
+                ["AD-Telefonnummer", "Telefon"]
+            ),  # settings.sql_phone_number_field
+            Adresse.synlighed_scope != "SECRET",  # settings.sql_visibility_scope_field
+            Adresse.adressetype_titel != "Hemmelig",
         )
         .subquery()
     )
