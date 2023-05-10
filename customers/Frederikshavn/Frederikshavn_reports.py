@@ -3,7 +3,9 @@ import sys
 
 from ra_utils.load_settings import load_settings
 
-from reports.query_actualstate import list_employees, list_MED_members, run_report
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import run_report
 
 LOG_LEVEL = logging.DEBUG
 
@@ -24,8 +26,8 @@ if __name__ == "__main__":
     run_report(
         list_MED_members,
         "MED",
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
-        query_path + "/MED_medlemmer.xlsx",
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
+        query_path + "/TEST_MED_medlemmer.xlsx",
     )
     logger.debug("MED report done.")
     # Lav rapport over Ansatte i kommunen.
