@@ -25,9 +25,9 @@ class LoraCacheSettings(JobSettings):
 
 
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    settings = LoraCacheSettings()
+    settings = settings or LoraCacheSettings()
 
-    if settings.use_new_cache:
+    if isinstance(settings, LoraCacheSettings) and settings.use_new_cache:
         # If using the new cache, use the new type of settings, which it reads itself
         return GQLLoraCache(
             resolve_dar=resolve_dar, full_history=full_history, skip_past=skip_past
