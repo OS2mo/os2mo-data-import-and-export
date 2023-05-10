@@ -26,8 +26,8 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
     Example:
         [
-            (Navn", "Telefon", "Enhed", "Stilling"),
-            ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678",
+            ("Navn", "Mobil", "Telefon", "Enhed", "Stilling"),
+            ("Fornavn Efternavn", 0123456789, "12345678",
                 "Enhedsnavn", "Stillingsbetegnelse")
         ]
     """
@@ -71,10 +71,10 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     query = (
         session.query(
             Bruger.fornavn + " " + Bruger.efternavn,
-            Engagement.stillingsbetegnelse_titel,
-            Afdelinger.c.navn,
-            Phonenr.c.værdi,
             Cellphonenr.c.værdi,
+            Phonenr.c.værdi,
+            Afdelinger.c.navn,
+            Engagement.stillingsbetegnelse_titel,
         )
         .filter(
             Enhed.uuid == Engagement.enhed_uuid,
