@@ -18,7 +18,7 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
 class LoraCacheSettings(JobSettings):
-    use_new_cache: bool = True
+    use_new_cache: bool = False
 
     class Config:
         settings_json_prefix = ""
