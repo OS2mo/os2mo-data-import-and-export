@@ -17,7 +17,9 @@ from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 
-from .lora_cache import LoraCache
+from .gql_lora_cache_async import GQLLoraCache
+from .lora_cache import get_cache as LoraCache
+from .old_lora_cache import OldLoraCache
 from .sql_table_defs import Adresse
 from .sql_table_defs import Base
 from .sql_table_defs import Bruger
@@ -73,7 +75,9 @@ class SqlExport:
     def _get_export_cpr_setting(self) -> bool:
         return self.settings.get("exporters.actual_state.export_cpr", True)
 
-    def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
+    def _get_lora_cache(
+        self, resolve_dar, use_pickle
+    ) -> typing.Union[OldLoraCache, GQLLoraCache]:
         if self.historic:
             lc = LoraCache(
                 resolve_dar=resolve_dar, full_history=True, settings=self.settings

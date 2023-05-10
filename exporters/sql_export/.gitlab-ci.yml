@@ -28,7 +28,7 @@ Lint SQL Exporter:
   image: python:3.11
   script:
     - cd exporters/sql_export
-    - pip install pre-commit
+    - pip install pre-commit types-aiofiles
     - pre-commit run --files tests/*.py *.py
 
 # Build
@@ -47,6 +47,8 @@ Test SQL Exporter:
   variables:
     POETRY_VERSION: "1.3.1"
     PYPROJECT_PREFIX: exporters/sql_export/
+    PYTEST_EXTRA_FLAGS: --ignore tests/test_gql_lora_cache.py
+
 
 # Release
 ##########

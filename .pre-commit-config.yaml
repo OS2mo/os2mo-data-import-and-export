@@ -19,6 +19,7 @@ repos:
           - types-requests
           - types-python-dateutil
           - types-paramiko
+          - types-aiofiles
         args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
         exclude: integrations/opus/
 

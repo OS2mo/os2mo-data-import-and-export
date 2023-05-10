@@ -7,13 +7,13 @@ from hypothesis import given
 from hypothesis import strategies
 from parameterized import parameterized
 
-from ..lora_cache import LoraCache
+from ..old_lora_cache import OldLoraCache
 
 # Some tests can't handle '\n', though the program can.
 st_text = strategies.text().filter(lambda x: "\n" not in x)
 
 
-class _TestableLoraCache(LoraCache):
+class _TestableLoraCache(OldLoraCache):
     def _load_settings(self):
         return {"mox.base": "bogus://"}
 
