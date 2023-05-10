@@ -24,14 +24,8 @@ class LoraCacheSettings(JobSettings):
         settings_json_prefix = ""
 
 
-def init_settings():
-    pydantic_settings = LoraCacheSettings()
-    pydantic_settings.start_logging_based_on_settings()
-    return pydantic_settings
-
-
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    settings = init_settings()
+    settings = LoraCacheSettings()
 
     if settings.use_new_cache:
         # If using the new cache, use the new type of settings, which it reads itself
@@ -50,8 +44,6 @@ def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=No
 def fetch_loracache() -> Tuple[
     typing.Union[OldLoraCache, GQLLoraCache], typing.Union[OldLoraCache, GQLLoraCache]
 ]:
-    init_settings()
-
     # Here we should activate read-only mode, actual state and
     # full history dumps needs to be in sync.
 
@@ -84,7 +76,7 @@ def fetch_loracache() -> Tuple[
 )
 @click.option("--read-from-cache", is_flag=True)
 def cli(historic, skip_past, resolve_dar, read_from_cache):
-    init_settings()
+    LoraCacheSettings().start_logging_based_on_settings()
     lc = get_cache(
         full_history=historic,
         skip_past=skip_past,

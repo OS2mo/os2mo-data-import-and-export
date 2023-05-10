@@ -134,7 +134,6 @@ class GQLLoraCache:
 
         self.gql_client_session: GraphQLClient
 
-        self.settings.start_logging_based_on_settings()
         self.org_uuid = self._get_org_uuid()
 
     def _setup_gql_client(self) -> GraphQLClient:
