@@ -6,17 +6,15 @@ import os
 import pickle
 import time
 import typing
-from enum import Enum
 from pathlib import Path
 
 import aiofiles
 from dateutil.parser import parse as parse_date
 from gql import gql
-from more_itertools import one
+from more_itertools import first
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
-from raclients.graph.client import PersistentGraphQLClient
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
@@ -25,14 +23,10 @@ RETRY_MAX_TIME = 60 * 5
 
 
 class GqlLoraCacheSettings(JobSettings):
+    use_new_cache: bool = False
+
     class Config:
         pass
-
-
-class QueryType(Enum):
-    SIMPLE = 1
-    HISTORIC = 2
-    CURRENT = 3
 
 
 logger = logging.getLogger(__name__)
@@ -104,14 +98,13 @@ class GQLLoraCache:
         resolve_dar: bool = True,
         full_history: bool = False,
         skip_past: bool = False,
-        settings: GqlLoraCacheSettings | None = None,
+        settings=None,
     ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
-        self.std_page_size = 100
+        self.std_page_size = 500
         self.resolve_dar = resolve_dar
-
-        self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
+        self.settings: GqlLoraCacheSettings = GqlLoraCacheSettings()
 
         self.full_history = full_history
         self.skip_past = skip_past
@@ -137,7 +130,7 @@ class GQLLoraCache:
         self.org_uuid = self._get_org_uuid()
 
     def _setup_gql_client(self) -> GraphQLClient:
-        return PersistentGraphQLClient(
+        return GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v3",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,
@@ -182,8 +175,8 @@ class GQLLoraCache:
         if simple_query:
             query_header = (
                 """
-                        query ($limit: int, $offset: int) {
-                            page: """
+                            query ($limit: int, $offset: int) {
+                                page: """
                 + query_type
                 + """ (limit: $limit, offset: $offset){
                     """
@@ -196,8 +189,8 @@ class GQLLoraCache:
             if not self.full_history:
                 query_header = (
                     """
-                        query ($limit: int, $offset: int) {
-                            page: """
+                            query ($limit: int, $offset: int) {
+                                page: """
                     + query_type
                     + """ (limit: $limit, offset: $offset){
                         uuid
@@ -207,11 +200,11 @@ class GQLLoraCache:
             if self.full_history:
                 query_header = (
                     """
-                        query ($to_date: DateTime,
-                               $from_date: DateTime,
-                               $limit: int,
-                               $offset: int) {
-                            page: """
+                            query ($to_date: DateTime,
+                                   $from_date: DateTime,
+                                   $limit: int,
+                                   $offset: int) {
+                                page: """
                     + query_type
                     + """ (from_date: $from_date,
                                                      to_date: $to_date,
@@ -386,17 +379,40 @@ class GQLLoraCache:
 
     async def _cache_lora_units(self) -> None:
         async def format_managers_and_location(qr: dict):
+            def find_manager(managers: typing.List[dict]) -> str | None:
+                if not managers:
+                    return None
+                if (
+                    self.settings.exporters_actual_state_manager_responsibility_class
+                    is None
+                ):
+                    return first(managers)["uuid"]
+                return first(
+                    map(
+                        lambda m: m["uuid"],
+                        filter(
+                            lambda man: (man["org_unit_uuid"] == qr["uuid"])
+                            and (
+                                self.settings.exporters_actual_state_manager_responsibility_class
+                                in man["responsibility_uuids"]
+                            ),
+                            managers,
+                        ),
+                    ),
+                    None,
+                )
+
             for obj in qr["obj"]:
                 if not self.full_history:
                     if obj["manager_uuid"]:
-                        obj["manager_uuid"] = one(obj["manager_uuid"])["uuid"]
+                        obj["manager_uuid"] = find_manager(obj["manager_uuid"])
                     else:
                         obj["manager_uuid"] = None
 
                     if obj["acting_manager_uuid"]:
-                        obj["acting_manager_uuid"] = one(obj["acting_manager_uuid"])[
-                            "uuid"
-                        ]
+                        obj["acting_manager_uuid"] = find_manager(
+                            obj["acting_manager_uuid"]
+                        )
                     else:
                         obj["acting_manager_uuid"] = None
 
@@ -433,9 +449,13 @@ class GQLLoraCache:
                             parent_uuid
                             org_unit_hierarchy_uuid: org_unit_hierarchy
                             manager_uuid: managers(inherit: false) {
+                                org_unit_uuid
+                                responsibility_uuids
                                 uuid
                             }
                             acting_manager_uuid: managers(inherit: true) {
+                                org_unit_uuid
+                                responsibility_uuids
                                 uuid
                             }
                             ancestors {
@@ -786,7 +806,7 @@ class GQLLoraCache:
             obj = convert_dict(obj, replace_dict=replace_dict)
             insert_obj(obj, self.associations)
 
-    async def _cache_lora_address(self, uuids=None):
+    async def _cache_lora_address(self):
         async def prep_address(d: dict) -> dict:
             for obj in d["obj"]:
                 scope = obj.pop("address_type")["scope"]
@@ -855,7 +875,7 @@ class GQLLoraCache:
                     obj["obj"],
                 )
             ):
-                return
+                continue
 
             obj = await prep_address(obj)
             obj = convert_dict(obj, replace_dict=replace_dict)

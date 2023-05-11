@@ -5,9 +5,9 @@ from typing import Tuple
 
 import click
 from dateutil import tz
-from ra_utils.job_settings import JobSettings
 
 from .gql_lora_cache_async import GQLLoraCache
+from .gql_lora_cache_async import GqlLoraCacheSettings
 from .old_lora_cache import OldLoraCache
 
 logger = logging.getLogger(__name__)
@@ -17,17 +17,12 @@ DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
-class LoraCacheSettings(JobSettings):
-    use_new_cache: bool = False
-
-    class Config:
-        settings_json_prefix = ""
-
-
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    settings = settings or LoraCacheSettings()
+    settings = settings or GqlLoraCacheSettings()
 
-    if isinstance(settings, LoraCacheSettings) and settings.use_new_cache:
+    if (isinstance(settings, GqlLoraCacheSettings) and settings.use_new_cache) or (
+        isinstance(settings, dict) and settings.get("use_new_cache")
+    ):
         # If using the new cache, use the new type of settings, which it reads itself
         return GQLLoraCache(
             resolve_dar=resolve_dar, full_history=full_history, skip_past=skip_past
@@ -76,7 +71,7 @@ def fetch_loracache() -> Tuple[
 )
 @click.option("--read-from-cache", is_flag=True)
 def cli(historic, skip_past, resolve_dar, read_from_cache):
-    LoraCacheSettings().start_logging_based_on_settings()
+    GqlLoraCacheSettings().start_logging_based_on_settings()
     lc = get_cache(
         full_history=historic,
         skip_past=skip_past,
