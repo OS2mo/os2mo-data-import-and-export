@@ -6,7 +6,6 @@ from ra_utils.load_settings import load_settings
 from reports.query_actualstate import list_employees
 from reports.query_actualstate import list_MED_members
 from reports.query_actualstate import run_report
-from reports.query_actualstate import run_report_as_csv
 
 LOG_LEVEL = logging.DEBUG
 
@@ -28,14 +27,9 @@ if __name__ == "__main__":
         list_MED_members,
         "MED",
         {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
-        query_path + "/TEST_MED_medlemmer.xlsx",
+        query_path + "/MED_medlemmer.xlsx",
     )
     logger.debug("MED report done.")
-    run_report_as_csv(
-        list_MED_members,
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
-        query_path + "/TEST_MED_medlemmer.csv",
-    )
 
     # Lav rapport over Ansatte i kommunen.
     run_report(

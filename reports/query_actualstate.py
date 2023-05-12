@@ -5,7 +5,6 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
-import csv
 from typing import Dict
 from typing import List
 
@@ -365,21 +364,3 @@ def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
     excel = XLSXExporter(xlsx_file)
     excel.add_sheet(workbook, sheetname, data)
     workbook.close()
-
-
-def run_report_as_csv(reporttype, org_name: str, file_name: str):
-
-    # Make a sqlalchemy session - Name of database is read from settings
-    session = sessionmaker(bind=get_engine(), autoflush=False)()
-
-    # Make the query
-    data = reporttype(session, org_name)
-
-    data_df = pd.DataFrame(data)
-
-    # write data as csv file
-    with open(file_name, "w+", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(data_df.columns)
-        for row in data_df.itertuples(index=False):
-            writer.writerow(row)
