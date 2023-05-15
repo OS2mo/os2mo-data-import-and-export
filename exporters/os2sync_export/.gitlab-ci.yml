@@ -47,7 +47,7 @@ Test OS2SYNC exporter:
     HYPOTHESIS_PROFILE: ci
   script:
     - cd /app/
-    - pytest tests/
+    - pytest tests/ -m "not webtest"
 
 # Release
 ##########
