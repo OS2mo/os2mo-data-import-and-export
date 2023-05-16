@@ -348,6 +348,8 @@ class TestEquivalence:
             resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
         )
 
+        new_cache.settings.start_logging_based_on_settings()
+
         timestamp0 = time.time()
 
         new_cache.populate_cache(dry_run=False, skip_associations=False)

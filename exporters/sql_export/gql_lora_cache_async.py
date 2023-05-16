@@ -1,6 +1,5 @@
 import asyncio
 import datetime
-import itertools
 import logging
 import os
 import pickle
@@ -15,6 +14,7 @@ from more_itertools import first
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
+from raclients.graph.util import execute_paged
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
@@ -216,10 +216,6 @@ class GQLLoraCache:
                 )
                 variable_values.update(self.get_historic_query())
 
-        if page_size is None:
-            page_size = self.std_page_size
-        variable_values.update({"limit": page_size, "offset": offset})
-
         return gql(query_header + query + query_footer), variable_values
 
     @retry(
@@ -245,21 +241,13 @@ class GQLLoraCache:
             simple_query=simple_query,
         )
 
-        # This does not return a dict when using get_execution_result=True
-        # it returns a tuple
-        for offset in itertools.count(step=page_size or self.std_page_size):
-            gql_variable_values["offset"] = offset
-            result = await self.gql_client_session.execute(
-                gql_query,
-                variable_values=gql_variable_values,
-                get_execution_result=True,
-            )
-
-            # therefore, this
-            for obj in result.data["page"]:
-                yield obj
-            if result.extensions and result.extensions.get("__page_out_of_range"):
-                return
+        async for obj in execute_paged(
+            gql_session=self.gql_client_session,
+            document=gql_query,
+            variable_values=gql_variable_values,
+            per_page=(page_size or self.std_page_size),
+        ):
+            yield obj
 
     # Used to set a value in the __init__, if this was async, init would have to be
     # as well, which would mean that the new cache could only be initiated from
