@@ -6,7 +6,7 @@ def get_mo_client(
     client_id: str,
     client_secret: str,
     mo_base_url: str,
-    timeout: int = 600
+    timeout: int = 600,
 ) -> GraphQLClient:
     """
     Get the GraphQL client for calling MO.
@@ -30,5 +30,5 @@ def get_mo_client(
         auth_realm="mo",
         execute_timeout=timeout,
         httpx_client_kwargs={"timeout": timeout},
-        sync=True
+        sync=True,
     )

@@ -37,8 +37,11 @@ from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
 from sdlon.graphql import get_mo_client
-from sdlon.it_systems import get_sd_to_ad_it_system_uuid, \
-    get_employee_itsystems, add_it_system_to_employee
+from sdlon.it_systems import (
+    get_sd_to_ad_it_system_uuid,
+    get_employee_itsystems,
+    add_it_system_to_employee,
+)
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -165,7 +168,7 @@ class ChangeAtSD:
             settings.job_settings.auth_server,
             settings.job_settings.client_id,
             settings.job_settings.client_secret,
-            settings.mora_base
+            settings.mora_base,
         )
 
     def _get_primary_types(self, mora_helper: MoraHelper):
@@ -224,12 +227,8 @@ class ChangeAtSD:
             )
         )
 
-    def _create_sd_to_ad_it_system_connection(
-            self, employee_uuid: UUID
-    ) -> None:
-        sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
-            self.mo_graphql_client
-        )
+    def _create_sd_to_ad_it_system_connection(self, employee_uuid: UUID) -> None:
+        sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(self.mo_graphql_client)
         add_it_system_to_employee(
             self.mo_graphql_client, employee_uuid, sd_to_ad_it_system_uuid
         )
@@ -469,8 +468,12 @@ class ChangeAtSD:
                 # connection once it has been created according to
                 # https://redmine.magenta-aps.dk/issues/56089
                 employee_it_system_uuids = get_employee_itsystems(
-                    self.mo_graphql_client, UUID(uuid))
-                if get_sd_to_ad_it_system_uuid(self.mo_graphql_client) not in employee_it_system_uuids:
+                    self.mo_graphql_client, UUID(uuid)
+                )
+                if (
+                    get_sd_to_ad_it_system_uuid(self.mo_graphql_client)
+                    not in employee_it_system_uuids
+                ):
                     self._create_sd_to_ad_it_system_connection(UUID(uuid))
 
         # Create new SD persons in MO
