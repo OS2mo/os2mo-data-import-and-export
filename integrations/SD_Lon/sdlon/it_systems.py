@@ -62,3 +62,26 @@ def get_employee_itsystems(
     ]
 
     return it_system_uuids
+
+
+def add_it_system_to_employee(
+        gql_client: GraphQLClient, employee_uuid: UUID, it_system_uuid: UUID
+) -> None:
+    mutation = gql("""
+        mutation MyMutation($input: ITUserCreateInput!) {
+            ituser_create(input: $input) {
+                uuid
+            }
+        }
+    """)
+
+    gql_client.execute(mutation, variable_values={
+        "input": {
+            "user_key": "SD til AD",
+            "itsystem": str(it_system_uuid),
+            "validity": {
+                "from": "2023-05-01"
+            },
+            "person": str(employee_uuid)
+        }
+    })
