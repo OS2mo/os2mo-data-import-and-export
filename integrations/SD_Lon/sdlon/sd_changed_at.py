@@ -465,6 +465,9 @@ class ChangeAtSD:
                 upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
 
             if self.settings.sd_phone_number_id_for_ad_creation:
+                # Note that we should never remove an SD-to-AD systems
+                # connection once it has been created according to
+                # https://redmine.magenta-aps.dk/issues/56089
                 employee_it_system_uuids = get_employee_itsystems(
                     self.mo_graphql_client, UUID(uuid))
                 if get_sd_to_ad_it_system_uuid(self.mo_graphql_client) not in employee_it_system_uuids:
