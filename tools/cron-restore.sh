@@ -39,8 +39,8 @@ check_restore_validity(){
 restore_lora_db(){
     source ${DIPEXAR}/tools/prefixed_settings.sh
     tar -xOf ${bupfile} "${SNAPSHOT_LORA#/}" > "${SNAPSHOT_LORA}" || exit 1
-    docker-compose -f "${OS2MO_COMPOSE_YML}" exec mox python3 -m oio_rest truncatedb
-    docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql mox < /database_snapshot/'${SNAPSHOT_LORA##*/}
+    docker-compose -f "${OS2MO_COMPOSE_YML}" exec mo python3 -m oio_rest truncatedb
+    docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql -v ON_ERROR_STOP=1 mox < /database_snapshot/'${SNAPSHOT_LORA##*/}
 }
 
 # restore run-db so import knows where it is at
