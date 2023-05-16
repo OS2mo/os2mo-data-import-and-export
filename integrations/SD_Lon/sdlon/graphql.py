@@ -19,7 +19,7 @@ def get_mo_client(
         timeout: timeout for the client
 
     Returns:
-        A persistent GraphQL client
+        A GraphQL client
     """
 
     return GraphQLClient(

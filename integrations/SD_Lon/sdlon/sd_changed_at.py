@@ -36,6 +36,7 @@ from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
+from sdlon.graphql import get_mo_client
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -155,6 +156,14 @@ class ChangeAtSD:
         # SD supports only one type of association
         self.association_uuid = self.helper.ensure_class_in_facet(
             "association_type", "SD-Medarbejder"
+        )
+
+        # No more service API... let's get started using GraphQL!
+        self.mo_graphql_client = get_mo_client(
+            settings.job_settings.auth_server,
+            settings.job_settings.client_id,
+            settings.job_settings.client_secret,
+            settings.mora_base
         )
 
     def _get_primary_types(self, mora_helper: MoraHelper):
