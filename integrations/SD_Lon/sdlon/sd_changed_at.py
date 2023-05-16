@@ -290,7 +290,9 @@ class ChangeAtSD:
             "DeactivationDate": "31.12.9999",
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "true",
-            "ContactInformationIndicator": "false",
+            "ContactInformationIndicator": str(
+                self.settings.sd_phone_number_id_for_ad_creation
+            ).lower(),
             "PostalAddressIndicator": "false"
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
@@ -320,7 +322,9 @@ class ChangeAtSD:
             "PersonCivilRegistrationIdentifier": cpr,
             "StatusActiveIndicator": "True",
             "StatusPassiveIndicator": "false",
-            "ContactInformationIndicator": "false",
+            "ContactInformationIndicator": str(
+                self.settings.sd_phone_number_id_for_ad_creation
+            ).lower(),
             "PostalAddressIndicator": "false",
         }
         url = "GetPerson20111201"

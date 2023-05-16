@@ -31,7 +31,6 @@ def date_to_datetime(d: date) -> datetime:
     return datetime(d.year, d.month, d.day)
 
 
-# TODO: rename
 def format_date(d: datetime | date) -> str:
     return d.strftime("%Y-%m-%d").zfill(10)
 
