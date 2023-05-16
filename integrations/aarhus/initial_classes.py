@@ -122,13 +122,6 @@ CLASSES = [
         UUID("964c31a2-6267-4388-bff5-42d6f3c5f708"),
     ),
     Class(
-        "Tilknytningsrolle",
-        "association_type",
-        "TEXT",
-        "association_type",
-        UUID("ec534b86-3d9b-42d8-bff0-afc4f81719af"),
-    ),
-    Class(
         "Orlovstype",
         "leave_type",
         "TEXT",
