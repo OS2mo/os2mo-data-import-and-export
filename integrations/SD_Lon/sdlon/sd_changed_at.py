@@ -37,6 +37,8 @@ from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
 from sdlon.graphql import get_mo_client
+from sdlon.it_systems import get_sd_to_ad_it_system_uuid, \
+    get_employee_itsystems, add_it_system_to_employee
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -220,6 +222,16 @@ class ChangeAtSD:
                 itemgetter("uuid"),
                 filter(lambda system: system["name"] == "Active Directory", it_systems),
             )
+        )
+
+    def _create_sd_to_ad_it_system_connection(
+            self, employee_uuid: UUID
+    ) -> None:
+        sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
+            self.mo_graphql_client
+        )
+        add_it_system_to_employee(
+            self.mo_graphql_client, employee_uuid, sd_to_ad_it_system_uuid
         )
 
     @lru_cache(maxsize=None)
@@ -447,11 +459,16 @@ class ChangeAtSD:
             given_name = sd_person.given_name or mo_person.get("givenname", "")
             surname = sd_person.surname or mo_person.get("surname", "")
             sd_name = f"{sd_person.given_name} {sd_person.surname}"
-            if mo_person["name"] == sd_name:
-                continue
-            uuid = mo_person["uuid"]
 
-            upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
+            uuid = mo_person["uuid"]
+            if mo_person["name"] != sd_name:
+                upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
+
+            if self.settings.sd_phone_number_id_for_ad_creation:
+                employee_it_system_uuids = get_employee_itsystems(
+                    self.mo_graphql_client, UUID(uuid))
+                if get_sd_to_ad_it_system_uuid(self.mo_graphql_client) not in employee_it_system_uuids:
+                    self._create_sd_to_ad_it_system_connection(UUID(uuid))
 
         # Create new SD persons in MO
         for sd_person, _ in new_pairs:
@@ -463,7 +480,6 @@ class ChangeAtSD:
             forced_uuid = self.employee_forced_uuids.get(sd_person.cpr)
             sam_account_name, object_guid = self._fetch_ad_information(sd_person.cpr)
 
-            uuid = None
             if forced_uuid:
                 uuid = forced_uuid
                 logger.info("Employee in force list: {}".format(uuid))
@@ -481,6 +497,9 @@ class ChangeAtSD:
             if sam_account_name:
                 # Create an IT system for the person If the person is found in the AD
                 create_itsystem_connection(sam_account_name, return_uuid)
+
+            if self.settings.sd_phone_number_id_for_ad_creation:
+                self._create_sd_to_ad_it_system_connection(UUID(uuid))
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
