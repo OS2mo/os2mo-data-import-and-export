@@ -9,7 +9,7 @@ import logging
 import sys
 import uuid
 from operator import itemgetter
-from typing import Any
+from typing import Any, OrderedDict
 from typing import Dict
 from typing import Optional
 
@@ -20,8 +20,6 @@ from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from .fix_departments import FixDepartments
-from .config import get_changed_at_settings
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date, date_to_datetime
@@ -103,6 +101,11 @@ class SdImport:
             self.ad_reader = ad_info
             self.importer.new_itsystem(identifier="AD", system_name="Active Directory")
             self.ad_reader.cache_all()
+
+        if self.settings.sd_phone_number_id_for_ad_creation:
+            self.importer.new_itsystem(
+                identifier="AD-bruger fra SD", system_name="AD-bruger fra SD"
+            )
 
         self.nodes: Dict[str, Dict] = {}  # Will be populated when org-tree is created
 
@@ -416,12 +419,44 @@ class SdImport:
                     new_ous.append(ou)
         return nodes
 
+    def _ad_creation_trigger_it_system(self, person: OrderedDict) -> None:
+        """
+        Some municipalitites wish to flag certain users in SD with a flag
+        (a certain string) in an SD persons <TelephoneNumberIdentifier> in the
+        <ContactInformation> tag for the person. If the string is found, an
+        IT-system is created on the user in MO, and this IT-system will in
+        turn trigger the LDAP-integration to create the user in the AD.
+
+        (see # See https://redmine.magenta-aps.dk/issues/56089)
+
+        Args:
+            person: The SD person to create the IT-system for
+        """
+        contact_info = person.get("ContactInformation", {})
+        telephone_number_ids = ensure_list(
+            contact_info.get("TelephoneNumberIdentifier")
+        )
+        telephone_number_ids = [tni.strip().lower() for tni in telephone_number_ids]
+        if self.settings.sd_phone_number_id_for_ad_string in telephone_number_ids:
+            cpr = person["PersonCivilRegistrationIdentifier"]
+            given_name = person.get("PersonGivenName", "")
+            sur_name = person.get("PersonSurnameName", "")
+
+            self.importer.join_itsystem(
+                employee=cpr,
+                user_key=f"{given_name} {sur_name}",
+                itsystem_ref="AD-bruger fra SD",
+                date_from=format_date(self.settings.sd_global_from_date),
+            )
+
     def add_people(self):
         """Load all person details and store for later user"""
         params = {
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "false",
-            "ContactInformationIndicator": "false",
+            "ContactInformationIndicator": str(
+                self.settings.sd_phone_number_id_for_ad_creation
+            ).lower(),
             "PostalAddressIndicator": "false",
             "EffectiveDate": self.import_date,
         }
@@ -488,6 +523,10 @@ class SdImport:
                     itsystem_ref="AD",
                     date_from="1930-01-01",
                 )
+
+            # See https://redmine.magenta-aps.dk/issues/56089
+            if self.settings.sd_phone_number_id_for_ad_creation:
+                self._ad_creation_trigger_it_system(person)
 
     def create_ou_tree(self, create_orphan_container, sub_tree=None, super_unit=None):
         """Read all department levels from SD."""

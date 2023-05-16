@@ -45,6 +45,12 @@ class CommonSettings(BaseSettings):
     sd_job_function: JobFunction
     sd_monthly_hourly_divide: PositiveInt
 
+    # If true, the <TelephoneNumberIdentifier> in <ContactInformation> in the
+    # <Person> tag will be used to set a value that can trigger AD-creation of
+    # the user (see https://redmine.magenta-aps.dk/issues/56089)
+    sd_phone_number_id_for_ad_creation: bool = False
+    sd_phone_number_id_for_ad_string: str = "ad-bruger fra sd"
+
     cpr_uuid_map_path: str = (
         "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv"
     )
