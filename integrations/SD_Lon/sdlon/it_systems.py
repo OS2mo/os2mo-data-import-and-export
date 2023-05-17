@@ -1,3 +1,4 @@
+from datetime import date
 from functools import cache
 from uuid import UUID
 
@@ -5,6 +6,8 @@ from gql import gql
 from more_itertools import one
 
 from raclients.graph.client import GraphQLClient
+
+from sdlon.date_utils import format_date
 
 QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
     """
@@ -31,6 +34,16 @@ QUERY_GET_EMPLOYEE_IT_SYSTEMS = gql(
                         }
                     }
                 }
+            }
+        }
+    """
+    )
+
+MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE = gql(
+    """
+        mutation AddITSystem($input: ITUserCreateInput!) {
+            ituser_create(input: $input) {
+                uuid
             }
         }
     """
@@ -70,23 +83,15 @@ def get_employee_it_systems(
 def add_it_system_to_employee(
     gql_client: GraphQLClient, employee_uuid: UUID, it_system_uuid: UUID
 ) -> None:
-    mutation = gql(
-        """
-        mutation MyMutation($input: ITUserCreateInput!) {
-            ituser_create(input: $input) {
-                uuid
-            }
-        }
-    """
-    )
-
     gql_client.execute(
-        mutation,
+        MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
         variable_values={
             "input": {
                 "user_key": "SD til AD",
                 "itsystem": str(it_system_uuid),
-                "validity": {"from": "2023-05-01"},
+                "validity": {
+                    "from": format_date(date.today())
+                },
                 "person": str(employee_uuid),
             }
         },
