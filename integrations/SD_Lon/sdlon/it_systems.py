@@ -6,23 +6,22 @@ from more_itertools import one
 
 from raclients.graph.client import GraphQLClient
 
+QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
+    """
+    query GetItSystems {
+        itsystems(user_keys: "SD til AD") {
+            objects {
+                uuid
+            }
+        }
+    }            
+"""
+)
+
 
 @cache
 def get_sd_to_ad_it_system_uuid(gql_client: GraphQLClient) -> UUID:
-    query = gql(
-        """
-        query GetItSystems {
-            itsystems(user_keys: "SD til AD") {
-                objects {
-                    uuid
-                }
-            }
-        }            
-    """
-    )
-
-    r = gql_client.execute(query)
-
+    r = gql_client.execute(QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID)
     return UUID(one(r["itsystems"]["objects"])["uuid"])
 
 
