@@ -437,7 +437,10 @@ class SdImport:
             contact_info.get("TelephoneNumberIdentifier")
         )
         telephone_number_ids = [tni.strip().lower() for tni in telephone_number_ids]
-        if self.settings.sd_phone_number_id_for_ad_string in telephone_number_ids:
+        if (
+            self.settings.sd_phone_number_id_for_ad_string.lower()
+            in telephone_number_ids
+        ):
             cpr = person["PersonCivilRegistrationIdentifier"]
             given_name = person.get("PersonGivenName", "")
             sur_name = person.get("PersonSurnameName", "")

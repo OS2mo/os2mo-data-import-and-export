@@ -17,6 +17,7 @@ from gql import gql
 from more_itertools import one, exactly_n
 from raclients.graph.client import GraphQLClient
 
+from sdlon.graphql import get_mo_client
 from sdlon.sdclient.client import SDClient
 from sdlon.sdclient.requests import GetEmploymentRequest
 from sdlon.sdclient.responses import GetEmploymentResponse
@@ -50,39 +51,6 @@ def get_sd_employments(
         )
     )
     return sd_employments
-
-
-def get_mo_client(
-    auth_server: str,
-    client_id: str,
-    client_secret: str,
-    mo_base_url: str,
-    timeout: int = 600
-) -> GraphQLClient:
-    """
-    Get the GraphQL client for calling MO.
-
-    Args:
-        auth_server: the Keycloak server
-        client_id: Keycloak client ID
-        client_secret: Keycloak client secret
-        mo_base_url: MOs base URL
-        timeout: timeout for the client
-
-    Returns:
-        A persistent GraphQL client
-    """
-
-    return GraphQLClient(
-        url=f"{mo_base_url}/graphql/v3",
-        client_id=client_id,
-        client_secret=client_secret,
-        auth_server=auth_server,
-        auth_realm="mo",
-        execute_timeout=timeout,
-        httpx_client_kwargs={"timeout": timeout},
-        sync=True
-    )
 
 
 def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:

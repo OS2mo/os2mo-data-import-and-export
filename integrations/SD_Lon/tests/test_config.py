@@ -52,9 +52,9 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_skip_employment_types": [],
     "sd_skip_job_functions": [],
     "sd_use_ad_integration": True,
-    "sd_user": "user",
     "sd_phone_number_id_for_ad_creation": False,
-    "sd_phone_number_id_for_ad_string": "ad-bruger fra sd",
+    "sd_phone_number_id_for_ad_string": "AD-bruger fra SD",
+    "sd_user": "user",
     "job_settings": {
         "auth_realm": "mo",
         "auth_server": "http://keycloak:8080/auth",
