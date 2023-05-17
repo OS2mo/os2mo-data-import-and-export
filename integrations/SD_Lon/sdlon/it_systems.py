@@ -52,6 +52,15 @@ MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE = gql(
 
 @cache
 def get_sd_to_ad_it_system_uuid(gql_client: GraphQLClient) -> UUID:
+    """
+    Get the UUID of the SD-to-AD IT-system
+
+    Args:
+        gql_client: The GraphQL client for calling MO
+
+    Returns:
+        UUID of the SD-to-AD IT-system
+    """
     r = gql_client.execute(QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID)
     return UUID(one(r["itsystems"]["objects"])["uuid"])
 
@@ -83,6 +92,14 @@ def get_employee_it_systems(
 def add_it_system_to_employee(
     gql_client: GraphQLClient, employee_uuid: UUID, it_system_uuid: UUID
 ) -> None:
+    """
+    Add the SD-to-AD IT-system to a MO employee
+
+    Args:
+        gql_client: The GraphQL client for calling MO
+        employee_uuid: UUID of the MO employee
+        it_system_uuid: UUID of the SD-to-AD IT-system
+    """
     gql_client.execute(
         MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
         variable_values={
