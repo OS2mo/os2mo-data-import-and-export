@@ -12,7 +12,7 @@ from sdlon.date_utils import format_date
 QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
     """
     query GetItSystems {
-        itsystems(user_keys: "SD til AD") {
+        itsystems(user_keys: "AD-bruger fra SD") {
             objects {
                 uuid
             }
@@ -104,7 +104,7 @@ def add_it_system_to_employee(
         MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
         variable_values={
             "input": {
-                "user_key": "SD til AD",
+                "user_key": "AD-bruger fra SD",
                 "itsystem": str(it_system_uuid),
                 "validity": {
                     "from": format_date(date.today())
