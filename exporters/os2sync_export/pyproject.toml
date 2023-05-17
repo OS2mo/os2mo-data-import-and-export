@@ -24,6 +24,8 @@ sentry-sdk = "^1.11.1"
 setuptools = "^65.6.3"
 tenacity = "^8.1.0"
 aiofiles = "^23.1.0"
+raclients = "^3.1.4"
+gql = "^3.4.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.2"
