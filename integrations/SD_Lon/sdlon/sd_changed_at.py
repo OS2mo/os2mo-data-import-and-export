@@ -228,7 +228,9 @@ class ChangeAtSD:
         )
 
     def _create_sd_to_ad_it_system_connection(self, employee_uuid: UUID) -> None:
-        sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(self.mo_graphql_client)
+        sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
+            self.mo_graphql_client, self.settings.sd_phone_number_id_for_ad_string
+        )
         add_it_system_to_employee(
             self.mo_graphql_client, employee_uuid, sd_to_ad_it_system_uuid
         )
@@ -471,7 +473,10 @@ class ChangeAtSD:
                     self.mo_graphql_client, UUID(uuid)
                 )
                 if (
-                    get_sd_to_ad_it_system_uuid(self.mo_graphql_client)
+                    get_sd_to_ad_it_system_uuid(
+                        self.mo_graphql_client,
+                        self.settings.sd_phone_number_id_for_ad_string,
+                    )
                     not in employee_it_system_uuids
                 ):
                     self._create_sd_to_ad_it_system_connection(UUID(uuid))

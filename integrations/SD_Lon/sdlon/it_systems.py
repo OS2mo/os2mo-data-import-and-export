@@ -11,8 +11,8 @@ from sdlon.date_utils import format_date
 
 QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
     """
-    query GetItSystems {
-        itsystems(user_keys: "AD-bruger fra SD") {
+    query GetItSystems($user_key: [String!]!) {
+        itsystems(user_keys: $user_key) {
             objects {
                 uuid
             }
@@ -22,7 +22,7 @@ QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
 )
 
 QUERY_GET_EMPLOYEE_IT_SYSTEMS = gql(
-        """
+    """
         query GetEmployeeItSystems($uuid: [UUID!]!) {
             employees(uuids: $uuid) {
                 objects {
@@ -37,7 +37,7 @@ QUERY_GET_EMPLOYEE_IT_SYSTEMS = gql(
             }
         }
     """
-    )
+)
 
 MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE = gql(
     """
@@ -47,21 +47,27 @@ MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE = gql(
             }
         }
     """
-    )
+)
 
 
 @cache
-def get_sd_to_ad_it_system_uuid(gql_client: GraphQLClient) -> UUID:
+def get_sd_to_ad_it_system_uuid(
+    gql_client: GraphQLClient, it_system_user_key: str
+) -> UUID:
     """
     Get the UUID of the SD-to-AD IT-system
 
     Args:
+        it_system_user_key: The IT-system user_key
         gql_client: The GraphQL client for calling MO
 
     Returns:
         UUID of the SD-to-AD IT-system
     """
-    r = gql_client.execute(QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID)
+    r = gql_client.execute(
+        QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID,
+        variable_values={"user_key": it_system_user_key},
+    )
     return UUID(one(r["itsystems"]["objects"])["uuid"])
 
 
@@ -79,8 +85,7 @@ def get_employee_it_systems(
     """
 
     r = gql_client.execute(
-        QUERY_GET_EMPLOYEE_IT_SYSTEMS,
-        variable_values={"uuid": str(employee_uuid)}
+        QUERY_GET_EMPLOYEE_IT_SYSTEMS, variable_values={"uuid": str(employee_uuid)}
     )
 
     it_users = one(r["employees"]["objects"])["current"]["itusers"]
@@ -106,9 +111,7 @@ def add_it_system_to_employee(
             "input": {
                 "user_key": "AD-bruger fra SD",
                 "itsystem": str(it_system_uuid),
-                "validity": {
-                    "from": format_date(date.today())
-                },
+                "validity": {"from": format_date(date.today())},
                 "person": str(employee_uuid),
             }
         },
