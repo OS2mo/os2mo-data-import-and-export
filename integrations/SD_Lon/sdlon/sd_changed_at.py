@@ -39,7 +39,7 @@ from tqdm import tqdm
 from sdlon.graphql import get_mo_client
 from sdlon.it_systems import (
     get_sd_to_ad_it_system_uuid,
-    get_employee_itsystems,
+    get_employee_it_systems,
     add_it_system_to_employee,
 )
 from . import sd_payloads
@@ -467,7 +467,7 @@ class ChangeAtSD:
                 # Note that we should never remove an SD-to-AD systems
                 # connection once it has been created according to
                 # https://redmine.magenta-aps.dk/issues/56089
-                employee_it_system_uuids = get_employee_itsystems(
+                employee_it_system_uuids = get_employee_it_systems(
                     self.mo_graphql_client, UUID(uuid)
                 )
                 if (

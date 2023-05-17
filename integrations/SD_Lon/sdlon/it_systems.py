@@ -14,31 +14,11 @@ QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
                 uuid
             }
         }
-    }            
+    }
 """
 )
 
-
-@cache
-def get_sd_to_ad_it_system_uuid(gql_client: GraphQLClient) -> UUID:
-    r = gql_client.execute(QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID)
-    return UUID(one(r["itsystems"]["objects"])["uuid"])
-
-
-def get_employee_itsystems(
-    gql_client: GraphQLClient, employee_uuid: UUID
-) -> list[UUID]:
-    """
-    Get the IT-systems for an employee
-    Args:
-        gql_client: The GraphQL client for calling MO
-        employee_uuid: The employee UUID
-
-    Returns:
-        List of UUIDs of the employees IT-systems
-    """
-
-    query = gql(
+QUERY_GET_EMPLOYEE_IT_SYSTEMS = gql(
         """
         query GetEmployeeItSystems($uuid: [UUID!]!) {
             employees(uuids: $uuid) {
@@ -56,9 +36,32 @@ def get_employee_itsystems(
     """
     )
 
-    r = gql_client.execute(query, variable_values={"uuid": str(employee_uuid)})
 
-    it_users = one(r["employee"]["objects"])["current"]["itusers"]
+@cache
+def get_sd_to_ad_it_system_uuid(gql_client: GraphQLClient) -> UUID:
+    r = gql_client.execute(QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID)
+    return UUID(one(r["itsystems"]["objects"])["uuid"])
+
+
+def get_employee_it_systems(
+    gql_client: GraphQLClient, employee_uuid: UUID
+) -> list[UUID]:
+    """
+    Get the IT-systems for an employee
+    Args:
+        gql_client: The GraphQL client for calling MO
+        employee_uuid: The employee UUID
+
+    Returns:
+        List of UUIDs of the employees IT-systems
+    """
+
+    r = gql_client.execute(
+        QUERY_GET_EMPLOYEE_IT_SYSTEMS,
+        variable_values={"uuid": str(employee_uuid)}
+    )
+
+    it_users = one(r["employees"]["objects"])["current"]["itusers"]
     it_system_uuids = [UUID(it_user["itsystem"]["uuid"]) for it_user in it_users]
 
     return it_system_uuids
