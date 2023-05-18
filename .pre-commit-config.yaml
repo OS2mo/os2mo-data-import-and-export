@@ -1,35 +1,68 @@
+default_language_version:
+  python: python3.11
+
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+          - id: end-of-file-fixer  # https://github.com/pre-commit/pre-commit-hooks#end-of-file-fixer
+          - id: trailing-whitespace  # https://github.com/pre-commit/pre-commit-hooks#trailing-whitespace
+          - id: check-builtin-literals  # https://github.com/pre-commit/pre-commit-hooks#check-builtin-literals
+          - id: check-docstring-first  # https://github.com/pre-commit/pre-commit-hooks#check-docstring-first
+
+  - repo: https://github.com/PyCQA/autoflake
+  # To automatically remove unused imports of the standard library.
+    rev: v2.1.1
+    hooks:
+      - id: autoflake
+        # By default, removal of unused variables and imports of non-standard libraries are NOT enabled.
+        args: ["--remove-unused-variables"]
+
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.3.0
+    hooks:
+      - id: mypy
+        args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
+        additional_dependencies:
+          - aiofiles
+          - aiohttp
+          - fastapi
+          - httpx
+          - paramiko
+          - prometheus_client
+          - pydantic
+          - python-dateutil
+          - requests
+          - structlog
+          - sqlalchemy
+        exclude: integrations/opus/
+
   - repo: https://github.com/pycqa/flake8
-    rev: 3.9.1
+  # To suppress, lines that contain a "# noqa comment" at the end will not issue warnings.
+    rev: 6.0.0
     hooks:
       - id: flake8
         entry: pflake8
         additional_dependencies: [pyproject-flake8]
 
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
+  - repo: https://github.com/asottile/pyupgrade
+  # To automatically upgrade syntax for newer versions of Python.
+    rev: v3.4.0
     hooks:
-      - id: black
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic
-          - types-requests
-          - types-python-dateutil
-          - types-paramiko
-          - types-aiofiles
-        args: [ "--ignore-missing-imports", "--strict-optional", "--explicit-package-bases", "--namespace-packages"]
-        exclude: integrations/opus/
-
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v2.5.0
-    hooks:
-      - id: reorder-python-imports
+      - id: pyupgrade
 
   - repo: https://github.com/magenta-aps/pre-commit-hooks
     rev: 477acf0d
     hooks:
       - id: auto-ticket-prepare-commit
       - id: auto-ticket-commit
+
+  - repo: https://github.com/asottile/reorder_python_imports
+    rev: v3.9.0
+    hooks:
+      - id: reorder-python-imports

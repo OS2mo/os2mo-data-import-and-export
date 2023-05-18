@@ -79,12 +79,51 @@ include:
       when: manual
     - when: always
 
+
+
+Pre-commit:
+  stage: lint
+  extends:
+    - .cache:pip
+    - .cache:poetry
+    - .cache:pre-commit
+  interruptible: true
+  needs: []
+  image: python:3.11
+  before_script:
+    - export PRECOMMIT_USE_POETRY=${PRECOMMIT_USE_POETRY:-false}
+    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
+        pip install pre-commit;
+        pre-commit install;
+      else
+        python3 -m venv $POETRY_HOME;
+        $POETRY_HOME/bin/pip install poetry==${POETRY_VERSION:-1.4.0};
+        $POETRY_HOME/bin/poetry install;
+      fi;
+  script:
+    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
+        pre-commit autoupdate --bleeding-edge --repo https://github.com/pre-commit/pre-commit-hooks
+        pre-commit run --all-files --verbose;
+      else
+        $POETRY_HOME/bin/poetry run pre-commit run --all-files --verbose;
+      fi;
+  cache:
+    - !reference [.cache:pip, cache]
+    - !reference [.cache:poetry, cache]
+    - !reference [.cache:pre-commit, cache]
+
+
 # Lint stage
 ############
-
-.Lint Dockerfiles:
+.lint-base:
   stage: lint
   needs: []
+  # TODO: Individual lint rules for each file type using 'changes' patterns
+  rules:
+    - <<: *if-merge-request
+
+.Lint Dockerfiles:
+  extends: .lint-base
   image: hadolint/hadolint:latest-debian
   before_script:
     - apt-get -y update
@@ -93,104 +132,104 @@ include:
     - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
 
 
-.lint-python:
-  stage: lint
-  needs: []
-  image: python:3.11
-  services: []
-  before_script:
-    - pip install -r integrations/requirements/lint.txt
-
-Lint Customers files:
-  extends: .lint-python
-  script:
-    - python -m black --diff --check customers/
-    - python -m isort --profile black --diff --check-only customers/
-
-Lint AD Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/ad_integration/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-freezegun types-python-dateutil
-    - pre-commit run --files tests/*.py *.py
-
-Lint Calculate Primary:
-  extends: .lint-python
-  script:
-    - cd integrations/calculate_primary/
-    - pip install mypy pre-commit types-requests
-    - pre-commit run --files tests/*.py *.py
-
-Lint RunDB Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/rundb/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files tests/*.py *.py
-
-Lint Opus Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/opus/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files tests/*.py *.py
-
-Lint Rollekatalog Exporter:
-  extends: .lint-python
-  script:
-    - cd exporters/os2rollekatalog/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files *.py
-
-Lint CPR UUID Exporter:
-  extends: .lint-python
-  script:
-    - cd exporters/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files cpr_uuid.py
-
-Lint OPUS Org Tree Print:
-  extends: .lint-python
-  script:
-    - cd integrations/opus/org_tree_print/
-    - python -m black --diff --check *.py
-    - python -m isort --diff --check-only *.py
-
-Lint AAK LOS Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/aarhus/
-    - pip install mypy pre-commit types-python-dateutil
-    - pre-commit run --files *.py
-
-Lint FK-org uuid-import:
-  extends: .lint-python
-  script:
-    - cd integrations/fkorg_it_systems/
-    - pip install mypy pre-commit types-python-dateutil
-    - pre-commit run --files *.py
-
-Lint Reports:
-  extends: .lint-python
-  script:
-    - python -m black --diff --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
-    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
-
-Lint Exporter Utils:
-  extends: .lint-python
-  script:
-    - python -m isort --profile black --diff --check-only exporters/utils/*.py exporters/utils/tests/*.py
-    - cd exporters/utils/
-    - python -m black --diff --check *.py tests/*.py
-
-Lint Tools:
-  extends: .lint-python
-  script:
-    - cd tools/
-    - python -m black --diff --line-length 85 --check uuid_replace.py
-    - python -m isort --diff --check-only uuid_replace.py
-    - python -m black --diff --check data_fixers
-    - python -m isort --profile black --diff --check-only --force-single-line-imports data_fixers
+#.lint-python:
+#  stage: lint
+#  needs: []
+#  image: python:3.11
+#  services: []
+#  before_script:
+#    - pip install -r integrations/requirements/lint.txt
+#
+#Lint Customers files:
+#  extends: .lint-python
+#  script:
+#    - python -m black --diff --check customers/
+#    - python -m isort --profile black --diff --check-only customers/
+#
+#Lint AD Integration:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/ad_integration/
+#    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-freezegun types-python-dateutil
+#    - pre-commit run --files tests/*.py *.py
+#
+#Lint Calculate Primary:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/calculate_primary/
+#    - pip install mypy pre-commit types-requests
+#    - pre-commit run --files tests/*.py *.py
+#
+#Lint RunDB Integration:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/rundb/
+#    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+#    - pre-commit run --files tests/*.py *.py
+#
+#Lint Opus Integration:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/opus/
+#    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+#    - pre-commit run --files tests/*.py *.py
+#
+#Lint Rollekatalog Exporter:
+#  extends: .lint-python
+#  script:
+#    - cd exporters/os2rollekatalog/
+#    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+#    - pre-commit run --files *.py
+#
+#Lint CPR UUID Exporter:
+#  extends: .lint-python
+#  script:
+#    - cd exporters/
+#    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+#    - pre-commit run --files cpr_uuid.py
+#
+#Lint OPUS Org Tree Print:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/opus/org_tree_print/
+#    - python -m black --diff --check *.py
+#    - python -m isort --diff --check-only *.py
+#
+#Lint AAK LOS Integration:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/aarhus/
+#    - pip install mypy pre-commit types-python-dateutil
+#    - pre-commit run --files *.py
+#
+#Lint FK-org uuid-import:
+#  extends: .lint-python
+#  script:
+#    - cd integrations/fkorg_it_systems/
+#    - pip install mypy pre-commit types-python-dateutil
+#    - pre-commit run --files *.py
+#
+#Lint Reports:
+#  extends: .lint-python
+#  script:
+#    - python -m black --diff --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+#    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+#
+#Lint Exporter Utils:
+#  extends: .lint-python
+#  script:
+#    - python -m isort --profile black --diff --check-only exporters/utils/*.py exporters/utils/tests/*.py
+#    - cd exporters/utils/
+#    - python -m black --diff --check *.py tests/*.py
+#
+#Lint Tools:
+#  extends: .lint-python
+#  script:
+#    - cd tools/
+#    - python -m black --diff --line-length 85 --check uuid_replace.py
+#    - python -m isort --diff --check-only uuid_replace.py
+#    - python -m black --diff --check data_fixers
+#    - python -m isort --profile black --diff --check-only --force-single-line-imports data_fixers
 
 # Build stage
 #############
