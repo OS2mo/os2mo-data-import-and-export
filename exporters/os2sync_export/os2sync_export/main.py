@@ -18,11 +18,10 @@ from os2sync_export.config import get_os2sync_settings
 from os2sync_export.os2sync_models import OrgUnit
 from os2sync_export.os2synccli import update_single_orgunit
 from os2sync_export.os2synccli import update_single_user
-from ramqp.depends import RoutingKey
+from ramqp.depends import Context
 from ramqp.depends import SleepOnError
 from ramqp.mo import MORouter  # type: ignore
-from ramqp.mo import MORoutingKey
-from ramqp.mo import PayloadType  # type: ignore
+from ramqp.mo import PayloadUUID
 
 
 # from ramqp.utils import SleepOnError
@@ -62,12 +61,18 @@ async def trigger_all(
     return {"triggered": "OK"}
 
 
+@amqp_router.register("engagement")
+async def amqp_trigger_eng(context: Context, uuid: PayloadUUID, **kwargs: Any) -> None:
+    logger.warn(f"engagement {uuid=}")
+
+
 @amqp_router.register("employee")
 async def amqp_trigger_employee(
-    context: dict, routing_key: RoutingKey, _: SleepOnError, **kwargs: Any
+    context: Context, uuid: PayloadUUID, _: SleepOnError, **kwargs: Any
 ) -> None:
+    logger.warn("MEDARBEJDER!")
     clear_caches()
-    user = update_single_user(routing_key.uuid, settings=context["settings"], dry_run=False)
+    user = update_single_user(uuid, settings=context["settings"], dry_run=False)
     logger.info("Synced user to fk-org", user)
 
 
