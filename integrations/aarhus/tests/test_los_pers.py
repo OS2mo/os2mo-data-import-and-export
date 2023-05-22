@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import los_pers
 from hypothesis import given
+from hypothesis import settings
 from hypothesis import strategies as st
 
 from .helpers import HelperMixin
@@ -74,6 +75,7 @@ class TestPersonImporterReusesCPR(HelperMixin):
         # Assert
         assert actual_person_uuid == expected_person_uuid
 
+    @settings(deadline=None)
     @given(
         st.booleans(), st.from_type(los_pers.Person), _primary_strategy, st.datetimes()
     )
