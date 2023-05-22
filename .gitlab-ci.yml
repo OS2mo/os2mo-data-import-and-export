@@ -30,7 +30,7 @@ variables:
   IMAGE_RC: ${RELEASE_REGISTRY_IMAGE}:rc
   IMAGE_VERSION: ${RELEASE_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
   IMAGE_LATEST: ${RELEASE_REGISTRY_IMAGE}:latest
-  POETRY_VERSION: "1.3.1"
+  POETRY_VERSION: "1.5.0"
 
 # Conditions
 #############
@@ -52,23 +52,22 @@ workflow:
     - <<: *if-merge-request
 
 include:
-  - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/conventional-commits.v1.yml'
-  - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/docker-build-meta.v2.yml'
-  - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/docker-release.v1.yml'
-  - project: "labs/salt-automation"
-    file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
-  - project: "labs/salt-automation"
-    file: "/gitlab-ci-templates/common/rules.v1.yml"
-  - project: 'labs/salt-automation'
-    file: "/gitlab-ci-templates/common/no-interrupt.v1.yml"
-  - project: 'labs/salt-automation'
-    file: "/gitlab-ci-templates/python/pypi-meta.v1.yml"
+  - project: labs/salt-automation
+    file:
+      - gitlab-ci-templates/common/config-updater-meta.v1.yml
+      - gitlab-ci-templates/common/conventional-commits.v1.yml
+      - gitlab-ci-templates/common/docker-build-meta.v2.yml
+      - gitlab-ci-templates/common/docker-release.v1.yml
+      - gitlab-ci-templates/common/no-interrupt.v1.yml
+      - gitlab-ci-templates/common/pre-commit.v1.yml
+      - gitlab-ci-templates/python/pypi-meta.v1.yml
+      - gitlab-ci-templates/common/rules.v1.yml
   - local: "integrations/SD_Lon/.gitlab-ci.yml"
   - local: "exporters/os2sync_export/.gitlab-ci.yml"
   - local: "exporters/sql_export/.gitlab-ci.yml"
+    rules:
+      - <<: *if-merge-request
+
 
 
 .manual-rules: &manual-rules
@@ -81,36 +80,36 @@ include:
 
 
 
-Pre-commit:
-  stage: lint
-  extends:
-    - .cache:pip
-    - .cache:poetry
-    - .cache:pre-commit
-  interruptible: true
-  needs: []
-  image: python:3.11
-  before_script:
-    - export PRECOMMIT_USE_POETRY=${PRECOMMIT_USE_POETRY:-false}
-    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
-        pip install pre-commit;
-        pre-commit install;
-      else
-        python3 -m venv $POETRY_HOME;
-        $POETRY_HOME/bin/pip install poetry==${POETRY_VERSION:-1.4.0};
-        $POETRY_HOME/bin/poetry install;
-      fi;
-  script:
-    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
-        pre-commit autoupdate --bleeding-edge --repo https://github.com/pre-commit/pre-commit-hooks
-        pre-commit run --all-files --verbose;
-      else
-        $POETRY_HOME/bin/poetry run pre-commit run --all-files --verbose;
-      fi;
-  cache:
-    - !reference [.cache:pip, cache]
-    - !reference [.cache:poetry, cache]
-    - !reference [.cache:pre-commit, cache]
+#Pre-commit:
+#  stage: lint
+#  extends:
+#    - .cache:pip
+#    - .cache:poetry
+#    - .cache:pre-commit
+#  interruptible: true
+#  needs: []
+#  image: python:3.11
+#  before_script:
+#    - export PRECOMMIT_USE_POETRY=${PRECOMMIT_USE_POETRY:-false}
+#    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
+#        pip install pre-commit;
+#        pre-commit install;
+#      else
+#        python3 -m venv $POETRY_HOME;
+#        $POETRY_HOME/bin/pip install poetry==${POETRY_VERSION:-1.5.0};
+#        $POETRY_HOME/bin/poetry install;
+#      fi;
+#  script:
+#    - if [ "${PRECOMMIT_USE_POETRY}" = false ]; then
+#        pre-commit autoupdate --bleeding-edge --repo https://github.com/pre-commit/pre-commit-hooks
+#        pre-commit run --all-files --verbose;
+#      else
+#        $POETRY_HOME/bin/poetry run pre-commit run --all-files --verbose;
+#      fi;
+#  cache:
+#    - !reference [.cache:pip, cache]
+#    - !reference [.cache:poetry, cache]
+#    - !reference [.cache:pre-commit, cache]
 
 
 # Lint stage
@@ -122,7 +121,7 @@ Pre-commit:
   rules:
     - <<: *if-merge-request
 
-.Lint Dockerfiles:
+Lint Dockerfiles:
   extends: .lint-base
   image: hadolint/hadolint:latest-debian
   before_script:

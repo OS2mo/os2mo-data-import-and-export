@@ -8,7 +8,7 @@ RUN apt-get -y install vim jq less screen
 # Enviroment variables for poetry
 ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
     PYTHONPATH=/app:/app/backend \
-    POETRY_VERSION="1.3.1" \
+    POETRY_VERSION="1.5.0" \
     POETRY_VIRTUALENVS_CREATE=false \
     PYTHONUNBUFFERED=1 \
     CUSTOMER_SETTINGS=/code/settings/settings.json \
