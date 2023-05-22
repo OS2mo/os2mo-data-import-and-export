@@ -4,6 +4,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import asyncio
 import json
 import logging
 import pathlib
@@ -92,7 +93,7 @@ def read_all_user_uuids(org_uuid: str, limit: int = 1_000) -> Set[str]:
     return all_employee_uuids
 
 
-def read_all_users(
+async def read_all_users(
     gql_session: SyncClientSession, settings: Settings
 ) -> Dict[UUID, Dict]:
     """Read all current users from OS2MO
@@ -112,14 +113,14 @@ def read_all_users(
     os2mo_uuids_present = tqdm(
         os2mo_uuids_present, desc="Reading users from OS2MO", unit="user"
     )
+    all_users = []
+    for i, uuid in enumerate(os2mo_uuids_present):
+        all_users.append(
+            await os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
+        )
 
-    # Create os2sync payload for all org_units:
-    all_users = flatten(
-        os2mo.get_sts_user(uuid, gql_session=gql_session, settings=settings)
-        for uuid in os2mo_uuids_present
-    )
     res: Dict[UUID, Dict] = {}
-    for u in all_users:
+    for u in flatten(all_users):
 
         if u is None:
             continue
@@ -140,7 +141,7 @@ def read_all_users(
     stop=stop_after_attempt(5),
     retry=retry_if_exception_type(ConnectionError),
 )
-def main(settings: Settings):
+async def main(settings: Settings):
 
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
@@ -189,8 +190,8 @@ def main(settings: Settings):
 
     logger.info("Start syncing users")
     gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        mo_users = read_all_users(
+    async with gql_client as gql_session:
+        mo_users = await read_all_users(
             gql_session=gql_session,
             settings=settings,
         )
@@ -219,4 +220,4 @@ def main(settings: Settings):
 if __name__ == "__main__":
     settings = get_os2sync_settings()
     settings.start_logging_based_on_settings()
-    main(settings)
+    asyncio.run(main(settings))

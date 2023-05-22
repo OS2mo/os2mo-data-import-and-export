@@ -17,7 +17,7 @@ from uuid import UUID
 
 import requests
 from gql import gql
-from gql.client import SyncClientSession
+from gql.client import AsyncClientSession
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
@@ -375,11 +375,11 @@ def group_accounts(
     return fk_org_accounts
 
 
-def get_sts_user(
-    mo_uuid: str, gql_session: SyncClientSession, settings: Settings
+async def get_sts_user(
+    mo_uuid: str, gql_session: AsyncClientSession, settings: Settings
 ) -> List[Optional[Dict[str, Any]]]:
 
-    users = get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
+    users = await get_user_it_accounts(gql_session=gql_session, mo_uuid=mo_uuid)
     try:
         fk_org_accounts = group_accounts(
             users,
@@ -615,7 +615,9 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
     wait=wait_exponential(multiplier=1, min=4, max=10),
     stop=stop_after_delay(retry_max_time),
 )
-def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[Dict]:
+async def get_user_it_accounts(
+    gql_session: AsyncClientSession, mo_uuid: str
+) -> List[Dict]:
     """Find fk-org user(s) details for the person with given MO uuid"""
     q = gql(
         """
@@ -635,7 +637,7 @@ def get_user_it_accounts(gql_session: SyncClientSession, mo_uuid: str) -> List[D
         }
     """
     )
-    res = gql_session.execute(q, variable_values={"uuids": mo_uuid})
+    res = await gql_session.execute(q, variable_values={"uuids": mo_uuid})
     objects = one(res["employees"])["objects"]
     return one(objects)["itusers"]
 

@@ -13,7 +13,7 @@ services:
       AUTH_SERVER: "http://keycloak:8080/auth"
       OS2SYNC_API_URL: "http://os2sync:5000/api"
       LOG_LEVEL: INFO
-
+      FASTRAMQPI__MO_URL: "http://mo"
     command: "uvicorn os2sync_export.main:create_app --host 0.0.0.0 --reload"
     ports:
       - 127.0.0.1:8000:8000/tcp

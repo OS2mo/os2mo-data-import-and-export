@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -14,13 +15,15 @@ from os2sync_export.os2mo import get_sts_user
 from os2sync_export.os2sync_models import OrgUnit
 
 
-def update_single_user(
+async def update_single_user(
     uuid: UUID, settings: Settings, dry_run: bool
 ) -> List[Optional[Dict]]:
 
     gql_client = setup_gql_client(settings)
-    with gql_client as gql_session:
-        sts_users = get_sts_user(str(uuid), gql_session=gql_session, settings=settings)
+    async with gql_client as gql_session:
+        sts_users = await get_sts_user(
+            str(uuid), gql_session=gql_session, settings=settings
+        )
 
     if dry_run:
         return sts_users
@@ -59,7 +62,7 @@ def update_user(uuid: UUID, dry_run: bool):
     settings = get_os2sync_settings()
     settings.start_logging_based_on_settings()
 
-    click.echo(update_single_user(uuid, settings, dry_run))
+    click.echo(asyncio.run(update_single_user(uuid, settings, dry_run)))
 
 
 @cli.command()
