@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import BackgroundTasks
 from fastapi import FastAPI
-from fastapi import Query
 from fastapi import Response
 from fastapi import status
 from os2sync_export import os2mo
@@ -47,9 +46,9 @@ async def trigger_all(background_tasks: BackgroundTasks) -> Dict[str, str]:
 
 @app.post("/trigger/user/{uuid}")
 async def trigger_user(
-    uuid: UUID = Query(..., description="UUID of the organisation unit to recalculate"),
+    uuid: UUID,
     dry_run: bool = False,
-) -> List[Optional[Dict[str, str]]]:
+) -> List[Optional[Dict]]:
     clear_caches()
     return update_single_user(uuid, settings, dry_run)
 
