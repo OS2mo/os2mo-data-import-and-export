@@ -119,7 +119,6 @@ def strip_truncate_and_warn(d, root, length):
                 )
 
 
-@lru_cache
 @retry(
     reraise=True,
     wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -409,7 +408,6 @@ def organization_uuid() -> str:
     return one(os2mo_get("{BASE}/o/").json())["uuid"]
 
 
-@lru_cache
 def org_unit_uuids(**kwargs: Any) -> Set[str]:
     org_uuid = organization_uuid()
     hierarchy_uuids = kwargs.get("hierarchy_uuids")

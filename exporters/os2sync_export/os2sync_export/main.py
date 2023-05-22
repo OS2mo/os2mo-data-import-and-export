@@ -12,7 +12,6 @@ from fastapi import Request
 from fastapi import Response
 from fastapi import status
 from fastramqpi.main import FastRAMQPI  # type: ignore
-from os2sync_export import os2mo
 from os2sync_export.__main__ import main
 from os2sync_export.config import get_os2sync_settings
 from os2sync_export.os2sync_models import OrgUnit
@@ -35,13 +34,6 @@ amqp_router = MORouter()
 # settings.start_logging_based_on_settings()
 
 
-def clear_caches():
-    """Clear all lru_caches."""
-    # TODO: rewrite as a cache context manager
-    os2mo.os2mo_get.cache_clear()
-    os2mo.get_org_unit_hierarchy.cache_clear()
-    os2mo.org_unit_uuids.cache_clear()
-    os2mo.organization_uuid.cache_clear()
 
 
 @fastapi_router.get("/")
@@ -56,7 +48,6 @@ async def trigger_all(
     logger.warn(request.__dict__)
     context: dict[str, Any] = request.app.state.context
 
-    clear_caches()
     background_tasks.add_task(main, settings=context["settings"])
     return {"triggered": "OK"}
 
@@ -66,14 +57,15 @@ async def amqp_trigger_eng(context: Context, uuid: PayloadUUID, **kwargs: Any) -
     logger.warn(f"engagement {uuid=}")
 
 
-@amqp_router.register("employee")
+@amqp_router.register("person")
 async def amqp_trigger_employee(
-    context: Context, uuid: PayloadUUID, _: SleepOnError, **kwargs: Any
+    context:Context, uuid: PayloadUUID, _: SleepOnError
+
 ) -> None:
-    logger.warn("MEDARBEJDER!")
-    clear_caches()
+
     user = update_single_user(uuid, settings=context["settings"], dry_run=False)
     logger.info("Synced user to fk-org", user)
+    return user
 
 
 @fastapi_router.post("/trigger/user/{uuid}")
@@ -82,9 +74,8 @@ async def trigger_user(
     uuid: UUID,
     dry_run: bool = False,
 ) -> List[Optional[Dict]]:
-    clear_caches()
-    return update_single_user(uuid, settings=context["settings"], dry_run=dry_run)
 
+    return update_single_user(uuid, settings=context["settings"], dry_run=dry_run)
 
 # @amqp_router.register("org_unit.*.*")
 # async def amqp_trigger_org_unit(
@@ -105,7 +96,7 @@ async def trigger_orgunit(
     dry_run: bool,
     response: Response,
 ) -> Optional[OrgUnit]:
-    clear_caches()
+
     org_unit, changes = update_single_orgunit(
         uuid, settings=context["settings"], dry_run=dry_run
     )
