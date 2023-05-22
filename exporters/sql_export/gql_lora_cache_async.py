@@ -102,9 +102,11 @@ class GQLLoraCache:
     ):
         msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
         logger.info(msg.format(resolve_dar, full_history))
+        if not isinstance(settings, GqlLoraCacheSettings):
+            settings = None
         self.std_page_size = 500
         self.resolve_dar = resolve_dar
-        self.settings: GqlLoraCacheSettings = GqlLoraCacheSettings()
+        self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
 
         self.full_history = full_history
         self.skip_past = skip_past

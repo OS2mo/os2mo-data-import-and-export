@@ -18,14 +18,13 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    settings = settings or GqlLoraCacheSettings()
 
-    if (isinstance(settings, GqlLoraCacheSettings) and settings.use_new_cache) or (
-        isinstance(settings, dict) and settings.get("use_new_cache")
-    ):
-        # If using the new cache, use the new type of settings, which it reads itself
+    if GqlLoraCacheSettings().use_new_cache:
         return GQLLoraCache(
-            resolve_dar=resolve_dar, full_history=full_history, skip_past=skip_past
+            resolve_dar=resolve_dar,
+            full_history=full_history,
+            skip_past=skip_past,
+            settings=settings,
         )
     else:
         return OldLoraCache(
