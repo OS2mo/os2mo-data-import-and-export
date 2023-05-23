@@ -120,16 +120,16 @@ class SubtreeDeleter:
         tree = await self.get_tree(org_uuid)
         subtree = self.find_subtree(subtree_uuid, tree)
 
-        print("Deleting subtree for {}".format(subtree_uuid))
         unit_uuids = self.get_tree_uuids(subtree)
         if delete_subtree:
-            print(
-                "Deleting associated org functions for subtree {}".format(subtree_uuid)
-            )
+            print("Deleting subtree for {}".format(subtree_uuid))
             await self.delete_from_lora(unit_uuids, "organisation/organisationenhed")
             print(f"Successfully deleted subtree: {subtree_uuid}")
 
         if delete_functions:
+            print(
+                "Deleting associated org functions for subtree {}".format(subtree_uuid)
+            )
             funktionsnavne = []
             if keep_functions:
                 funktionsnavne = [
