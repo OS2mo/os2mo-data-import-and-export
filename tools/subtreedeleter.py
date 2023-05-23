@@ -110,7 +110,11 @@ class SubtreeDeleter:
         return await tqdm.gather(*(self.deleter(path, uuid) for uuid in uuids))
 
     async def run(
-        self, subtree_uuid: str, delete_functions: bool, keep_functions: List[str] = []
+        self,
+        subtree_uuid: str,
+        delete_functions: bool,
+        keep_functions: List[str] = [],
+        keep_subtree: bool = True,
     ):
         org_uuid = await self.get_org_uuid()
         tree = await self.get_tree(org_uuid)
@@ -118,7 +122,8 @@ class SubtreeDeleter:
 
         print("Deleting subtree for {}".format(subtree_uuid))
         unit_uuids = self.get_tree_uuids(subtree)
-        await self.delete_from_lora(unit_uuids, "organisation/organisationenhed")
+        if not keep_subtree:
+            await self.delete_from_lora(unit_uuids, "organisation/organisationenhed")
 
         if delete_functions:
             print(
@@ -144,6 +149,7 @@ async def subtreedeleter_helper(
     org_unit_uuid: str,
     delete_functions: bool = False,
     keep_functions: List[str] = [],
+    keep_subtree: bool = True,
     connections: int = 4,
 ) -> None:
     token_settings = TokenSettings()
@@ -152,7 +158,10 @@ async def subtreedeleter_helper(
         session.headers.update(token_settings.get_headers())
         deleter = SubtreeDeleter(session, connections=connections)
         await deleter.run(
-            org_unit_uuid, delete_functions, keep_functions=keep_functions
+            org_unit_uuid,
+            delete_functions,
+            keep_functions=keep_functions,
+            keep_subtree=keep_subtree,
         )
 
 
@@ -174,21 +183,34 @@ async def subtreedeleter_helper(
     help="List of functions that should not be deleted",
 )
 @click.option(
+    "--keep-subtree",
+    is_flag=True,
+    type=bool,
+    default=True,
+    help="Specify whether to keep subtrees or delete them. Default to keeping the subtree -> 'True'",
+)
+@click.option(
     "--connections",
     default=4,
     help="The amount of concurrent requests made to OS2mo",
 )
-def main(org_unit_uuid, delete_functions, keep, connections):
+def main(org_unit_uuid, delete_functions, keep, keep_or_delete_subtrees, connections):
     """Delete an organisational unit and all units below.
 
     Given the uuid of an org_unit this will delete the unit and all units below it.
     Optionally also deletes organisation functions such as engagements, KLE and addresses.
+    Optionally keeps the organisation unit and its subtrees, which is the default behaviour. This can be set to "False"
+    if wished to delete, when calling the function.
     To delete all organisation functions, except certain type(s), add them with --keep.
     Example:
-        metacli tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
+        metacli tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE --keep-subtree=False
     """
     subtreedeleter_helper(
-        org_unit_uuid, delete_functions, keep_functions=keep, connections=connections
+        org_unit_uuid,
+        delete_functions,
+        keep_functions=keep,
+        keep_subtree=keep_or_delete_subtrees,
+        connections=connections,
     )
 
 
