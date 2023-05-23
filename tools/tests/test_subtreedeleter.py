@@ -93,7 +93,7 @@ class _Session:
 @pytest.mark.asyncio
 async def test_run_method():
     instance = _TestableSubtreeDeleter()
-    await instance.run(_mo_org_unit_uuid, delete_functions=True)
+    await instance.run(_mo_org_unit_uuid, delete_functions=True, delete_subtree=True)
     assert instance._deleted_org_units == [[_mo_org_unit_uuid, _mo_org_unit_child_uuid]]
     assert set(instance._deleted_org_funcs) == {_lora_org_func_uuid}
 
