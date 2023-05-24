@@ -184,18 +184,16 @@ async def subtreedeleter_helper(
     help="List of functions that should not be deleted",
 )
 @click.option(
-    "--delete-subtrees",
-    is_flag=True,
-    type=bool,
+    "--delete-subtree",
     default=False,
-    help="Specify whether to delete subtrees. Set 'True' if subtrees are to be deleted. Default to keeping the subtrees",
+    help="Specify whether to delete subtrees. If set, all org_units within the subtree will be deleted",
 )
 @click.option(
     "--connections",
     default=4,
     help="The amount of concurrent requests made to OS2mo",
 )
-def main(org_unit_uuid, delete_functions, keep, delete_subtrees, connections):
+def main(org_unit_uuid, delete_functions, keep, delete_subtree, connections):
     """Delete an organisational unit and all units below.
 
     Given the uuid of an org_unit this will delete the unit and all units below it.
@@ -210,7 +208,7 @@ def main(org_unit_uuid, delete_functions, keep, delete_subtrees, connections):
         org_unit_uuid,
         delete_functions,
         keep_functions=keep,
-        delete_subtree=delete_subtrees,
+        delete_subtree=delete_subtree,
         connections=connections,
     )
 
