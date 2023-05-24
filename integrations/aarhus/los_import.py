@@ -6,6 +6,7 @@ from pathlib import Path
 import click
 import config
 import initial
+import sentry_sdk
 from dateutil import parser
 from los_leder import ManagerImporter
 from los_org import OrgUnitImporter
@@ -108,6 +109,8 @@ def main(**kwargs):
     import_from_date = kwargs.pop("import_from_date", None)
     command_line_options = {key: value for key, value in kwargs.items() if value}
     settings = config.Settings.from_kwargs(**command_line_options)
+    if settings.sentry_dsn:
+        sentry_sdk.init(dsn=settings.sentry_dsn)
 
     if import_from_date:
         last_import = datetime.date.fromisoformat(import_from_date)

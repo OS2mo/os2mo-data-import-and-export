@@ -53,6 +53,7 @@ class Settings(JobSettings):
     max_concurrent_requests: int = 4
     os2mo_chunk_size: int = 1
     azid_it_system_uuid: UUID
+    sentry_dsn: str | None = None
 
     class Config:
         @classmethod
