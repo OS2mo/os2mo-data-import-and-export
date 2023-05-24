@@ -3,11 +3,18 @@ from collections import OrderedDict
 from typing import Any
 from typing import List
 from typing import Tuple
+from unittest.mock import MagicMock
 from uuid import uuid4
+
+import pytest
 
 from ra_utils.attrdict import AttrDict
 from ra_utils.attrdict import attrdict
 
+
+@pytest.fixture
+def mock_graphql_client():
+    return MagicMock()
 
 def get_sd_person_fixture(
     cpr: str, first_name: str, last_name: str, employment_id: str
