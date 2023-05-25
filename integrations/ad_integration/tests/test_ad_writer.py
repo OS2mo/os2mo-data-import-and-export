@@ -26,10 +26,15 @@ from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
 from ..utils import AttrDict
+from .mocks import MO_MANAGER_CPR
+from .mocks import MO_MANAGER_SAM
+from .mocks import MO_MANAGER_UUID
 from .mocks import MO_ROOT_ORG_UNIT_NAME
 from .mocks import MO_UUID
+from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
 from .mocks import MockLoraCacheUnitAddress
+from .mocks import MockLoraCacheWithManager
 from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
@@ -1073,6 +1078,28 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
 
 class _TestRealADWriter(TestCase):
+    @staticmethod
+    def _get_from_ad_matching_nothing(user=None, cpr=None, server=None):
+        # Provide a mock implementation of `ADWriter.get_from_ad` which returns nothing
+        return {}
+
+    @staticmethod
+    def _get_from_ad_matching_manager(user=None, cpr=None, server=None):
+        # Provide a mock implementation of `ADWriter.get_from_ad` which can look up the
+        # manager's 'SamAccountName'.
+        employee_ad_user = {
+            "SamAccountName": "user_sam",
+            "Manager": None,
+        }
+        manager_ad_user = {
+            "SamAccountName": MO_MANAGER_SAM,
+            "DistinguishedName": "manager-dn",
+        }
+        if cpr == "cpr":  # == the MO employee's own CPR
+            return [employee_ad_user]
+        if cpr == MO_MANAGER_CPR:
+            return [manager_ad_user]
+
     def _prepare_adwriter(self, **kwargs):
         template_to_ad_fields = kwargs.pop("template_to_ad_fields", {})
         template_to_ad_fields_when_disable = kwargs.pop(
@@ -1080,6 +1107,7 @@ class _TestRealADWriter(TestCase):
         )
         skip_locations = kwargs.pop("skip_locations", None)
         read_ou_addresses = kwargs.pop("read_ou_addresses", None)
+        get_from_ad = kwargs.pop("get_from_ad", self._get_from_ad_matching_nothing)
         with MockADWriterContext(
             template_to_ad_fields=template_to_ad_fields,
             template_to_ad_fields_when_disable=template_to_ad_fields_when_disable,
@@ -1088,7 +1116,7 @@ class _TestRealADWriter(TestCase):
             run_ps_response=kwargs.pop("run_ps_response", None),
         ):
             instance = ADWriter(**kwargs)
-            instance.get_from_ad = lambda *_args, **_kwargs: {}
+            instance.get_from_ad = get_from_ad
             return instance
 
 
@@ -1290,11 +1318,16 @@ class TestPreview(_TestRealADWriter):
         self.assertIn("New-ADUser", create_cmds[0])
         self.assertIn("Set-ADUser -Manager", create_cmds[1])
 
-    def test_preview_sync_command(self):
-        ad_writer = self._prepare_adwriter()
-        sync_cmd, rename_cmd, rename_cmd_target = ad_writer._preview_sync_command(
-            MO_UUID, "user_sam"
+    def test_preview_sync_command_can_preview_rename_when_ad_dump_is_none(self):
+        ad_writer = self._prepare_adwriter(
+            get_from_ad=self._get_from_ad_matching_nothing
         )
+        (
+            sync_cmd,
+            rename_cmd,
+            rename_cmd_target,
+            add_manager_cmd,
+        ) = ad_writer._preview_sync_command(MO_UUID, "user_sam")
         # Examine 'sync_cmd'
         self.assertIn("Get-ADUser", sync_cmd)
         self.assertIn("Set-ADUser", sync_cmd)
@@ -1303,6 +1336,62 @@ class TestPreview(_TestRealADWriter):
         self.assertIn("Rename-ADobject", rename_cmd)
         self.assertIn('-NewName "<new name>"', rename_cmd)
         self.assertEqual("<nonexistent AD user>", rename_cmd_target)
+        # Examine 'add_manager_cmd'
+        self.assertEqual("", add_manager_cmd)
+
+    def test_preview_sync_command_can_preview_rename(self):
+        reader = MockADParameterReaderWithManager()
+        lc = MockLoraCacheWithManager()
+        mo_name = lc._mo_values_employee["navn"]
+
+        # Mock `ad_dump` which only contains an employee, and no manager
+        ad_dump = [reader.read_user(cpr="cpr")]
+
+        with MockADWriterContext(
+            template_to_ad_fields={"Name": "{{ mo_values['full_name'] }}"}
+        ):
+            writer = ADWriter(lc=lc, lc_historic=lc)
+            (
+                sync_cmd,
+                rename_cmd,
+                rename_cmd_target,
+                add_manager_cmd,
+            ) = writer._preview_sync_command(MO_UUID, "user_sam", ad_dump=ad_dump)
+            # Examine 'sync_cmd'
+            self.assertIn("Get-ADUser", sync_cmd)
+            self.assertIn("Set-ADUser", sync_cmd)
+            # Examine 'rename_cmd'
+            self.assertIn("Get-ADUser", rename_cmd)
+            self.assertIn("Rename-ADobject", rename_cmd)
+            self.assertIn(f'-NewName "{mo_name}"', rename_cmd)
+            self.assertIsNone(rename_cmd_target)
+            # Examine 'add_manager_cmd'
+            self.assertEqual("", add_manager_cmd)
+
+    def test_preview_sync_command_can_preview_add_manager(self):
+        reader = MockADParameterReaderWithManager()
+        lc = MockLoraCacheWithManager()
+        ad_dump = [
+            reader.read_user(cpr="cpr"),  # employee
+            reader.read_user(cpr=MO_MANAGER_CPR),  # manager
+        ]
+        with MockADWriterContext():
+            writer = ADWriter(lc=lc, lc_historic=lc)
+            (
+                sync_cmd,
+                rename_cmd,
+                rename_cmd_target,
+                add_manager_cmd,
+            ) = writer._preview_sync_command(MO_UUID, "user_sam", ad_dump=ad_dump)
+            # Examine 'sync_cmd'
+            self.assertIn("Get-ADUser", sync_cmd)
+            self.assertIn("Set-ADUser", sync_cmd)
+            # Examine 'rename_cmd'
+            self.assertEqual("", rename_cmd)
+            # Examine 'add_manager_cmd'
+            self.assertIn("Get-ADUser", add_manager_cmd)
+            self.assertIn("Set-ADUser", add_manager_cmd)
+            self.assertIn(f"-Manager {MO_MANAGER_SAM}", add_manager_cmd)
 
     @parameterized.expand(
         [
@@ -1535,3 +1624,18 @@ class TestRenameADUser(_TestRealADWriter):
             ad_writer._rename_ad_user("user_sam", "New Name")
             # Assert
             mock_time_sleep.assert_called_once_with(1)
+
+
+class TestGetManagerUUID(_TestRealADWriter):
+    def test_get_manager_uuid(self):
+        ad_writer = self._prepare_adwriter(
+            get_from_ad=self._get_from_ad_matching_manager
+        )
+        mo_values = ad_writer.read_ad_information_from_mo(MO_UUID)
+        assert mo_values["_manager_uuid"] == MO_MANAGER_UUID
+        assert mo_values["_manager_mo_user"]["uuid"] == MO_MANAGER_UUID
+        assert mo_values["read_manager"] is True
+        assert mo_values["manager_name"] == mo_values["_manager_mo_user"]["name"]
+        assert mo_values["manager_cpr"] == mo_values["_manager_mo_user"]["cpr_no"]
+        assert mo_values["manager_mail"] == "address-value"
+        assert mo_values["manager_sam"] == MO_MANAGER_SAM

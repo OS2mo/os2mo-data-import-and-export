@@ -2,6 +2,7 @@
 import copy
 import json
 import logging
+import os
 import random
 import re
 import time
@@ -14,8 +15,10 @@ from functools import partial
 from operator import itemgetter
 
 import click
+import jmespath
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from gql import gql
 from jinja2 import Environment
 from jinja2 import StrictUndefined
 from jinja2 import Undefined
@@ -25,6 +28,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
 from ra_utils.lazy_dict import LazyEvalDerived
+from raclients.graph.client import GraphQLClient
 
 from . import ad_templates
 from .ad_common import AD
@@ -277,6 +281,83 @@ class LoraCacheSource(MODataSource):
         return {it_system["itsystem"]: it_system for it_system in user_itsystems}
 
 
+class MOGraphqlSource:
+    """MO Graphql."""
+
+    def __init__(self, settings):
+        self._settings = settings
+
+        # For each employee we need to find the manager uuid which is associated by the
+        # org_unit of the primary engagement.
+        # So the path is engagements - filter by primary, org_unit, manager, uuid
+        # At last the result is piped into [0] to get the value and not an array.
+        # https://jmespath.org/tutorial.html#pipe-expressions
+        self._get_manager_uuid = jmespath.compile(
+            "objects[0].engagements[?is_primary].org_unit[0].managers[0].employee_uuid | [0]"
+        )
+
+        self._response = self._read_employees()
+        self._manager_map = self._create_manager_map()
+
+    def _get_client(self):
+        return GraphQLClient(
+            url=f"{self._settings['global']['mora.base']}/graphql/v3",
+            client_id=os.environ.get("CLIENT_ID", "dipex"),
+            client_secret=os.environ["CLIENT_SECRET"],
+            auth_realm=os.environ.get("AUTH_REALM", "mo"),
+            auth_server=os.environ["AUTH_SERVER"],
+            sync=True,
+            httpx_client_kwargs={"timeout": None},
+        )
+
+    def _read_employees(self):
+        query = gql(
+            """
+            query read_employees {
+              employees(to_date: null) {
+                uuid
+                objects {
+                  engagements {
+                    employee_uuid
+                    uuid
+                    is_primary
+                    org_unit {
+                      managers(inherit: true) {
+                        employee_uuid
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            """
+        )
+        with self._get_client() as session:
+            return session.execute(query)
+
+    def _is_primary_engagement(self, employee: dict) -> bool:
+        for obj in employee["objects"]:
+            for eng in obj["engagements"]:
+                if eng["is_primary"] is True:
+                    return True
+        return False
+
+    def _create_manager_map(self):
+        """Create mapping between employees and managers"""
+        return {
+            e["uuid"]: (
+                self._get_manager_uuid.search(e)
+                if self._is_primary_engagement(e)
+                else None
+            )
+            for e in self._response["employees"]
+        }
+
+    def get_manager_uuid(self, mo_user: dict, eng_uuid):
+        """Look up manager UUID for employee"""
+        return self._manager_map[mo_user["uuid"]]
+
+
 class MORESTSource(MODataSource):
     """MO REST implementation of the MODataSource interface."""
 
@@ -391,6 +472,10 @@ class ADWriter(AD):
         self.helper = MoraHelper(
             hostname=self.settings["global"]["mora.base"], use_cache=False
         )
+        # Read manager information with graphql
+        graphql = MOGraphqlSource(self.settings)
+        # overwrite method no matter what datasource.
+        self.datasource.get_manager_uuid = graphql.get_manager_uuid
 
         self._init_name_creator()
 
@@ -863,6 +948,7 @@ class ADWriter(AD):
         sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
         rename_cmd = ""
         rename_cmd_target = ""
+        add_manager_cmd = ""
 
         try:
             mismatch = self._sync_compare(mo_values, ad_dump)
@@ -875,6 +961,8 @@ class ADWriter(AD):
             rename_cmd_target = "<nonexistent AD user>"
         else:
             # We found an actual AD user by CPR
+
+            # Preview 'rename' command, if the name differs between MO and AD
             if "name" in mismatch:
                 # A rename command is necessary, as the new username differs from the
                 # current username in AD.
@@ -883,7 +971,13 @@ class ADWriter(AD):
                 rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
                 rename_cmd_target = mismatch["name"][0]  # = previous username
 
-        return sync_cmd, rename_cmd, rename_cmd_target
+            # Preview 'add manager' command, if the manager differs between MO and AD
+            if sync_manager and "manager" in mismatch:
+                add_manager_cmd = self._get_add_manager_command(
+                    user_sam, mo_values["manager_sam"]
+                )
+
+        return sync_cmd, rename_cmd, rename_cmd_target, add_manager_cmd
 
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
