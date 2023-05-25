@@ -16,6 +16,7 @@ from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
+from sdlon.models import MOBasePerson
 from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
@@ -120,6 +121,7 @@ def setup_sd_changed_at(updates=None, hours=24):
 
 
 class Test_sd_changed_at(unittest.TestCase):
+
     @patch("sdlon.sd_common.sd_lookup_settings")
     @patch("sdlon.sd_common.requests.get")
     def test_get_sd_person(self, requests_get, sd_settings):
@@ -137,8 +139,9 @@ class Test_sd_changed_at(unittest.TestCase):
         result = sd_updater.get_sd_person(cpr=cpr)
         self.assertEqual(result, expected_read_person_result)
 
-    def test_update_changed_persons(self):
-
+    @patch("sdlon.sd_changed_at.get_employee")
+    def test_update_changed_persons(self, mock_get_employee: MagicMock):
+        # Arrange
         cpr = "0101709999"
         first_name = "John"
         last_name = "Deere"
@@ -160,19 +163,24 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.org_uuid = org_uuid
 
         morahelper = sd_updater.morahelper_mock
-        morahelper.read_user.return_value = {
-            "uuid": user_uuid,
-            "name": " ".join(["Old firstname", last_name]),
-            "first_name": "Old firstname",
-            "surname": last_name,
-        }
+        mock_get_employee.return_value = MOBasePerson(
+            cpr=cpr,
+            uuid=uuid.UUID(user_uuid),
+            name=f"Old firstname {last_name}",
+            givenname="Old firstname",
+            surname=last_name
+        )
 
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict(
             {"status_code": 201, "json": lambda: user_uuid}
         )
         self.assertFalse(_mo_post.called)
+
+        # Act
         sd_updater.update_changed_persons(in_cpr=cpr)
+
+        # Assert
         _mo_post.assert_called_with(
             "e/create",
             {

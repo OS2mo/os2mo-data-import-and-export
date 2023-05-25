@@ -36,6 +36,7 @@ from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
 
+from sdlon.employees import get_employee
 from sdlon.graphql import get_mo_client
 from sdlon.it_systems import (
     get_sd_to_ad_it_system_uuid,
@@ -56,6 +57,7 @@ from .engagement import (
 from .engagement import update_existing_engagement
 from .fix_departments import FixDepartments
 from .models import JobFunction
+from .models import MOBasePerson
 from .models import SDBasePerson
 from .sd_common import calc_employment_id
 from .sd_common import EmploymentStatus
@@ -386,11 +388,9 @@ class ChangeAtSD:
                 surname=person.get("PersonSurnameName"),
             )
 
-        def fetch_mo_person(person: SDBasePerson) -> Dict[str, Any]:
-            mo_person = self.helper.read_user(
-                user_cpr=person.cpr, org_uuid=self.org_uuid
-            )
-            return mo_person
+        def fetch_mo_person(person: SDBasePerson) -> MOBasePerson | None:
+            employee = get_employee(self.mo_graphql_client, person.cpr)
+            return employee
 
         def upsert_employee(
             uuid: str, given_name: Optional[str], sur_name: Optional[str], cpr: str
@@ -457,12 +457,14 @@ class ChangeAtSD:
 
         # Update the names of the persons already in MO
         for sd_person, mo_person in current_pairs:
-            given_name = sd_person.given_name or mo_person.get("givenname", "")
-            surname = sd_person.surname or mo_person.get("surname", "")
+            given_name = sd_person.given_name or \
+                         (mo_person.givenname if mo_person.givenname is not None else "")
+            surname = sd_person.surname or \
+                      (mo_person.surname if mo_person.surname is not None else "")
             sd_name = f"{sd_person.given_name} {sd_person.surname}"
 
-            uuid = mo_person["uuid"]
-            if mo_person["name"] != sd_name:
+            uuid = str(mo_person.uuid)
+            if mo_person.name != sd_name:
                 upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
 
             if self.settings.sd_phone_number_id_for_ad_creation:
