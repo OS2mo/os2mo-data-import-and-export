@@ -24,6 +24,7 @@ RETRY_MAX_TIME = 60 * 5
 
 class GqlLoraCacheSettings(JobSettings):
     use_new_cache: bool = False
+    exporters_actual_state_manager_responsibility_class: str | None = None
 
     class Config:
         pass
@@ -34,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 # used to correctly insert the object into the cache
 def insert_obj(obj: dict, cache: dict) -> None:
+    if obj is None:
+        return
     if obj["uuid"] in cache:
         cache[obj["uuid"]].extend(obj["obj"])
     else:
@@ -79,6 +82,8 @@ def convert_dict(
     obj_list = []
     if resolve_object:
         for obj in query_res["obj"]:
+            if obj is None:
+                continue
             if resolve_validity:
                 obj = res_validity(obj)
             obj = replace(obj, replace_dict)
@@ -177,8 +182,8 @@ class GQLLoraCache:
         if simple_query:
             query_header = (
                 """
-                            query ($limit: int, $offset: int) {
-                                page: """
+                                query ($limit: int, $offset: int) {
+                                    page: """
                 + query_type
                 + """ (limit: $limit, offset: $offset){
                     """
@@ -191,8 +196,8 @@ class GQLLoraCache:
             if not self.full_history:
                 query_header = (
                     """
-                            query ($limit: int, $offset: int) {
-                                page: """
+                                query ($limit: int, $offset: int) {
+                                    page: """
                     + query_type
                     + """ (limit: $limit, offset: $offset){
                         uuid
@@ -202,11 +207,11 @@ class GQLLoraCache:
             if self.full_history:
                 query_header = (
                     """
-                            query ($to_date: DateTime,
-                                   $from_date: DateTime,
-                                   $limit: int,
-                                   $offset: int) {
-                                page: """
+                                query ($to_date: DateTime,
+                                       $from_date: DateTime,
+                                       $limit: int,
+                                       $offset: int) {
+                                    page: """
                     + query_type
                     + """ (from_date: $from_date,
                                                      to_date: $to_date,
@@ -392,26 +397,28 @@ class GQLLoraCache:
                     None,
                 )
 
-            for obj in qr["obj"]:
+            for man in qr["obj"]:
+                if man is None:
+                    continue
                 if not self.full_history:
-                    if obj["manager_uuid"]:
-                        obj["manager_uuid"] = find_manager(obj["manager_uuid"])
+                    if man["manager_uuid"]:
+                        man["manager_uuid"] = find_manager(man["manager_uuid"])
                     else:
-                        obj["manager_uuid"] = None
+                        man["manager_uuid"] = None
 
-                    if obj["acting_manager_uuid"]:
-                        obj["acting_manager_uuid"] = find_manager(
-                            obj["acting_manager_uuid"]
+                    if man["acting_manager_uuid"]:
+                        man["acting_manager_uuid"] = find_manager(
+                            man["acting_manager_uuid"]
                         )
                     else:
-                        obj["acting_manager_uuid"] = None
+                        man["acting_manager_uuid"] = None
 
-                    ancestors = obj.pop("ancestors")
-                    location = obj["name"]
+                    ancestors = man.pop("ancestors")
+                    location = man["name"]
                     for ancestor in ancestors:
                         location = ancestor["name"] + "\\" + location
 
-                    obj["location"] = location
+                    man["location"] = location
             return qr
 
         if self.full_history:
@@ -473,6 +480,8 @@ class GQLLoraCache:
                 obj = align_current(obj)
 
             for item in obj["obj"]:
+                if item is None:
+                    continue
                 if item["parent_uuid"] == self.org_uuid:
                     item["parent_uuid"] = None
 
@@ -484,6 +493,8 @@ class GQLLoraCache:
     async def _cache_lora_engagements(self) -> None:
         def collect_extensions(d: dict):
             for ext_obj in d["obj"]:
+                if ext_obj is None:
+                    continue
                 ed = {}
                 for i in range(1, 11):
                     ed[f"udvidelse_{i}"] = ext_obj.pop(f"extension_{i}")
@@ -595,12 +606,14 @@ class GQLLoraCache:
 
     async def _cache_lora_it_connections(self) -> None:
         async def set_primary_boolean(res: dict) -> dict:
-            for obj in res["obj"]:
-                prim = obj.pop("primary_uuid")
+            for res_obj in res["obj"]:
+                if res_obj is None:
+                    continue
+                prim = res_obj.pop("primary_uuid")
                 if prim:
-                    obj["primary_boolean"] = True
+                    res_obj["primary_boolean"] = True
                 else:
-                    obj["primary_boolean"] = None
+                    res_obj["primary_boolean"] = None
 
             return res
 
@@ -637,11 +650,13 @@ class GQLLoraCache:
     async def _cache_lora_kles(self) -> None:
         async def format_aspects(d: dict) -> dict:
             new_obj_list = []
-            for obj in d["obj"]:
+            for kle_obj in d["obj"]:
+                if kle_obj is None:
+                    continue
                 asp_list = []
-                asps = obj.pop("kle_aspect_uuids")
+                asps = kle_obj.pop("kle_aspect_uuids")
                 for a_uuid in asps:
-                    aspect = obj.copy()
+                    aspect = kle_obj.copy()
                     aspect["kle_aspect_uuid"] = a_uuid
                     asp_list.append(aspect)
                 new_obj_list.extend(asp_list)
@@ -681,6 +696,8 @@ class GQLLoraCache:
     async def _cache_lora_related(self) -> None:
         def format_related(d: dict):
             for rel_obj in d["obj"]:
+                if rel_obj is None:
+                    continue
                 rel_uuids_list = rel_obj.pop("org_unit_uuids")
                 for i in range(1, (len(rel_uuids_list) + 1)):
                     rel_obj[f"unit{i}_uuid"] = rel_uuids_list[i - 1]
@@ -743,18 +760,20 @@ class GQLLoraCache:
 
     async def _cache_lora_associations(self) -> None:
         async def process_associations_helper(res: dict) -> dict:
-            for obj in res["obj"]:
-                prim = obj.pop("primary")
+            for res_obj in res["obj"]:
+                if res_obj is None:
+                    continue
+                prim = res_obj.pop("primary")
                 if prim:
                     if prim["user_key"] == "primary":
-                        obj["primary_boolean"] = True
+                        res_obj["primary_boolean"] = True
                     else:
-                        obj["primary_boolean"] = False
+                        res_obj["primary_boolean"] = False
                 else:
-                    obj["primary_boolean"] = None
+                    res_obj["primary_boolean"] = None
 
-                if not obj["it_user_uuid"]:
-                    obj["job_function_uuid"] = None
+                if not res_obj["it_user_uuid"]:
+                    res_obj["job_function_uuid"] = None
 
             return res
 
@@ -798,20 +817,28 @@ class GQLLoraCache:
 
     async def _cache_lora_address(self):
         async def prep_address(d: dict) -> dict:
-            for obj in d["obj"]:
-                scope = obj.pop("address_type")["scope"]
+            for add_obj in d["obj"]:
+                if add_obj is None:
+                    continue
+                scope = add_obj.pop("address_type")["scope"]
 
-                obj["scope"] = scope_map[scope]
+                add_obj["scope"] = scope_map[scope]
 
                 if scope == "DAR":
-                    obj["dar_uuid"] = obj["value"]
+                    add_obj["dar_uuid"] = add_obj["value"]
+                    # We need to populate the dar cache, but do not want to
+                    # resolve all addresses again, and the resolved dar address we do have is
+                    # closest to betegnelse.
+                    # We are willing to overwrite an address if it is already present, as it is the
+                    # same address for each uuid
+                    self.dar_cache[add_obj["value"]] = {"betegnelse", add_obj["name"]}
                 else:
-                    obj["dar_uuid"] = None
+                    add_obj["dar_uuid"] = None
 
                 if self.resolve_dar:
-                    obj["value"] = obj.pop("name")
+                    add_obj["value"] = add_obj.pop("name")
                 else:
-                    obj.pop("name")
+                    add_obj.pop("name")
 
             return d
 
@@ -861,7 +888,9 @@ class GQLLoraCache:
             # org_unit_uuid
             if any(
                 map(
-                    lambda o: o["employee_uuid"] is None and o["org_unit_uuid"] is None,
+                    lambda o: o is not None
+                    and o["employee_uuid"] is None
+                    and o["org_unit_uuid"] is None,
                     obj["obj"],
                 )
             ):
