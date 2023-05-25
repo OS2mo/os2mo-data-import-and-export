@@ -17,6 +17,7 @@ from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
 from sdlon.models import MOBasePerson
+from sdlon.it_systems import MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE
 from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
@@ -63,10 +64,13 @@ def test_getfrom_date_force(delete_mock, test_from_date):
 class ChangeAtSDTest(ChangeAtSD):
     def __init__(self, *args, **kwargs):
         self.morahelper_mock = MagicMock()
-        self.morahelper_mock.read_organisation.return_value = "org_uuid"
+        self.morahelper_mock.read_organisation.return_value = (
+            "00000000-0000-0000-0000-000000000000"
+        )
         self.primary_types_mock = MagicMock()
         self.primary_engagement_mock = MagicMock()
         self.fix_departments_mock = MagicMock()
+        self.mo_graphql_client = MagicMock()
 
         self._get_job_sync = MagicMock()
 
@@ -161,7 +165,6 @@ class Test_sd_changed_at(unittest.TestCase):
 
         sd_updater.org_uuid = org_uuid
 
-        morahelper = sd_updater.morahelper_mock
         mock_get_employee.return_value = MOBasePerson(
             cpr=cpr,
             uuid=uuid.UUID(user_uuid),
@@ -170,6 +173,7 @@ class Test_sd_changed_at(unittest.TestCase):
             surname=last_name,
         )
 
+        morahelper = sd_updater.morahelper_mock
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict(
             {"status_code": 201, "json": lambda: user_uuid}
@@ -190,6 +194,70 @@ class Test_sd_changed_at(unittest.TestCase):
                 "org": {"uuid": org_uuid},
                 "uuid": user_uuid,
                 "user_key": user_uuid,
+            },
+        )
+
+    @patch(
+        "sdlon.sd_changed_at.uuid4",
+        return_value=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_create_sd_to_ad_it_system_for_new_sd_person(
+        self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
+    ):
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        # TODO: test empty list, list without the IT-system
+                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock(
+            return_value={
+                "itsystems": {
+                    "objects": [{"uuid": "988dead8-7564-464a-8339-b7057bfa2665"}]
+                }
+            }
+        )
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = None
+
+        mock_mo_post = MagicMock(
+            return_value=attrdict(
+                {
+                    "status_code": 201,
+                    "json": lambda: "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            )
+        )
+        sd_updater.morahelper_mock._mo_post = mock_mo_post
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_called_with(
+            MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
+            variable_values={
+                "input": {
+                    "user_key": "AD-bruger fra SD",
+                    "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
+                    "validity": {"from": "2000-01-01"},
+                    "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
             },
         )
 

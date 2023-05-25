@@ -514,7 +514,7 @@ class ChangeAtSD:
                 create_itsystem_connection(sam_account_name, return_uuid)
 
             if self.settings.sd_phone_number_id_for_ad_creation:
-                self._create_sd_to_ad_it_system_connection(UUID(uuid))
+                self._create_sd_to_ad_it_system_connection(UUID(str(uuid)))
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
