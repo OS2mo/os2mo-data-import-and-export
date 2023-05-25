@@ -20,6 +20,9 @@ MO_ROOT_ORG_UNIT_NAME = "not-a-mo-org-unit-name"
 MO_USER_LOCATION = MO_ROOT_ORG_UNIT_NAME
 MO_CHILD_ORG_UNIT_UUID = uuid4()
 MO_UUID = "not-a-uuid"
+MO_MANAGER_UUID = "mo-manager-uuid"
+MO_MANAGER_CPR = "mo-manager-cpr"
+MO_MANAGER_SAM = "mo-manager-sam"
 AD_UUID_FIELD = "uuidField"
 UNKNOWN_CPR_NO = "not-a-cpr-no"
 MO_AD_IT_SYSTEM_UUID = uuid4()
@@ -78,6 +81,22 @@ class MockUnknownCPRADParameterReader(MockADParameterReader):
         return super().read_user(cpr=cpr, **kwargs)
 
 
+class MockADParameterReaderWithManager(MockADParameterReader):
+    def read_user(self, cpr=None, **kwargs):
+        if cpr == MO_MANAGER_CPR:
+            return {
+                "cpr_field": MO_MANAGER_CPR,
+                "SamAccountName": MO_MANAGER_SAM,
+                "DistinguishedName": "manager-dn",
+            }
+        else:
+            return {
+                "cpr_field": "cpr",
+                "SamAccountName": "mo-user-sam",
+                "manager": None,
+            }
+
+
 class MockMORESTSource(MORESTSource):
     def __init__(self, from_date, to_date):
         self.from_date = from_date
@@ -96,13 +115,21 @@ class MockMORESTSourcePreview(MORESTSource):
         return "employment-number", "title", "eng-org-unit", "eng-uuid"
 
     def read_user(self, uuid):
-        mo_user = self.helper.read_user()
+        mo_user = copy.deepcopy(self.helper.read_user())
         mo_user.update(
             {
                 "givenname": "Tester",
                 "surname": "Testesen",
             }
         )
+        if uuid == MO_MANAGER_UUID:
+            mo_user.update(
+                {
+                    "uuid": MO_MANAGER_UUID,
+                    "cpr_no": MO_MANAGER_CPR,
+                    "name": "Leder Ledersen",
+                }
+            )
         return mo_user
 
     def get_engagement_dates(self, uuid):
@@ -189,11 +216,6 @@ class MockLoraCacheExtended(MockLoraCache):
                     "unit_type": None,
                     "level": None,
                     "parent": None,
-                    "name": MO_ROOT_ORG_UNIT_NAME,
-                    "location": MO_ROOT_ORG_UNIT_NAME,
-                    "user_key": None,
-                    "unit_type": None,
-                    "level": None,
                 }
             ]
         }
@@ -207,6 +229,38 @@ class MockLoraCacheExtended(MockLoraCache):
 
     def _read_org_uuid(self):
         return "not-a-mo-org-uuid"
+
+
+class MockLoraCacheWithManager(MockLoraCacheExtended):
+    def __init__(self):
+        self._mo_values_employee = {
+            "uuid": MO_UUID,
+            "cpr": "cpr",
+            "navn": "Ansat Ansatsen",
+            "efternavn": "Ansatsen",
+            "fornavn": "Ansat",
+            "kaldenavn": "Kaldenavn Ansatsen",
+            "kaldenavn_fornavn": "Kaldenavn",
+            "kaldenavn_efternavn": "Ansatsen",
+        }
+        self._mo_values_manager = {
+            "uuid": MO_MANAGER_UUID,
+            "cpr": MO_MANAGER_CPR,
+            "navn": "Leder Ledersen",
+            "efternavn": "Ledersen",
+            "fornavn": "Leder",
+            "kaldenavn": "Kaldenavn Ledersen",
+            "kaldenavn_fornavn": "Kaldenavn",
+            "kaldenavn_efternavn": "Ledersen",
+        }
+        super().__init__(mo_values=self._mo_values_employee)
+
+    @property
+    def users(self):
+        return {
+            self._mo_values_employee["uuid"]: [self._mo_values_employee],
+            self._mo_values_manager["uuid"]: [self._mo_values_manager],
+        }
 
 
 class MockLoraCacheEmptyEmployee(MockLoraCacheExtended):
@@ -376,6 +430,16 @@ class MockMoraHelper(MoraHelper):
         return mock_response
 
 
+class MockMOGraphqlSource:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get_manager_uuid(self, mo_user: dict, eng_uuid: str) -> str | None:
+        if mo_user["uuid"] == MO_UUID:
+            return MO_MANAGER_UUID
+        return None
+
+
 class MockADWriterContext(ExitStack):
     """Mock enough of `ADWriter` dependencies to allow it to instantiate in a test.
     Usage:
@@ -458,3 +522,4 @@ class MockADWriterContext(ExitStack):
                 read_ou_addresses=self._read_ou_addresses,
             ),
         )
+        yield patch(f"{prefix}.ad_writer.MOGraphqlSource", new=MockMOGraphqlSource)
