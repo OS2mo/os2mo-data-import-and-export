@@ -24,6 +24,7 @@ QUERY_GET_EMPLOYEE = gql(
     """
 )
 
+
 def get_employee(gql_client: GraphQLClient, cpr: str) -> MOBasePerson | None:
     """
     Get employee from MO
@@ -35,10 +36,7 @@ def get_employee(gql_client: GraphQLClient, cpr: str) -> MOBasePerson | None:
     Returns:
         The MO employee or None if the employee does not exist in MO
     """
-    r = gql_client.execute(
-        QUERY_GET_EMPLOYEE,
-        variable_values={"cpr": cpr}
-    )
+    r = gql_client.execute(QUERY_GET_EMPLOYEE, variable_values={"cpr": cpr})
 
     obj = r["employees"]["objects"]
     if not obj:
@@ -51,5 +49,5 @@ def get_employee(gql_client: GraphQLClient, cpr: str) -> MOBasePerson | None:
         givenname=employee["givenname"],
         surname=employee["surname"],
         name=employee["name"],
-        uuid=UUID(employee["uuid"])
+        uuid=UUID(employee["uuid"]),
     )

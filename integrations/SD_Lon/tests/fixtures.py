@@ -16,6 +16,7 @@ from ra_utils.attrdict import attrdict
 def mock_graphql_client():
     return MagicMock()
 
+
 def get_sd_person_fixture(
     cpr: str, first_name: str, last_name: str, employment_id: str
 ) -> Tuple[AttrDict, List[typing.OrderedDict[str, Any]]]:

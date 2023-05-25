@@ -457,10 +457,12 @@ class ChangeAtSD:
 
         # Update the names of the persons already in MO
         for sd_person, mo_person in current_pairs:
-            given_name = sd_person.given_name or \
-                         (mo_person.givenname if mo_person.givenname is not None else "")
-            surname = sd_person.surname or \
-                      (mo_person.surname if mo_person.surname is not None else "")
+            given_name = sd_person.given_name or (
+                mo_person.givenname if mo_person.givenname is not None else ""
+            )
+            surname = sd_person.surname or (
+                mo_person.surname if mo_person.surname is not None else ""
+            )
             sd_name = f"{sd_person.given_name} {sd_person.surname}"
 
             uuid = str(mo_person.uuid)

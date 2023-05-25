@@ -121,7 +121,6 @@ def setup_sd_changed_at(updates=None, hours=24):
 
 
 class Test_sd_changed_at(unittest.TestCase):
-
     @patch("sdlon.sd_common.sd_lookup_settings")
     @patch("sdlon.sd_common.requests.get")
     def test_get_sd_person(self, requests_get, sd_settings):
@@ -168,7 +167,7 @@ class Test_sd_changed_at(unittest.TestCase):
             uuid=uuid.UUID(user_uuid),
             name=f"Old firstname {last_name}",
             givenname="Old firstname",
-            surname=last_name
+            surname=last_name,
         )
 
         _mo_post = morahelper._mo_post
