@@ -43,7 +43,7 @@ class OrgUnit(BaseModel):
     """
 
     class Config:
-        extra = Extra.ignore
+        extra = Extra.forbid
 
     def json(self):
         return jsonable_encoder(self.dict())
