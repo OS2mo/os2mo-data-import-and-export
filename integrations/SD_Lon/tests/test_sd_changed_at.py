@@ -218,7 +218,6 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        # TODO: test empty list, list without the IT-system
                         "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
@@ -261,6 +260,61 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
+
+    @patch(
+        "sdlon.sd_changed_at.uuid4",
+        return_value=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_do_not_create_sd_to_ad_it_system_for_new_sd_person(
+        self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
+    ):
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        "TelephoneNumberIdentifier": ["12345678"]
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock(
+            return_value={
+                "itsystems": {
+                    "objects": [{"uuid": "988dead8-7564-464a-8339-b7057bfa2665"}]
+                }
+            }
+        )
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = None
+
+        mock_mo_post = MagicMock(
+            return_value=attrdict(
+                {
+                    "status_code": 201,
+                    "json": lambda: "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            )
+        )
+        sd_updater.morahelper_mock._mo_post = mock_mo_post
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_not_called()
+
+
     @patch(
         "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
         return_value=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
@@ -287,7 +341,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                        "TelephoneNumberIdentifier": ["12345678"]#, "AD-bruger fra SD"]
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }
