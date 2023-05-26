@@ -206,6 +206,14 @@ class Test_sd_changed_at(unittest.TestCase):
     def test_create_sd_to_ad_it_system_for_new_sd_person(
         self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
     ):
+        """
+        This test ensures that the "AD-bruger fra SD" IT-system is created on
+        employees in MO for new SD persons if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+           in the <TelephoneNumberIdentifier> in their <ContactInformation>
+        """
         # Arrange
         mock_date.today = MagicMock(return_value=date(2000, 1, 1))
         sd_updater = setup_sd_changed_at(
@@ -269,6 +277,16 @@ class Test_sd_changed_at(unittest.TestCase):
     def test_do_not_create_sd_to_ad_it_system_for_new_sd_person(
         self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
     ):
+        """
+        This test ensures that we do NOT create the "AD-bruger fra SD" IT-system
+        on employees in MO for new SD persons if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has does NOT have the appropriate string (e.g.)
+           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           <ContactInformation>
+        """
+
         # Arrange
         mock_date.today = MagicMock(return_value=date(2000, 1, 1))
         sd_updater = setup_sd_changed_at(
@@ -325,6 +343,19 @@ class Test_sd_changed_at(unittest.TestCase):
         mock_get_employee_it_systems: MagicMock,
         mock_get_sd_to_ad_it_system_uuid: MagicMock,
     ):
+        """
+        This test ensures that the "AD-bruger fra SD" IT-system is created on
+        employees in MO for SD persons already existing in MO if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+           in the <TelephoneNumberIdentifier> in their <ContactInformation>
+
+           and
+
+           The IT-system does not already exist for the employee
+        """
+
         # Arrange
         mock_date.today = MagicMock(return_value=date(2000, 1, 1))
         sd_updater = setup_sd_changed_at(
@@ -394,6 +425,23 @@ class Test_sd_changed_at(unittest.TestCase):
         mock_get_employee_it_systems: MagicMock,
         mock_get_sd_to_ad_it_system_uuid: MagicMock,
     ):
+        """
+        This test ensures that we do NOT create the "AD-bruger fra SD" IT-system
+        on employees in MO for SD persons already existing in MO if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+
+        and
+
+        2) The SD person has does NOT have the appropriate string (e.g.)
+           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           <ContactInformation>
+
+            or
+
+            The IT-system is already exists for the employee.
+        """
+
         # Arrange
         mock_date.today = MagicMock(return_value=date(2000, 1, 1))
         sd_updater = setup_sd_changed_at(
