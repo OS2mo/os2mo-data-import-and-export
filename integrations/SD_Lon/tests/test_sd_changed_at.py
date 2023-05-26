@@ -341,7 +341,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678"]#, "AD-bruger fra SD"]
+                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }
@@ -373,15 +373,23 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
+    @parameterized.expand(
+        [
+            (["12345678", "AD-bruger fra SD"], [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")]),
+            (["12345678"], []),
+        ]
+    )
     @patch(
         "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
         return_value=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
     )
-    @patch("sdlon.sd_changed_at.get_employee_it_systems", return_value=[uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")])
+    @patch("sdlon.sd_changed_at.get_employee_it_systems")
     @patch("sdlon.sd_changed_at.get_employee")
     @patch("sdlon.it_systems.date")
-    def test_do_not_create_sd_to_ad_it_system_for_user_if_present_already(
+    def test_do_not_create_sd_to_ad_it_system_for_existing_user(
         self,
+        telephone_number_ids: list[str],
+        employee_it_systems: list[uuid.UUID],
         mock_date: MagicMock,
         mock_get_employee: MagicMock,
         mock_get_employee_it_systems: MagicMock,
@@ -392,6 +400,7 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater = setup_sd_changed_at(
             updates={"sd_phone_number_id_for_ad_creation": True}
         )
+        mock_get_employee_it_systems.return_value = employee_it_systems
         sd_updater.get_sd_persons_changed = MagicMock(
             return_value=[
                 {
@@ -399,7 +408,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                        "TelephoneNumberIdentifier": telephone_number_ids
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }

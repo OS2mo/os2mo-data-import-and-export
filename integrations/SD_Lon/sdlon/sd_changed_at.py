@@ -482,7 +482,8 @@ class ChangeAtSD:
                         self.mo_graphql_client,
                         self.settings.sd_phone_number_id_for_ad_string,
                     )
-                    not in employee_it_system_uuids
+                    not in employee_it_system_uuids and
+                    self.settings.sd_phone_number_id_for_ad_string in sd_person.telephone_number_identifiers
                 ):
                     self._create_sd_to_ad_it_system_connection(UUID(uuid))
 
