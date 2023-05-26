@@ -2,7 +2,7 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
-import pytest
+from tests.fixtures import mock_graphql_client
 
 from sdlon.it_systems import (
     get_sd_to_ad_it_system_uuid,
@@ -12,11 +12,6 @@ from sdlon.it_systems import (
     add_it_system_to_employee,
     MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
 )
-
-
-@pytest.fixture
-def mock_graphql_client():
-    return MagicMock()
 
 
 def test_get_sd_to_ad_it_system_uuid(mock_graphql_client: MagicMock) -> None:
