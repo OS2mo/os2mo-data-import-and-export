@@ -307,7 +307,6 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.update_changed_persons()
 
         # Assert
-        print(mock_execute.mock_calls)
         mock_execute.assert_called_with(
             MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
             variable_values={
@@ -319,6 +318,54 @@ class Test_sd_changed_at(unittest.TestCase):
                 }
             },
         )
+
+    @patch(
+        "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
+        return_value=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee_it_systems", return_value=[uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")])
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_do_not_create_sd_to_ad_it_system_for_user_if_present_already(
+        self,
+        mock_date: MagicMock,
+        mock_get_employee: MagicMock,
+        mock_get_employee_it_systems: MagicMock,
+        mock_get_sd_to_ad_it_system_uuid: MagicMock,
+    ):
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock()
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = MOBasePerson(
+            cpr="1111111111",
+            givenname="Bruce",
+            surname="Lee",
+            name="Bruce Lee",
+            uuid=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+        )
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_not_called()
 
     @given(status=st.sampled_from(["1", "S"]))
     @patch("sdlon.sd_common.sd_lookup_settings")
