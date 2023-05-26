@@ -167,27 +167,3 @@ def apply(func):
         return func(*tup)
 
     return applied
-
-
-def progress_iterator(elements, outputter=print, mod=10):
-    """Output progress as iteration progresses.
-
-    Example:
-        elements = [(1,'a'), (2, 'b'), (3, 'c')]
-        elements = progress_iterator(elements)
-        elements = map(itemgetter(1), elements)
-        self.assertEqual(list(elements), [1,2,3])
-
-    Args:
-        elements: list of elements,
-        outputter: Function to call with progress strings,
-        mod: The modulus for printing operations.
-
-    Returns:
-        Generator of objects in elements.
-    """
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
