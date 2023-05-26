@@ -189,22 +189,3 @@ class ADParameterReader(AD):
         Get-ADUser -Credential $usercredential -Filter '*' -Server {server} -Properties EmailAddress | ConvertTo-Json"""
         all_users = self._run_ps_script(cmd)
         return set(map(itemgetter("EmailAddress"), all_users))
-
-
-if __name__ == "__main__":
-    ad_reader = ADParameterReader()
-    # import pickle
-    # with open("mypickle.p","bw") as f:
-    #    f.write(pickle.dumps(ad_reader.read_it_all()))
-    everything = ad_reader.read_it_all()
-    for user in everything:
-        print(
-            "Name: {}, Sam: {}, Manager: {}".format(
-                user["Name"],
-                user["SamAccountName"],
-                user.get("Manager"),
-            )
-        )
-        if user["SamAccountName"] == "johndoe":
-            for key in sorted(user.keys()):
-                print("{}: {}".format(key, user[key]))
