@@ -831,7 +831,7 @@ class GQLLoraCache:
                     # closest to betegnelse.
                     # We are willing to overwrite an address if it is already present, as it is the
                     # same address for each uuid
-                    self.dar_cache[add_obj["value"]] = {"betegnelse", add_obj["name"]}
+                    self.dar_cache[add_obj["value"]] = {"betegnelse": add_obj["name"]}
                 else:
                     add_obj["dar_uuid"] = None
 
