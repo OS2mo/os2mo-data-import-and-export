@@ -593,7 +593,7 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
     if settings.os2sync_sync_managers:
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
-            sts_org_unit["managerUuid"] = manager_uuid
+            sts_org_unit["ManagerUuid"] = manager_uuid
 
     if has_kle():
         kle_to_orgunit(

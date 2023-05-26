@@ -4,6 +4,7 @@ from unittest.mock import patch
 from uuid import UUID
 from uuid import uuid4
 
+import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from os2sync_export.os2mo import get_org_unit_hierarchy
@@ -16,7 +17,9 @@ from os2sync_export.os2mo import os2mo_get
 from os2sync_export.os2mo import overwrite_position_uuids
 from os2sync_export.os2mo import overwrite_unit_uuids
 from os2sync_export.os2mo import partition_kle
+from os2sync_export.os2sync_models import OrgUnit
 from parameterized import parameterized
+from pydantic import ValidationError
 from tests.helpers import dummy_settings
 from tests.helpers import MockOs2moGet
 
@@ -285,3 +288,19 @@ def test_manager_to_orgunit_vacant():
         session_mock.return_value = MockOs2moGet([{"person": person}])
         manager_uuid = manager_to_orgunit("org_unit_uuid")
     assert manager_uuid is None
+
+
+def test_orgunit_model():
+    sts_org_unit = {"Uuid": uuid4(), "Name": "Test", "ParentOrgUnitUuid": uuid4()}
+    assert OrgUnit(**sts_org_unit)
+
+
+def test_orgunit_model_invalid_key():
+    sts_org_unit = {
+        "Uuid": uuid4(),
+        "Name": "Test",
+        "ParentOrgUnitUuid": uuid4(),
+        "managerUuid": uuid4(),
+    }
+    with pytest.raises(ValidationError):
+        OrgUnit(**sts_org_unit)
