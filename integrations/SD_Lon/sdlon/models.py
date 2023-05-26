@@ -10,10 +10,12 @@ class JobFunction(str, Enum):
     employment_name = "EmploymentName"
 
 
+# TODO: replace this model with the one present in the new SD client
 class SDBasePerson(BaseModel):
     cpr: str
     given_name: Optional[str]
     surname: Optional[str]
+    telephone_number_identifiers: list[str] = []
 
 
 class MOBasePerson(BaseModel):

@@ -17,6 +17,7 @@ from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
 from sdlon.models import MOBasePerson
+from sdlon.it_systems import MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE
 from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
@@ -63,10 +64,13 @@ def test_getfrom_date_force(delete_mock, test_from_date):
 class ChangeAtSDTest(ChangeAtSD):
     def __init__(self, *args, **kwargs):
         self.morahelper_mock = MagicMock()
-        self.morahelper_mock.read_organisation.return_value = "org_uuid"
+        self.morahelper_mock.read_organisation.return_value = (
+            "00000000-0000-0000-0000-000000000000"
+        )
         self.primary_types_mock = MagicMock()
         self.primary_engagement_mock = MagicMock()
         self.fix_departments_mock = MagicMock()
+        self.mo_graphql_client = MagicMock()
 
         self._get_job_sync = MagicMock()
 
@@ -161,7 +165,6 @@ class Test_sd_changed_at(unittest.TestCase):
 
         sd_updater.org_uuid = org_uuid
 
-        morahelper = sd_updater.morahelper_mock
         mock_get_employee.return_value = MOBasePerson(
             cpr=cpr,
             uuid=uuid.UUID(user_uuid),
@@ -170,6 +173,7 @@ class Test_sd_changed_at(unittest.TestCase):
             surname=last_name,
         )
 
+        morahelper = sd_updater.morahelper_mock
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict(
             {"status_code": 201, "json": lambda: user_uuid}
@@ -192,6 +196,286 @@ class Test_sd_changed_at(unittest.TestCase):
                 "user_key": user_uuid,
             },
         )
+
+    @patch(
+        "sdlon.sd_changed_at.uuid4",
+        return_value=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_create_sd_to_ad_it_system_for_new_sd_person(
+        self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
+    ):
+        """
+        This test ensures that the "AD-bruger fra SD" IT-system is created on
+        employees in MO for new SD persons if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+           in the <TelephoneNumberIdentifier> in their <ContactInformation>
+        """
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock(
+            return_value={
+                "itsystems": {
+                    "objects": [{"uuid": "988dead8-7564-464a-8339-b7057bfa2665"}]
+                }
+            }
+        )
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = None
+
+        mock_mo_post = MagicMock(
+            return_value=attrdict(
+                {
+                    "status_code": 201,
+                    "json": lambda: "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            )
+        )
+        sd_updater.morahelper_mock._mo_post = mock_mo_post
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_called_with(
+            MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
+            variable_values={
+                "input": {
+                    "user_key": "AD-bruger fra SD",
+                    "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
+                    "validity": {"from": "2000-01-01"},
+                    "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            },
+        )
+
+    @patch(
+        "sdlon.sd_changed_at.uuid4",
+        return_value=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_do_not_create_sd_to_ad_it_system_for_new_sd_person(
+        self, mock_date: MagicMock, mock_get_employee: MagicMock, mock_uuid4: MagicMock
+    ):
+        """
+        This test ensures that we do NOT create the "AD-bruger fra SD" IT-system
+        on employees in MO for new SD persons if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has does NOT have the appropriate string (e.g.)
+           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           <ContactInformation>
+        """
+
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {"TelephoneNumberIdentifier": ["12345678"]},
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock(
+            return_value={
+                "itsystems": {
+                    "objects": [{"uuid": "988dead8-7564-464a-8339-b7057bfa2665"}]
+                }
+            }
+        )
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = None
+
+        mock_mo_post = MagicMock(
+            return_value=attrdict(
+                {
+                    "status_code": 201,
+                    "json": lambda: "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            )
+        )
+        sd_updater.morahelper_mock._mo_post = mock_mo_post
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_not_called()
+
+    @patch(
+        "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
+        return_value=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee_it_systems", return_value=[])
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_create_sd_to_ad_it_system_for_existing_mo_person(
+        self,
+        mock_date: MagicMock,
+        mock_get_employee: MagicMock,
+        mock_get_employee_it_systems: MagicMock,
+        mock_get_sd_to_ad_it_system_uuid: MagicMock,
+    ):
+        """
+        This test ensures that the "AD-bruger fra SD" IT-system is created on
+        employees in MO for SD persons already existing in MO if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+           in the <TelephoneNumberIdentifier> in their <ContactInformation>
+
+           and
+
+           The IT-system does not already exist for the employee
+        """
+
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock()
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = MOBasePerson(
+            cpr="1111111111",
+            givenname="Bruce",
+            surname="Lee",
+            name="Bruce Lee",
+            uuid=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+        )
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_called_with(
+            MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
+            variable_values={
+                "input": {
+                    "user_key": "AD-bruger fra SD",
+                    "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
+                    "validity": {"from": "2000-01-01"},
+                    "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            },
+        )
+
+    @parameterized.expand(
+        [
+            (
+                ["12345678", "AD-bruger fra SD"],
+                [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")],
+            ),
+            (["12345678"], []),
+        ]
+    )
+    @patch(
+        "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
+        return_value=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
+    )
+    @patch("sdlon.sd_changed_at.get_employee_it_systems")
+    @patch("sdlon.sd_changed_at.get_employee")
+    @patch("sdlon.it_systems.date")
+    def test_do_not_create_sd_to_ad_it_system_for_existing_user(
+        self,
+        telephone_number_ids: list[str],
+        employee_it_systems: list[uuid.UUID],
+        mock_date: MagicMock,
+        mock_get_employee: MagicMock,
+        mock_get_employee_it_systems: MagicMock,
+        mock_get_sd_to_ad_it_system_uuid: MagicMock,
+    ):
+        """
+        This test ensures that we do NOT create the "AD-bruger fra SD" IT-system
+        on employees in MO for SD persons already existing in MO if
+
+        1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
+
+        and
+
+        2) The SD person has does NOT have the appropriate string (e.g.)
+           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           <ContactInformation>
+
+            or
+
+            The IT-system is already exists for the employee.
+        """
+
+        # Arrange
+        mock_date.today = MagicMock(return_value=date(2000, 1, 1))
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_phone_number_id_for_ad_creation": True}
+        )
+        mock_get_employee_it_systems.return_value = employee_it_systems
+        sd_updater.get_sd_persons_changed = MagicMock(
+            return_value=[
+                {
+                    "PersonCivilRegistrationIdentifier": "1111111111",
+                    "PersonGivenName": "Bruce",
+                    "PersonSurnameName": "Lee",
+                    "ContactInformation": {
+                        "TelephoneNumberIdentifier": telephone_number_ids
+                    },
+                    "Employment": {"EmploymentIdentifier": "12345"},
+                }
+            ]
+        )
+        mock_execute = MagicMock()
+        sd_updater.mo_graphql_client.execute = mock_execute
+        mock_get_employee.return_value = MOBasePerson(
+            cpr="1111111111",
+            givenname="Bruce",
+            surname="Lee",
+            name="Bruce Lee",
+            uuid=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
+        )
+
+        # Act
+        sd_updater.update_changed_persons()
+
+        # Assert
+        mock_execute.assert_not_called()
 
     @given(status=st.sampled_from(["1", "S"]))
     @patch("sdlon.sd_common.sd_lookup_settings")

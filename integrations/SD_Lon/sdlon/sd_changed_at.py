@@ -370,22 +370,27 @@ class ChangeAtSD:
             handled by the update_employment method instead.
         """
 
-        def extract_cpr_and_name(person: Dict[str, Any]) -> SDBasePerson:
+        def convert_to_sd_base_person(person: OrderedDict[str, Any]) -> SDBasePerson:
             """
-            Get CPR, given name (firstname) and surname (lastname) of
-            SD Løn person.
+            Convert the raw OrderedDict from SD to a Pydantic base model
+            representing the SD person.
 
             Args:
                 person: the person from SD Løn
 
             Returns:
-                Basic SD person with cpr and names
+                Basic SD person
             """
 
             return SDBasePerson(
                 cpr=person["PersonCivilRegistrationIdentifier"],
                 given_name=person.get("PersonGivenName"),
                 surname=person.get("PersonSurnameName"),
+                telephone_number_identifiers=person["ContactInformation"][
+                    "TelephoneNumberIdentifier"
+                ]
+                if self.settings.sd_phone_number_id_for_ad_creation
+                else [],
             )
 
         def fetch_mo_person(person: SDBasePerson) -> MOBasePerson | None:
@@ -445,7 +450,7 @@ class ChangeAtSD:
         # Filter employees based on the sd_cprs list
         sd_cpr_filtered_persons = filter(cpr_env_filter, real_sd_persons_changed)
 
-        sd_persons_changed = map(extract_cpr_and_name, sd_cpr_filtered_persons)
+        sd_persons_changed = map(convert_to_sd_base_person, sd_cpr_filtered_persons)
 
         sd_persons_iter1, sd_persons_iter2 = tee(sd_persons_changed)
         mo_persons_iter = map(fetch_mo_person, sd_persons_iter2)
@@ -482,6 +487,8 @@ class ChangeAtSD:
                         self.settings.sd_phone_number_id_for_ad_string,
                     )
                     not in employee_it_system_uuids
+                    and self.settings.sd_phone_number_id_for_ad_string
+                    in sd_person.telephone_number_identifiers
                 ):
                     self._create_sd_to_ad_it_system_connection(UUID(uuid))
 
@@ -513,8 +520,12 @@ class ChangeAtSD:
                 # Create an IT system for the person If the person is found in the AD
                 create_itsystem_connection(sam_account_name, return_uuid)
 
-            if self.settings.sd_phone_number_id_for_ad_creation:
-                self._create_sd_to_ad_it_system_connection(UUID(uuid))
+            if (
+                self.settings.sd_phone_number_id_for_ad_creation
+                and self.settings.sd_phone_number_id_for_ad_string
+                in sd_person.telephone_number_identifiers
+            ):
+                self._create_sd_to_ad_it_system_connection(UUID(str(uuid)))
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
