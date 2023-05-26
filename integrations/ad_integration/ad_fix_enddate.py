@@ -26,6 +26,8 @@ from integrations.ad_integration.ad_reader import ADParameterReader
 
 
 class AdFixEndDateSettings(JobSettings):
+    lookahead_days = 0
+
     class Config:
         settings_json_prefix = "integrations.ad.write"
 
@@ -39,6 +41,7 @@ class CompareEndDate(ADParameterReader):
         enddate_field: str,
         uuid_field: str,
         graph_ql_session: SyncClientSession,
+        lookahead_days: int = 0,
         settings: typing.Optional[dict] = None,
     ):
         super().__init__(all_settings=settings)
@@ -49,6 +52,7 @@ class CompareEndDate(ADParameterReader):
         self.uuid_field = uuid_field
         self.graph_ql_session: SyncClientSession = graph_ql_session
         self.ad_null_date = datetime.date(9999, 12, 31)
+        self.lookahead_days = lookahead_days
 
     def to_enddate(self, date_str: typing.Optional[str]) -> date:
         """
@@ -86,7 +90,12 @@ class CompareEndDate(ADParameterReader):
         result = self.graph_ql_session.execute(
             query,
             variable_values=jsonable_encoder(
-                {"to_date": dt.now().astimezone(), "employees": uuid}
+                {
+                    "to_date": (
+                        dt.now() + datetime.timedelta(days=self.lookahead_days)
+                    ).astimezone(),
+                    "employees": uuid,
+                }
             ),
         )
 
@@ -102,7 +111,6 @@ class CompareEndDate(ADParameterReader):
         return max(end_dates)
 
     def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
-
         # Compare AD users to MO users
         print("Find users from AD")
         ad_users = ADParameterReader.read_it_all(self, print_progress=True)
@@ -250,6 +258,7 @@ def cli(
             enddate_field=enddate_field,
             uuid_field=uuid_field,
             graph_ql_session=session,
+            lookahead_days=pydantic_settings.lookahead_days,
         )
         end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs=show_date_diffs)
 
