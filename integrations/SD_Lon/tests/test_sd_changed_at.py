@@ -260,7 +260,6 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-
     @patch(
         "sdlon.sd_changed_at.uuid4",
         return_value=uuid.UUID("6b7f5014-faf8-11ed-aa9c-73f93fec45b0"),
@@ -281,9 +280,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonCivilRegistrationIdentifier": "1111111111",
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
-                    "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678"]
-                    },
+                    "ContactInformation": {"TelephoneNumberIdentifier": ["12345678"]},
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }
             ]
@@ -313,7 +310,6 @@ class Test_sd_changed_at(unittest.TestCase):
 
         # Assert
         mock_execute.assert_not_called()
-
 
     @patch(
         "sdlon.sd_changed_at.get_sd_to_ad_it_system_uuid",
@@ -375,7 +371,10 @@ class Test_sd_changed_at(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (["12345678", "AD-bruger fra SD"], [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")]),
+            (
+                ["12345678", "AD-bruger fra SD"],
+                [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")],
+            ),
             (["12345678"], []),
         ]
     )
