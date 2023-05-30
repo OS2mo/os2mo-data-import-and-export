@@ -23,7 +23,7 @@ def get_mo_client(
     """
 
     return GraphQLClient(
-        url=f"{mo_base_url}/graphql/v3",
+        url=f"{mo_base_url}/graphql/v5",
         client_id=client_id,
         client_secret=client_secret,
         auth_server=auth_server,
