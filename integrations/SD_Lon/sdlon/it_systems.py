@@ -55,14 +55,14 @@ def get_sd_to_ad_it_system_uuid(
     gql_client: GraphQLClient, it_system_user_key: str
 ) -> UUID:
     """
-    Get the UUID of the SD-to-AD IT-system
+    Get the UUID of the "AD-bruger fra SD" IT-system
 
     Args:
         it_system_user_key: The IT-system user_key
         gql_client: The GraphQL client for calling MO
 
     Returns:
-        UUID of the SD-to-AD IT-system
+        UUID of the "AD-bruger fra SD" IT-system
     """
     r = gql_client.execute(
         QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID,
@@ -95,21 +95,25 @@ def get_employee_it_systems(
 
 
 def add_it_system_to_employee(
-    gql_client: GraphQLClient, employee_uuid: UUID, it_system_uuid: UUID
+    gql_client: GraphQLClient,
+    employee_uuid: UUID,
+    it_system_uuid: UUID,
+    it_system_user_key: str,
 ) -> None:
     """
-    Add the SD-to-AD IT-system to a MO employee
+    Add the "AD-bruger fra SD" IT-system to a MO employee
 
     Args:
         gql_client: The GraphQL client for calling MO
         employee_uuid: UUID of the MO employee
-        it_system_uuid: UUID of the SD-to-AD IT-system
+        it_system_uuid: UUID of the "AD-bruger fra SD" IT-system
+        it_system_user_key: The user_key of the IT-system
     """
     gql_client.execute(
         MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
         variable_values={
             "input": {
-                "user_key": "AD-bruger fra SD",
+                "user_key": it_system_user_key,
                 "itsystem": str(it_system_uuid),
                 "validity": {"from": format_date(date.today())},
                 "person": str(employee_uuid),
