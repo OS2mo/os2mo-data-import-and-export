@@ -434,7 +434,7 @@ def itsystems_to_orgunit(orgunit, itsystems, uuid_from_it_systems):
         lambda i: i["itsystem"]["name"] not in uuid_from_it_systems, itsystems
     )
     for i in itsystems:
-        orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
+        orgunit["ItSystems"].append(i["itsystem"]["uuid"])
 
 
 def address_type_is(
@@ -573,7 +573,7 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
         logger.error(msg)
         raise ValueError(msg)
 
-    sts_org_unit = {"ItSystemUuids": [], "Name": base["name"], "Uuid": uuid}
+    sts_org_unit = {"ItSystems": [], "Name": base["name"], "Uuid": uuid}
 
     if base.get("parent") and "uuid" in base["parent"]:
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]

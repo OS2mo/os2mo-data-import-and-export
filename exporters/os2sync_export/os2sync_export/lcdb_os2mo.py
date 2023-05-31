@@ -291,7 +291,7 @@ def get_sts_orgunit(session, uuid, settings: Settings) -> Optional[OrgUnit]:
         )
         return None
 
-    sts_org_unit = {"ItSystemUuids": [], "Name": base.navn, "Uuid": uuid}
+    sts_org_unit = {"ItSystems": [], "Name": base.navn, "Uuid": uuid}
 
     # TODO: check that only one parent_uuid is None
     sts_org_unit["ParentOrgUnitUuid"] = base.forældreenhed_uuid
