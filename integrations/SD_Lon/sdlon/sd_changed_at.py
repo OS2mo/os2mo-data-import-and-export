@@ -234,7 +234,10 @@ class ChangeAtSD:
             self.mo_graphql_client, self.settings.sd_phone_number_id_for_ad_string
         )
         add_it_system_to_employee(
-            self.mo_graphql_client, employee_uuid, sd_to_ad_it_system_uuid
+            self.mo_graphql_client,
+            employee_uuid,
+            sd_to_ad_it_system_uuid,
+            self.settings.sd_phone_number_id_for_ad_string,
         )
 
     @lru_cache(maxsize=None)
@@ -475,7 +478,7 @@ class ChangeAtSD:
                 upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
 
             if self.settings.sd_phone_number_id_for_ad_creation:
-                # Note that we should never remove an SD-to-AD systems
+                # Note that we should never remove an "AD-bruger fra SD" IT-system
                 # connection once it has been created according to
                 # https://redmine.magenta-aps.dk/issues/56089
                 employee_it_system_uuids = get_employee_it_systems(
@@ -487,7 +490,7 @@ class ChangeAtSD:
                         self.settings.sd_phone_number_id_for_ad_string,
                     )
                     not in employee_it_system_uuids
-                    and self.settings.sd_phone_number_id_for_ad_string
+                    and self.settings.sd_phone_number_id_trigger
                     in sd_person.telephone_number_identifiers
                 ):
                     self._create_sd_to_ad_it_system_connection(UUID(uuid))
@@ -522,7 +525,7 @@ class ChangeAtSD:
 
             if (
                 self.settings.sd_phone_number_id_for_ad_creation
-                and self.settings.sd_phone_number_id_for_ad_string
+                and self.settings.sd_phone_number_id_trigger
                 in sd_person.telephone_number_identifiers
             ):
                 self._create_sd_to_ad_it_system_connection(UUID(str(uuid)))

@@ -95,6 +95,7 @@ def test_add_it_system_to_employee(
         mock_graphql_client,
         UUID("cfd0b8d2-f48b-11ed-a440-37f1efd1415a"),
         UUID("d0c009f0-f48b-11ed-ba89-ff38216510fc"),
+        "AD-bruger fra SD",
     )
 
     # Assert

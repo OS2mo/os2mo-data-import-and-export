@@ -211,7 +211,7 @@ class Test_sd_changed_at(unittest.TestCase):
         employees in MO for new SD persons if
 
         1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
-        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+        2) The SD person has the appropriate string (e.g.) "14"
            in the <TelephoneNumberIdentifier> in their <ContactInformation>
         """
         # Arrange
@@ -226,7 +226,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                        "TelephoneNumberIdentifier": ["12345678", "14"]
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }
@@ -283,7 +283,7 @@ class Test_sd_changed_at(unittest.TestCase):
 
         1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
         2) The SD person has does NOT have the appropriate string (e.g.)
-           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           "14" in the <TelephoneNumberIdentifier> in their
            <ContactInformation>
         """
 
@@ -348,7 +348,7 @@ class Test_sd_changed_at(unittest.TestCase):
         employees in MO for SD persons already existing in MO if
 
         1) The environment variable SD_PHONE_NUMBER_ID_FOR_AD_CREATION is true
-        2) The SD person has the appropriate string (e.g.) "AD-bruger fra SD"
+        2) The SD person has the appropriate string (e.g.) "14"
            in the <TelephoneNumberIdentifier> in their <ContactInformation>
 
            and
@@ -368,7 +368,7 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
                     "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "AD-bruger fra SD"]
+                        "TelephoneNumberIdentifier": ["12345678", "14"]
                     },
                     "Employment": {"EmploymentIdentifier": "12345"},
                 }
@@ -403,7 +403,7 @@ class Test_sd_changed_at(unittest.TestCase):
     @parameterized.expand(
         [
             (
-                ["12345678", "AD-bruger fra SD"],
+                ["12345678", "14"],
                 [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")],
             ),
             (["12345678"], []),
@@ -434,7 +434,7 @@ class Test_sd_changed_at(unittest.TestCase):
         and
 
         2) The SD person has does NOT have the appropriate string (e.g.)
-           "AD-bruger fra SD" in the <TelephoneNumberIdentifier> in their
+           "14" in the <TelephoneNumberIdentifier> in their
            <ContactInformation>
 
             or

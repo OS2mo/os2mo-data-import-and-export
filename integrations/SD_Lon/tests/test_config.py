@@ -54,6 +54,7 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_use_ad_integration": True,
     "sd_phone_number_id_for_ad_creation": False,
     "sd_phone_number_id_for_ad_string": "AD-bruger fra SD",
+    "sd_phone_number_id_trigger": "14",
     "sd_user": "user",
     "job_settings": {
         "auth_realm": "mo",
