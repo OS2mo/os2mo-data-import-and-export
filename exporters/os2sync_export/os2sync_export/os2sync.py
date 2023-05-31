@@ -83,7 +83,8 @@ def os2sync_get(url, **params) -> Dict:
 def os2sync_get_org_unit(api_url: str, uuid: UUID) -> OrgUnit:
 
     current = os2sync_get(f"{api_url}/orgUnit/{str(uuid)}")
-
+    current.pop("Type")
+    current.pop("Timestamp")
     return OrgUnit(**current)
 
 
