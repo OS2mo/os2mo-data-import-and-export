@@ -49,6 +49,17 @@ Test OS2SYNC exporter:
     - cd /app/
     - pytest tests/ -m "not webtest"
 
+OS2SYNC exporter integration test:
+  stage: test
+  needs: ["Build os2sync_export image"]
+  image: ${OS2SYNC_EXPORT_IMAGE_SHA}
+  variables:
+    GIT_STRATEGY: none # We do not need the source code
+    HYPOTHESIS_PROFILE: ci
+  script:
+    - cd /app/
+    - pytest tests/ -m webtest
+
 # Release
 ##########
 Release OS2Sync master image:
