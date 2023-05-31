@@ -23,6 +23,7 @@ all_functionnames = [
     "Relateret Enhed",
     "IT-system",
     "Orlov",
+    "Owner",  # Function name is in english for some reason.
 ]
 
 
@@ -198,11 +199,11 @@ def main(org_unit_uuid, delete_functions, keep, delete_subtree, connections):
 
     Given the uuid of an org_unit this will delete the unit and all units below it.
     Optionally also deletes organisation functions such as engagements, KLE and addresses.
-    Optionally deletes the organisation unit and its subtrees. Default behaviour is to keep organisation units, and must be set to "False" for deletion.
-    if wished to delete, when calling the function.
+    Optionally deletes the organisation unit and its subtrees. Must be set "True" for deletion, if wished to delete,
+    otherwise "False" to keep subtrees, when calling the function.
     To delete all organisation functions, except certain type(s), add them with --keep.
     Example:
-        metacli tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE --delete-subtree=True
+        python3 tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE --delete-subtree=True
     """
     subtreedeleter_helper(
         org_unit_uuid,
