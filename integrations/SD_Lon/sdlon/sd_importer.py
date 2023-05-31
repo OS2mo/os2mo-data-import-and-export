@@ -436,11 +436,8 @@ class SdImport:
         telephone_number_ids = ensure_list(
             contact_info.get("TelephoneNumberIdentifier")
         )
-        telephone_number_ids = [tni.strip().lower() for tni in telephone_number_ids]
-        if (
-            self.settings.sd_phone_number_id_for_ad_string.lower()
-            in telephone_number_ids
-        ):
+        telephone_number_ids = [tni.strip() for tni in telephone_number_ids]
+        if self.settings.sd_phone_number_id_trigger in telephone_number_ids:
             cpr = person["PersonCivilRegistrationIdentifier"]
             given_name = person.get("PersonGivenName", "")
             sur_name = person.get("PersonSurnameName", "")
@@ -448,7 +445,7 @@ class SdImport:
             self.importer.join_itsystem(
                 employee=cpr,
                 user_key=f"{given_name} {sur_name}",
-                itsystem_ref="AD-bruger fra SD",
+                itsystem_ref=self.settings.sd_phone_number_id_for_ad_string,
                 date_from=format_date(self.settings.sd_global_from_date),
             )
 
