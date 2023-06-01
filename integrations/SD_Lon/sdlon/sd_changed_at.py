@@ -43,6 +43,7 @@ from sdlon.it_systems import (
     get_employee_it_systems,
     add_it_system_to_employee,
 )
+from sdlon.sd_to_pydantic import convert_to_sd_base_person
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
@@ -229,7 +230,17 @@ class ChangeAtSD:
             )
         )
 
-    def _create_sd_to_ad_it_system_connection(self, employee_uuid: UUID) -> None:
+    def _create_sd_to_ad_it_system_connection(
+        self, employee_uuid: UUID, user_key: str
+    ) -> None:
+        """
+        Create an "AD-bruger fra SD" IT-system connection.
+
+        Args:
+            employee_uuid: UUID of the MO employee
+            user_key: user_key (must be the SD EmploymentIdentifier) of
+              the IT-user
+        """
         sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
             self.mo_graphql_client, self.settings.sd_phone_number_id_for_ad_string
         )
@@ -237,7 +248,7 @@ class ChangeAtSD:
             self.mo_graphql_client,
             employee_uuid,
             sd_to_ad_it_system_uuid,
-            self.settings.sd_phone_number_id_for_ad_string,
+            user_key,
         )
 
     @lru_cache(maxsize=None)
@@ -373,29 +384,6 @@ class ChangeAtSD:
             handled by the update_employment method instead.
         """
 
-        def convert_to_sd_base_person(person: OrderedDict[str, Any]) -> SDBasePerson:
-            """
-            Convert the raw OrderedDict from SD to a Pydantic base model
-            representing the SD person.
-
-            Args:
-                person: the person from SD Løn
-
-            Returns:
-                Basic SD person
-            """
-
-            return SDBasePerson(
-                cpr=person["PersonCivilRegistrationIdentifier"],
-                given_name=person.get("PersonGivenName"),
-                surname=person.get("PersonSurnameName"),
-                telephone_number_identifiers=person["ContactInformation"][
-                    "TelephoneNumberIdentifier"
-                ]
-                if self.settings.sd_phone_number_id_for_ad_creation
-                else [],
-            )
-
         def fetch_mo_person(person: SDBasePerson) -> MOBasePerson | None:
             employee = get_employee(self.mo_graphql_client, person.cpr)
             return employee
@@ -481,19 +469,35 @@ class ChangeAtSD:
                 # Note that we should never remove an "AD-bruger fra SD" IT-system
                 # connection once it has been created according to
                 # https://redmine.magenta-aps.dk/issues/56089
-                employee_it_system_uuids = get_employee_it_systems(
+                employee_it_systems = get_employee_it_systems(
                     self.mo_graphql_client, UUID(uuid)
                 )
-                if (
-                    get_sd_to_ad_it_system_uuid(
-                        self.mo_graphql_client,
-                        self.settings.sd_phone_number_id_for_ad_string,
+
+                sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
+                    self.mo_graphql_client,
+                    self.settings.sd_phone_number_id_for_ad_string,
+                )
+
+                employee_it_systems_map = {
+                    it_user_system.user_key: it_user_system.uuid
+                    for it_user_system in employee_it_systems
+                    if it_user_system.uuid == sd_to_ad_it_system_uuid
+                }
+
+                telephone_number_identifiers = [
+                    tni
+                    for tni in sd_person.telephone_number_identifiers
+                    if (
+                        self.settings.sd_phone_number_id_trigger
+                        in tni.telephone_number_ids
+                        and tni.employment_identifier not in employee_it_systems_map
                     )
-                    not in employee_it_system_uuids
-                    and self.settings.sd_phone_number_id_trigger
-                    in sd_person.telephone_number_identifiers
-                ):
-                    self._create_sd_to_ad_it_system_connection(UUID(uuid))
+                ]
+
+                for tni in telephone_number_identifiers:
+                    self._create_sd_to_ad_it_system_connection(
+                        UUID(uuid), tni.employment_identifier
+                    )
 
         # Create new SD persons in MO
         for sd_person, _ in new_pairs:
@@ -523,12 +527,17 @@ class ChangeAtSD:
                 # Create an IT system for the person If the person is found in the AD
                 create_itsystem_connection(sam_account_name, return_uuid)
 
-            if (
-                self.settings.sd_phone_number_id_for_ad_creation
-                and self.settings.sd_phone_number_id_trigger
-                in sd_person.telephone_number_identifiers
-            ):
-                self._create_sd_to_ad_it_system_connection(UUID(str(uuid)))
+            if self.settings.sd_phone_number_id_for_ad_creation:
+                telephone_number_identifiers = [
+                    tni
+                    for tni in sd_person.telephone_number_identifiers
+                    if self.settings.sd_phone_number_id_trigger
+                    in tni.telephone_number_ids
+                ]
+                for tni in telephone_number_identifiers:
+                    self._create_sd_to_ad_it_system_connection(
+                        UUID(str(uuid)), tni.employment_identifier
+                    )
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """

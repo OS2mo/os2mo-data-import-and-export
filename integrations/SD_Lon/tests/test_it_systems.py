@@ -2,6 +2,7 @@ from datetime import date
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
+from sdlon.models import ITUserSystem
 from tests.fixtures import mock_graphql_client
 
 from sdlon.it_systems import (
@@ -48,12 +49,14 @@ def test_get_employee_it_systems(mock_graphql_client: MagicMock) -> None:
                                 {
                                     "itsystem": {
                                         "uuid": "5168dd45-4cb5-4932-b8a1-10dbe736fc5d"
-                                    }
+                                    },
+                                    "user_key": "user_key1",
                                 },
                                 {
                                     "itsystem": {
                                         "uuid": "a1608e69-c422-404f-a6cc-b873c50af111"
-                                    }
+                                    },
+                                    "user_key": "user_key2",
                                 },
                             ]
                         }
@@ -75,8 +78,14 @@ def test_get_employee_it_systems(mock_graphql_client: MagicMock) -> None:
         variable_values={"uuid": "353ed4ae-f489-11ed-bba5-0bfbad9d10d2"},
     )
     assert it_systems == [
-        UUID("5168dd45-4cb5-4932-b8a1-10dbe736fc5d"),
-        UUID("a1608e69-c422-404f-a6cc-b873c50af111"),
+        ITUserSystem(
+            uuid=UUID("5168dd45-4cb5-4932-b8a1-10dbe736fc5d"),
+            user_key="user_key1",
+        ),
+        ITUserSystem(
+            uuid=UUID("a1608e69-c422-404f-a6cc-b873c50af111"),
+            user_key="user_key2",
+        ),
     ]
 
 

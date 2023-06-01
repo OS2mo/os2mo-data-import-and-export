@@ -8,6 +8,7 @@ from more_itertools import one
 from raclients.graph.client import GraphQLClient
 
 from sdlon.date_utils import format_date
+from sdlon.models import ITUserSystem
 
 QUERY_GET_SD_TO_AD_IT_SYSTEM_UUID = gql(
     """
@@ -31,6 +32,7 @@ QUERY_GET_EMPLOYEE_IT_SYSTEMS = gql(
                             itsystem {
                                 uuid
                             }
+                            user_key
                         }
                     }
                 }
@@ -73,7 +75,7 @@ def get_sd_to_ad_it_system_uuid(
 
 def get_employee_it_systems(
     gql_client: GraphQLClient, employee_uuid: UUID
-) -> list[UUID]:
+) -> list[ITUserSystem]:
     """
     Get the IT-systems for an employee
     Args:
@@ -81,7 +83,8 @@ def get_employee_it_systems(
         employee_uuid: The employee UUID
 
     Returns:
-        List of UUIDs of the employees IT-systems
+        List of ITUserSystems containing the UUID of the IT-system itself and
+        the user key of the IT-user
     """
 
     r = gql_client.execute(
@@ -89,9 +92,15 @@ def get_employee_it_systems(
     )
 
     it_users = one(r["employees"]["objects"])["current"]["itusers"]
-    it_system_uuids = [UUID(it_user["itsystem"]["uuid"]) for it_user in it_users]
 
-    return it_system_uuids
+    it_user_systems = [
+        ITUserSystem(
+            uuid=UUID(it_user["itsystem"]["uuid"]), user_key=it_user["user_key"]
+        )
+        for it_user in it_users
+    ]
+
+    return it_user_systems
 
 
 def add_it_system_to_employee(

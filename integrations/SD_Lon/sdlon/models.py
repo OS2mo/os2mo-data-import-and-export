@@ -10,12 +10,19 @@ class JobFunction(str, Enum):
     employment_name = "EmploymentName"
 
 
-# TODO: replace this model with the one present in the new SD client
+# TODO: replace these models with the one present in the new SD client
+
+# TODO: rename
+class TelephoneNumberIdentifier(BaseModel):
+    employment_identifier: str
+    telephone_number_ids: list[str] = []
+
+
 class SDBasePerson(BaseModel):
     cpr: str
     given_name: Optional[str]
     surname: Optional[str]
-    telephone_number_identifiers: list[str] = []
+    telephone_number_identifiers: list[TelephoneNumberIdentifier] = []
 
 
 class MOBasePerson(BaseModel):
@@ -24,3 +31,10 @@ class MOBasePerson(BaseModel):
     surname: str
     name: str
     uuid: UUID
+
+
+class ITUserSystem(BaseModel):
+    # UUID of the IT-system itself
+    uuid: UUID
+    # User key of the IT-user
+    user_key: str
