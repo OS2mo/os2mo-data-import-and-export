@@ -45,9 +45,10 @@ class CommonSettings(BaseSettings):
     sd_job_function: JobFunction
     sd_monthly_hourly_divide: PositiveInt
 
-    # If true, the <TelephoneNumberIdentifier> in <ContactInformation> in the
-    # <Person> tag will be used to set a value that can trigger AD-creation of
-    # the user (see https://redmine.magenta-aps.dk/issues/56089)
+    # If true, the <TelephoneNumberIdentifier> in <ContactInformation> in
+    # <Employment> in the <Person> tag will be used to set a value that can
+    # trigger AD-creation of the user
+    # (see https://redmine.magenta-aps.dk/issues/56089)
     sd_phone_number_id_for_ad_creation: bool = False
     # SD can only set <TelephoneNumberIdentifier> to an integer value, hence
     # the value 14 is used (letters A=1 and D=4 for "AD")
