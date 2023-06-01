@@ -1,16 +1,16 @@
 import asyncio
-from typing import Iterable
 from contextlib import contextmanager
 from functools import partial
+from typing import Iterable
 
 from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Enum
 from prometheus_client import Gauge
-from integrations.rundb.db_overview import DBOverview
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
+from integrations.rundb.db_overview import DBOverview
 
 state = Enum(
     "sd_changed_at_state",
@@ -42,7 +42,7 @@ def update_state_metric() -> Iterable[None]:
         yield
         if "Running since" in status:
             state.state("failure")
-        elif "Update finished" in status:
+        elif "Update finished:" in status:
             state.state("ok")
         else:
             state.state("unknown")
@@ -50,7 +50,7 @@ def update_state_metric() -> Iterable[None]:
         state.state("failure")
         raise
     finally:
-        end_time.set_to_current_time()
+        return end_time.set_to_current_time()  # Return, in case of a nested exception
 
 
 @app.get("/")
