@@ -329,6 +329,24 @@ Release to Prod:
   variables:
     ENDPOINT: os2mo/flux/dipex/update-prod
 
+Release updates to salt Dev:
+  extends: .release-to-dev
+  needs: ["Release version"]
+  variables:
+    ENDPOINT: os2mo/salt/dipex/update-dev
+
+Release updates to salt Test:
+  extends: .release-to-test
+  needs: []
+  variables:
+    ENDPOINT: os2mo/salt/dipex/update-test
+
+Release updates to salt Prod:
+  extends: .release-to-prod
+  needs: []
+  variables:
+    ENDPOINT: os2mo/salt/dipex/update-prod
+
 Release DIPEX to PyPI:
   variables:
     PYPI_TOKEN: ${DIPEX_PYPI_TOKEN}
