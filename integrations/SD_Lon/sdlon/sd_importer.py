@@ -436,7 +436,9 @@ class SdImport:
         telephone_number_ids = ensure_list(
             contact_info.get("TelephoneNumberIdentifier")
         )
-        telephone_number_ids = [tni.strip() for tni in telephone_number_ids]
+        telephone_number_ids = [
+            tni.strip() for tni in telephone_number_ids if tni is not None
+        ]
         if self.settings.sd_phone_number_id_trigger in telephone_number_ids:
             cpr = person["PersonCivilRegistrationIdentifier"]
             given_name = person.get("PersonGivenName", "")
