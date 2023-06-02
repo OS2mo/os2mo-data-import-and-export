@@ -225,12 +225,20 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonCivilRegistrationIdentifier": "1111111111",
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
-                    "Employment": {
-                        "EmploymentIdentifier": "12345",
-                        "ContactInformation": {
-                            "TelephoneNumberIdentifier": ["12345678", "14"]
+                    "Employment": [
+                        {
+                            "EmploymentIdentifier": "12345",
+                            "ContactInformation": {
+                                "TelephoneNumberIdentifier": ["12345678", "14"]
+                            }
                         },
-                    },
+                        {
+                            "EmploymentIdentifier": "54321",
+                            "ContactInformation": {
+                                "TelephoneNumberIdentifier": ["87654321", "14"]
+                            }
+                        }
+                    ],
                 }
             ]
         )
@@ -258,7 +266,7 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.update_changed_persons()
 
         # Assert
-        mock_execute.assert_called_with(
+        mock_execute.assert_any_call(
             MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
             variable_values={
                 "input": {
@@ -269,6 +277,18 @@ class Test_sd_changed_at(unittest.TestCase):
                 }
             },
         )
+        mock_execute.assert_any_call(
+            MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
+            variable_values={
+                "input": {
+                    "user_key": "54321",
+                    "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
+                    "validity": {"from": "2000-01-01"},
+                    "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            },
+        )
+
 
     @patch(
         "sdlon.sd_changed_at.uuid4",
