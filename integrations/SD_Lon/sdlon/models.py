@@ -22,7 +22,7 @@ class SDBasePerson(BaseModel):
     cpr: str
     given_name: Optional[str]
     surname: Optional[str]
-    telephone_number_identifiers: list[EmploymentWithTelephoneNumberIdentifier] = []
+    emp_with_telephone_number_identifiers: list[EmploymentWithTelephoneNumberIdentifier] = []
 
 
 class MOBasePerson(BaseModel):

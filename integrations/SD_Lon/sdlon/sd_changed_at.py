@@ -484,19 +484,19 @@ class ChangeAtSD:
                     if it_user_system.uuid == sd_to_ad_it_system_uuid
                 }
 
-                telephone_number_identifiers = [
-                    tni
-                    for tni in sd_person.telephone_number_identifiers
+                emp_with_telephone_number_ids = [
+                    emp_tni
+                    for emp_tni in sd_person.emp_with_telephone_number_identifiers
                     if (
                         self.settings.sd_phone_number_id_trigger
-                        in tni.telephone_number_ids
-                        and tni.employment_identifier not in employee_it_systems_map
+                        in emp_tni.telephone_number_ids
+                        and emp_tni.employment_identifier not in employee_it_systems_map
                     )
                 ]
 
-                for tni in telephone_number_identifiers:
+                for emp_tni in emp_with_telephone_number_ids:
                     self._create_sd_to_ad_it_system_connection(
-                        UUID(uuid), tni.employment_identifier
+                        UUID(uuid), emp_tni.employment_identifier
                     )
 
         # Create new SD persons in MO
@@ -528,15 +528,15 @@ class ChangeAtSD:
                 create_itsystem_connection(sam_account_name, return_uuid)
 
             if self.settings.sd_phone_number_id_for_ad_creation:
-                telephone_number_identifiers = [
-                    tni
-                    for tni in sd_person.telephone_number_identifiers
+                emp_with_telephone_number_ids = [
+                    emp_tni
+                    for emp_tni in sd_person.emp_with_telephone_number_identifiers
                     if self.settings.sd_phone_number_id_trigger
-                    in tni.telephone_number_ids
+                    in emp_tni.telephone_number_ids
                 ]
-                for tni in telephone_number_identifiers:
+                for emp_tni in emp_with_telephone_number_ids:
                     self._create_sd_to_ad_it_system_connection(
-                        UUID(str(uuid)), tni.employment_identifier
+                        UUID(str(uuid)), emp_tni.employment_identifier
                     )
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):

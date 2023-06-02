@@ -34,5 +34,5 @@ def convert_to_sd_base_person(person: OrderedDict[str, Any]) -> SDBasePerson:
         cpr=person["PersonCivilRegistrationIdentifier"],
         given_name=person.get("PersonGivenName"),
         surname=person.get("PersonSurnameName"),
-        telephone_number_identifiers=telephone_number_identifiers,
+        emp_with_telephone_number_identifiers=telephone_number_identifiers,
     )

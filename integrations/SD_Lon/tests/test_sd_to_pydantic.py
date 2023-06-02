@@ -21,7 +21,7 @@ def test_convert_to_sd_base_person__no_contact_info():
         cpr="1111111111",
         given_name="Bruce",
         surname="Lee",
-        telephone_number_identifiers=[
+        emp_with_telephone_number_identifiers=[
             EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=[]
             )
@@ -49,7 +49,7 @@ def test_convert_to_sd_base_person__with_contact_info():
         cpr="1111111111",
         given_name="Bruce",
         surname="Lee",
-        telephone_number_identifiers=[
+        emp_with_telephone_number_identifiers=[
             EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=["12345678", "14"]
             )
@@ -83,7 +83,7 @@ def test_convert_to_sd_base_person__with_contact_info_multiple_employments():
         cpr="1111111111",
         given_name="Bruce",
         surname="Lee",
-        telephone_number_identifiers=[
+        emp_with_telephone_number_identifiers=[
             EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=["12345678", "14"]
             ),
