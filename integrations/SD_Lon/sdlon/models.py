@@ -13,7 +13,7 @@ class JobFunction(str, Enum):
 # TODO: replace these models with the one present in the new SD client
 
 # TODO: rename
-class TelephoneNumberIdentifier(BaseModel):
+class EmploymentWithTelephoneNumberIdentifier(BaseModel):
     employment_identifier: str
     telephone_number_ids: list[str] = []
 
@@ -22,7 +22,7 @@ class SDBasePerson(BaseModel):
     cpr: str
     given_name: Optional[str]
     surname: Optional[str]
-    telephone_number_identifiers: list[TelephoneNumberIdentifier] = []
+    telephone_number_identifiers: list[EmploymentWithTelephoneNumberIdentifier] = []
 
 
 class MOBasePerson(BaseModel):

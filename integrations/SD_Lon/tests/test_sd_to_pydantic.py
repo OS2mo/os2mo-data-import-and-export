@@ -1,4 +1,4 @@
-from sdlon.models import SDBasePerson, TelephoneNumberIdentifier
+from sdlon.models import SDBasePerson, EmploymentWithTelephoneNumberIdentifier
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
 
 
@@ -22,7 +22,7 @@ def test_convert_to_sd_base_person__no_contact_info():
         given_name="Bruce",
         surname="Lee",
         telephone_number_identifiers=[
-            TelephoneNumberIdentifier(
+            EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=[]
             )
         ],
@@ -50,7 +50,7 @@ def test_convert_to_sd_base_person__with_contact_info():
         given_name="Bruce",
         surname="Lee",
         telephone_number_identifiers=[
-            TelephoneNumberIdentifier(
+            EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=["12345678", "14"]
             )
         ],
@@ -84,10 +84,10 @@ def test_convert_to_sd_base_person__with_contact_info_multiple_employments():
         given_name="Bruce",
         surname="Lee",
         telephone_number_identifiers=[
-            TelephoneNumberIdentifier(
+            EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="12345", telephone_number_ids=["12345678", "14"]
             ),
-            TelephoneNumberIdentifier(
+            EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier="54321", telephone_number_ids=["87654321"]
             ),
         ],

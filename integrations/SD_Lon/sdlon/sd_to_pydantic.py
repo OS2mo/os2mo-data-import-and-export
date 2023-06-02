@@ -1,6 +1,6 @@
 from typing import OrderedDict, Any
 
-from sdlon.models import TelephoneNumberIdentifier, SDBasePerson
+from sdlon.models import EmploymentWithTelephoneNumberIdentifier, SDBasePerson
 from sdlon.sd_common import ensure_list
 
 
@@ -24,7 +24,7 @@ def convert_to_sd_base_person(person: OrderedDict[str, Any]) -> SDBasePerson:
             contact_information.get("TelephoneNumberIdentifier", [])
         )
         telephone_number_identifiers.append(
-            TelephoneNumberIdentifier(
+            EmploymentWithTelephoneNumberIdentifier(
                 employment_identifier=employment["EmploymentIdentifier"],
                 telephone_number_ids=telephone_number_ids,
             )
