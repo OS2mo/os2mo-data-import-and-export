@@ -230,14 +230,14 @@ class Test_sd_changed_at(unittest.TestCase):
                             "EmploymentIdentifier": "12345",
                             "ContactInformation": {
                                 "TelephoneNumberIdentifier": ["12345678", "14"]
-                            }
+                            },
                         },
                         {
                             "EmploymentIdentifier": "54321",
                             "ContactInformation": {
                                 "TelephoneNumberIdentifier": ["87654321", "14"]
-                            }
-                        }
+                            },
+                        },
                     ],
                 }
             ]
@@ -288,7 +288,6 @@ class Test_sd_changed_at(unittest.TestCase):
                 }
             },
         )
-
 
     @patch(
         "sdlon.sd_changed_at.uuid4",
