@@ -4,6 +4,7 @@ import typing
 from typing import Tuple
 
 import click
+import sentry_sdk
 from dateutil import tz
 
 from .gql_lora_cache_async import GQLLoraCache
@@ -18,6 +19,8 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
+    if GqlLoraCacheSettings().sentry_dsn:
+        sentry_sdk.init(dsn=GqlLoraCacheSettings().sentry_dsn)
 
     if GqlLoraCacheSettings().use_new_cache:
         return GQLLoraCache(
