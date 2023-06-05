@@ -37,6 +37,8 @@ logger = logging.getLogger(__name__)
 def insert_obj(obj: dict, cache: dict) -> None:
     if obj is None:
         return
+    if len(obj["obj"]) == 0:
+        return
     if obj["uuid"] in cache:
         cache[obj["uuid"]].extend(obj["obj"])
     else:
@@ -512,6 +514,7 @@ class GQLLoraCache:
                         engagement_type_uuid
                         primary_uuid
                         job_function_uuid
+                        is_primary
                         extension_1
                         extension_2
                         extension_3
@@ -534,6 +537,7 @@ class GQLLoraCache:
             "job_function_uuid": "job_function",
             "org_unit_uuid": "unit",
             "primary_uuid": "primary_type",
+            "is_primary": "primary_boolean",
         }
 
         async for obj in self._execute_query(
