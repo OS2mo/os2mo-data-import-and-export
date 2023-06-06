@@ -9,8 +9,8 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import pytest
 from os2mo_helpers.mora_helpers import MoraHelper
-from parameterized import parameterized
 
 from .test_config import DEFAULT_CHANGED_AT_SETTINGS
 from sdlon.config import ChangedAtSettings
@@ -79,10 +79,11 @@ class _TestableFixDepartments(FixDepartments):
         return mock_helper
 
 
-class TestFixDepartmentsRootSetting(TestCase):
+class TestFixDepartmentsRootSetting:
     alternate_root = str(uuid4())
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "settings,expected_root",
         [
             # Case 1: Default root
             (
@@ -96,11 +97,11 @@ class TestFixDepartmentsRootSetting(TestCase):
                 },
                 alternate_root,
             ),
-        ]
+        ],
     )
     def test_root(self, settings, expected_root):
         instance = _TestableFixDepartments.get_instance(settings_dict=settings)
-        self.assertEqual(instance.org_uuid, expected_root)
+        assert instance.org_uuid == expected_root
 
 
 class TestFixDepartment(TestCase):
