@@ -7,7 +7,6 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import pairwise
-from parameterized import parameterized
 
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
@@ -68,7 +67,8 @@ class TestSdToMoTerminationDate:
             sd_to_mo_termination_date("2021-12-32")
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "emp_date,emp_dep_date,emp_status_date,prof_date,working_time_date,expected_date",
     [
         (
             datetime(2020, 1, 1),
@@ -110,7 +110,7 @@ class TestSdToMoTerminationDate:
             datetime(2024, 1, 1),
             datetime(2024, 1, 1),
         ),
-    ]
+    ],
 )
 def test_get_from_date_return_max_date(
     emp_date: datetime,
@@ -148,12 +148,13 @@ def test_get_from_date_always_return_date():
     assert _get_employment_from_date(OrderedDict()) == datetime.min
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "emp_date,act_date,exp_datetime",
     [
         ("1960-01-01", "1970-01-01", datetime(1970, 1, 1)),
         ("1970-01-01", "1960-01-01", datetime(1970, 1, 1)),
         ("1970-01-01", "1970-01-01", datetime(1970, 1, 1)),
-    ]
+    ],
 )
 def test_get_employment_from_date_when_status_is_leave(
     emp_date,
@@ -197,11 +198,12 @@ def test_get_employment_from_date_when_status_is_leave(
     assert datetime_from == exp_datetime
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "deactivation_date,exp_datetime",
     [
         ("1960-01-01", datetime(1960, 1, 1)),
         ("1970-01-01", datetime(1970, 1, 1)),
-    ]
+    ],
 )
 def test_get_employment_to_date_when_status_is_leave(
     deactivation_date,
@@ -244,14 +246,15 @@ def test_get_employment_to_date_when_status_is_leave(
     assert datetime_to == exp_datetime
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "datetime,expected",
     [
         [datetime(1960, 1, 1, 0, 0, 0, 0), datetime(1960, 1, 1, 0, 0, 0, 0)],
         [datetime(1960, 1, 1, 0, 0, 0, 1), datetime(1960, 1, 1, 0, 0, 0, 0)],
         [datetime(1960, 1, 1, 8, 0, 0, 0), datetime(1960, 1, 1, 0, 0, 0, 0)],
         [datetime(1960, 1, 1, 23, 59, 59, 999), datetime(1960, 1, 1, 0, 0, 0, 0)],
         [datetime(1960, 1, 2, 0, 0, 0, 0), datetime(1960, 1, 2, 0, 0, 0, 0)],
-    ]
+    ],
 )
 def test_to_midnight_parameterized(datetime, expected):
     assert to_midnight(datetime) == expected
@@ -267,14 +270,15 @@ def test_to_midnight(datetime):
     assert midnight.microsecond == 0
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "datetime,expected",
     [
         [datetime(1960, 1, 1, 0, 0, 0, 0), True],
         [datetime(1960, 1, 1, 0, 0, 0, 1), False],
         [datetime(1960, 1, 1, 8, 0, 0, 0), False],
         [datetime(1960, 1, 1, 23, 59, 59, 999), False],
         [datetime(1960, 1, 2, 0, 0, 0, 0), True],
-    ]
+    ],
 )
 def test_is_midnight(datetime, expected):
     assert is_midnight(datetime) is expected
@@ -285,7 +289,8 @@ def test_to_midnight_is_midnight(datetime):
     assert is_midnight(to_midnight(datetime))
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "from_date,to_date,expected",
     [
         (
             datetime(1960, 1, 1, 8, 0, 0),
@@ -309,7 +314,7 @@ def test_to_midnight_is_midnight(datetime):
                 (datetime(1960, 1, 3, 0, 0, 0), datetime(1960, 1, 3, 9, 0, 0)),
             ],
         ),
-    ]
+    ],
 )
 def test_gen_date_intervals(from_date, to_date, expected):
     dates = gen_date_intervals(from_date, to_date)
@@ -342,26 +347,28 @@ def test_date_tuples(datetimes):
         assert (to_datetime - from_datetime).total_seconds() == 86400
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "date_time,expected",
     [
         (datetime(2022, 1, 1), "2022-01-01"),
         (datetime(100, 10, 1), "0100-10-01"),
         (datetime(10, 1, 10), "0010-01-10"),
         (datetime(1, 1, 1), "0001-01-01"),
-    ]
+    ],
 )
 def test_format_date_zero_fill(date_time: datetime, expected: str):
     assert format_date(date_time) == expected
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "date_time,expected",
     [
         (datetime(2022, 1, 1), "01.01.2022"),
         (datetime(2100, 10, 1), "01.10.2100"),
         (datetime(1000, 1, 10), "10.01.1000"),
         (datetime(3000, 10, 10), "10.10.3000"),
         (datetime(9999, 12, 31), "31.12.9999"),
-    ]
+    ],
 )
 def test_datetime_to_sd_date(date_time: datetime, expected: str):
     assert datetime_to_sd_date(date_time) == expected
