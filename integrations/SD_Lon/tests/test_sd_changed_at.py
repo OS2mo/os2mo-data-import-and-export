@@ -16,7 +16,7 @@ from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
-from sdlon.models import MOBasePerson
+from sdlon.models import MOBasePerson, ITUserSystem
 from sdlon.it_systems import MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE
 from .fixtures import get_employment_fixture
 from .fixtures import get_read_employment_changed_fixture
@@ -225,10 +225,20 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonCivilRegistrationIdentifier": "1111111111",
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
-                    "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "14"]
-                    },
-                    "Employment": {"EmploymentIdentifier": "12345"},
+                    "Employment": [
+                        {
+                            "EmploymentIdentifier": "12345",
+                            "ContactInformation": {
+                                "TelephoneNumberIdentifier": ["12345678", "14"]
+                            },
+                        },
+                        {
+                            "EmploymentIdentifier": "54321",
+                            "ContactInformation": {
+                                "TelephoneNumberIdentifier": ["87654321", "14"]
+                            },
+                        },
+                    ],
                 }
             ]
         )
@@ -256,11 +266,22 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.update_changed_persons()
 
         # Assert
-        mock_execute.assert_called_with(
+        mock_execute.assert_any_call(
             MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
             variable_values={
                 "input": {
-                    "user_key": "AD-bruger fra SD",
+                    "user_key": "12345",
+                    "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
+                    "validity": {"from": "2000-01-01"},
+                    "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
+                }
+            },
+        )
+        mock_execute.assert_any_call(
+            MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
+            variable_values={
+                "input": {
+                    "user_key": "54321",
                     "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
                     "validity": {"from": "2000-01-01"},
                     "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
@@ -367,10 +388,12 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonCivilRegistrationIdentifier": "1111111111",
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
-                    "ContactInformation": {
-                        "TelephoneNumberIdentifier": ["12345678", "14"]
+                    "Employment": {
+                        "EmploymentIdentifier": "12345",
+                        "ContactInformation": {
+                            "TelephoneNumberIdentifier": ["12345678", "14"]
+                        },
                     },
-                    "Employment": {"EmploymentIdentifier": "12345"},
                 }
             ]
         )
@@ -392,7 +415,7 @@ class Test_sd_changed_at(unittest.TestCase):
             MUTATION_ADD_IT_SYSTEM_TO_EMPLOYEE,
             variable_values={
                 "input": {
-                    "user_key": "AD-bruger fra SD",
+                    "user_key": "12345",
                     "itsystem": "988dead8-7564-464a-8339-b7057bfa2665",
                     "validity": {"from": "2000-01-01"},
                     "person": "6b7f5014-faf8-11ed-aa9c-73f93fec45b0",
@@ -404,7 +427,12 @@ class Test_sd_changed_at(unittest.TestCase):
         [
             (
                 ["12345678", "14"],
-                [uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665")],
+                [
+                    ITUserSystem(
+                        uuid=uuid.UUID("988dead8-7564-464a-8339-b7057bfa2665"),
+                        user_key="12345",
+                    )
+                ],
             ),
             (["12345678"], []),
         ]
@@ -454,10 +482,12 @@ class Test_sd_changed_at(unittest.TestCase):
                     "PersonCivilRegistrationIdentifier": "1111111111",
                     "PersonGivenName": "Bruce",
                     "PersonSurnameName": "Lee",
-                    "ContactInformation": {
-                        "TelephoneNumberIdentifier": telephone_number_ids
+                    "Employment": {
+                        "EmploymentIdentifier": "12345",
+                        "ContactInformation": {
+                            "TelephoneNumberIdentifier": telephone_number_ids
+                        },
                     },
-                    "Employment": {"EmploymentIdentifier": "12345"},
                 }
             ]
         )

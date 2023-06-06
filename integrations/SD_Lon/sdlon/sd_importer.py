@@ -423,33 +423,34 @@ class SdImport:
         """
         Some municipalitites wish to flag certain users in SD with a flag
         (a certain string) in an SD persons <TelephoneNumberIdentifier> in the
-        <ContactInformation> tag for the person. If the string is found, an
-        IT-system is created on the user in MO, and this IT-system will in
-        turn trigger the LDAP-integration to create the user in the AD.
+        <ContactInformation> in the <Employment> tag for the person. If the
+        string is found, an IT-system is created on the user in MO, and this
+        IT-system will in turn trigger the LDAP-integration to create the user
+        in the AD.
 
         (see # See https://redmine.magenta-aps.dk/issues/56089)
 
         Args:
             person: The SD person to create the IT-system for
         """
-        contact_info = person.get("ContactInformation", {})
-        telephone_number_ids = ensure_list(
-            contact_info.get("TelephoneNumberIdentifier")
-        )
-        telephone_number_ids = [
-            tni.strip() for tni in telephone_number_ids if tni is not None
-        ]
-        if self.settings.sd_phone_number_id_trigger in telephone_number_ids:
-            cpr = person["PersonCivilRegistrationIdentifier"]
-            given_name = person.get("PersonGivenName", "")
-            sur_name = person.get("PersonSurnameName", "")
-
-            self.importer.join_itsystem(
-                employee=cpr,
-                user_key=f"{given_name} {sur_name}",
-                itsystem_ref=self.settings.sd_phone_number_id_for_ad_string,
-                date_from=format_date(self.settings.sd_global_from_date),
+        employment = person.get("Employment", [])
+        employments = ensure_list(employment)
+        for emp in employments:
+            contact_info = emp.get("ContactInformation", {})
+            telephone_number_ids = ensure_list(
+                contact_info.get("TelephoneNumberIdentifier")
             )
+            telephone_number_ids = [
+                tni.strip() for tni in telephone_number_ids if tni is not None
+            ]
+
+            if self.settings.sd_phone_number_id_trigger in telephone_number_ids:
+                self.importer.join_itsystem(
+                    employee=person["PersonCivilRegistrationIdentifier"],
+                    user_key=emp["EmploymentIdentifier"],
+                    itsystem_ref=self.settings.sd_phone_number_id_for_ad_string,
+                    date_from=format_date(self.settings.sd_global_from_date),
+                )
 
     def add_people(self):
         """Load all person details and store for later user"""
