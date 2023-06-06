@@ -7,7 +7,6 @@ import time
 import typing
 from pathlib import Path
 
-import aiofiles
 from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
@@ -1019,36 +1018,29 @@ class GQLLoraCache:
                 tg.create_task(self._cache_lora_kles())
                 tg.create_task(self._cache_lora_related())
 
-        async def write_caches(cache, filename, name):
+        def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")
             if filename:
-                async with aiofiles.open(filename, "wb") as fw:
+                with open(filename, "wb") as fw:
                     pickle.dump(cache, fw, pickle.DEFAULT_PROTOCOL)
             logger.debug(f"done with {name}")
 
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(write_caches(self.facets, facets_file, "facets")),
-            tg.create_task(
-                write_caches(self.engagements, engagements_file, "engagements")
-            ),
-            tg.create_task(write_caches(self.classes, classes_file, "classes")),
-            tg.create_task(write_caches(self.users, users_file, "users")),
-            tg.create_task(write_caches(self.units, units_file, "units")),
-            tg.create_task(write_caches(self.managers, managers_file, "managers")),
-            tg.create_task(write_caches(self.leaves, leaves_file, "leaves")),
-            tg.create_task(write_caches(self.addresses, addresses_file, "addresses")),
-            tg.create_task(write_caches(self.roles, roles_file, "roles")),
-            tg.create_task(write_caches(self.itsystems, itsystems_file, "itsystems")),
-            tg.create_task(
-                write_caches(self.it_connections, it_connections_file, "it_connections")
-            ),
-            tg.create_task(write_caches(self.kles, kles_file, "kles")),
-            tg.create_task(write_caches(self.related, related_file, "related")),
+        write_caches(self.facets, facets_file, "facets")
+        write_caches(self.engagements, engagements_file, "engagements")
+        write_caches(self.classes, classes_file, "classes")
+        write_caches(self.users, users_file, "users")
+        write_caches(self.units, units_file, "units")
+        write_caches(self.managers, managers_file, "managers")
+        write_caches(self.leaves, leaves_file, "leaves")
+        write_caches(self.addresses, addresses_file, "addresses")
+        write_caches(self.roles, roles_file, "roles")
+        write_caches(self.itsystems, itsystems_file, "itsystems")
+        write_caches(self.it_connections, it_connections_file, "it_connections")
+        write_caches(self.kles, kles_file, "kles")
+        write_caches(self.related, related_file, "related")
 
-            if not skip_associations:
-                tg.create_task(
-                    write_caches(self.associations, associations_file, "associations")
-                )
+        if not skip_associations:
+            write_caches(self.associations, associations_file, "associations")
 
     @async_to_sync
     async def populate_cache(self, dry_run=None, skip_associations=False):
