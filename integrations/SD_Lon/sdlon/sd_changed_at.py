@@ -485,7 +485,7 @@ class ChangeAtSD:
                 }
 
                 emp_with_telephone_number_ids = [
-                    emp_tni
+                    emp_tni  # Short for emp_with_telephone_number_identifiers
                     for emp_tni in sd_person.emp_with_telephone_number_identifiers
                     if (
                         self.settings.sd_phone_number_id_trigger
@@ -529,7 +529,7 @@ class ChangeAtSD:
 
             if self.settings.sd_phone_number_id_for_ad_creation:
                 emp_with_telephone_number_ids = [
-                    emp_tni
+                    emp_tni  # Short for emp_with_telephone_number_identifiers
                     for emp_tni in sd_person.emp_with_telephone_number_identifiers
                     if self.settings.sd_phone_number_id_trigger
                     in emp_tni.telephone_number_ids
