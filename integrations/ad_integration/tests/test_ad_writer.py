@@ -128,7 +128,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
         # Expected outputs
-        num_expected_scripts = 3
+        num_expected_scripts = 1
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
@@ -310,7 +310,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
         # Expected outputs
-        num_expected_scripts = 3
+        num_expected_scripts = 1
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
@@ -322,7 +322,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        create_user_ps = self._get_script_contents(index=2)
+        create_user_ps = self._get_script_contents(index=0)
 
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
 
@@ -999,17 +999,34 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Test what happens if `create_user` encounters an already existing AD
         # user (either by username or CPR number lookup.)
 
-        def assert_adwriter_get_ad_user_raises(matching_kwarg, expected_exception):
-            self._setup_adwriter()
-            # Replace `get_from_ad` with function returning True if the lookup
-            # kwarg matches `matching_kwarg`.
-            self.ad_writer.get_from_ad = lambda **kwargs: matching_kwarg in kwargs
+        # Avoid circular imports
+        from .mocks import MockADParameterReader
+        from .mocks import MockOnlyCPRADParameterReader
+
+        def assert_adwriter_get_ad_user_raises(
+            mock_ad_reader_class, expected_exception
+        ):
+            self._setup_adwriter(mock_ad_reader_class=mock_ad_reader_class)
             # Assert we bail early with the proper exception
             with self.assertRaises(expected_exception):
-                self.ad_writer.create_user(mo_uuid="mo-user-uuid", create_manager=False)
+                self.ad_writer.create_user(mo_uuid=MO_UUID, create_manager=False)
 
-        assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
-        assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)
+        # Replace `ADWriter._reader` with mock `ADParameterReader` which always returns
+        # an AD user for *any* `user` or `cpr` argument.
+        # This means that `ADWriter._check_if_user_exists` will "see" a mock AD user
+        # when calling `ADWriter._reader.read_user(user=...)` and bail early.
+        assert_adwriter_get_ad_user_raises(
+            MockADParameterReader, SamAccountNameNotUnique
+        )
+
+        # Replace `ADWriter._reader` with mock `ADParameterReader` which returns None
+        # when called with the `user` keyword argument, and a mock AD user when called
+        # with the `cpr` keyword argument
+        # This means that `ADWriter._check_if_user_exists` will "see" a mock AD user
+        # when calling `ADWriter._reader.read_user(cpr=...)` and bail early.
+        assert_adwriter_get_ad_user_raises(
+            MockOnlyCPRADParameterReader, CprNotNotUnique
+        )
 
     def test_other_attributes_skip_empty(self):
         # Configure template which tries to write `mo_values['foobar']` to the

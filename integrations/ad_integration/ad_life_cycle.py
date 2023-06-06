@@ -425,10 +425,9 @@ class AdLifeCycle:
                 # by the next round of sync.
                 status = True
                 message = "dry-run"
-                if not dry_run:
-                    status, message = self.ad_writer.create_user(
-                        employee["uuid"], create_manager=False
-                    )
+                status, message = self.ad_writer.create_user(
+                    employee["uuid"], create_manager=False, dry_run=dry_run
+                )
                 if status:
                     logger.debug("New username: {}".format(message))
                     self.stats["created_users"] += 1

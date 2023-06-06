@@ -64,9 +64,8 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                     "created_users": 1,
                     "users": {instance._prepare_static_person()["uuid"]},
                 },
-                # Assert the proper AD writes were issued: 2 reads (?) and 1
-                # write
-                {"num_scripts": 3, "expected_script_content": "New-ADUser"},
+                # Assert a single `New-ADUser` PowerShell command was issued
+                {"num_scripts": 1, "expected_script_content": "New-ADUser"},
             ),
             # 2. An AD user must *not* be created when the MO user has no
             # primary engagement.

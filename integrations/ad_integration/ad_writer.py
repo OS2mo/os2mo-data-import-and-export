@@ -481,6 +481,11 @@ class ADWriter(AD):
 
         self._environment = self._get_jinja_environment()
 
+        self._reader = ADParameterReader()
+
+    def read_user(self, user=None, cpr=None):
+        return self._reader.read_user(user=user, cpr=cpr)
+
     def _init_name_creator(self):
         self.name_creator = UserNameGen.get_implementation()
         if not self.skip_occupied_names:
@@ -514,7 +519,7 @@ class ADWriter(AD):
                     raise ReplicationFailedException()
 
                 for server in self.all_settings["global"]["servers"]:
-                    user = self.get_from_ad(user=sam, server=server)
+                    user = self.read_user(user=sam, server=server)
                     logger.debug("Testing {}, found: {}".format(server, len(user)))
                     if user:
                         logger.debug("Found successfully")
@@ -1112,8 +1117,7 @@ class ADWriter(AD):
         :param mo_uuid: uuid for the MO user we want to add to AD.
         :param create_manager: If True, an AD link will be added between the user
         object and the AD object of the users manager.
-        :param dry_run: Not yet implemented. Should return whether the user is
-        expected to be able to be created in AD and the expected SamAccountName.
+        :param dry_run: generates a username and checks wheter the user exists in AD.
         :return: The generated SamAccountName for the new user
         """
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
@@ -1128,6 +1132,8 @@ class ADWriter(AD):
         self._check_if_ad_user_exists(sam_account_name, mo_values["cpr"])
 
         ps_script = self._get_create_user_command(mo_values, sam_account_name)
+        if dry_run:
+            return (True, sam_account_name)
 
         response = self._run_ps_script(ps_script)
         if not response == {}:
@@ -1189,10 +1195,10 @@ class ADWriter(AD):
         return path_argument
 
     def _check_if_ad_user_exists(self, sam_account_name, cpr):
-        if sam_account_name and self.get_from_ad(user=sam_account_name):
+        if sam_account_name and self.read_user(user=sam_account_name):
             logger.error("SamAccount already in use: {}".format(sam_account_name))
             raise SamAccountNameNotUnique(sam_account_name)
-        if cpr and self.get_from_ad(cpr=cpr):
+        if cpr and self.read_user(cpr=cpr):
             logger.error(f"cpr already in use: {cpr[:6]}-xxxx")
             raise CprNotNotUnique()
 
@@ -1302,7 +1308,7 @@ def cli(**args):
     if args.get("read_ad_information"):
         print("AD information on user:")
         sam = args["read_ad_information"]
-        user = ad_writer.get_from_ad(user=sam)
+        user = ad_writer.read_user(user=sam)
         if not user:
             print("User not found")
         else:

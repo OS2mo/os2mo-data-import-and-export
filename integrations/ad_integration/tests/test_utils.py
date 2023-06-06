@@ -369,19 +369,24 @@ class TestADWriterMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
 
-        # Avoid circular import
+        # Avoid circular imports
+        from .mocks import MockEmptyADReader
         from .mocks import MockMOGraphqlSource
 
         with patch(
             "integrations.ad_integration.ad_writer.MOGraphqlSource",
             new=MockMOGraphqlSource,
         ):
-            self.ad_writer = ADWriterTestSubclass(
-                all_settings=self.settings,
-                read_ad_information_from_mo=self.mo_values_func,
-                ad_values_func=self.ad_values_func,
-                **kwargs,
-            )
+            with patch(
+                "integrations.ad_integration.ad_writer.ADParameterReader",
+                kwargs.get("mock_ad_reader_class", MockEmptyADReader),
+            ):
+                self.ad_writer = ADWriterTestSubclass(
+                    all_settings=self.settings,
+                    read_ad_information_from_mo=self.mo_values_func,
+                    ad_values_func=self.ad_values_func,
+                    **kwargs,
+                )
 
 
 class AdMoSyncTestSubclass(AdMoSync):
