@@ -240,6 +240,7 @@ class UserNameGenPermutation(UserNameGen):
         super().__init__()
         self.length = 3
         self.consonants = "".join(set(string.ascii_lowercase) - set("aeiouy"))
+        self._max_iterations = 1000
 
     def create_username(self, name: NameType, dry_run: bool = False) -> str:
         suffix = 1
@@ -266,10 +267,8 @@ class UserNameGenPermutation(UserNameGen):
 
         # Check name parts
         first_ascii = set(name[0]) & set(string.ascii_lowercase)
-        next_consonant = set("".join(name[1:])) & set(self.consonants)
         assert len(name) > 0, "name must have at least one part"
         assert first_ascii, "first name part must contain at least one ASCII character"
-        assert next_consonant, "next name parts must contain at least one consonant"
 
         def only(allowed: str, part: str):
             return "".join(ch for ch in part if ch.lower() in allowed)
@@ -284,6 +283,7 @@ class UserNameGenPermutation(UserNameGen):
         p = min(1, len(name) - 1)  # second name part (or first if only one part)
         offset = 0  # = first letter
 
+        iterations = 0
         while len(result) < self.length:
             part = name[p]
             try:
@@ -299,6 +299,10 @@ class UserNameGenPermutation(UserNameGen):
                     p = 0
             else:
                 offset += 1
+
+            iterations += 1
+            if iterations > self._max_iterations:
+                raise ValueError("cannot create username for input %r" % name)
 
         return result
 

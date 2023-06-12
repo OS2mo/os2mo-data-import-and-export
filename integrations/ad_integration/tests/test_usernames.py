@@ -827,6 +827,8 @@ class TestUserNameGenPermutation(unittest.TestCase):
             ("Theodor Fælgen", "tfl1"),  # Last name contains non-ASCII character
             ("Øjvind Ørn", "jrn1"),  # All parts begin with non-ASCII characters
             ("Ea Obe", "ebb1"),  # Last name contains just one consonant
+            ("Ivan Aaaa", "ivn1"),  # Last name contains *only* vocals
+            ("Ab Aaa", "abb1"),  # Only *one* consonant across *all* name parts
         ]
     )
     def test_by_example(self, name, expected_username):
@@ -844,6 +846,10 @@ class TestUserNameGenPermutation(unittest.TestCase):
         second_username = self.instance.create_username(name)
         # Assert new username is different, even when case is ignored
         self.assertNotEqual(first_username.lower(), second_username.lower())
+
+    def test_max_iterations(self):
+        with self.assertRaises(ValueError):
+            self.instance.create_username(["A"])
 
 
 class TestUserNameGenSvendborg(unittest.TestCase):
