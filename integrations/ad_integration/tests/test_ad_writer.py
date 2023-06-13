@@ -1,4 +1,6 @@
 import copy
+import inspect
+import logging
 import re
 from datetime import datetime
 from unittest import mock
@@ -35,6 +37,7 @@ from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
 from .mocks import MockLoraCacheUnitAddress
 from .mocks import MockLoraCacheWithManager
+from .mocks import MockMOGraphqlSource
 from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
@@ -1131,6 +1134,7 @@ class _TestRealADWriter(TestCase):
             skip_locations=skip_locations,
             read_ou_addresses=read_ou_addresses,
             run_ps_response=kwargs.pop("run_ps_response", None),
+            use_future_managers=kwargs.pop("use_future_managers", True),
         ):
             instance = ADWriter(**kwargs)
             instance.get_from_ad = get_from_ad
@@ -1656,3 +1660,27 @@ class TestGetManagerUUID(_TestRealADWriter):
         assert mo_values["manager_cpr"] == mo_values["_manager_mo_user"]["cpr_no"]
         assert mo_values["manager_mail"] == "address-value"
         assert mo_values["manager_sam"] == MO_MANAGER_SAM
+
+
+class TestUseFutureManagersFeatureFlag:
+    def test_effect_when_false(self, caplog):
+        with MockADWriterContext(use_future_managers=False):
+            with caplog.at_level(logging.INFO):
+                ad_writer = ADWriter()
+                # Assert that `ADWriter._use_graphql_source_if_feature_flagged` does
+                # not monkeypatch `self.datasource.get_manager_uuid`.
+                assert inspect.getsourcelines(
+                    ad_writer.datasource.get_manager_uuid
+                ) == inspect.getsourcelines(MockMORESTSource.get_manager_uuid)
+                assert "Not using MOGraphqlSource" in caplog.text
+
+    def test_effect_when_true(self, caplog):
+        with MockADWriterContext(use_future_managers=True):
+            with caplog.at_level(logging.INFO):
+                ad_writer = ADWriter()
+                # Assert that `ADWriter._use_graphql_source_if_feature_flagged`
+                # monkeypatches `self.datasource.get_manager_uuid` when True.
+                assert inspect.getsourcelines(
+                    ad_writer.datasource.get_manager_uuid
+                ) == inspect.getsourcelines(MockMOGraphqlSource.get_manager_uuid)
+                assert "Using MOGraphqlSource to patch" in caplog.text

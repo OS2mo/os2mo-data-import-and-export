@@ -171,6 +171,11 @@ def _read_primary_write_information(top_settings):
     if "integrations.ad_writer.skip_locations" in top_settings:
         conf["skip_locations"] = top_settings["integrations.ad_writer.skip_locations"]
 
+    # Feature flag "use future managers" (#47213)
+    conf["use_future_managers"] = top_settings.get(
+        "integrations.ad_writer.use_future_managers", False
+    )
+
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = conf["mo_to_ad_fields"]
     template_to_ad_fields = conf["template_to_ad_fields"]

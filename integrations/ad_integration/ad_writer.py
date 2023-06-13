@@ -472,19 +472,27 @@ class ADWriter(AD):
         self.helper = MoraHelper(
             hostname=self.settings["global"]["mora.base"], use_cache=False
         )
-        # Read manager information with graphql
-        graphql = MOGraphqlSource(self.settings)
-        # overwrite method no matter what datasource.
-        self.datasource.get_manager_uuid = graphql.get_manager_uuid
 
+        self._use_graphql_source_if_feature_flagged()
         self._init_name_creator()
-
         self._environment = self._get_jinja_environment()
-
         self._reader = ADParameterReader()
 
     def read_user(self, user=None, cpr=None):
         return self._reader.read_user(user=user, cpr=cpr)
+
+    def _use_graphql_source_if_feature_flagged(self):
+        feature_flag = self.settings.get("primary_write", {}).get("use_future_managers")
+        if feature_flag:
+            logger.info(
+                "Using MOGraphqlSource to patch %r.get_manager_uuid", self.datasource
+            )
+            # Read manager information with graphql
+            graphql = MOGraphqlSource(self.settings)
+            # overwrite method no matter what datasource.
+            self.datasource.get_manager_uuid = graphql.get_manager_uuid
+        else:
+            logger.info("Not using MOGraphqlSource")
 
     def _init_name_creator(self):
         self.name_creator = UserNameGen.get_implementation()
