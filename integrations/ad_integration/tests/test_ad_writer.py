@@ -1099,6 +1099,14 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
 class _TestRealADWriter(TestCase):
     @staticmethod
+    def mock_run_ps_response(status_code=0, std_out="{}", std_err=None):
+        run_ps_response = MagicMock()
+        run_ps_response.status_code = status_code
+        run_ps_response.std_out = std_out
+        run_ps_response.std_err = std_err
+        return run_ps_response
+
+    @staticmethod
     def _get_from_ad_matching_nothing(user=None, cpr=None, server=None):
         # Provide a mock implementation of `ADWriter.get_from_ad` which returns nothing
         return {}
@@ -1547,10 +1555,7 @@ class TestEnableUser(_TestRealADWriter):
     )
     def test_enable_user_handles_ok_response(self, enable: bool, expected_msg: str):
         # Arrange: mock an "OK" response from WinRM
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 0
-        run_ps_response.std_out = "{}"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
         # Act
         result = ad_writer.enable_user("sam_account_name", enable)
         # Assert (here `True` means the PowerShell command executed successfully)
@@ -1558,10 +1563,12 @@ class TestEnableUser(_TestRealADWriter):
 
     def test_enable_user_handles_error_response(self):
         # Arrange: mock an "error" response from WinRM
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 1
-        run_ps_response.std_err = "something wrong"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(
+            run_ps_response=self.mock_run_ps_response(
+                status_code=1,
+                std_err="something wrong",
+            )
+        )
         # Act and assert
         with self.assertRaises(CommandFailure):
             ad_writer.enable_user("sam_account_name", False)
@@ -1635,10 +1642,7 @@ class TestSkipLocation(_TestRealADWriter):
 class TestRenameADUser(_TestRealADWriter):
     def test_sleep(self):
         # Arrange: mock a successful WinRM invocation
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 0
-        run_ps_response.std_out = "{}"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
 
         with mock.patch("time.sleep") as mock_time_sleep:
             # Act
