@@ -487,19 +487,32 @@ class MockADWriterContext(ExitStack):
     def __init__(self, **kwargs):
         super().__init__()
 
+        self._read_ou_addresses = kwargs.get("read_ou_addresses")
+
         settings = copy.deepcopy(self.all_settings)
+
         template_to_ad_fields = kwargs.get("template_to_ad_fields", {})
         template_to_ad_fields_when_disable = kwargs.get(
             "template_to_ad_fields_when_disable", {}
         )
-        skip_locations = kwargs.get("skip_locations")
-        self._read_ou_addresses = kwargs.get("read_ou_addresses")
         settings["primary_write"]["template_to_ad_fields"].update(template_to_ad_fields)
         settings["primary_write"]["template_to_ad_fields_when_disable"].update(
             template_to_ad_fields_when_disable
         )
+
+        skip_locations = kwargs.get("skip_locations")
         if skip_locations:
             settings["primary_write"]["skip_locations"] = skip_locations
+
+        # This feature flag defaults to True in tests using `MockADWriterContext` even
+        # though `read_ad_conf_settings._read_primary_write_information` defaults to
+        # False.
+        # This is because the tests that verify code paths related to `get_manager_uuid`
+        # currently can only test `ADWriter` when  `use_future_managers` is True.
+        settings["primary_write"]["use_future_managers"] = kwargs.get(
+            "use_future_managers", True
+        )
+
         self._settings = settings
 
         self._run_ps_response = kwargs.get("run_ps_response") or MagicMock()
