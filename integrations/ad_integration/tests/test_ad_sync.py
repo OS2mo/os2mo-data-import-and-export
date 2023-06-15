@@ -12,6 +12,7 @@ from parameterized import parameterized
 
 from ..ad_sync import AdMoSync
 from ..utils import AttrDict
+from .mocks import MO_USER_CPR
 from .mocks import MO_UUID
 from .mocks import MockADParameterReader
 from .mocks import MockLoraCache
@@ -40,7 +41,7 @@ class _TestableAdMoSync(AdMoSync):
         self.visibility = {}
 
     def _setup_mora_helper(self):
-        return MockMoraHelper("cpr")
+        return MockMoraHelper(MO_USER_CPR)
 
     def _setup_lora_cache(self):
         return None
@@ -70,7 +71,7 @@ class _TestableAdMoSyncLoraCacheUserAttrs(_TestableAdMoSync):
         def __init__(self, loracache: MockLoraCache):
             self.update_user_calls: List[Tuple[str, Dict[str, Any]]] = []
             self._loracache = loracache
-            super().__init__("cpr")
+            super().__init__(MO_USER_CPR)
 
         def update_user(self, uuid, data):
             # Record attempt to mutate user given by `uuid`

@@ -32,6 +32,8 @@ from .mocks import MO_MANAGER_CPR
 from .mocks import MO_MANAGER_SAM
 from .mocks import MO_MANAGER_UUID
 from .mocks import MO_ROOT_ORG_UNIT_NAME
+from .mocks import MO_USER_CPR
+from .mocks import MO_USER_SAM
 from .mocks import MO_UUID
 from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
@@ -1123,7 +1125,7 @@ class _TestRealADWriter(TestCase):
             "SamAccountName": MO_MANAGER_SAM,
             "DistinguishedName": "manager-dn",
         }
-        if cpr == "cpr":  # == the MO employee's own CPR
+        if cpr == MO_USER_CPR:  # == the MO employee's own CPR
             return [employee_ad_user]
         if cpr == MO_MANAGER_CPR:
             return [manager_ad_user]
@@ -1186,8 +1188,8 @@ class TestInitNameCreator(_TestRealADWriter):
 
 class TestSyncCompare(_TestRealADWriter):
     _ad_user_employee = {
-        "cpr_field": "cpr",
-        "SamAccountName": "sam",
+        "cpr_field": MO_USER_CPR,
+        "SamAccountName": MO_USER_SAM,
         "Manager": "old_manager_dn",
     }
 
@@ -1289,7 +1291,7 @@ class TestSyncCompare(_TestRealADWriter):
             *ad_dump_extra,
         ]
         mo_values = {
-            "cpr": "cpr",
+            "cpr": MO_USER_CPR,
             "full_name": "Full Name",
             "manager_cpr": "manager_cpr",
         }
@@ -1374,7 +1376,7 @@ class TestPreview(_TestRealADWriter):
         mo_name = lc._mo_values_employee["navn"]
 
         # Mock `ad_dump` which only contains an employee, and no manager
-        ad_dump = [reader.read_user(cpr="cpr")]
+        ad_dump = [reader.read_user(cpr=MO_USER_CPR)]
 
         with MockADWriterContext(
             template_to_ad_fields={"Name": "{{ mo_values['full_name'] }}"}
@@ -1401,7 +1403,7 @@ class TestPreview(_TestRealADWriter):
         reader = MockADParameterReaderWithManager()
         lc = MockLoraCacheWithManager()
         ad_dump = [
-            reader.read_user(cpr="cpr"),  # employee
+            reader.read_user(cpr=MO_USER_CPR),  # employee
             reader.read_user(cpr=MO_MANAGER_CPR),  # manager
         ]
         with MockADWriterContext():

@@ -19,10 +19,15 @@ MO_ROOT_ORG_UNIT_UUID = "not-a-mo-org-unit-uuid"
 MO_ROOT_ORG_UNIT_NAME = "not-a-mo-org-unit-name"
 MO_USER_LOCATION = MO_ROOT_ORG_UNIT_NAME
 MO_CHILD_ORG_UNIT_UUID = uuid4()
-MO_UUID = "not-a-uuid"
+
+MO_UUID = "mo-user-uuid"
+MO_USER_CPR = "mo-user-cpr"
+MO_USER_SAM = "mo-user-sam"
+
 MO_MANAGER_UUID = "mo-manager-uuid"
 MO_MANAGER_CPR = "mo-manager-cpr"
 MO_MANAGER_SAM = "mo-manager-sam"
+
 AD_UUID_FIELD = "uuidField"
 UNKNOWN_CPR_NO = "not-a-cpr-no"
 MO_AD_IT_SYSTEM_UUID = uuid4()
@@ -91,8 +96,8 @@ class MockADParameterReaderWithManager(MockADParameterReader):
             }
         else:
             return {
-                "cpr_field": "cpr",
-                "SamAccountName": "mo-user-sam",
+                "cpr_field": MO_USER_CPR,
+                "SamAccountName": MO_USER_SAM,
                 "manager": None,
             }
 
@@ -121,7 +126,7 @@ class MockMORESTSource(MORESTSource):
 
 class MockMORESTSourcePreview(MORESTSource):
     def __init__(self):
-        self.helper = MockMoraHelper("cpr")
+        self.helper = MockMoraHelper(MO_USER_CPR)
 
     def find_primary_engagement(self, uuid):
         return "employment-number", "title", "eng-org-unit", "eng-uuid"
@@ -247,7 +252,7 @@ class MockLoraCacheWithManager(MockLoraCacheExtended):
     def __init__(self):
         self._mo_values_employee = {
             "uuid": MO_UUID,
-            "cpr": "cpr",
+            "cpr": MO_USER_CPR,
             "navn": "Ansat Ansatsen",
             "efternavn": "Ansatsen",
             "fornavn": "Ansat",
