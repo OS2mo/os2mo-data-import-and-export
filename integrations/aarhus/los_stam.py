@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from datetime import date
 from datetime import datetime
 from typing import Any
 from typing import List
@@ -19,7 +20,6 @@ from gql import gql
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import.mox_data_types import Facet
-from os2mo_data_import.mox_data_types import Itsystem
 from pydantic import Field
 from raclients.graph.client import GraphQLClient
 
@@ -106,6 +106,20 @@ class ITSystem(StamCSV):
     @staticmethod
     def get_filename() -> str:
         return "STAM_UUID_ITSystem.csv"
+
+    @property
+    def title(self) -> str:
+        return self.name
+
+    @property
+    def bvn(self) -> str:
+        return self.user_key
+
+    # NOTE: we use 'class_uuid' since StamCSV was initially only meant for classes, or
+    # looks like that at least, and itsystems are not classes.. its a bit misleading, but it works.
+    @property
+    def class_uuid(self) -> uuid.UUID:
+        return self.it_system_uuid
 
 
 class Stillingsbetegnelse(StamCSV):
@@ -319,26 +333,56 @@ class StamImporter:
 
     async def handle_itsystem(self):
         """
-        Process the external 'it system' file and create objects if file is
-        newer than last import.
-        """
-        rows = self._load_csv_if_newer(ITSystem)
-        if rows is None:
-            return
+        Process the external 'it system' csv file and create, update and terminate items
+        if file is newer than last import.
 
+        OBS: ITSystem are different than the other STAM data fields. since they are not
+        normal "classes", which is why we dont use the same logic as ex "handle_stillingsbetegnelse"
+        """
         settings = config.get_config()
-        mox_helper = await create_mox_helper(settings.mox_base)
-        for row in rows:
-            it_system = Itsystem(
-                system_name=row.name,  # type: ignore
-                user_key=row.user_key,  # type: ignore
+        gql_client = config.setup_gql_client(settings=settings)
+
+        # Load CSV data
+        csv_rows = self._load_csv_if_newer(ITSystem)
+        if csv_rows is None:
+            return
+        csv_row_uuids = set(csv_row.it_system_uuid for csv_row in csv_rows)
+
+        # Get all itsystems already in os2mo
+        os2mo_it_systems = gql_get_itsystems(gql_client)
+        os2mo_it_system_uuids = [uuid.UUID(its["uuid"]) for its in os2mo_it_systems]
+
+        # Compare CSV with itsystems in os2mo
+        new_items = [
+            csv_row
+            for csv_row in csv_rows
+            if csv_row.it_system_uuid not in os2mo_it_system_uuids
+        ]
+        changed_items = list(
+            filter(
+                lambda csv_row: any(  # type: ignore
+                    str(csv_row.class_uuid) == itsystem["uuid"]  # type: ignore
+                    and csv_row.title != itsystem["name"]  # type: ignore
+                    for itsystem in os2mo_it_systems
+                ),
+                csv_rows,
             )
-            it_system.organisation_uuid = str(uuids.ORG_UUID)
-            json = it_system.build()
-            await mox_helper.insert_organisation_itsystem(
-                json,
-                str(row.it_system_uuid),  # type: ignore
-            )
+        )
+        terminted_item_uuids = [
+            itsystem_uuid
+            for itsystem_uuid in os2mo_it_system_uuids
+            if itsystem_uuid not in csv_row_uuids
+        ]
+
+        # Run create, update and terminate on found items
+        for new_item in new_items:
+            gql_create_it_system(gql_client, new_item)
+
+        for changed_item in changed_items:
+            gql_update_it_system(gql_client, changed_item)
+
+        for terminated_item_uuid in terminted_item_uuids:
+            gql_delete_it_system(gql_client, terminated_item_uuid)
 
     async def handle_stillingsbetegnelse(self):
         """
@@ -557,7 +601,7 @@ def gql_get_classes(gql_client: GraphQLClient, facet_uuid: str) -> List[dict]:
 
 def gql_create_class(
     gql_client: GraphQLClient,
-    changed_class: StamCSV,
+    stamp_csv_row: StamCSV,
     org_uuid: str,
     facet_uuid: str,
 ):
@@ -571,14 +615,115 @@ def gql_create_class(
         """
     )
 
-    data = {
-        "uuid": str(changed_class.class_uuid),
-        "org_uuid": org_uuid,
-        "facet_uuid": facet_uuid,
-        "name": changed_class.title,
-        "user_key": changed_class.bvn,
-        "scope": "TEXT",
-    }
-
-    response = gql_client.execute(graphql_query, variable_values={"input": data})
+    response = gql_client.execute(
+        graphql_query,
+        variable_values={
+            "input": {
+                "uuid": str(stamp_csv_row.class_uuid),
+                "org_uuid": org_uuid,
+                "facet_uuid": facet_uuid,
+                "name": stamp_csv_row.title,
+                "user_key": stamp_csv_row.bvn,
+                "scope": "TEXT",
+            }
+        },
+    )
     return response["class_create"]
+
+
+def gql_get_itsystems(gql_client: GraphQLClient) -> List[dict]:
+    graphql_query = gql(
+        """
+        query GetITSystems {
+            itsystems {
+                uuid
+                name
+                user_key
+            }
+        }
+        """
+    )
+
+    response = gql_client.execute(graphql_query)
+    return response["itsystems"]
+
+
+def gql_create_it_system(
+    gql_client: GraphQLClient,
+    stamp_csv_row: StamCSV,
+    from_date: date | None = None,
+    to_date: date | None = None,
+):
+    graphql_query = gql(
+        """
+        mutation CreateITSystem($input: ITSystemCreateInput!) {
+            itsystem_create(input: $input) {
+                uuid
+            }
+        }
+        """
+    )
+
+    response = gql_client.execute(
+        graphql_query,
+        variable_values={
+            "input": {
+                "uuid": str(stamp_csv_row.class_uuid),
+                "name": stamp_csv_row.title,
+                "user_key": stamp_csv_row.bvn,
+                "from": from_date.isoformat() if from_date else None,
+                "to": to_date.isoformat() if to_date else None,
+            }
+        },
+    )
+
+    return response["itsystem_create"]
+
+
+def gql_update_it_system(
+    gql_client: GraphQLClient,
+    stamp_csv_row: StamCSV,
+    from_date: date | None = None,
+    to_date: date | None = None,
+):
+    graphql_query = gql(
+        """
+        mutation UpdateITSystem($uuid: UUID!, $input: ITSystemCreateInput!) {
+            itsystem_update(uuid: $uuid, input: $input) {
+                uuid
+            }
+        }
+        """
+    )
+
+    response = gql_client.execute(
+        graphql_query,
+        variable_values={
+            "uuid": str(stamp_csv_row.class_uuid),
+            "input": {
+                "name": stamp_csv_row.title,
+                "user_key": stamp_csv_row.bvn,
+                "from": from_date.isoformat() if from_date else None,
+                "to": to_date.isoformat() if to_date else None,
+            },
+        },
+    )
+
+    return response["itsystem_update"]
+
+
+def gql_delete_it_system(gql_client: GraphQLClient, it_system_uuid: uuid.UUID):
+    graphql_query = gql(
+        """
+        mutation TerminateITSystem($uuid:UUID!){
+            itsystem_delete(uuid:$uuid) {
+                uuid
+            }
+        }
+        """
+    )
+
+    response = gql_client.execute(
+        graphql_query, variable_values={"uuid": str(it_system_uuid)}
+    )
+    return response["itsystem_delete"]
