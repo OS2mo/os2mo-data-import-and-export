@@ -1,4 +1,6 @@
+import uuid
 from unittest import TestCase
+from unittest.mock import patch
 
 import pytest
 
@@ -10,105 +12,162 @@ from ..utils import AttrDict
 from .mocks import MockMORESTSource
 
 
-def mock_MOGraphqlSource(return_value):
-    mock_source = MOGraphqlSource
-    mock_source._read_employees = lambda x: {"employees": return_value}
-    return mock_source({})
+class TestMOGraphqlSource:
+    def _get_instance(self, *objs) -> MOGraphqlSource:
+        wrapped_value = [{"objects": [obj]} for obj in objs]
+        with patch(
+            "integrations.ad_integration.ad_writer.MOGraphqlSource._run_query",
+            return_value=wrapped_value,
+        ):
+            return MOGraphqlSource({})
 
-
-class TestMOGraphqlSource(TestCase):
-    # TODO: parameterize or use hypothesis
-    def test_create_manager_map_no_manager(self):
-        test_data = [
-            {
-                "uuid": "0004b952-a513-430b-b696-8d393d7eb2bb",
-                "objects": [{"engagements": []}],
-            }
-        ]
-        mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source._manager_map == {
-            "0004b952-a513-430b-b696-8d393d7eb2bb": None
+    def _get_mock_engagement(self, employee_uuid, is_primary=True, end=None):
+        return {
+            "employee_uuid": employee_uuid,
+            "is_primary": is_primary,
+            "validity": {"to": end.isoformat() if end else None},
         }
-        assert (
-            mock_source.get_manager_uuid(
-                {"uuid": "0004b952-a513-430b-b696-8d393d7eb2bb"}, None
-            )
-            is None
-        )
 
-    def test_create_manager_map_has_manager(self):
-        test_data = [
+    def _get_manager_uuid(self, instance, employee_uuid):
+        return instance.get_manager_uuid({"uuid": employee_uuid}, None)
+
+    def test_employee_has_manager_in_same_org_unit(self):
+        employee_uuid = str(uuid.uuid4())
+        manager_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
             {
-                "uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18",
-                "objects": [
-                    {
-                        "engagements": [
-                            {
-                                "employee_uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18",
-                                "uuid": "4656c111-d1e5-4a0d-9514-633b03e4f60f",
-                                "is_primary": True,
-                                "org_unit": [
-                                    {
-                                        "managers": [
-                                            {
-                                                "employee_uuid": "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
-                                            }
-                                        ]
-                                    }
-                                ],
-                            }
-                        ]
-                    }
+                "uuid": str(uuid.uuid4()),  # org unit UUID
+                "parent_uuid": None,
+                "engagements": [self._get_mock_engagement(employee_uuid)],
+                "managers": [{"employee_uuid": manager_uuid}],
+            }
+        )
+        assert self._get_manager_uuid(instance, employee_uuid) == manager_uuid
+
+    def test_employee_is_self_manager(self):
+        org_unit_uuid = str(uuid.uuid4())
+        parent_org_unit_uuid = str(uuid.uuid4())
+        employee_uuid = str(uuid.uuid4())
+        manager_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
+            # Child org unit: where the employee is engaged and also is a "self manager"
+            {
+                "uuid": org_unit_uuid,
+                "parent_uuid": parent_org_unit_uuid,
+                "engagements": [self._get_mock_engagement(employee_uuid)],
+                "managers": [{"employee_uuid": employee_uuid}],  # "self manager"
+            },
+            # Parent org unit: where the "real" manager is defined
+            {
+                "uuid": parent_org_unit_uuid,
+                "parent_uuid": None,
+                "engagements": [],
+                "managers": [{"employee_uuid": manager_uuid}],  # the "real" manager
+            },
+        )
+        assert self._get_manager_uuid(instance, employee_uuid) == manager_uuid
+
+    def test_employee_is_self_manager_no_parent_managers(self):
+        employee_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
+            {
+                "uuid": str(uuid.uuid4()),  # org unit UUID
+                "parent_uuid": None,
+                "engagements": [self._get_mock_engagement(employee_uuid)],
+                "managers": [{"employee_uuid": employee_uuid}],
+            }
+        )
+        assert self._get_manager_uuid(instance, employee_uuid) is None
+
+    def test_employee_has_no_primary_engagement(self):
+        employee_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
+            {
+                "uuid": str(uuid.uuid4()),  # org unit UUID
+                "parent_uuid": None,
+                "engagements": [
+                    self._get_mock_engagement(employee_uuid, is_primary=None)
                 ],
+                "managers": [{"employee_uuid": str(uuid.uuid4())}],
             }
-        ]
-        mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source._manager_map == {
-            "002a1aed-d015-4b86-86a4-c37cd8df1e18": "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
-        }
-        assert (
-            mock_source.get_manager_uuid(
-                {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"}, None
-            )
-            == "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
         )
+        assert self._get_manager_uuid(instance, employee_uuid) is None
 
-    def test_create_manager_map_has_manager_not_primary(self):
-        test_data = [
+    def test_employee_has_no_engagements(self):
+        employee_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
             {
-                "uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18",
-                "objects": [
-                    {
-                        "engagements": [
-                            {
-                                "employee_uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18",
-                                "uuid": "4656c111-d1e5-4a0d-9514-633b03e4f60f",
-                                "is_primary": None,
-                                "org_unit": [
-                                    {
-                                        "managers": [
-                                            {
-                                                "employee_uuid": "30b2f8fa-e7c6-43c3-ae59-6649b60e78d2"
-                                            }
-                                        ]
-                                    }
-                                ],
-                            }
-                        ]
-                    }
-                ],
+                "uuid": str(uuid.uuid4()),  # org unit UUID
+                "parent_uuid": None,
+                "engagements": [],
+                "managers": [{"employee_uuid": str(uuid.uuid4())}],
             }
-        ]
-        mock_source = mock_MOGraphqlSource(test_data)
-        assert mock_source._manager_map == {
-            "002a1aed-d015-4b86-86a4-c37cd8df1e18": None
-        }
-        assert (
-            mock_source.get_manager_uuid(
-                {"uuid": "002a1aed-d015-4b86-86a4-c37cd8df1e18"}, None
-            )
-            is None
         )
+        assert self._get_manager_uuid(instance, employee_uuid) is None
+
+    def test_employee_has_no_managers(self):
+        employee_uuid = str(uuid.uuid4())
+        instance = self._get_instance(
+            {
+                "uuid": str(uuid.uuid4()),  # org unit UUID
+                "parent_uuid": None,
+                "engagements": [self._get_mock_engagement(employee_uuid)],
+                "managers": [],
+            }
+        )
+        assert self._get_manager_uuid(instance, employee_uuid) is None
+
+    def test_follows_pagination(self):
+        """Verify that `MOGraphqlSource._run_query` follows the pagination cursors in
+        the responses returned by the GraphQL API.
+        """
+
+        class _MockClient:
+            """Mock GraphQL client whose `execute` method simulates a paginated set of
+            results.
+            """
+
+            def __init__(self):
+                self.num_pages = 5
+                self.current_page = 0
+
+            def __enter__(self):
+                # Implement the context manager protocol, returning the instance itself
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                # Implement the context manager protocol,
+                pass
+
+            def execute(self, query, **kwargs):
+                response = {
+                    "org_units": {
+                        "page_info": {
+                            "next_cursor": (
+                                str(self.current_page)
+                                if self.current_page < self.num_pages
+                                else None
+                            )
+                        },
+                        "objects": [],
+                    }
+                }
+                if self.current_page < self.num_pages:
+                    self.current_page += 1
+                return response
+
+        # Arrange: test `MOGraphqlSource` using our mock GraphQL client
+        mock_client = _MockClient()
+        with patch(
+            "integrations.ad_integration.ad_writer.MOGraphqlSource._get_client",
+            return_value=mock_client,
+        ):
+            instance = MOGraphqlSource({})
+            # Act: consume the paginated result set
+            instance._run_query()
+            # Assert: check that we reached the last page of the paginated result set.
+            # (We assume that we also visited the other pages in the result set.)
+            assert mock_client.current_page == mock_client.num_pages
 
 
 class TestLoraCacheSource(TestCase):

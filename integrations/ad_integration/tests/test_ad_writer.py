@@ -1690,3 +1690,58 @@ class TestUseFutureManagersFeatureFlag:
                     ad_writer.datasource.get_manager_uuid
                 ) == inspect.getsourcelines(MockMOGraphqlSource.get_manager_uuid)
                 assert "Using MOGraphqlSource to patch" in caplog.text
+
+
+class TestUpdateManager(_TestRealADWriter):
+    # Mock an AD with an employee and a manager. The employee does not yet have its
+    # `Manager` field set, so `ADWriter.sync_user` should try to update it.
+    _ad_dump = [
+        # Employee
+        {
+            "cpr_field": MO_USER_CPR,
+            "SamAccountName": MO_USER_SAM,
+            "Manager": None,
+        },
+        # Manager
+        {
+            "cpr_field": MO_MANAGER_CPR,
+            "SamAccountName": MO_MANAGER_SAM,
+            "DistinguishedName": "foo",
+        },
+    ]
+
+    @parameterized.expand(
+        [
+            # Case 1: `ADWriter.datasource.get_manager_uuid` returns a manager UUID for
+            # the employee in question. The AD user should be updated.
+            (
+                # Manager UUID
+                MO_MANAGER_UUID,
+                # Assertion
+                lambda mock_add_manager: mock_add_manager.assert_called_once_with(
+                    user_sam=MO_USER_SAM,
+                    manager_sam=MO_MANAGER_SAM,
+                ),
+            ),
+            # Case 2: `ADWriter.datasource.get_manager_uuid` returns None for the
+            # employee in question. The AD user should *not* be updated.
+            (
+                # Manager UUID
+                None,
+                # Assertion
+                lambda mock_add_manager: mock_add_manager.assert_not_called(),
+            ),
+        ]
+    )
+    def test_sync_user_calls_add_manager_to_user(self, mo_manager_uuid, assertion):
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
+        with mock.patch.object(
+            ad_writer.datasource,
+            "get_manager_uuid",
+            return_value=mo_manager_uuid,
+        ):
+            with mock.patch.object(
+                ad_writer, "add_manager_to_user"
+            ) as mock_add_manager:
+                ad_writer.sync_user(MO_UUID, ad_dump=self._ad_dump, sync_manager=True)
+                assertion(mock_add_manager)

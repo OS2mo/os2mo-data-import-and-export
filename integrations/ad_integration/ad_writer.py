@@ -15,7 +15,6 @@ from functools import partial
 from operator import itemgetter
 
 import click
-import jmespath
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from gql import gql
@@ -286,22 +285,12 @@ class MOGraphqlSource:
 
     def __init__(self, settings):
         self._settings = settings
-
-        # For each employee we need to find the manager uuid which is associated by the
-        # org_unit of the primary engagement.
-        # So the path is engagements - filter by primary, org_unit, manager, uuid
-        # At last the result is piped into [0] to get the value and not an array.
-        # https://jmespath.org/tutorial.html#pipe-expressions
-        self._get_manager_uuid = jmespath.compile(
-            "objects[0].engagements[?is_primary].org_unit[0].managers[0].employee_uuid | [0]"
-        )
-
-        self._response = self._read_employees()
+        self._response = self._run_query()
         self._manager_map = self._create_manager_map()
 
     def _get_client(self):
         return GraphQLClient(
-            url=f"{self._settings['global']['mora.base']}/graphql/v3",
+            url=f"{self._settings['global']['mora.base']}/graphql/v7",
             client_id=os.environ.get("CLIENT_ID", "dipex"),
             client_secret=os.environ["CLIENT_SECRET"],
             auth_realm=os.environ.get("AUTH_REALM", "mo"),
@@ -310,21 +299,27 @@ class MOGraphqlSource:
             httpx_client_kwargs={"timeout": None},
         )
 
-    def _read_employees(self):
+    def _run_query(self):
         query = gql(
             """
-            query read_employees {
-              employees(to_date: null) {
-                uuid
+            query PaginatedOrgUnits($cursor: Cursor) {
+              org_units(to_date: null, limit: 50, cursor: $cursor) {
+                page_info {
+                  next_cursor
+                }
                 objects {
-                  engagements {
-                    employee_uuid
+                  objects {
                     uuid
-                    is_primary
-                    org_unit {
-                      managers(inherit: true) {
-                        employee_uuid
+                    parent_uuid
+                    engagements {
+                      employee_uuid
+                      is_primary
+                      validity {
+                        to
                       }
+                    }
+                    managers(inherit: true) {
+                      employee_uuid
                     }
                   }
                 }
@@ -332,30 +327,76 @@ class MOGraphqlSource:
             }
             """
         )
+        result = []
+        cursor = "initial"
         with self._get_client() as session:
-            return session.execute(query)
-
-    def _is_primary_engagement(self, employee: dict) -> bool:
-        for obj in employee["objects"]:
-            for eng in obj["engagements"]:
-                if eng["is_primary"] is True:
-                    return True
-        return False
+            while cursor is not None:
+                response = session.execute(
+                    query,
+                    variable_values={"cursor": None if cursor == "initial" else cursor},
+                )
+                cursor = response["org_units"]["page_info"]["next_cursor"]
+                result.extend(response["org_units"]["objects"])
+        return result
 
     def _create_manager_map(self):
         """Create mapping between employees and managers"""
-        return {
-            e["uuid"]: (
-                self._get_manager_uuid.search(e)
-                if self._is_primary_engagement(e)
-                else None
-            )
-            for e in self._response["employees"]
-        }
 
-    def get_manager_uuid(self, mo_user: dict, eng_uuid):
+        # Step 1: build intermediate dictionaries `engagement_map` and `org_unit_map`
+        # from the GraphQL objects in `self._response`.
+
+        # `engagement_map` maps an employee UUID to the org unit of the primary
+        # engagement.
+        engagement_map = {}
+
+        # `org_unit_map` maps an org unit UUID to its parent org unit UUID as well as
+        # its manager UUID.
+        org_unit_map = {}
+
+        objs = (obj[0] for obj in (item["objects"] for item in self._response))
+        for obj in objs:
+            # Skip org units without managers
+            if not obj["managers"]:
+                continue
+            org_unit_uuid = obj["uuid"]
+            parent_org_unit_uuid = obj["parent_uuid"]
+            manager_uuid = first(obj["managers"])["employee_uuid"]
+            # Populate `org_unit_map`
+            org_unit_map[org_unit_uuid] = {
+                "parent_uuid": parent_org_unit_uuid,
+                "manager_uuid": manager_uuid,
+            }
+            # Populate `engagement_map`
+            for engagement in obj["engagements"]:
+                if engagement["is_primary"]:
+                    employee_uuid = engagement["employee_uuid"]
+                    engagement_map[employee_uuid] = org_unit_uuid
+
+        # Step 2: visit each employee UUID in `engagement_map` and find its manager UUID
+        # either by taking it directly from `org_unit_map`, or by traversing "up" the
+        # org unit hierarchy, until the manager UUID differs from the employee UUID.
+        result = {}
+        for employee_uuid in engagement_map:
+            org_unit_uuid = engagement_map[employee_uuid]
+            manager_uuid = org_unit_map[org_unit_uuid]["manager_uuid"]
+            while manager_uuid == employee_uuid:
+                # Go to parent org unit UUID
+                org_unit_uuid = org_unit_map[org_unit_uuid]["parent_uuid"]
+                if org_unit_uuid in org_unit_map:
+                    manager_uuid = org_unit_map[org_unit_uuid]["manager_uuid"]
+                else:
+                    # We are at the end of the upwards traversal
+                    break
+            result[employee_uuid] = manager_uuid
+
+        return result
+
+    def get_manager_uuid(self, mo_user: dict, eng_uuid) -> str | None:
         """Look up manager UUID for employee"""
-        return self._manager_map[mo_user["uuid"]]
+        manager_uuid = self._manager_map.get(mo_user["uuid"])
+        if manager_uuid == mo_user["uuid"]:
+            return None
+        return manager_uuid
 
 
 class MORESTSource(MODataSource):
@@ -1045,6 +1086,8 @@ class ADWriter(AD):
                         manager_distinguished_name,
                     )
                     logger.info("Manager should be updated")
+                else:
+                    logger.debug("Not updating manager")
 
         return mismatch
 
