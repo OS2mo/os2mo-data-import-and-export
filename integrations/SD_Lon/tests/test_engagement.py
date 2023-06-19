@@ -1,8 +1,8 @@
 import unittest.mock
 from copy import deepcopy
 
+import pytest
 from more_itertools import one
-from parameterized import parameterized
 
 from .fixtures import get_read_employment_changed_fixture
 from sdlon.engagement import _is_external
@@ -21,15 +21,16 @@ class TestIsExternal(unittest.TestCase):
         assert _is_external("ABCDE")
 
 
-class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
-    @parameterized.expand(
+class TestIsEmploymentIdAndNoSalaryMinimumConsistent:
+    @pytest.mark.parametrize(
+        "no_salary_minimum,employment_id,job_pos_id,expected",
         [
             (None, "12345", 1, True),
             (9000, "External", 10000, True),
             (9000, "External", 8000, False),
             (9000, "12345", 8000, True),
             (9000, "12345", 10000, False),
-        ]
+        ],
     )
     def test_return_values(
         self, no_salary_minimum, employment_id, job_pos_id, expected
@@ -48,11 +49,12 @@ class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
             == expected
         )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "job_pos_id2,expected",
         [
             ("1001", True),
             ("9001", False),
-        ]
+        ],
     )
     def test_job_pos_ids_consistent_but_different(self, job_pos_id2, expected):
         # Arrange

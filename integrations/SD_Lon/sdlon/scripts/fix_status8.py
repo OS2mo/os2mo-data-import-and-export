@@ -18,10 +18,10 @@ from more_itertools import one, exactly_n
 from raclients.graph.client import GraphQLClient
 
 from sdlon.graphql import get_mo_client
-from sdlon.sdclient.client import SDClient
-from sdlon.sdclient.requests import GetEmploymentRequest
-from sdlon.sdclient.responses import GetEmploymentResponse
-from sdlon.sdclient.responses import Person
+from sdclient.client import SDClient
+from sdclient.requests import GetEmploymentRequest
+from sdclient.responses import GetEmploymentResponse
+from sdclient.responses import Person
 from ramodels.mo.employee import Employee
 
 def get_sd_employments(

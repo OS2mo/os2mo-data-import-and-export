@@ -9,6 +9,7 @@ repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-expor
 keywords = ["os2mo", "dipex", "sdloen"]
 
 [tool.poetry.dependencies]
+another-sd-client = "^1.3.0"
 python = "3.11.*"
 more-itertools = "^8.12.0"
 requests = "^2.27.1"
@@ -37,7 +38,7 @@ hypothesis = "^6.39.3"
 black = "^22.1.0"
 reorder-python-imports = "^3.0.1"
 parameterized = "^0.7.4"
-pre-commit = "^2.17.0"
+pre-commit = "^3.2.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

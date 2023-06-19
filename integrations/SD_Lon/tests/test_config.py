@@ -6,7 +6,6 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from parameterized import parameterized
 from pydantic import BaseSettings
 from pydantic import ValidationError
 
@@ -218,7 +217,8 @@ def test_override_default(mock_load_settings):
     assert not settings.sd_importer_create_associations
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "key,value",
     [
         ("mora_base", "Not a URL"),
         ("mox_base", "Not a URL"),
@@ -229,7 +229,7 @@ def test_override_default(mock_load_settings):
         ("sd_global_from_date", "Invalid string"),
         ("sd_job_function", "not allowed"),
         ("sd_monthly_hourly_divide", -1),
-    ]
+    ],
 )
 def test_special_values(key, value):
     # Arrange
@@ -241,7 +241,7 @@ def test_special_values(key, value):
         ImporterSettings.parse_obj(mock_settings)
 
 
-@parameterized.expand(["JobPositionIdentifier", "EmploymentName"])
+@pytest.mark.parametrize("job_function", ["JobPositionIdentifier", "EmploymentName"])
 def test_job_function_enums_allowed(job_function):
     assert ImporterSettings(
         municipality_name="name",
@@ -257,13 +257,14 @@ def test_job_function_enums_allowed(job_function):
     )
 
 
-@parameterized.expand(
+@pytest.mark.parametrize(
+    "key,valid_value,invalid_value",
     [
         ("sd_fix_departments_root", str(uuid4()), "not a UUID"),
         ("sd_cprs", ["1234561234", "6543214321"], ["Not CPR"]),
         ("sd_cprs", ["0000000000"], "Not list of CPRs"),
         ("sd_exclude_cprs_mode", False, "Not a boolean"),
-    ]
+    ],
 )
 def test_changed_at_settings(key, valid_value, invalid_value):
     settings = deepcopy(DEFAULT_CHANGED_AT_SETTINGS)
