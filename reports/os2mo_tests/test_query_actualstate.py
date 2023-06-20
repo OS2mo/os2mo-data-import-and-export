@@ -114,7 +114,20 @@ def test_map_dynamic_class():
 
 def test_merge_dynamic_classes():
     data_df = pd.DataFrame(
-        [("testuuid", "test", "test", "test", "test", "test", "test", "test", "test", "test")],
+        [
+            (
+                "testuuid",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+            )
+        ],
         columns=[
             "Tilknytningsuuid",
             "Tilknytningens startdato",
