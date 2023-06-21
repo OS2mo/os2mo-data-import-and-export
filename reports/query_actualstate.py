@@ -218,6 +218,8 @@ def list_MED_members(session, org_names: dict) -> list:
     query = (
         session.query(
             Tilknytning.uuid,
+            Tilknytning.startdato,
+            Tilknytning.slutdato,
             Bruger.fornavn + " " + Bruger.efternavn,
             Emails.c.værdi,
             Phonenr.c.værdi,
@@ -241,6 +243,8 @@ def list_MED_members(session, org_names: dict) -> list:
         data,
         columns=[
             "Tilknytningsuuid",
+            "Tilknytningens startdato",
+            "Tilknytningens slutdato",
             "Navn",
             "Email",
             "Telefonnummer",

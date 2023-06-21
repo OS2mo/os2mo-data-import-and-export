@@ -24,10 +24,11 @@ if __name__ == "__main__":
     run_report(
         list_MED_members,
         "MED",
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
         query_path + "/MED_medlemmer.xlsx",
     )
     logger.debug("MED report done.")
+
     # Lav rapport over Ansatte i kommunen.
     run_report(
         list_employees,
