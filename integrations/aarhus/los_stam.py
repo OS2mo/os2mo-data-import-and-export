@@ -382,7 +382,7 @@ class StamImporter:
             gql_update_it_system(gql_client, changed_item)
 
         for terminated_item_uuid in terminted_item_uuids:
-            gql_delete_it_system(gql_client, terminated_item_uuid)
+            gql_terminate_it_system(gql_client, terminated_item_uuid)
 
     async def handle_stillingsbetegnelse(self):
         """
@@ -712,18 +712,9 @@ def gql_update_it_system(
     return response["itsystem_update"]
 
 
-def gql_delete_it_system(gql_client: GraphQLClient, it_system_uuid: uuid.UUID):
-    graphql_query = gql(
-        """
-        mutation TerminateITSystem($uuid:UUID!){
-            itsystem_delete(uuid:$uuid) {
-                uuid
-            }
-        }
-        """
+def gql_terminate_it_system(gql_client: GraphQLClient, it_system_uuid: uuid.UUID):
+    # TODO: Implement this when its possible to terminate itsystem bi-temporally
+    logger.warning(
+        f"IGNORED terminate of itsystem, {str(it_system_uuid)}, due to missing implementation of itsystem bitemporality"
     )
-
-    response = gql_client.execute(
-        graphql_query, variable_values={"uuid": str(it_system_uuid)}
-    )
-    return response["itsystem_delete"]
+    return
