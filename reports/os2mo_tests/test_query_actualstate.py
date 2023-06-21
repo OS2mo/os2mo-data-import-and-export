@@ -27,6 +27,8 @@ from reports.query_actualstate import (
 def test_rearrange():
     columns_before = [
         "Tilknytningsuuid",
+        "Tilknytningens startdato",
+        "Tilknytningens slutdato",
         "Navn",
         "Email",
         "Telefonnummer",
@@ -39,11 +41,13 @@ def test_rearrange():
         "Hovedorganisation / Faglig organisation",
     ]
     columns_after = [
+        "Tilknytningens startdato",
+        "Tilknytningens slutdato",
         "Navn",
         "Email",
+        "Hovedorganisation / Faglig organisation",
         "Telefonnummer",
         "Tilknytningstype",
-        "Hovedorganisation / Faglig organisation",
         "Tilknytningsenhed",
         "Ansættelsesenhed",
         "Enhed1",
@@ -54,6 +58,8 @@ def test_rearrange():
         [
             (
                 "testuuid",
+                "TEST",
+                "TEST",
                 "test",
                 "test",
                 "test",
@@ -108,9 +114,24 @@ def test_map_dynamic_class():
 
 def test_merge_dynamic_classes():
     data_df = pd.DataFrame(
-        [("testuuid", "test", "test", "test", "test", "test", "test", "test")],
+        [
+            (
+                "testuuid",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+            )
+        ],
         columns=[
             "Tilknytningsuuid",
+            "Tilknytningens startdato",
+            "Tilknytningens slutdato",
             "Navn",
             "Email",
             "Telefonnummer",
@@ -180,6 +201,8 @@ class Tests_db(unittest.TestCase):
             bruger_uuid="b1",
             enhed_uuid="E2",
             tilknytningstype_titel="titel",
+            startdato="2023-01-01",
+            slutdato="2023-01-02",
         )
         self.session.add(tilknytning)
         engagement = Engagement(
@@ -206,6 +229,8 @@ class Tests_db(unittest.TestCase):
             bruger_uuid="b2",
             enhed_uuid="E3",
             tilknytningstype_titel="titel2",
+            startdato="2023-10-12",
+            slutdato="2030-01-02",
         )
         self.session.add(tilknytning)
         engagement = Engagement(
@@ -260,15 +285,18 @@ class Tests_db(unittest.TestCase):
     )
     def test_MED_data(self, _):
         # hoved_enhed = self.session.query(Enhed).all()
+        # "data" comes from this class' own self.session - a sessionmaker made with SQLAlchemy.
         data = list_MED_members(self.session, {"løn": "LØN-org", "MED": "Hoved-MED"})
         self.assertEqual(
             tuple(data[0]),
             (
+                "Tilknytningens startdato",
+                "Tilknytningens slutdato",
                 "Navn",
                 "Email",
+                "Hovedorganisation / Faglig organisation",
                 "Telefonnummer",
                 "Tilknytningstype",
-                "Hovedorganisation / Faglig organisation",
                 "Tilknytningsenhed",
                 "Ansættelsesenhed",
                 "Enhed 1",
@@ -279,11 +307,13 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(
             tuple(data[1]),
             (
+                "2023-01-01",
+                "2023-01-02",
                 "fornavn efternavn",
                 "AD-email@email.dk",
+                "Tilknytningsorganisation",
                 "12345678",
                 "titel",
-                "Tilknytningsorganisation",
                 "Under-MED",
                 "Under-Enhed",
                 "LØN-org",
@@ -294,11 +324,13 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(
             tuple(data[2]),
             (
+                "2023-10-12",
+                "2030-01-02",
                 "fornavn2 efternavn2",
                 None,
                 None,
-                "titel2",
                 None,
+                "titel2",
                 "Under-under-MED",
                 "Under-Enhed",
                 "LØN-org",
