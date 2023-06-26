@@ -30,7 +30,6 @@ aiohttp = "^3.8.1"
 SQLAlchemy = "^1.4.31"
 pymssql = "^2.2.4"
 alembic = "^1.7.5"
-mysqlclient = "^2.1.0"
 pyodbc = "^4.0.32"
 types-python-dateutil = "^2.8.9"
 Sphinx = "^1.8.4"
@@ -64,8 +63,7 @@ asciitree = "^0.3.3"
 mimesis = "^5.3.0"
 pytest-aioresponses = "^0.2.0"
 pika = "^1.2.0"
-requests-kerberos = "^0.14.0"
-pywinrm = {extras = ["kerberos"], version = "^0.4.2"}
+pywinrm = {version = "^0.4.2"}
 xlrd = "^2.0.1"
 deepdiff = "^5.7.0"
 click-option-group = "^0.5.3"
@@ -95,8 +93,6 @@ prometheus-client = "^0.16.0"
 ra-utils = "^1.13.7"
 mkdocs = "^1.4.2"
 aiofiles = "^23.1.0"
-iteration-utilities = "^0.11.0"
-
 
 [tool.poetry.dev-dependencies]
 types-python-dateutil = "^2.8.19"
