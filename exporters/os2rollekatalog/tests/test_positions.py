@@ -1,9 +1,8 @@
 from unittest.mock import MagicMock
 
 import pytest
-
-from exporters.os2rollekatalog.os2rollekatalog_integration import convert_position
-from exporters.os2rollekatalog.os2rollekatalog_integration import (
+from os2rollekatalog.os2rollekatalog_integration import convert_position
+from os2rollekatalog.os2rollekatalog_integration import (
     get_employee_engagements,
 )
 

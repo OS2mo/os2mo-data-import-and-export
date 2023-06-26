@@ -287,8 +287,9 @@ Test tools:
 Test rollekatalog:
   extends: .test-python
   script:
-    - pip install -r exporters/os2rollekatalog/requirements.txt
-    - pytest exporters/os2rollekatalog/tests/
+    - cd exporters/os2rollekatalog/
+    - poetry install
+    - pytest tests
 
 Test plan2learn:
   extends: .test-python

@@ -213,10 +213,14 @@ imports_manager_sync(){
 
 
 exports_mox_rollekatalog(){
+    echo running exports_os2sync
+    cd exporters/os2rollekatalog || exit 1
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
-    export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
-
-    ${VENV}/bin/python3 -m exporters.os2rollekatalog.os2rollekatalog_integration
+    
+    ${POETRYPATH} run python -m os2rollekatalog.os2rollekatalog_integration
+    EXIT_CODE=$?
+    cd ../..
+    return $EXIT_CODE
 }
 
 exports_os2sync(){

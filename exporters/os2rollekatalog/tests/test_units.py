@@ -1,11 +1,10 @@
 import unittest
 from uuid import uuid4
 
-from parameterized import parameterized
-
-from exporters.os2rollekatalog.os2rollekatalog_integration import (
+from os2rollekatalog.os2rollekatalog_integration import (
     get_parent_org_unit_uuid,
 )
+from parameterized import parameterized
 
 
 class MockOU:
