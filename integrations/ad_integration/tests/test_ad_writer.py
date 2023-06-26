@@ -32,6 +32,8 @@ from .mocks import MO_MANAGER_CPR
 from .mocks import MO_MANAGER_SAM
 from .mocks import MO_MANAGER_UUID
 from .mocks import MO_ROOT_ORG_UNIT_NAME
+from .mocks import MO_USER_CPR
+from .mocks import MO_USER_SAM
 from .mocks import MO_UUID
 from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
@@ -1099,6 +1101,14 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
 class _TestRealADWriter(TestCase):
     @staticmethod
+    def mock_run_ps_response(status_code=0, std_out="{}", std_err=None):
+        run_ps_response = MagicMock()
+        run_ps_response.status_code = status_code
+        run_ps_response.std_out = std_out
+        run_ps_response.std_err = std_err
+        return run_ps_response
+
+    @staticmethod
     def _get_from_ad_matching_nothing(user=None, cpr=None, server=None):
         # Provide a mock implementation of `ADWriter.get_from_ad` which returns nothing
         return {}
@@ -1115,7 +1125,7 @@ class _TestRealADWriter(TestCase):
             "SamAccountName": MO_MANAGER_SAM,
             "DistinguishedName": "manager-dn",
         }
-        if cpr == "cpr":  # == the MO employee's own CPR
+        if cpr == MO_USER_CPR:  # == the MO employee's own CPR
             return [employee_ad_user]
         if cpr == MO_MANAGER_CPR:
             return [manager_ad_user]
@@ -1178,8 +1188,8 @@ class TestInitNameCreator(_TestRealADWriter):
 
 class TestSyncCompare(_TestRealADWriter):
     _ad_user_employee = {
-        "cpr_field": "cpr",
-        "SamAccountName": "sam",
+        "cpr_field": MO_USER_CPR,
+        "SamAccountName": MO_USER_SAM,
         "Manager": "old_manager_dn",
     }
 
@@ -1281,7 +1291,7 @@ class TestSyncCompare(_TestRealADWriter):
             *ad_dump_extra,
         ]
         mo_values = {
-            "cpr": "cpr",
+            "cpr": MO_USER_CPR,
             "full_name": "Full Name",
             "manager_cpr": "manager_cpr",
         }
@@ -1366,7 +1376,7 @@ class TestPreview(_TestRealADWriter):
         mo_name = lc._mo_values_employee["navn"]
 
         # Mock `ad_dump` which only contains an employee, and no manager
-        ad_dump = [reader.read_user(cpr="cpr")]
+        ad_dump = [reader.read_user(cpr=MO_USER_CPR)]
 
         with MockADWriterContext(
             template_to_ad_fields={"Name": "{{ mo_values['full_name'] }}"}
@@ -1393,7 +1403,7 @@ class TestPreview(_TestRealADWriter):
         reader = MockADParameterReaderWithManager()
         lc = MockLoraCacheWithManager()
         ad_dump = [
-            reader.read_user(cpr="cpr"),  # employee
+            reader.read_user(cpr=MO_USER_CPR),  # employee
             reader.read_user(cpr=MO_MANAGER_CPR),  # manager
         ]
         with MockADWriterContext():
@@ -1547,10 +1557,7 @@ class TestEnableUser(_TestRealADWriter):
     )
     def test_enable_user_handles_ok_response(self, enable: bool, expected_msg: str):
         # Arrange: mock an "OK" response from WinRM
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 0
-        run_ps_response.std_out = "{}"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
         # Act
         result = ad_writer.enable_user("sam_account_name", enable)
         # Assert (here `True` means the PowerShell command executed successfully)
@@ -1558,10 +1565,12 @@ class TestEnableUser(_TestRealADWriter):
 
     def test_enable_user_handles_error_response(self):
         # Arrange: mock an "error" response from WinRM
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 1
-        run_ps_response.std_err = "something wrong"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(
+            run_ps_response=self.mock_run_ps_response(
+                status_code=1,
+                std_err="something wrong",
+            )
+        )
         # Act and assert
         with self.assertRaises(CommandFailure):
             ad_writer.enable_user("sam_account_name", False)
@@ -1635,10 +1644,7 @@ class TestSkipLocation(_TestRealADWriter):
 class TestRenameADUser(_TestRealADWriter):
     def test_sleep(self):
         # Arrange: mock a successful WinRM invocation
-        run_ps_response = MagicMock()
-        run_ps_response.status_code = 0
-        run_ps_response.std_out = "{}"
-        ad_writer = self._prepare_adwriter(run_ps_response=run_ps_response)
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
 
         with mock.patch("time.sleep") as mock_time_sleep:
             # Act
@@ -1684,3 +1690,58 @@ class TestUseFutureManagersFeatureFlag:
                     ad_writer.datasource.get_manager_uuid
                 ) == inspect.getsourcelines(MockMOGraphqlSource.get_manager_uuid)
                 assert "Using MOGraphqlSource to patch" in caplog.text
+
+
+class TestUpdateManager(_TestRealADWriter):
+    # Mock an AD with an employee and a manager. The employee does not yet have its
+    # `Manager` field set, so `ADWriter.sync_user` should try to update it.
+    _ad_dump = [
+        # Employee
+        {
+            "cpr_field": MO_USER_CPR,
+            "SamAccountName": MO_USER_SAM,
+            "Manager": None,
+        },
+        # Manager
+        {
+            "cpr_field": MO_MANAGER_CPR,
+            "SamAccountName": MO_MANAGER_SAM,
+            "DistinguishedName": "foo",
+        },
+    ]
+
+    @parameterized.expand(
+        [
+            # Case 1: `ADWriter.datasource.get_manager_uuid` returns a manager UUID for
+            # the employee in question. The AD user should be updated.
+            (
+                # Manager UUID
+                MO_MANAGER_UUID,
+                # Assertion
+                lambda mock_add_manager: mock_add_manager.assert_called_once_with(
+                    user_sam=MO_USER_SAM,
+                    manager_sam=MO_MANAGER_SAM,
+                ),
+            ),
+            # Case 2: `ADWriter.datasource.get_manager_uuid` returns None for the
+            # employee in question. The AD user should *not* be updated.
+            (
+                # Manager UUID
+                None,
+                # Assertion
+                lambda mock_add_manager: mock_add_manager.assert_not_called(),
+            ),
+        ]
+    )
+    def test_sync_user_calls_add_manager_to_user(self, mo_manager_uuid, assertion):
+        ad_writer = self._prepare_adwriter(run_ps_response=self.mock_run_ps_response())
+        with mock.patch.object(
+            ad_writer.datasource,
+            "get_manager_uuid",
+            return_value=mo_manager_uuid,
+        ):
+            with mock.patch.object(
+                ad_writer, "add_manager_to_user"
+            ) as mock_add_manager:
+                ad_writer.sync_user(MO_UUID, ad_dump=self._ad_dump, sync_manager=True)
+                assertion(mock_add_manager)

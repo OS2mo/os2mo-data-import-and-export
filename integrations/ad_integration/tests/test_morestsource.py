@@ -3,6 +3,7 @@ from unittest import TestCase
 from parameterized import parameterized
 
 from ..ad_writer import MORESTSource
+from .mocks import MO_USER_CPR
 from .mocks import MO_UUID
 from .mocks import MockMoraHelper
 
@@ -37,6 +38,6 @@ class TestMORESTSource(TestCase):
         ]
     )
     def test_get_email_address(self, mock_cls: MockMoraHelper, expected_addr: dict):
-        instance = _TestableMORESTSource(mock_cls("cpr"))
+        instance = _TestableMORESTSource(mock_cls(MO_USER_CPR))
         actual_addr = instance.get_email_address(MO_UUID)
         self.assertDictEqual(actual_addr, expected_addr)
