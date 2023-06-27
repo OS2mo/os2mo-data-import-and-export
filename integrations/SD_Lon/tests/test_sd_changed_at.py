@@ -1319,6 +1319,42 @@ class Test_sd_changed_at(unittest.TestCase):
         # Assert
         mock_update.assert_called_once()
 
+    def test_do_not_edit_profession_when_sd_overwrite_emp_name_set(self):
+        # Arrange
+        sd_updater = setup_sd_changed_at(
+            updates={
+                "sd_job_function": "EmploymentName",
+                "sd_overwrite_existing_employment_name": False,
+            }
+        )
+
+        sd_updater._find_engagement = lambda *args: ["mo-eng"]
+        engagement = OrderedDict(
+            [
+                ("EmploymentIdentifier", "12345"),
+                (
+                    "Profession",
+                    [
+                        ("@changedAtDate", "2021-12-20"),
+                        ("ActivationDate", "2021-12-19"),
+                        ("DeactivationDate", "9999-12-31"),
+                        ("JobPositionIdentifier", "8000"),
+                        ("EmploymentName", "ThisNewValueShouldNotBeWrittenToMO"),
+                        ("AppointmentCode", "0"),
+                    ],
+                ),
+            ]
+        )
+
+        sd_updater.edit_engagement_profession = MagicMock()
+        sd_updater.edit_engagement_type = MagicMock()
+
+        # Act
+        sd_updater.edit_engagement(engagement, str(uuid.uuid4()))
+
+        # Assert
+        sd_updater.edit_engagement_profession.assert_not_called()
+
     @given(
         status=st.sampled_from(["1", "S"]),
         from_date=st.datetimes(),

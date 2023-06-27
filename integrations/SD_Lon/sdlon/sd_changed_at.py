@@ -1152,7 +1152,7 @@ class ChangeAtSD:
         """
         Edit an engagement
         """
-        employment_id, engagement_info = engagement_components(engagement)
+        employment_id, _ = engagement_components(engagement)
         mo_eng = self._find_engagement(employment_id, person_uuid)
 
         employment_consistent = is_employment_id_and_no_salary_minimum_consistent(

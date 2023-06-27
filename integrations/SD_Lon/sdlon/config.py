@@ -150,6 +150,7 @@ class ImporterSettings(CommonSettings):
 class ChangedAtSettings(CommonSettings):
     sd_fix_departments_root: Optional[UUID4] = None
     sd_no_salary_minimum_id: Optional[int] = None
+    sd_overwrite_existing_employment_name = True
 
     # List of CRPs to either include OR exclude in the run
     sd_cprs: List[constr(regex="^[0-9]{10}$")] = []  # type: ignore # noqa
