@@ -126,7 +126,6 @@ class ImporterSettings(CommonSettings):
 
     sd_no_salary_minimum_id: Optional[int] = None
     sd_skip_employment_types: List[str] = []
-    sd_skip_job_functions: List[str] = []
     sd_use_ad_integration: bool = True
 
     class Config:
