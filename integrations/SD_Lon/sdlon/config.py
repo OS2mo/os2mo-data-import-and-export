@@ -45,6 +45,10 @@ class CommonSettings(BaseSettings):
     sd_job_function: JobFunction
     sd_monthly_hourly_divide: PositiveInt
 
+    # List of SD JobPositionIdentifiers which should not result in creation
+    # of engagements
+    sd_skip_employment_types: List[str] = []
+
     # If true, the <TelephoneNumberIdentifier> in <ContactInformation> in
     # <Employment> in the <Person> tag will be used to set a value that can
     # trigger AD-creation of the user
@@ -125,7 +129,6 @@ class ImporterSettings(CommonSettings):
     sd_importer_employment_date_as_engagement_start_date: bool = False
 
     sd_no_salary_minimum_id: Optional[int] = None
-    sd_skip_employment_types: List[str] = []
     sd_use_ad_integration: bool = True
 
     class Config:
