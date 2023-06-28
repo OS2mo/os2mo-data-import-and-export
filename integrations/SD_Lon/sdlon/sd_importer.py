@@ -32,7 +32,7 @@ from .sd_common import ensure_list
 from .sd_common import generate_uuid
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .sd_common import skip_fictional_users
+from .skip import skip_fictional_users
 
 
 LOG_LEVEL = logging.DEBUG

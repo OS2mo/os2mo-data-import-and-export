@@ -67,7 +67,7 @@ from .sd_common import mora_assert
 from .sd_common import primary_types
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .sd_common import skip_fictional_users
+from .skip import skip_fictional_users
 from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 

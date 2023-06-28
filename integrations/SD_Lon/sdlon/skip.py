@@ -26,3 +26,11 @@ def cpr_env_filter(entity: OrderedDict[str, Any]) -> bool:
         logger.warning(f"*** SKIPPING employee with cpr={cpr[:6]} ***")
 
     return process_cpr
+
+
+def skip_fictional_users(entity):
+    cpr = entity["PersonCivilRegistrationIdentifier"]
+    if cpr[-4:] == "0000":
+        logger.warning("Skipping fictional user: {}".format(cpr))
+        return False
+    return True
