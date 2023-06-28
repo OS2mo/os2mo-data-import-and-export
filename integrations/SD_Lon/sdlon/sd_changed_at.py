@@ -1368,6 +1368,7 @@ class ChangeAtSD:
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
+            # sd_employments = filter(...)
 
             logger.info("---------------------")
             logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))

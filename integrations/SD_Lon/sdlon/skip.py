@@ -2,6 +2,8 @@ import logging
 from typing import Any
 from typing import OrderedDict
 
+from more_itertools import one
+
 from .config import get_changed_at_settings
 
 logger = logging.getLogger("sdChangedAt")
@@ -28,9 +30,34 @@ def cpr_env_filter(entity: OrderedDict[str, Any]) -> bool:
     return process_cpr
 
 
-def skip_fictional_users(entity):
+def skip_fictional_users(entity) -> bool:
     cpr = entity["PersonCivilRegistrationIdentifier"]
     if cpr[-4:] == "0000":
         logger.warning("Skipping fictional user: {}".format(cpr))
         return False
     return True
+
+
+def skip_job_position_id(
+    sd_employment: OrderedDict[str, Any], job_pos_ids_to_skip: list[str]
+) -> bool:
+    """
+    Check if SD employment JobPositionIdentifier is in the list to skip,
+    i.e. the list provided via the environment variable
+    SD_SKIP_EMPLOYMENT_TYPES
+
+    Args:
+        sd_employment: the SD employment
+        job_pos_ids_to_skip: list of SD JobPositionIdentifiers to skip
+
+    Returns:
+        True if the SD employment should be skipped and false otherwise.
+    """
+
+    profession = sd_employment.get("Profession", {})
+
+    job_pos_id = profession.get("JobPositionIdentifier")
+    if job_pos_id in job_pos_ids_to_skip:
+        return True
+
+    return False
