@@ -67,7 +67,7 @@ from .sd_common import mora_assert
 from .sd_common import primary_types
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .skip import skip_fictional_users
+from .skip import skip_fictional_users, skip_job_position_id
 from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 
@@ -1368,7 +1368,13 @@ class ChangeAtSD:
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
-            # sd_employments = filter(...)
+            sd_employments = [
+                employment
+                for employment in sd_employments
+                if not skip_job_position_id(
+                    employment, self.settings.sd_skip_employment_types
+                )
+            ]
 
             logger.info("---------------------")
             logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))

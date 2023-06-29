@@ -762,6 +762,40 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
+    def test_skip_sd_employments_in_skip_list(self):
+        """
+        Test that SD employments with JobPositionIdentifiers in the skip list
+        provided in the setting "sd_skip_employment_types" are actually skipped.
+        """
+
+        # Arrange
+        sd_updater = setup_sd_changed_at(
+            updates={"sd_skip_employment_types": ["1", "2", "3"]}
+        )
+
+        _, read_employment_result = read_employment_fixture(
+            cpr="1234569999",
+            employment_id="12345",
+            job_id="2",  # Found in the skip list
+            job_title="Kung Fu Fighter",
+        )
+        sd_updater.read_employment_changed = lambda: read_employment_result
+
+        morahelper = sd_updater.morahelper_mock
+        morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
+
+        sd_updater.create_new_engagement = MagicMock()
+        sd_updater.edit_engagement = MagicMock()
+        sd_updater._terminate_engagement = MagicMock()
+
+        # Act
+        sd_updater.update_all_employments()
+
+        # Assert
+        sd_updater.create_new_engagement.assert_not_called()
+        sd_updater.edit_engagement.assert_not_called()
+        sd_updater._terminate_engagement.assert_not_called()
+
     @parameterized.expand([("2021-10-15", "2021-10-15"), ("9999-12-31", None)])
     def test_handle_status_changes_terminates_let_go_employment_status(
         self, sd_deactivation_date, mo_termination_to_date
