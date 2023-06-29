@@ -792,6 +792,9 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.update_all_employments()
 
         # Assert
+
+        # Since the SD employment has a JobPositionIdentifier in the skip list,
+        # we must ensure that engagements are not created or modified
         sd_updater.create_new_engagement.assert_not_called()
         sd_updater.edit_engagement.assert_not_called()
         sd_updater._terminate_engagement.assert_not_called()
