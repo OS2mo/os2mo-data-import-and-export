@@ -49,7 +49,6 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
     "sd_no_salary_minimum_id": None,
     "sd_password": "**********",
     "sd_skip_employment_types": [],
-    "sd_skip_job_functions": [],
     "sd_use_ad_integration": True,
     "sd_phone_number_id_for_ad_creation": False,
     "sd_phone_number_id_for_ad_string": "AD-bruger fra SD",

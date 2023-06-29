@@ -67,7 +67,7 @@ from .sd_common import mora_assert
 from .sd_common import primary_types
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .sd_common import skip_fictional_users
+from .skip import skip_fictional_users, skip_job_position_id
 from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 
@@ -104,8 +104,6 @@ class ChangeAtSD:
         self.helper = self._get_mora_helper(self.settings.mora_base)
         self.job_sync = self._get_job_sync(self.settings)
 
-        # List of job_functions that should be ignored.
-        self.skip_job_functions = self.settings.sd_skip_job_functions
         self.use_ad = self.settings.sd_use_ad_integration
 
         # See https://os2web.atlassian.net/browse/MO-245 for more details
@@ -839,10 +837,6 @@ class ChangeAtSD:
 
         job_position = engagement_info["professions"][0]["JobPositionIdentifier"]
 
-        if job_position in self.skip_job_functions:
-            logger.info("Skipping {} due to job_pos_id".format(engagement))
-            return None
-
         validity = self._validity(status)
         also_edit = False
         if (
@@ -1368,6 +1362,13 @@ class ChangeAtSD:
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
+            sd_employments = [
+                employment
+                for employment in sd_employments
+                if not skip_job_position_id(
+                    employment, self.settings.sd_skip_employment_types
+                )
+            ]
 
             logger.info("---------------------")
             logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))
