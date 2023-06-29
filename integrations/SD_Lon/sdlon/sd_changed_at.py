@@ -104,8 +104,6 @@ class ChangeAtSD:
         self.helper = self._get_mora_helper(self.settings.mora_base)
         self.job_sync = self._get_job_sync(self.settings)
 
-        # List of job_functions that should be ignored.
-        self.skip_job_functions = self.settings.sd_skip_job_functions
         self.use_ad = self.settings.sd_use_ad_integration
 
         # See https://os2web.atlassian.net/browse/MO-245 for more details
@@ -838,10 +836,6 @@ class ChangeAtSD:
                 ]
 
         job_position = engagement_info["professions"][0]["JobPositionIdentifier"]
-
-        if job_position in self.skip_job_functions:
-            logger.info("Skipping {} due to job_pos_id".format(engagement))
-            return None
 
         validity = self._validity(status)
         also_edit = False

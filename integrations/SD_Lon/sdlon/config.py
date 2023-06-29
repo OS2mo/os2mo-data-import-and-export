@@ -162,7 +162,6 @@ class ChangedAtSettings(CommonSettings):
     sd_exclude_cprs_mode: bool = True
 
     sd_read_forced_uuids: bool = True
-    sd_skip_job_functions: List[str] = []
     sd_update_primary_engagement: bool = True
     sd_use_ad_integration: bool = True
 
