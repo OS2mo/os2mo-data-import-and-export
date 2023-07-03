@@ -58,6 +58,8 @@ def skip_job_position_id(
 
     job_pos_id = profession.get("JobPositionIdentifier")
     if job_pos_id in job_pos_ids_to_skip:
+        print("Return True")
         return True
 
+    print("Return False")
     return False

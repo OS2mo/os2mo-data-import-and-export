@@ -3,7 +3,7 @@ import logging
 import pathlib
 import sqlite3
 import sys
-from functools import lru_cache
+from functools import lru_cache, partial
 from itertools import tee
 from operator import itemgetter
 from typing import Any
@@ -170,6 +170,11 @@ class ChangeAtSD:
             settings.job_settings.client_id,
             settings.job_settings.client_secret,
             settings.mora_base,
+        )
+
+        self.skip_job_pos_id = partial(
+            skip_job_position_id,
+            job_pos_ids_to_skip=self.settings.sd_skip_employment_types,
         )
 
     def _get_primary_types(self, mora_helper: MoraHelper):
@@ -1362,13 +1367,21 @@ class ChangeAtSD:
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
-            sd_employments = [
-                employment
-                for employment in sd_employments
-                if not skip_job_position_id(
-                    employment, self.settings.sd_skip_employment_types
-                )
-            ]
+            # sd_employments = [
+            #     employment
+            #     for employment in sd_employments
+            #     if not skip_job_position_id(
+            #         employment, self.settings.sd_skip_employment_types
+            #     )
+            # ]
+            print("############")
+            print(sd_employments)
+            sd_employments, skip_sd_employments = partition(
+                self.skip_job_pos_id, sd_employments,
+            )
+
+            print(list(sd_employments))
+            print(list(skip_sd_employments))
 
             logger.info("---------------------")
             logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))
