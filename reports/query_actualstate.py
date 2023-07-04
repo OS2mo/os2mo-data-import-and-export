@@ -155,7 +155,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
 
     """
 
-    settings = Settings()  # type: ignore
+    settings = Settings()
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {

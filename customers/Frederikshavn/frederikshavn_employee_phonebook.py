@@ -1,7 +1,10 @@
+import io
+
 import pandas as pd
 from more_itertools import prepend
 from sqlalchemy import and_
 
+from customers.Frederikshavn.ftp_connnector import FTPFileSet
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
 from exporters.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_table_defs import Bruger
@@ -36,10 +39,10 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     Cellphonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel == "AD-Mobil",
+            Adresse.adressetype_titel == settings.sql_cell_phone_number_field,
             and_(
-                Adresse.synlighed_scope != "SECRET",
-                Adresse.synlighed_titel != "Hemmelig",
+                Adresse.synlighed_scope != settings.sql_visibility_scope_field,
+                Adresse.synlighed_titel != settings.sql_visibility_title_field,
             ),
         )
         .subquery()
@@ -49,10 +52,10 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
             Adresse.adressetype_titel.in_(
-                ["AD-Telefonnummer", "Telefon"]
-            ),  # settings.sql_phone_number_field
-            Adresse.synlighed_scope != "SECRET",  # settings.sql_visibility_scope_field
-            Adresse.synlighed_titel != "Hemmelig",
+                settings.sql_phone_number_field_list
+            ),
+            Adresse.synlighed_scope != settings.sql_visibility_scope_field,
+            Adresse.synlighed_titel != settings.sql_visibility_title_field,
         )
         .subquery()
     )
@@ -61,7 +64,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         session.query(Enhed.navn)
         .filter(
             Enhed.bvn
-            != "1018136"  # settings.sql_excluded_organisation_units_user_key  # 1018136
+            != settings.sql_excluded_organisation_units_user_key
         )
         .subquery()
     )
@@ -77,8 +80,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         .filter(
             Enhed.uuid == Engagement.enhed_uuid,
             Engagement.enhed_uuid.in_(alle_enheder),
-            Engagement.enhed_uuid != "f11963f6-2df5-9642-f1e3-0983dad332f4",  # settings
-            # .sql_excluded_organisation_units_uuid,
+            Engagement.enhed_uuid != settings.sql_excluded_organisation_units_uuid,
             Engagement.bruger_uuid == Bruger.uuid,
         )
         .join(Cellphonenr, Cellphonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
@@ -105,6 +107,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
 
 if __name__ == "__main__":
+    ftp = FTPFileSet()
     settings = EmployeePhoneBookSettings()
     settings.start_logging_based_on_settings()
     file_path = settings.report_dir_path
@@ -114,7 +117,7 @@ if __name__ == "__main__":
         list_employees_for_phonebook,
         "Medarbejdertelefonbog",
         "Frederikshavn Kommune",
-        file_path + "/TestMedarbejdertelefonbog.xlsx",
+        file_path + "/Medarbejdertelefonbog.xlsx",
     )
     print("Report successfully done!")
 
@@ -122,6 +125,13 @@ if __name__ == "__main__":
     run_report_as_csv(
         list_employees_for_phonebook,
         "Frederikshavn Kommune",
-        file_path + "/TestMedarbejdertelefonbog.csv",
+        file_path + "/Medarbejdertelefonbog.csv",
     )
+    with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
+        s = io.StringIO(f.read())
+
+        ftp.write_file("Medarbejder Telefonbog", s)
     print("CSV report successfully done!")
+
+
+
