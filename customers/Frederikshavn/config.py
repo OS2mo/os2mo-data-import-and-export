@@ -4,25 +4,34 @@ from ra_utils.job_settings import JobSettings
 
 
 class EmployeePhoneBookSettings(JobSettings):
-    # common settings for clients:
+    # Common settings for Frederikshavn
+    report_dir_path: str = "/opt/docker/os2mo/queries"
+
+    # FTP settings for Frederikshavn:
     ftp_url: str | None
     ftp_port: int | None
     ftp_user: str | None
     ftp_pass: str | None
-    ftp_ssh_key_path: str | None
-    ftp_ssh_key_pass: str | None
-    ftp_folder: str | None
-    import_state_file: str | None
-    import_csv_folder: str | None
-    mox_base: str = "http://localhost:5000/lora"
-    mora_base: str = "http://localhost:5000"
-    report_dir_path: str = "/opt/docker/os2mo/queries"
 
-    sql_cell_phone_number_field: str | None  # Desired cell phone type - "AD-Mobil".
-    sql_phone_number_field: str | None  # Desired phone type - "AD-Telefonnummer".
-    sql_visibility_scope_field: str | None  # Exclude visibility scope of - "SECRET".
-    sql_excluded_organisation_units_user_key: str | None  # Exclude certain organisation units.
-    sql_excluded_organisation_units_uuid: str | None  # Exclude certain organisation units by uuid.
+    ftp_folder: str | None
+    # import_state_file: str | None
+    # import_csv_folder: str | None
+    # mox_base: str = "http://localhost:5000/lora"
+    # mora_base: str = "http://localhost:5000"
+
+    # Settings for Employee Phonebook:
+    sql_cell_phone_number_field: str | None = "AD-Mobil"  # Desired cell phone type - "AD-Mobil".
+    sql_phone_number_field_list: list | None = ["AD-Telefonnummer", "Telefon"]  # Desired phone type -
+    # "AD-Telefonnummer" and "Telefon".
+    sql_visibility_scope_field: str | None = "SECRET"  # Exclude visibility scope of - "SECRET".
+    sql_visibility_title_field: str | None = "Hemmelig"  # Exclude visibility scope of - "Hemmelig".
+    sql_excluded_organisation_units_user_key: str | None = "1018136"  # Exclude certain organisation units.
+    sql_excluded_organisation_units_uuid: str | None = "f11963f6-2df5-9642-f1e3-0983dad332f4"  # Exclude certain
+    # organisation units by uuid.
+
+
+class ImproperlyConfigured(Exception):
+    pass
 
 
 @lru_cache()

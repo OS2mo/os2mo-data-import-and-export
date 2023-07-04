@@ -6,8 +6,7 @@
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
 import csv
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
 import jmespath
 import numpy as np
@@ -21,11 +20,14 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Tilknytning
+from exporters.sql_export.sql_table_defs import (
+    Adresse,
+    Bruger,
+    Engagement,
+    Enhed,
+    Tilknytning,
+)
+
 from reports.XLSXExporter import XLSXExporter
 
 
@@ -105,7 +107,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
 
     """
 
-    settings = Settings()  # type: ignore
+    settings = Settings()
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {
