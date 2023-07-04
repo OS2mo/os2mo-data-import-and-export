@@ -21,8 +21,8 @@ from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
 from pydantic import UUID4
-from ra_utils.load_settings import load_settings
 from ra_utils.job_settings import JobSettings
+from ra_utils.load_settings import load_settings
 
 from .models import JobFunction
 

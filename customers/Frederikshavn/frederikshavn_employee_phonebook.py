@@ -4,8 +4,8 @@ import pandas as pd
 from more_itertools import prepend
 from sqlalchemy import and_
 
-from customers.Frederikshavn.ftp_connnector import FTPFileSet
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
+from customers.Frederikshavn.ftp_connnector import FTPFileSet
 from exporters.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_table_defs import Bruger
 from exporters.sql_export.sql_table_defs import Engagement
@@ -51,9 +51,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel.in_(
-                settings.sql_phone_number_field_list
-            ),
+            Adresse.adressetype_titel.in_(settings.sql_phone_number_field_list),
             Adresse.synlighed_scope != settings.sql_visibility_scope_field,
             Adresse.synlighed_titel != settings.sql_visibility_title_field,
         )
@@ -62,10 +60,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
     Afdelinger = (
         session.query(Enhed.navn)
-        .filter(
-            Enhed.bvn
-            != settings.sql_excluded_organisation_units_user_key
-        )
+        .filter(Enhed.bvn != settings.sql_excluded_organisation_units_user_key)
         .subquery()
     )
 
@@ -132,6 +127,3 @@ if __name__ == "__main__":
 
         ftp.write_file("Medarbejder Telefonbog", s)
     print("CSV report successfully done!")
-
-
-

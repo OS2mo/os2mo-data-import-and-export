@@ -76,7 +76,7 @@ def set_of_org_units(session, org_name: str) -> set:
     return alle_enheder
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore
     mora_base: str = "http://localhost:5000"
     client_id: str = "dipex"
     client_secret: str
