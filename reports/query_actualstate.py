@@ -27,7 +27,6 @@ from exporters.sql_export.sql_table_defs import (
     Enhed,
     Tilknytning,
 )
-
 from reports.XLSXExporter import XLSXExporter
 
 

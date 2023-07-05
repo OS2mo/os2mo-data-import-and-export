@@ -104,8 +104,8 @@ include:
 Lint Customers files:
   extends: .lint-python
   script:
-    - python -m black --diff --check customers/
-    - python -m isort --profile black --diff --check-only customers/
+    - python -m black --diff --check --apply customers/
+    - python -m isort --profile black --diff --check --apply customers/
 
 Lint AD Integration:
   extends: .lint-python
