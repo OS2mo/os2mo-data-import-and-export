@@ -7,11 +7,7 @@ from sqlalchemy import and_
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
 from customers.Frederikshavn.ftp_connnector import FTPFileSet
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
-from reports.query_actualstate import (
-    run_report,
-    run_report_as_csv,
-    set_of_org_units,
-)
+from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
 
 
 def list_employees_for_phonebook(session, org_name: str) -> list:
