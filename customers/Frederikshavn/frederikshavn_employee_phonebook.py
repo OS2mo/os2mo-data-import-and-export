@@ -119,6 +119,6 @@ if __name__ == "__main__":
     )
     with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
         s = io.StringIO(f.read())
-
-        ftp.write_file("Medarbejder Telefonbog", s)
+        folder = "S:\\Storage\\Prod\\EmployeeData"
+        ftp.write_file("Medarbejder Telefonbog", s, folder=folder)
     print("CSV report successfully done!")
