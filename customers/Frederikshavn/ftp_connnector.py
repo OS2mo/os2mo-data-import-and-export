@@ -3,14 +3,12 @@ import logging
 from abc import ABC
 from datetime import datetime
 from ftplib import FTP
-from io import BytesIO
-from io import StringIO
-from typing import List
-from typing import Optional
-from typing import TypeVar
+from io import BytesIO, StringIO
+from typing import List, Optional, TypeVar
+
+from more_itertools import one
 
 import config
-from more_itertools import one
 
 T = TypeVar("T")
 
