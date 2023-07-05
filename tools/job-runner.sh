@@ -358,6 +358,11 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
+reports_employee_phonebook_for_frederikshavn(){
+  echo "Running Employee Phonebook for Frederikshavn now"
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/frederikshavn_employee_phonebook.py
+}
+
 reports_svendborg(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
 }
@@ -599,6 +604,10 @@ reports(){
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
         run-job reports_frederikshavn &
+    fi
+
+    if [ "${RUN_EMPLOYEE_PHONEBOOK_FREDERIKSHAVN}" == "true" ]; then
+      run-job reports_employee_phonebook_for_frederikshavn &
     fi
 
     if [ "${RUN_REPORTS_SVENDBORG}" == "true" ]; then
