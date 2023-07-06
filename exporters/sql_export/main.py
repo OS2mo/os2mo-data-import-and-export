@@ -18,7 +18,7 @@ from .trigger import trigger_router
 build_information = Info("build_information", "Build information")
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore
     """Settings for the SQLExport FastAPI application."""
 
     class Config:
