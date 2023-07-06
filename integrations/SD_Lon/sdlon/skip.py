@@ -39,22 +39,21 @@ def skip_fictional_users(entity) -> bool:
 
 
 def skip_job_position_id(
-    sd_employment: OrderedDict[str, Any], job_pos_ids_to_skip: list[str]
+    profession: OrderedDict[str, Any], job_pos_ids_to_skip: list[str]
 ) -> bool:
     """
-    Check if SD employment JobPositionIdentifier is in the list to skip,
+    Check if SD JobPositionIdentifier is in the list to skip,
     i.e. the list provided via the environment variable
     SD_SKIP_EMPLOYMENT_TYPES
 
     Args:
-        sd_employment: the SD employment
+        profession: a "Profession" in the list of professions in the
+          SD employment.
         job_pos_ids_to_skip: list of SD JobPositionIdentifiers to skip
 
     Returns:
-        True if the SD employment should be skipped and false otherwise.
+        True if the SD profession should be skipped and false otherwise.
     """
-
-    profession = sd_employment.get("Profession", {})
 
     job_pos_id = profession.get("JobPositionIdentifier")
     if job_pos_id in job_pos_ids_to_skip:
