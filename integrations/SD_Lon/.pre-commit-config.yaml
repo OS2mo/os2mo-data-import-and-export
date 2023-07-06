@@ -15,6 +15,8 @@ repos:
     rev: v1.00
     hooks:
       - id: mypy
+        additional_dependencies:
+          - pydantic
         language: system
         types: [file, python]
 
