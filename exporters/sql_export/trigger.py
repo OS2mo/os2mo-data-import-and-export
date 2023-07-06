@@ -23,7 +23,7 @@ trigger_router = APIRouter()
 lock = Lock()
 
 
-class DatabaseConfiguration(BaseSettings):
+class DatabaseConfiguration(BaseSettings):  # type: ignore
     class Config:
         frozen = True
 
@@ -34,7 +34,7 @@ class DatabaseConfiguration(BaseSettings):
     password: SecretStr | None
 
 
-class DatabaseSettings(BaseSettings):
+class DatabaseSettings(BaseSettings):  # type: ignore
     class Config:
         frozen = True
         env_nested_delimiter = "__"

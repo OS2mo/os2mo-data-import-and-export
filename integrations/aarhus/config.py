@@ -10,7 +10,7 @@ from ra_utils.load_settings import load_settings
 from raclients.graph.client import GraphQLClient
 
 
-def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
+def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore
     settings_json = load_settings() or {}
     prefix = "integrations.aarhus_los"
 

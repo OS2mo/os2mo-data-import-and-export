@@ -27,7 +27,7 @@ from ra_utils.job_settings import JobSettings
 from .models import JobFunction
 
 
-class CommonSettings(BaseSettings):
+class CommonSettings(BaseSettings):  # type: ignore
     """
     Settings common to both the SD importer and SD-changed-at
     """
@@ -67,7 +67,7 @@ class CommonSettings(BaseSettings):
 
 
 def gen_json_file_settings_func(settings_class: Type[CommonSettings]):
-    def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
+    def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore
         try:
             json_settings = load_settings()
         except FileNotFoundError:
