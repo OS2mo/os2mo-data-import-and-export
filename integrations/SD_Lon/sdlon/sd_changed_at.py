@@ -50,7 +50,7 @@ from .config import get_changed_at_settings
 from .date_utils import date_to_datetime
 from .date_utils import gen_date_intervals
 from .date_utils import sd_to_mo_termination_date
-from .engagement import create_engagement
+from .engagement import create_engagement, filtered_professions
 from .engagement import engagement_components
 from .engagement import (
     is_employment_id_and_no_salary_minimum_consistent,
@@ -790,51 +790,10 @@ class ChangeAtSD:
         # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
-            # I am looking into the possibility that creating AND finishing
-            # an engagement in the past gives the problem that the engagement
-            # is reported to this function without the components needed to create
-            # the engagement in os2mo
+            return False
 
-            # to fix the problem we get the information for the employment at the
-            # activation date
-
-            # use a local engagement copy so we don't spill into the rest of the program
-            engagement = dict(engagement)
-
-            activation_date_info = read_employment_at(
-                employment_id=engagement["EmploymentIdentifier"],
-                settings=self.settings,
-                effective_date=datetime.datetime.strptime(
-                    status["ActivationDate"], "%Y-%m-%d"
-                ).date(),
-            )
-
-            # at least check the cpr
-
-            if cpr != activation_date_info["PersonCivilRegistrationIdentifier"]:
-                logger.error(
-                    "wrong cpr for position %r at date %r",
-                    engagement["EmploymentIdentifier"],
-                    status["ActivationDate"],
-                )
-                raise ValueError("unexpected cpr, see log")
-
-            activation_date_engagement = activation_date_info["Employment"]
-            _, activation_date_engagement_info = engagement_components(
-                activation_date_engagement
-            )
-
-            # fill out the missing values
-            if not engagement_info["departments"]:
-                engagement_info["departments"] = activation_date_engagement_info[
-                    "departments"
-                ]
-
-            if not engagement_info["professions"]:
-                engagement_info["professions"] = activation_date_engagement_info[
-                    "professions"
-                ]
-
+        # TODO: This assumption is problematic since there may be more than
+        # one element in the professions list
         job_position = engagement_info["professions"][0]["JobPositionIdentifier"]
 
         validity = self._validity(status)
@@ -1363,11 +1322,7 @@ class ChangeAtSD:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
             sd_employments = [
-                employment
-                for employment in sd_employments
-                if not skip_job_position_id(
-                    employment, self.settings.sd_skip_employment_types
-                )
+                filtered_professions(employment, self.settings.sd_skip_employment_types) for employment in sd_employments
             ]
 
             logger.info("---------------------")
