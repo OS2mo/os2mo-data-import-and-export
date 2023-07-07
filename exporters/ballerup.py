@@ -85,7 +85,7 @@ def write_multiple_managers_from_graphql_payload(
     A GraphQL session to perform queries.
     """
 
-    def get_email_from_address_object(employee: dict) -> str | None:
+    def get_email_from_address_object(employee: dict) -> str | None:  # type: ignore
         """
         Function for extracting the e-mail address of the manager.
 
@@ -99,7 +99,7 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'benth@kolding.dk'"
         """
-        if employee.get("objects")[0]["employee"] is not None:
+        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
             filtered_email_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
@@ -112,7 +112,7 @@ def write_multiple_managers_from_graphql_payload(
         else:
             return None  # Empty E-mails.
 
-    def get_phone_from_address_object(employee: dict) -> str | None:
+    def get_phone_from_address_object(employee: dict) -> str | None:  # type: ignore
         """
         Function for extracting the phone number of the manager.
 
@@ -126,7 +126,7 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'67338448'"
         """
-        if employee.get("objects")[0]["employee"] is not None:
+        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
             filtered_phone_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
@@ -152,8 +152,11 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'Bent Lindstrøm Hansen'"
         """
-        if employee.get("objects") and employee["objects"][0].get("employee") and employee["objects"][0]["employee"][
-            0].get("name"):
+        if (
+            employee.get("objects")
+            and employee["objects"][0].get("employee")
+            and employee["objects"][0]["employee"][0].get("name")
+        ):
             return employee["objects"][0]["employee"][0]["name"]
         else:
             return None
@@ -217,7 +220,7 @@ def write_multiple_managers_from_graphql_payload(
                 )  # Responsibility.
                 row["E-mail"] = get_email_from_address_object(
                     manager
-                ) # Retrieving e-mail.
+                )  # Retrieving e-mail.
                 row["Telefon"] = get_phone_from_address_object(
                     manager
                 )  # Retrieving phone number.
@@ -266,9 +269,7 @@ if __name__ == "__main__":
         print("Retrieving queries to write from.")
 
         filename = "Alle_lederfunktioner_os2mo.csv"
-        write_multiple_managers_from_graphql_payload(
-            mh, session, file_path / filename
-        )
+        write_multiple_managers_from_graphql_payload(mh, session, file_path / filename)
         print("Successfully wrote all necessary manager details to csv.")
 
     print(f"Alle ledere: {time.time() - t}s")
@@ -282,20 +283,19 @@ if __name__ == "__main__":
     print("Ballerup org incl medarbejdere: {}s".format(time.time() - t))
 
     filename = "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv"
-    cq.export_adm_org(
-        mh, nodes, file_path / filename
-    )
+    cq.export_adm_org(mh, nodes, file_path / filename)
     print("Adm-org-incl-start-stop: {}s".format(time.time() - t))
 
-    filename = "teams-tilknyttede-os2mo.csv"
-    cq.export_all_teams(mh, nodes, file_path / filename)
-    print("Teams: {}s".format(time.time() - t))
+    try:  # Handle possibility of this report failing, as has been the case.
+        filename = "teams-tilknyttede-os2mo.csv"
+        cq.export_all_teams(mh, nodes, file_path / filename)
+        print("Teams: {}s".format(time.time() - t))
+    except ValueError as exc:
+        print("Something went wrong:", exc.args[0])
 
     nodes = mh.read_ou_tree(sd)
     filename = "SD-løn org med Pnr_os2mo.csv"
-    cq.export_orgs(
-        mh, nodes, file_path / filename, include_employees=False
-    )
+    cq.export_orgs(mh, nodes, file_path / filename, include_employees=False)
     print("SD-løn: {}".format(time.time() - t))
 
     nodes = mh.read_ou_tree(udvalg)
