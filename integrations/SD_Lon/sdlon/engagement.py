@@ -10,6 +10,7 @@ from typing import Tuple
 
 from .sd_common import ensure_list
 from .sd_common import read_employment_at
+from .skip import skip_job_position_id
 
 INTERNAL_EMPLOYEE_REGEX = re.compile("[0-9]+")
 
@@ -113,3 +114,31 @@ def is_employment_id_and_no_salary_minimum_consistent(
     consistent = map(is_consistent, job_pos_ids)
 
     return all(consistent)
+
+
+def filtered_professions(
+    sd_employment: OrderedDict, job_pos_ids_to_skip: list[str]
+) -> OrderedDict:
+    """
+    Remove any professions with a JobPositionIdentifier in the
+    job_pos_ids_to_skip list (provided via the setting sd_skip_employment_types
+    or the environment variable SD_SKIP_EMPLOYMENT_TYPES).
+
+    Args:
+        sd_employment: the SD employment
+        job_pos_ids_to_skip: list of JobPositionIdentifiers to remove from
+          "Professions" in the SD employment payload
+
+    Returns:
+        The SD employment payload where the professions to be skipped
+        are removed.
+    """
+
+    professions = ensure_list(sd_employment.get("Profession", []))
+    sd_employment["Profession"] = [
+        profession
+        for profession in professions
+        if not skip_job_position_id(profession, job_pos_ids_to_skip)
+    ]
+
+    return sd_employment

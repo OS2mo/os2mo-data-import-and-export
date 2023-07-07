@@ -36,12 +36,12 @@ class TestCprEnvFilter:
     "profession,job_pos_ids_to_skip,expected",
     [
         ({}, ["1", "2", "3"], False),
-        ({"Profession": {"JobPositionIdentifier": "4"}}, ["1", "2", "3"], False),
-        ({"Profession": {"JobPositionIdentifier": "1"}}, ["1", "2", "3"], True),
-        ({"Profession": {"JobPositionIdentifier": "1"}}, [], False),
+        ({"JobPositionIdentifier": "4"}, ["1", "2", "3"], False),
+        ({"JobPositionIdentifier": "1"}, ["1", "2", "3"], True),
+        ({"JobPositionIdentifier": "1"}, [], False),
     ],
 )
-def test_job_position_id_filter(
+def test_profession_job_position_id_filter(
     profession: dict,
     job_pos_ids_to_skip: list[str],
     expected: bool,

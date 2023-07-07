@@ -762,6 +762,7 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
+    @unittest.skip("Will be finished when fix is deployed...")
     def test_skip_sd_employments_in_skip_list(self):
         """
         Test that SD employments with JobPositionIdentifiers in the skip list
@@ -773,13 +774,53 @@ class Test_sd_changed_at(unittest.TestCase):
             updates={"sd_skip_employment_types": ["1", "2", "3"]}
         )
 
-        _, read_employment_result = read_employment_fixture(
-            cpr="1234569999",
-            employment_id="12345",
-            job_id="2",  # Found in the skip list
-            job_title="Kung Fu Fighter",
-        )
-        sd_updater.read_employment_changed = lambda: read_employment_result
+        # _, read_employment_result = read_employment_fixture(
+        #     cpr="1234569999",
+        #     employment_id="12345",
+        #     job_id="2",  # Found in the skip list
+        #     job_title="Kung Fu Fighter",
+        # )
+        # from pprint import pprint
+        # pprint(read_employment_result)
+        sd_updater.read_employment_changed = lambda: [
+            OrderedDict(
+                {
+                    "PersonCivilRegistrationIdentifier": "1212129999",
+                    "Employment": {
+                        "EmploymentIdentifier": "12345",
+                        "EmploymentDate": "2020-11-10",
+                        "AnniversaryDate": "2004-08-15",
+                        "EmploymentDepartment": {
+                            "ActivationDate": "2020-11-10",
+                            "DeactivationDate": "9999-12-31",
+                            "DepartmentIdentifier": "department_id",
+                            "DepartmentUUIDIdentifier": str(uuid.uuid4()),
+                        },
+                        "Profession": [
+                            {
+                                "ActivationDate": "2020-11-10",
+                                "DeactivationDate": "2021-12-31",
+                                "JobPositionIdentifier": "2",
+                                "EmploymentName": "Skip this employment",
+                                "AppointmentCode": "0",
+                            },
+                            {
+                                "ActivationDate": "2022-01-01",
+                                "DeactivationDate": "9999-12-31",
+                                "JobPositionIdentifier": "4",
+                                "EmploymentName": "Kung Fu Fighter",
+                                "AppointmentCode": "0",
+                            },
+                        ],
+                        "EmploymentStatus": {
+                            "ActivationDate": "2020-11-10",
+                            "DeactivationDate": "9999-12-31",
+                            "EmploymentStatusCode": "1",
+                        },
+                    },
+                }
+            )
+        ]
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"

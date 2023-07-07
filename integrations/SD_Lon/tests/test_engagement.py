@@ -1,11 +1,12 @@
 import unittest.mock
+from collections import OrderedDict
 from copy import deepcopy
 
 import pytest
 from more_itertools import one
 
 from .fixtures import get_read_employment_changed_fixture
-from sdlon.engagement import _is_external
+from sdlon.engagement import _is_external, filtered_professions
 from sdlon.engagement import (
     create_engagement,
     is_employment_id_and_no_salary_minimum_consistent,
@@ -80,3 +81,55 @@ class TestCreateEngagement(unittest.TestCase):
         create_engagement(mock_sd_updater, 12345, "person_uuid")
 
         mock_sd_updater.assert_not_called()
+
+
+def test_filter_multiple_professions():
+    # Arrange
+    sd_employment = OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": [
+                {"JobPositionIdentifier": "1"},
+                {"JobPositionIdentifier": "2"},
+                {"JobPositionIdentifier": "3"},
+                {"JobPositionIdentifier": "4"},
+                {"JobPositionIdentifier": "5"},
+            ],
+        }
+    )
+
+    # Act
+    filtered_employment = filtered_professions(sd_employment, ["1", "2"])
+
+    # Assert
+    assert filtered_employment == OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": [
+                {"JobPositionIdentifier": "3"},
+                {"JobPositionIdentifier": "4"},
+                {"JobPositionIdentifier": "5"},
+            ],
+        }
+    )
+
+
+def test_filter_single_professions():
+    # Arrange
+    sd_employment = OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": {"JobPositionIdentifier": "3"},
+        }
+    )
+
+    # Act
+    filtered_employment = filtered_professions(sd_employment, ["1", "2"])
+
+    # Assert
+    assert filtered_employment == OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": [{"JobPositionIdentifier": "3"}],
+        }
+    )
