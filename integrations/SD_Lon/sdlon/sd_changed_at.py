@@ -786,7 +786,6 @@ class ChangeAtSD:
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
-
         # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
@@ -1515,6 +1514,7 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
 @click.option(
     "--from-date",
     type=click.DateTime(),
+    required=True,
     help="Global import from-date",
 )
 @click.option(
@@ -1524,8 +1524,6 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     """Import a single user into MO."""
 
     settings = get_changed_at_settings()
-    if not from_date:
-        from_date = date_to_datetime(settings.sd_global_from_date)
 
     sd_updater = ChangeAtSD(settings, from_date, None)
     sd_updater.update_changed_persons(cpr, dry_run=dry_run)
