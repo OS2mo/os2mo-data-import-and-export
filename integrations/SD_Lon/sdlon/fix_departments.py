@@ -153,9 +153,15 @@ class FixDepartments:
         Returns:
             Boolean indicating whether the unit was created in MO or not.
         """
+        # This is a hack which should be removed once
+        # https://redmine.magenta-aps.dk/issues/56846 has been resolved
+        date_at = parse_datetime(department["ActivationDate"])
+        if date_at <= datetime.datetime(1930, 1, 1):
+            date_at = datetime.datetime(1930, 1, 2)
+        date_at_str = format_date(date_at)
 
         mo_response = self.helper.read_ou(
-            department["DepartmentUUIDIdentifier"], at=department["ActivationDate"]
+            department["DepartmentUUIDIdentifier"], at=date_at_str
         )
 
         ou_created = False
