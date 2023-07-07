@@ -83,7 +83,7 @@ class TestCreateEngagement(unittest.TestCase):
         mock_sd_updater.assert_not_called()
 
 
-def test_filter_professions():
+def test_filter_multiple_professions():
     # Arrange
     sd_employment = OrderedDict(
         {
@@ -110,5 +110,26 @@ def test_filter_professions():
                 {"JobPositionIdentifier": "4"},
                 {"JobPositionIdentifier": "5"},
             ],
+        }
+    )
+
+
+def test_filter_single_professions():
+    # Arrange
+    sd_employment = OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": {"JobPositionIdentifier": "3"},
+        }
+    )
+
+    # Act
+    filtered_employment = filtered_professions(sd_employment, ["1", "2"])
+
+    # Assert
+    assert filtered_employment == OrderedDict(
+        {
+            "EmploymentIdentifier": "12345",
+            "Profession": [{"JobPositionIdentifier": "3"}]
         }
     )

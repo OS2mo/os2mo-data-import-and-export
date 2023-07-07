@@ -134,7 +134,7 @@ def filtered_professions(
         are removed.
     """
 
-    professions = sd_employment.get("Profession", [])
+    professions = ensure_list(sd_employment.get("Profession", []))
     sd_employment["Profession"] = [
         profession
         for profession in professions
