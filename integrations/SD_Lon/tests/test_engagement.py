@@ -130,6 +130,6 @@ def test_filter_single_professions():
     assert filtered_employment == OrderedDict(
         {
             "EmploymentIdentifier": "12345",
-            "Profession": [{"JobPositionIdentifier": "3"}]
+            "Profession": [{"JobPositionIdentifier": "3"}],
         }
     )

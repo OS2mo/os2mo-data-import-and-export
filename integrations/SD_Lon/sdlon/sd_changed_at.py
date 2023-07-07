@@ -1322,7 +1322,8 @@ class ChangeAtSD:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_employments = ensure_list(employment["Employment"])
             sd_employments = [
-                filtered_professions(employment, self.settings.sd_skip_employment_types) for employment in sd_employments
+                filtered_professions(employment, self.settings.sd_skip_employment_types)
+                for employment in sd_employments
             ]
 
             logger.info("---------------------")
