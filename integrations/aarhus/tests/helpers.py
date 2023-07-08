@@ -6,11 +6,10 @@ from unittest import mock
 from uuid import UUID
 
 import config
+import dar_helper
 import initial
 import los_files
 import util
-
-from integrations.dar_helper import dar_helper
 
 
 class HelperMixin:

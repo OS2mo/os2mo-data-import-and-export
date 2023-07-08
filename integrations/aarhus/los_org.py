@@ -16,11 +16,7 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 
-import los_files
-import payloads as mo_payloads
 import pydantic
-import util
-import uuids
 from more_itertools import bucket
 from more_itertools import first
 from more_itertools import flatten
@@ -32,8 +28,11 @@ from pydantic import Field
 from pydantic import validator
 from ra_utils.generate_uuid import uuid_generator
 
-from integrations.dar_helper import dar_helper
-
+import dar_helper
+import los_files
+import payloads as mo_payloads
+import util
+import uuids
 
 logger = logging.getLogger(__name__)
 
