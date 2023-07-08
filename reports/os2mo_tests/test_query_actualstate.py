@@ -1,27 +1,89 @@
 # import tempfile
+import tempfile
 import unittest
 from unittest.mock import patch
 
 import pandas as pd
+import xlsxwriter
+from openpyxl import load_workbook
 
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Base,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
-from reports.query_actualstate import (
-    get_engine,
-    list_employees,
-    list_MED_members,
-    map_dynamic_class,
-    merge_dynamic_classes,
-    rearrange,
-    sessionmaker,
-    set_of_org_units,
-)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
+from reports.query_actualstate import get_engine
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import map_dynamic_class
+from reports.query_actualstate import merge_dynamic_classes
+from reports.query_actualstate import rearrange
+from reports.query_actualstate import sessionmaker
+from reports.query_actualstate import set_of_org_units
+from reports.query_actualstate import XLSXExporter
+
+
+class Tests_xlxs(unittest.TestCase):
+    def setUp(self):
+        f = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+        self.xlsfilename = f.name
+        self.data = [
+            ("Navn", "Email", "Tilknytningstype", "Enhed"),
+            ("Fornavn Efternavn", "email@example.com", "Formand", "Testenhed"),
+        ]
+        self.employees = [
+            ("Navn", "Email", "Afdeling", "Stilling", "Tlf", "CPR"),
+            (
+                "Fornavn Efternavn",
+                "email@example.com",
+                "Afdeling TEST",
+                "Tester",
+                "00000000",
+                "123456-1234",
+            ),
+        ]
+
+        workbook = xlsxwriter.Workbook(self.xlsfilename)
+        excel = XLSXExporter(self.xlsfilename)
+        excel.add_sheet(workbook, "MED", self.data)
+        excel.add_sheet(workbook, "EMP", self.employees)
+        workbook.close()
+
+    def test_read_MED(self):
+        wb = load_workbook(filename=self.xlsfilename)
+        ws = wb["MED"]
+        # ws contains data from excel wich can be accessed with ws.colums
+        # first cell in each column contains a header, second contains data
+        header = [i[0].value for i in ws.columns]
+        content = [i[1].value for i in ws.columns]
+        self.assertEqual(header, ["Navn", "Email", "Tilknytningstype", "Enhed"])
+        self.assertEqual(
+            content,
+            ["Fornavn Efternavn", "email@example.com", "Formand", "Testenhed"],
+        )
+
+    def test_read_EMP(self):
+        wb = load_workbook(filename=self.xlsfilename)
+        ws = wb["EMP"]
+        # ws contains data from excel wich can be accessed with ws.colums
+        # first cell in each column contains a header, second contains data
+        header = [i[0].value for i in ws.columns]
+        content = [i[1].value for i in ws.columns]
+        self.assertEqual(
+            header, ["Navn", "Email", "Afdeling", "Stilling", "Tlf", "CPR"]
+        )
+        self.assertEqual(
+            content,
+            [
+                "Fornavn Efternavn",
+                "email@example.com",
+                "Afdeling TEST",
+                "Tester",
+                "00000000",
+                "123456-1234",
+            ],
+        )
 
 
 def test_rearrange():

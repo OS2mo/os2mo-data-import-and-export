@@ -173,8 +173,8 @@ Lint FK-org uuid-import:
 Lint Reports:
   extends: .lint-python
   script:
-    - python -m black --diff --check --verbose reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
-    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+    - python -m black --diff --check --verbose reports/query_actualstate.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+    - python -m isort --profile black --check-only reports/query_actualstate.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
 
 Lint Exporter Utils:
   extends: .lint-python
