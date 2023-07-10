@@ -135,16 +135,24 @@ async def _mock_mo_response(
 
 
 @pytest.mark.asyncio
-async def test_terminate_details_handles_404_response(
-        aioresponses: pytest_aioresponses,
+@pytest.mark.parametrize(
+    "method_name,mo_url",
+    [
+        ("edit_details", "/service/details/edit"),
+        ("terminate_details", "/service/details/terminate"),
+    ],
+)
+async def test_edit_and_terminate_handles_404_response(
+    method_name: str, mo_url: str, aioresponses: pytest_aioresponses,
 ):
+    # Lookup method given by `method_name` on the `util` module
+    method = getattr(util, method_name)
+
     async def _run_test(ignored_http_statuses):
-        # Mock a 404 response from MO "terminate" API, and run `terminate_details`
-        async with _mock_mo_response(
-                aioresponses, "/service/details/terminate", 404
-        ) as client_session:
+        # Mock a 404 response from MO API, and run the corresponding method
+        async with _mock_mo_response(aioresponses, mo_url, 404) as client_session:
             detail_payloads = [{"foo": "bar"}]
-            await util.terminate_details(
+            await method(
                 client_session,
                 detail_payloads,
                 ignored_http_statuses=ignored_http_statuses,
