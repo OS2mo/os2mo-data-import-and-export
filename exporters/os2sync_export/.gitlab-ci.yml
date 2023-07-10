@@ -12,8 +12,6 @@ include:
     ref: master
     file:
       - /gitlab-ci-templates/common/docker-build-meta.v2.yml
-      - /gitlab-ci-templates/common/docker-release-meta.v1.yml
-      - /gitlab-ci-templates/common/config-updater-meta.v1.yml
 
 variables:
   OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-os2sync-export
@@ -48,35 +46,3 @@ Test OS2SYNC exporter:
   script:
     - cd /app/
     - pytest tests/
-
-# Release
-##########
-Release OS2Sync master image:
-  extends: .release-master
-  variables:
-    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
-
-Release OS2Sync release image:
-  extends: .release-version
-  variables:
-    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
-
-Release OS2Sync to Dev:
-  extends: .release-to-dev
-  needs: ["Release version"]
-  variables:
-    ENDPOINT: os2mo/flux/os2syncexport/update-dev
-
-Release OS2Sync to Test:
-  extends: .release-to-test
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/os2syncexport/update-test
-
-Release OS2Sync to Prod:
-  extends: .release-to-prod
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/os2syncexport/update-prod
