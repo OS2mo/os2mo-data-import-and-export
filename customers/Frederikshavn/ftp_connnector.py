@@ -4,14 +4,13 @@ from abc import ABC
 from datetime import datetime
 from ftplib import FTP
 from io import BytesIO, StringIO
-from typing import List, Optional, TypeVar, Tuple
-
-import paramiko
-from paramiko.client import SSHClient
-from paramiko.sftp_client import SFTPClient
+from typing import List, Optional, Tuple, TypeVar
 
 import config
+import paramiko
 from more_itertools import one
+from paramiko.client import SSHClient
+from paramiko.sftp_client import SFTPClient
 
 T = TypeVar("T")
 
@@ -100,10 +99,6 @@ class SFTPFileSet(FileSet):
 
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-            # pkey = paramiko.RSAKey.from_private_key_file(
-            #     filename=self._settings.ftp_ssh_key_path,
-            #     password=self._settings.ftp_ssh_key_pass,
-            # )
         except Exception as e:
             raise config.ImproperlyConfigured(
                 "cannot connect to FTP server %r"
@@ -116,7 +111,6 @@ class SFTPFileSet(FileSet):
                     port=self._settings.ftp_port,
                     username=self._settings.ftp_user,
                     password=self._settings.ftp_pass,
-                  #  pkey=pkey,
                 )
 
                 sftp = ssh.open_sftp()

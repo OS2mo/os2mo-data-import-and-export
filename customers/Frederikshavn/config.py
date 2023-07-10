@@ -12,12 +12,7 @@ class EmployeePhoneBookSettings(JobSettings):
     ftp_port: int | None
     ftp_user: str | None
     ftp_pass: str | None
-
     ftp_folder: str | None
-    # import_state_file: str | None
-    # import_csv_folder: str | None
-    # mox_base: str = "http://localhost:5000/lora"
-    # mora_base: str = "http://localhost:5000"
 
     # Settings for Employee Phonebook:
     sql_cell_phone_number_field: str | None = (

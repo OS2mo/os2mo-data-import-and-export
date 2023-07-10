@@ -5,7 +5,7 @@ from more_itertools import prepend
 from sqlalchemy import and_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
-from customers.Frederikshavn.ftp_connnector import FTPFileSet, SFTPFileSet
+from customers.Frederikshavn.ftp_connnector import SFTPFileSet
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
 from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
 
@@ -119,6 +119,5 @@ if __name__ == "__main__":
     )
     with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
         s = io.StringIO(f.read())
-        folder = "S:\\Storage\\Prod\\EmployeeData"
-        ftp.write_file("Medarbejder Telefonbog", s, folder=folder)
+        ftp.write_file("Medarbejder Telefonbog", s, folder=settings.ftp_folder)
     print("CSV report successfully done!")
