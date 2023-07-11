@@ -2,7 +2,7 @@ import codecs
 import logging
 from abc import ABC
 from datetime import datetime
-from ftplib import FTP
+from ftplib import FTP, FTP_TLS
 from io import BytesIO, StringIO
 from typing import List, Optional, Tuple, TypeVar
 
@@ -35,7 +35,7 @@ class FileSet(ABC):
         raise NotImplementedError("must be implemented by subclass")
 
     def _convert_stringio_to_bytesio(
-        self, output: StringIO, encoding: str = "utf-8"
+            self, output: StringIO, encoding: str = "utf-8"
     ) -> BytesIO:
         """Convert StringIO object `output` to a BytesIO object using `encoding`"""
         output.seek(0)
@@ -167,3 +167,41 @@ class SFTPFileSet(FileSet):
         sftp.close()
         ssh.close()
         return result
+
+
+def upload_csv_to_ftps_server(
+        server: str, username: str, password: str, csv_data: str, file_name: str, target_folder: str
+) -> bool:
+    """
+    Connects to an FTPS server and uploads a CSV file to the specified folder.
+
+    Args:
+        server: The FTPS server address.
+        username: The username to authenticate with the server.
+        password: The password to authenticate with the server.
+        csv_data: The data to write to the CSV file.
+        file_name: The name of the CSV file to be created on the server.
+        target_folder: The folder path on the FTPS server to upload the file to.
+
+    Returns:
+        True if the file upload was successful, False otherwise.
+    """
+    try:
+        # Connect to the FTPS server
+        ftps = FTP_TLS(server)
+        ftps.login(username, password)
+        ftps.prot_p()
+
+        # Set the target folder on the server
+        ftps.cwd(target_folder)
+
+        # Write the CSV data to a file on the server
+        ftps.storlines("STOR {}".format(file_name), csv_data.encode("utf-8"))
+
+        # Close the FTPS connection
+        ftps.quit()
+
+        return True
+    except Exception as e:
+        print("Error uploading file to FTPS server:", str(e))
+        return False
