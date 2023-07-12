@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: MPL-2.0
 import logging
 
+import payloads
 import requests
 import xmltodict
-from kle import payloads
 from ra_utils.headers import TokenSettings
 from ra_utils.job_settings import JobSettings
 
