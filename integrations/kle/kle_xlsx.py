@@ -1,23 +1,21 @@
 from abc import ABC
 
-import pandas as pd
-import xlsxwriter
-import xlsxwriter.worksheet
 import click
-from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+import pandas as pd
+import xlsxwriter.worksheet
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
 
-from integrations.kle.kle_import_export import (
-    KLEAnnotationIntegration,
-    Aspects,
-    ASPECT_MAP,
-)
+from integrations.kle.kle_import_export import ASPECT_MAP
+from integrations.kle.kle_import_export import Aspects
+from integrations.kle.kle_import_export import KLEAnnotationIntegration
 
 
 class KLEXLSXIntegration(KLEAnnotationIntegration, ABC):
     def __init__(self):
         super().__init__()
 
-        self.xlsx_file = self.settings.get('integrations.kle_xlsx.file_path')
+        self.xlsx_file = self.settings.integrations_kle_xlsx_file_path
 
 
 class KLEXLSXExporter(KLEXLSXIntegration):
