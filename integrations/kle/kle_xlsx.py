@@ -20,10 +20,10 @@ class KLEXLSXIntegration(KLEAnnotationIntegration, ABC):
 
 class KLEXLSXExporter(KLEXLSXIntegration):
     """Export KLE annotation as CSV files bundled in a spreadsheet."""
+
     def __init__(self, multiple_responsible=False):
         self.multiple_responsible = multiple_responsible
         super().__init__()
-
 
     @staticmethod
     def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
@@ -34,15 +34,15 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     @staticmethod
     def get_org_unit_validation(column: str):
         return (
-            '{0}1:{0}1048576'.format(column),
-            {'validate': 'list', 'source': '=Org!$B$2:$B$1048576'},
+            "{0}1:{0}1048576".format(column),
+            {"validate": "list", "source": "=Org!$B$2:$B$1048576"},
         )
 
     @staticmethod
     def get_kle_validation(column: str):
         return (
-            '{0}1:{0}1048576'.format(column),
-            {'validate': 'list', 'source': '=KLE!$C$2:$C$1048576'},
+            "{0}1:{0}1048576".format(column),
+            {"validate": "list", "source": "=KLE!$C$2:$C$1048576"},
         )
 
     @staticmethod
@@ -51,63 +51,61 @@ class KLEXLSXExporter(KLEXLSXIntegration):
         return max(field_lengths)
 
     def add_org_unit_sheet(self, workbook, org_units):
-        worksheet = workbook.add_worksheet(name='Org')
+        worksheet = workbook.add_worksheet(name="Org")
 
-        rows = [(org_unit['uuid'], org_unit['combined']) for org_unit in org_units]
+        rows = [(org_unit["uuid"], org_unit["combined"]) for org_unit in org_units]
 
-        worksheet.set_column(0, 0, width=self.get_column_width(org_units, 'uuid'))
-        worksheet.set_column(1, 1, width=self.get_column_width(org_units, 'combined'))
+        worksheet.set_column(0, 0, width=self.get_column_width(org_units, "uuid"))
+        worksheet.set_column(1, 1, width=self.get_column_width(org_units, "combined"))
 
-        rows.insert(0, ('UUID', 'Navn'))
+        rows.insert(0, ("UUID", "Navn"))
 
         self.write_rows(worksheet, rows)
 
     def add_kle_sheet(self, workbook: xlsxwriter.Workbook, kle_numbers: list):
-        worksheet = workbook.add_worksheet(name='KLE')
+        worksheet = workbook.add_worksheet(name="KLE")
 
-        rows = [(kle['uuid'], kle['user_key'], kle['name']) for kle in kle_numbers]
+        rows = [(kle["uuid"], kle["user_key"], kle["name"]) for kle in kle_numbers]
 
-        rows.insert(0, ('UUID', 'EmneNr', 'EmneTitel'))
+        rows.insert(0, ("UUID", "EmneNr", "EmneTitel"))
 
-        worksheet.set_column(0, 0, width=self.get_column_width(kle_numbers, 'uuid'))
-        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
-        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
+        worksheet.set_column(0, 0, width=self.get_column_width(kle_numbers, "uuid"))
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, "user_key"))
+        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, "name"))
 
         self.write_rows(worksheet, rows)
 
     def add_ansvarlig_sheet(self, workbook, kle_numbers, org_units):
-        worksheet = workbook.add_worksheet(name='Ansvarlig')
+        worksheet = workbook.add_worksheet(name="Ansvarlig")
 
         def calculate_level(kle_number: str):
             """
             We calculate the level, by how many dots are in the key
             E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
             """
-            return str(kle_number.count('.') + 1)
+            return str(kle_number.count(".") + 1)
 
-        rows = [(kle['level'], kle['user_key'], kle['name'], '') for kle in kle_numbers]
-        rows.insert(0, ('Niveau', 'EmneNr', 'EmneTitel', 'EnhedNavn'))
+        rows = [(kle["level"], kle["user_key"], kle["name"], "") for kle in kle_numbers]
+        rows.insert(0, ("Niveau", "EmneNr", "EmneTitel", "EnhedNavn"))
 
-        worksheet.data_validation(*self.get_org_unit_validation(column='D'))
+        worksheet.data_validation(*self.get_org_unit_validation(column="D"))
 
-        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
-        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
-        worksheet.set_column(3, 3, width=self.get_column_width(org_units, 'combined'))
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, "user_key"))
+        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, "name"))
+        worksheet.set_column(3, 3, width=self.get_column_width(org_units, "combined"))
 
         self.write_rows(worksheet, rows)
 
     def add_kle_relation_sheet(self, sheet_name, workbook, kle_numbers, org_units):
         worksheet = workbook.add_worksheet(name=sheet_name)
 
-        rows = [('EnhedNavn', 'KLE')]
+        rows = [("EnhedNavn", "KLE")]
 
-        worksheet.data_validation(*self.get_org_unit_validation('A'))
-        worksheet.data_validation(*self.get_kle_validation('B'))
+        worksheet.data_validation(*self.get_org_unit_validation("A"))
+        worksheet.data_validation(*self.get_kle_validation("B"))
 
-        worksheet.set_column(
-            0, 0, width=self.get_column_width(org_units, 'combined')
-        )
-        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'name'))
+        worksheet.set_column(0, 0, width=self.get_column_width(org_units, "combined"))
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, "name"))
 
         self.write_rows(worksheet, rows)
 
@@ -115,7 +113,7 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     def convert_org_units(org_units):
         return [
             {
-                'combined': "{} - {}".format(unit['name'], unit['uuid']),
+                "combined": "{} - {}".format(unit["name"], unit["uuid"]),
                 **unit,
             }
             for unit in org_units
@@ -128,11 +126,11 @@ class KLEXLSXExporter(KLEXLSXIntegration):
             We calculate the level, by how many dots are in the key
             E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
             """
-            return str(kle_number.count('.') + 1)
+            return str(kle_number.count(".") + 1)
 
         return [
             {
-                'level': calculate_level(kle['user_key']),
+                "level": calculate_level(kle["user_key"]),
                 **kle,
             }
             for kle in kle_numbers
@@ -143,16 +141,16 @@ class KLEXLSXExporter(KLEXLSXIntegration):
 
         org_units = sorted(
             self.convert_org_units(self.get_all_org_units_from_mo()),
-            key=lambda x: x['name'],
+            key=lambda x: x["name"],
         )
         kle = sorted(
             self.convert_kle_numbers(self.get_kle_classes_from_mo()),
-            key=lambda x: x['user_key'],
+            key=lambda x: x["user_key"],
         )
 
         self.add_org_unit_sheet(workbook, org_units)
         self.add_kle_sheet(workbook, kle)
-        
+
         if self.multiple_responsible:
             self.add_kle_relation_sheet("Ansvarlig", workbook, kle, org_units)
         else:
@@ -162,7 +160,7 @@ class KLEXLSXExporter(KLEXLSXIntegration):
         self.add_kle_relation_sheet("Udførende", workbook, kle, org_units)
 
         # Bold column headers for all sheets
-        bold = workbook.add_format({'bold': 1})
+        bold = workbook.add_format({"bold": 1})
         for sheet in workbook.worksheets():
             sheet.set_row(0, cell_format=bold)
 
@@ -202,33 +200,33 @@ class KLEXLSXImporter(KLEXLSXIntegration):
             for sheet_name in xlsx_file.sheet_names
         }
 
-        org_unit_map = {row.Navn: row.UUID for index, row in sheets['Org'].iterrows()}
-        kle_map = {row.EmneTitel: row.UUID for index, row in sheets['KLE'].iterrows()}
+        org_unit_map = {row.Navn: row.UUID for index, row in sheets["Org"].iterrows()}
+        kle_map = {row.EmneTitel: row.UUID for index, row in sheets["KLE"].iterrows()}
 
         data_map = {}
 
         self.handle_sheet(
-            sheets['Ansvarlig'],
-            org_unit_field='EnhedNavn',
-            kle_field='KLE',
+            sheets["Ansvarlig"],
+            org_unit_field="EnhedNavn",
+            kle_field="KLE",
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
             kle_aspect=Aspects.Ansvarlig,
         )
         self.handle_sheet(
-            sheets['Indsigt'],
-            org_unit_field='EnhedNavn',
-            kle_field='KLE',
+            sheets["Indsigt"],
+            org_unit_field="EnhedNavn",
+            kle_field="KLE",
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
             kle_aspect=Aspects.Indsigt,
         )
         self.handle_sheet(
-            sheets['Udførende'],
-            org_unit_field='EnhedNavn',
-            kle_field='KLE',
+            sheets["Udførende"],
+            org_unit_field="EnhedNavn",
+            kle_field="KLE",
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
@@ -269,14 +267,14 @@ class KLEXLSXImporter(KLEXLSXIntegration):
 @optgroup.option("--export", is_flag=True)
 @click.option("--multiple-responsible", is_flag=True)
 def cli(**args):
-    if args['import']:
+    if args["import"]:
         importer = KLEXLSXImporter()
         importer.run()
 
-    if args['export']:
-        exporter = KLEXLSXExporter(args['multiple_responsible'])
+    if args["export"]:
+        exporter = KLEXLSXExporter(args["multiple_responsible"])
         exporter.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
