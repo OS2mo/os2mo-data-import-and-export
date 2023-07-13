@@ -10,7 +10,6 @@ import httpx
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from gql import gql
-from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_setting
 from ra_utils.tqdm_wrapper import tqdm
@@ -45,9 +44,6 @@ class CompareEndDate(ADParameterReader):
         settings: typing.Optional[dict] = None,
     ):
         super().__init__(all_settings=settings)
-        self.helper = MoraHelper(
-            hostname=self.all_settings["global"]["mora.base"], use_cache=False
-        )
         self.enddate_field = enddate_field
         self.uuid_field = uuid_field
         self.graph_ql_session: SyncClientSession = graph_ql_session
