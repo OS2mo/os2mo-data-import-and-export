@@ -24,6 +24,9 @@ from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
 
 
+logger = logging.getLogger(__name__)
+
+
 class AdFixEndDateSettings(JobSettings):
     lookahead_days = 0
 
@@ -31,35 +34,27 @@ class AdFixEndDateSettings(JobSettings):
         settings_json_prefix = "integrations.ad.write"
 
 
-logger = logging.getLogger(__name__)
-
-
-class CompareEndDate(ADParameterReader):
+class MOEngagementDateSource:
     def __init__(
         self,
-        enddate_field: str,
-        uuid_field: str,
-        graph_ql_session: SyncClientSession,
-        lookahead_days: int = 0,
-        settings: typing.Optional[dict] = None,
+        graphql_session: SyncClientSession,
+        lookahead_days: int,
     ):
-        super().__init__(all_settings=settings)
-        self.enddate_field = enddate_field
-        self.uuid_field = uuid_field
-        self.graph_ql_session: SyncClientSession = graph_ql_session
-        self.ad_null_date = datetime.date(9999, 12, 31)
-        self.lookahead_days = lookahead_days
+        self._graphql_session: SyncClientSession = graphql_session
+        self._lookahead_days = lookahead_days
+        self._ad_null_date = datetime.date(9999, 12, 31)
 
     def to_enddate(self, date_str: typing.Optional[str]) -> date:
         """
-        Takes a string and converts it to a date, also takes into consideration that when an engagement does not have
-        an end date, MO handles it as None, while AD handles it as 9999-12-31
+        Takes a string and converts it to a date, taking into account that when an
+        engagement does not have an end date, MO handles it as None, while AD handles it
+        as "9999-12-31".
         """
         if not date_str:
-            return self.ad_null_date
+            return self._ad_null_date
         end_date = dateutil.parser.parse(date_str).date()
-        if end_date.year == self.ad_null_date.year:
-            return self.ad_null_date
+        if end_date.year == self._ad_null_date.year:
+            return self._ad_null_date
         return end_date
 
     @retry(
@@ -83,16 +78,13 @@ class CompareEndDate(ADParameterReader):
             """
         )
 
-        result = self.graph_ql_session.execute(
+        to_date = (
+            dt.now() + datetime.timedelta(days=self._lookahead_days)
+        ).astimezone()
+
+        result = self._graphql_session.execute(
             query,
-            variable_values=jsonable_encoder(
-                {
-                    "to_date": (
-                        dt.now() + datetime.timedelta(days=self.lookahead_days)
-                    ).astimezone(),
-                    "employees": uuid,
-                }
-            ),
+            variable_values=jsonable_encoder({"to_date": to_date, "employees": uuid}),
         )
 
         if not result["engagements"]:
@@ -105,6 +97,20 @@ class CompareEndDate(ADParameterReader):
         ]
 
         return max(end_dates)
+
+
+class CompareEndDate(ADParameterReader):
+    def __init__(
+        self,
+        enddate_field: str,
+        uuid_field: str,
+        mo_engagement_date_source: MOEngagementDateSource,
+        settings: typing.Optional[dict] = None,
+    ):
+        super().__init__(all_settings=settings)
+        self.enddate_field = enddate_field
+        self.uuid_field = uuid_field
+        self._mo_engagement_date_source = mo_engagement_date_source
 
     def get_all_ad_users(self):
         return ADParameterReader.read_it_all(self, print_progress=True)
@@ -125,9 +131,13 @@ class CompareEndDate(ADParameterReader):
             uuid = ad_user[self.uuid_field]
 
             try:
-                mo_end_date = self.get_employee_end_date(uuid).strftime("%Y-%m-%d")
+                mo_end_date = self._mo_engagement_date_source.get_employee_end_date(
+                    uuid
+                )
             except KeyError:
                 continue
+            else:
+                mo_end_date = mo_end_date.strftime("%Y-%m-%d")
 
             if not (self.enddate_field in ad_user):
                 logger.info(
@@ -242,7 +252,7 @@ def cli(
         f" auth-server = {auth_server}",
     )
 
-    graph_ql_client = GraphQLClient(
+    graphql_client = GraphQLClient(
         url=f"{mora_base}/graphql/v3",
         client_id=client_id,
         client_secret=client_secret,
@@ -252,19 +262,14 @@ def cli(
         httpx_client_kwargs={"timeout": None},
     )
 
-    with graph_ql_client as session:
-        c = CompareEndDate(
-            enddate_field=enddate_field,
-            uuid_field=uuid_field,
-            graph_ql_session=session,
-            lookahead_days=pydantic_settings.lookahead_days,
+    with graphql_client as session:
+        mo_engagement_date_source = MOEngagementDateSource(
+            session,
+            pydantic_settings.lookahead_days,
         )
+        c = CompareEndDate(enddate_field, uuid_field, mo_engagement_date_source)
         end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs=show_date_diffs)
-
-    u = UpdateEndDate(
-        enddate_field=enddate_field,
-        uuid_field=uuid_field,
-    )
+        u = UpdateEndDate(enddate_field, uuid_field)
 
     for uuid, end_date in tqdm(
         end_dates_to_fix.items(), unit="user", desc="Changing enddate in AD"
@@ -280,7 +285,6 @@ def cli(
                 logger.info("Result: %r" % result)
 
     logger.info(f"{len(end_dates_to_fix)} users end dates corrected")
-
     logger.info("All end dates are fixed")
 
 

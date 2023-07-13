@@ -4,10 +4,12 @@ from unittest.mock import patch
 
 import pytest as pytest
 from hypothesis import given
+from hypothesis import HealthCheck
+from hypothesis import settings
 from hypothesis import strategies as st
-from raclients.graph.client import GraphQLClient
 
 from ..ad_fix_enddate import CompareEndDate
+from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import UpdateEndDate
 from .mocks import AD_UUID_FIELD
 from .mocks import MO_UUID
@@ -33,31 +35,75 @@ auth_server = "http://keycloak:8080/auth"
 ad_null_date = datetime.date(9999, 12, 31)
 
 
-@patch("integrations.ad_integration.ad_common.AD._create_session")
-def get_c(mock_session):
-    with GraphQLClient(
-        url=f"{mora_base}/graphql/v3",
-        client_id=client_id,
-        client_secret=client_secret,
-        auth_realm=auth_realm,
-        auth_server=auth_server,
-        sync=True,
-        httpx_client_kwargs={"timeout": None},
-    ) as session:
-        return CompareEndDate(
-            enddate_field=enddate_field,
-            uuid_field=uuid_field,
-            graph_ql_session=session,
+class _TestableCompareEndDateNoMatchingADUser(CompareEndDate):
+    def get_all_ad_users(self):
+        return MockADParameterReader().read_it_all()
+
+
+class _TestableCompareEndDateADUserHasMOUUID(_TestableCompareEndDateNoMatchingADUser):
+    def get_all_ad_users(self):
+        ad_users = super().get_all_ad_users()
+        for ad_user in ad_users:
+            ad_user[AD_UUID_FIELD] = MO_UUID
+        return ad_users
+
+
+class _TestableCompareEndDateADUserUpToDate(_TestableCompareEndDateADUserHasMOUUID):
+    def get_all_ad_users(self):
+        ad_users = super().get_all_ad_users()
+        for ad_user in ad_users:
+            ad_user[enddate_field] = "2022-12-31"
+        return ad_users
+
+
+def _get_mock_graphql_session(return_value):
+    graphql_session = Mock()
+    graphql_session.execute = Mock()
+    graphql_session.execute.return_value = return_value
+    return graphql_session
+
+
+@pytest.fixture()
+def mock_graphql_session():
+    return _get_mock_graphql_session(
+        {"engagements": [{"objects": [{"validity": {"to": "2022-12-31"}}]}]}
+    )
+
+
+@pytest.fixture()
+def mock_graphql_session_raising_keyerror():
+    return _get_mock_graphql_session({})
+
+
+@pytest.fixture()
+def mock_mo_engagement_date_source(mock_graphql_session):
+    return MOEngagementDateSource(mock_graphql_session, 0)
+
+
+@pytest.fixture()
+def mock_mo_engagement_date_source_raising_keyerror(
+    mock_graphql_session_raising_keyerror,
+):
+    return MOEngagementDateSource(mock_graphql_session_raising_keyerror, 0)
+
+
+@pytest.fixture()
+def mock_compare_end_date(mock_mo_engagement_date_source: MOEngagementDateSource):
+    with patch("integrations.ad_integration.ad_common.AD._create_session"):
+        return _TestableCompareEndDateADUserHasMOUUID(
+            enddate_field,
+            uuid_field,
+            mock_mo_engagement_date_source,
             settings=test_settings,
         )
 
 
 @given(date=st.datetimes())
-def test_to_enddate(date):
-    c = get_c()
-    assert c.to_enddate(str(date)) == date.date()
-    assert c.to_enddate(None) == ad_null_date
-    assert c.to_enddate("9999-12-31") == ad_null_date
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+def test_to_enddate(date, mock_mo_engagement_date_source):
+    assert mock_mo_engagement_date_source.to_enddate(str(date)) == date.date()
+    assert mock_mo_engagement_date_source.to_enddate(None) == ad_null_date
+    assert mock_mo_engagement_date_source.to_enddate("9999-12-31") == ad_null_date
 
 
 @pytest.mark.parametrize(
@@ -84,17 +130,15 @@ def test_to_enddate(date):
     ],
 )
 def test_get_employee_end_date(eng):
-    with patch(
-        "gql.client.SyncClientSession.execute",
-        return_value=eng,
-    ):
-        c = get_c()
-        known_latest_date = datetime.date(2023, 9, 2)
-        found_latest_date = c.get_employee_end_date(
-            "e5e28d11-0513-4db8-8487-39d0b1102376"
-        )
-        print(found_latest_date)
-        assert found_latest_date == known_latest_date
+    mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session(eng), 0
+    )
+    known_latest_date = datetime.date(2023, 9, 2)
+    found_latest_date = mo_engagement_date_source.get_employee_end_date(
+        MO_UUID,
+    )
+    print(found_latest_date)
+    assert found_latest_date == known_latest_date
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
@@ -104,10 +148,7 @@ def test_ad_enddate_cmd(
     uuid,
     enddate,
 ):
-    u = UpdateEndDate(
-        enddate_field=enddate_field, uuid_field=uuid_field, settings=test_settings
-    )
-
+    u = UpdateEndDate(enddate_field, uuid_field, settings=test_settings)
     cmd = u.get_update_cmd(uuid, enddate)
     assert (
         cmd
@@ -117,45 +158,6 @@ def test_ad_enddate_cmd(
         ConvertTo-Json
         """
     )
-
-
-class _TestableCompareEndDateNoMatchingADUser(CompareEndDate):
-    def get_all_ad_users(self):
-        return MockADParameterReader().read_it_all()
-
-
-class _TestableCompareEndDateADUserHasMOUUID(_TestableCompareEndDateNoMatchingADUser):
-    def get_all_ad_users(self):
-        ad_users = super().get_all_ad_users()
-        for ad_user in ad_users:
-            ad_user[AD_UUID_FIELD] = MO_UUID
-        return ad_users
-
-
-class _TestableCompareEndDateADUserUpToDate(_TestableCompareEndDateADUserHasMOUUID):
-    def get_all_ad_users(self):
-        ad_users = super().get_all_ad_users()
-        for ad_user in ad_users:
-            ad_user[enddate_field] = "2022-12-31"
-        return ad_users
-
-
-@pytest.fixture()
-def mock_graphql_session():
-    graphql_session = Mock()
-    graphql_session.execute = Mock()
-    graphql_session.execute.return_value = {
-        "engagements": [{"objects": [{"validity": {"to": "2022-12-31"}}]}]
-    }
-    return graphql_session
-
-
-@pytest.fixture()
-def mock_graphql_session_raising_keyerror():
-    graphql_session = Mock()
-    graphql_session.execute = Mock()
-    graphql_session.execute.return_value = {}
-    return graphql_session
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
@@ -173,10 +175,13 @@ def mock_graphql_session_raising_keyerror():
     ],
 )
 def test_get_end_dates_to_fix(
-    mock_create_session, mock_graphql_session, cls, expected_result
+    mock_create_session, mock_mo_engagement_date_source, cls, expected_result
 ):
     instance = cls(
-        enddate_field, AD_UUID_FIELD, mock_graphql_session, settings=test_settings
+        enddate_field,
+        AD_UUID_FIELD,
+        mock_mo_engagement_date_source,
+        settings=test_settings,
     )
     actual_result = instance.get_end_dates_to_fix(MO_UUID)
     assert actual_result == expected_result
@@ -184,12 +189,13 @@ def test_get_end_dates_to_fix(
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 def test_get_end_dates_to_fix_handles_keyerror(
-    mock_create_session, mock_graphql_session_raising_keyerror
+    mock_create_session,
+    mock_mo_engagement_date_source_raising_keyerror,
 ):
     instance = _TestableCompareEndDateADUserHasMOUUID(
         enddate_field,
         AD_UUID_FIELD,
-        mock_graphql_session_raising_keyerror,
+        mock_mo_engagement_date_source_raising_keyerror,
         settings=test_settings,
     )
     assert instance.get_end_dates_to_fix(MO_UUID) == {}
