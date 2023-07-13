@@ -52,6 +52,7 @@ class MockADParameterReader(TestADWriterMixin):
     def read_user(self, cpr=None, **kwargs):
         def _override_objectguid(ad_person):
             ad_person["ObjectGUID"] = self._mo_uuid
+            ad_person["ObjectGuid"] = self._mo_uuid
             return ad_person
 
         return self._prepare_get_from_ad(ad_transformer=_override_objectguid)

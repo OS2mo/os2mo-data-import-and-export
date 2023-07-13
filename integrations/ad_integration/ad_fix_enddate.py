@@ -106,10 +106,13 @@ class CompareEndDate(ADParameterReader):
 
         return max(end_dates)
 
+    def get_all_ad_users(self):
+        return ADParameterReader.read_it_all(self, print_progress=True)
+
     def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
         # Compare AD users to MO users
         print("Find users from AD")
-        ad_users = ADParameterReader.read_it_all(self, print_progress=True)
+        ad_users = self.get_all_ad_users()
         end_dates_to_fix = {}
         print("Compare to MO engagement data per user")
         for ad_user in tqdm(ad_users, unit="user"):

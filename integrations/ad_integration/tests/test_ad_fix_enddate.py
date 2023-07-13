@@ -1,4 +1,5 @@
 import datetime
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest as pytest
@@ -8,6 +9,9 @@ from raclients.graph.client import GraphQLClient
 
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import UpdateEndDate
+from .mocks import AD_UUID_FIELD
+from .mocks import MO_UUID
+from .mocks import MockADParameterReader
 
 # setup test variables and settings:
 enddate_field = "enddate_field"
@@ -113,3 +117,79 @@ def test_ad_enddate_cmd(
         ConvertTo-Json
         """
     )
+
+
+class _TestableCompareEndDateNoMatchingADUser(CompareEndDate):
+    def get_all_ad_users(self):
+        return MockADParameterReader().read_it_all()
+
+
+class _TestableCompareEndDateADUserHasMOUUID(_TestableCompareEndDateNoMatchingADUser):
+    def get_all_ad_users(self):
+        ad_users = super().get_all_ad_users()
+        for ad_user in ad_users:
+            ad_user[AD_UUID_FIELD] = MO_UUID
+        return ad_users
+
+
+class _TestableCompareEndDateADUserUpToDate(_TestableCompareEndDateADUserHasMOUUID):
+    def get_all_ad_users(self):
+        ad_users = super().get_all_ad_users()
+        for ad_user in ad_users:
+            ad_user[enddate_field] = "2022-12-31"
+        return ad_users
+
+
+@pytest.fixture()
+def mock_graphql_session():
+    graphql_session = Mock()
+    graphql_session.execute = Mock()
+    graphql_session.execute.return_value = {
+        "engagements": [{"objects": [{"validity": {"to": "2022-12-31"}}]}]
+    }
+    return graphql_session
+
+
+@pytest.fixture()
+def mock_graphql_session_raising_keyerror():
+    graphql_session = Mock()
+    graphql_session.execute = Mock()
+    graphql_session.execute.return_value = {}
+    return graphql_session
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+@pytest.mark.parametrize(
+    "cls,expected_result",
+    [
+        # If no matching AD user, don't return a MO user UUID and MO end date
+        (_TestableCompareEndDateNoMatchingADUser, {}),
+        # If matching AD user exists *and* its AD end date is already up to date, don't
+        # return a MO user UUID and MO end date.
+        (_TestableCompareEndDateADUserUpToDate, {}),
+        # If matching AD user exists *but* its AD end date is *not* up to date, return
+        # the MO user UUID and MO end date.
+        (_TestableCompareEndDateADUserHasMOUUID, {MO_UUID: "2022-12-31"}),
+    ],
+)
+def test_get_end_dates_to_fix(
+    mock_create_session, mock_graphql_session, cls, expected_result
+):
+    instance = cls(
+        enddate_field, AD_UUID_FIELD, mock_graphql_session, settings=test_settings
+    )
+    actual_result = instance.get_end_dates_to_fix(MO_UUID)
+    assert actual_result == expected_result
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+def test_get_end_dates_to_fix_handles_keyerror(
+    mock_create_session, mock_graphql_session_raising_keyerror
+):
+    instance = _TestableCompareEndDateADUserHasMOUUID(
+        enddate_field,
+        AD_UUID_FIELD,
+        mock_graphql_session_raising_keyerror,
+        settings=test_settings,
+    )
+    assert instance.get_end_dates_to_fix(MO_UUID) == {}
