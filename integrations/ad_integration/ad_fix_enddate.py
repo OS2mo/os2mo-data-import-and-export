@@ -35,6 +35,8 @@ class AdFixEndDateSettings(JobSettings):
 
 
 class MOEngagementDateSource:
+    _ad_null_date = datetime.date(9999, 12, 31)
+
     def __init__(
         self,
         graphql_session: SyncClientSession,
@@ -42,7 +44,6 @@ class MOEngagementDateSource:
     ):
         self._graphql_session: SyncClientSession = graphql_session
         self._lookahead_days = lookahead_days
-        self._ad_null_date = datetime.date(9999, 12, 31)
 
     def to_enddate(self, date_str: typing.Optional[str]) -> date:
         """

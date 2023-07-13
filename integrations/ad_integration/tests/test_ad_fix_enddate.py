@@ -15,27 +15,27 @@ from .mocks import AD_UUID_FIELD
 from .mocks import MO_UUID
 from .mocks import MockADParameterReader
 
-# setup test variables and settings:
-enddate_field = "enddate_field"
-uuid_field = "uuid_field"
-test_search_base = "search_base"
-test_settings = {
-    "global": {"mora.base": "moramock"},
+
+ENDDATE_FIELD = "enddate_field"
+TEST_SEARCH_BASE = "search_base"
+TEST_SETTINGS = {
     "primary": {
-        "search_base": test_search_base,
+        "search_base": TEST_SEARCH_BASE,
         "system_user": "username",
         "password": "password",
     },
 }
-mora_base = "http://mo"
-client_id = "dipex"
-client_secret = "603f1c82-d012-4d04-9382-dbe659c533fb"
-auth_realm = "mo"
-auth_server = "http://keycloak:8080/auth"
-ad_null_date = datetime.date(9999, 12, 31)
 
 
 class _TestableCompareEndDateNoMatchingADUser(CompareEndDate):
+    def __init__(self, mo_engagement_date_source: MOEngagementDateSource):
+        super().__init__(
+            ENDDATE_FIELD,
+            AD_UUID_FIELD,
+            mo_engagement_date_source,
+            settings=TEST_SETTINGS,
+        )
+
     def get_all_ad_users(self):
         return MockADParameterReader().read_it_all()
 
@@ -52,8 +52,13 @@ class _TestableCompareEndDateADUserUpToDate(_TestableCompareEndDateADUserHasMOUU
     def get_all_ad_users(self):
         ad_users = super().get_all_ad_users()
         for ad_user in ad_users:
-            ad_user[enddate_field] = "2022-12-31"
+            ad_user[ENDDATE_FIELD] = "2022-12-31"
         return ad_users
+
+
+class _TestableUpdateEndDate(UpdateEndDate):
+    def __init__(self):
+        super().__init__(ENDDATE_FIELD, AD_UUID_FIELD, settings=TEST_SETTINGS)
 
 
 def _get_mock_graphql_session(return_value):
@@ -90,20 +95,21 @@ def mock_mo_engagement_date_source_raising_keyerror(
 @pytest.fixture()
 def mock_compare_end_date(mock_mo_engagement_date_source: MOEngagementDateSource):
     with patch("integrations.ad_integration.ad_common.AD._create_session"):
-        return _TestableCompareEndDateADUserHasMOUUID(
-            enddate_field,
-            uuid_field,
-            mock_mo_engagement_date_source,
-            settings=test_settings,
-        )
+        return _TestableCompareEndDateADUserHasMOUUID(mock_mo_engagement_date_source)
 
 
 @given(date=st.datetimes())
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_to_enddate(date, mock_mo_engagement_date_source):
     assert mock_mo_engagement_date_source.to_enddate(str(date)) == date.date()
-    assert mock_mo_engagement_date_source.to_enddate(None) == ad_null_date
-    assert mock_mo_engagement_date_source.to_enddate("9999-12-31") == ad_null_date
+    assert (
+        mock_mo_engagement_date_source.to_enddate(None)
+        == MOEngagementDateSource._ad_null_date
+    )
+    assert (
+        mock_mo_engagement_date_source.to_enddate("9999-12-31")
+        == MOEngagementDateSource._ad_null_date
+    )
 
 
 @pytest.mark.parametrize(
@@ -143,18 +149,14 @@ def test_get_employee_end_date(eng):
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @given(uuid=st.uuids(), enddate=st.dates())
-def test_ad_enddate_cmd(
-    mock_session,
-    uuid,
-    enddate,
-):
-    u = UpdateEndDate(enddate_field, uuid_field, settings=test_settings)
+def test_get_update_cmd(mock_session, uuid, enddate):
+    u = _TestableUpdateEndDate()
     cmd = u.get_update_cmd(uuid, enddate)
     assert (
         cmd
         == f"""
-        Get-ADUser  -SearchBase "{test_search_base}"  -Credential $usercredential -Filter \'{uuid_field} -eq "{uuid}"\' |
-        Set-ADUser  -Credential $usercredential -Replace @{{{enddate_field}="{enddate}"}} |
+        Get-ADUser  -SearchBase "{TEST_SEARCH_BASE}"  -Credential $usercredential -Filter \'{AD_UUID_FIELD} -eq "{uuid}"\' |
+        Set-ADUser  -Credential $usercredential -Replace @{{{ENDDATE_FIELD}="{enddate}"}} |
         ConvertTo-Json
         """
     )
@@ -177,12 +179,7 @@ def test_ad_enddate_cmd(
 def test_get_end_dates_to_fix(
     mock_create_session, mock_mo_engagement_date_source, cls, expected_result
 ):
-    instance = cls(
-        enddate_field,
-        AD_UUID_FIELD,
-        mock_mo_engagement_date_source,
-        settings=test_settings,
-    )
+    instance = cls(mock_mo_engagement_date_source)
     actual_result = instance.get_end_dates_to_fix(MO_UUID)
     assert actual_result == expected_result
 
@@ -193,9 +190,6 @@ def test_get_end_dates_to_fix_handles_keyerror(
     mock_mo_engagement_date_source_raising_keyerror,
 ):
     instance = _TestableCompareEndDateADUserHasMOUUID(
-        enddate_field,
-        AD_UUID_FIELD,
-        mock_mo_engagement_date_source_raising_keyerror,
-        settings=test_settings,
+        mock_mo_engagement_date_source_raising_keyerror
     )
     assert instance.get_end_dates_to_fix(MO_UUID) == {}
