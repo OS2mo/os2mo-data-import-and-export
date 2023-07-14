@@ -129,18 +129,14 @@ class ADEndDateSource:
             )
 
 
-class CompareEndDate(ADParameterReader):
+class CompareEndDate:
     def __init__(
         self,
         enddate_field: str,
-        uuid_field: str,
         mo_engagement_date_source: MOEngagementDateSource,
         ad_end_date_source: ADEndDateSource,
-        settings: dict | None = None,
     ):
-        super().__init__(all_settings=settings)
         self.enddate_field = enddate_field
-        self.uuid_field = uuid_field
         self._mo_engagement_date_source = mo_engagement_date_source
         self._ad_end_date_source = ad_end_date_source
 
@@ -290,7 +286,6 @@ def cli(
         )
         c = CompareEndDate(
             enddate_field,
-            uuid_field,
             mo_engagement_date_source,
             ad_end_date_source,
         )

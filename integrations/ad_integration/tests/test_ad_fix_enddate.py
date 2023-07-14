@@ -62,10 +62,8 @@ class _TestableCompareEndDate(CompareEndDate):
     ):
         super().__init__(
             ENDDATE_FIELD,
-            AD_UUID_FIELD,
             mo_engagement_date_source,
             ad_end_date_source,
-            settings=TEST_SETTINGS,
         )
 
 
