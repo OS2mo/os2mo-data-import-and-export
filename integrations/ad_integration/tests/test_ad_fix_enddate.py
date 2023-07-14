@@ -57,6 +57,11 @@ class _MockADEndDateSourceMatchingADUserAndEndDate(_MockADEndDateSource):
         yield ADUserEndDate(MO_UUID, "2022-12-31")
 
 
+class _MockADEndDateSourceMatchingADUserWrongEndDate(_MockADEndDateSource):
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, "2023-01-01")
+
+
 class _TestableCompareEndDate(CompareEndDate):
     def __init__(
         self,
@@ -187,9 +192,12 @@ def test_get_update_cmd(mock_session, uuid, enddate):
         # If matching AD user exists *and* its AD end date is already up to date, don't
         # return a MO user UUID and MO end date.
         (_MockADEndDateSourceMatchingADUserAndEndDate(), {}),
-        # If matching AD user exists *but* its AD end date is *not* up to date, return
-        # the MO user UUID and MO end date.
+        # If matching AD user exists *but* its AD end date is *blank*, return the MO
+        # user UUID and MO end date.
         (_MockADEndDateSourceMatchingADUser(), {MO_UUID: "2022-12-31"}),
+        # If matching AD user exists *but* its AD end date is *not up to date*, return
+        # the MO user UUID and MO end date.
+        (_MockADEndDateSourceMatchingADUserWrongEndDate(), {MO_UUID: "2022-12-31"}),
     ],
 )
 def test_get_end_dates_to_fix(
