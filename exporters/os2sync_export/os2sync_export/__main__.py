@@ -191,7 +191,7 @@ def main(settings: Settings):
         terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
         logger.info(f"Orgenheder som slettes i OS2Sync: {len(terminated_org_units)}")
         for uuid in terminated_org_units:
-            if str(uuid) != str(settings.os2sync_top_unit_uuid):
+            if str(uuid) == str(settings.os2sync_top_unit_uuid):
                 logger.error("Ensure we won't delete the root org_unit")
                 continue
             os2sync.delete_orgunit(uuid)
