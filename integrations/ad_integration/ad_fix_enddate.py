@@ -1,8 +1,6 @@
 import datetime
 import logging
 import typing
-from datetime import date
-from datetime import datetime as dt
 
 import click
 import dateutil.parser
@@ -45,7 +43,7 @@ class MOEngagementDateSource:
         self._graphql_session: SyncClientSession = graphql_session
         self._lookahead_days = lookahead_days
 
-    def to_enddate(self, date_str: typing.Optional[str]) -> date:
+    def to_enddate(self, date_str: typing.Optional[str]) -> datetime.date:
         """
         Takes a string and converts it to a date, taking into account that when an
         engagement does not have an end date, MO handles it as None, while AD handles it
@@ -64,7 +62,7 @@ class MOEngagementDateSource:
         stop=stop_after_delay(10 * 60),
         retry=retry_if_exception_type(httpx.HTTPError),
     )
-    def get_employee_end_date(self, uuid: str) -> date:
+    def get_employee_end_date(self, uuid: str) -> datetime.date:
         query = gql(
             """
             query Get_mo_engagements($to_date: DateTime, $employees: [UUID!]) {
@@ -79,9 +77,10 @@ class MOEngagementDateSource:
             """
         )
 
-        to_date = (
-            dt.now() + datetime.timedelta(days=self._lookahead_days)
-        ).astimezone()
+        now = datetime.datetime.now()
+        lookahead = datetime.timedelta(days=self._lookahead_days)
+        to_date = now + lookahead
+        to_date = to_date.astimezone()
 
         result = self._graphql_session.execute(
             query,
