@@ -1,6 +1,5 @@
 import datetime
 import logging
-import typing
 
 import click
 import dateutil.parser
@@ -43,7 +42,7 @@ class MOEngagementDateSource:
         self._graphql_session: SyncClientSession = graphql_session
         self._lookahead_days = lookahead_days
 
-    def to_enddate(self, date_str: typing.Optional[str]) -> datetime.date:
+    def to_enddate(self, date_str: str | None) -> datetime.date:
         """
         Takes a string and converts it to a date, taking into account that when an
         engagement does not have an end date, MO handles it as None, while AD handles it
@@ -105,7 +104,7 @@ class CompareEndDate(ADParameterReader):
         enddate_field: str,
         uuid_field: str,
         mo_engagement_date_source: MOEngagementDateSource,
-        settings: typing.Optional[dict] = None,
+        settings: dict | None = None,
     ):
         super().__init__(all_settings=settings)
         self.enddate_field = enddate_field
