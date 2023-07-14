@@ -57,7 +57,7 @@ class KleImporter(object):
                 xml_content = content_file.read()
         else:
             url = "http://api.kle-online.dk/resources/kle/"
-            response = requests.get(url + navn)
+            response = requests.get(url + navn + "?udgaaede=true")
             response.encoding = "utf-8"
             xml_content = response.text
 
