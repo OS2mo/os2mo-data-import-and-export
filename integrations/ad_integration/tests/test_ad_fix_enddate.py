@@ -155,6 +155,14 @@ def test_get_employee_end_date(eng):
     assert found_latest_date == known_latest_date
 
 
+def test_get_employee_end_date_raises_keyerror_on_no_engagements():
+    mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session({"engagements": []}), 0
+    )
+    with pytest.raises(KeyError):
+        mo_engagement_date_source.get_employee_end_date(MO_UUID)
+
+
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @given(uuid=st.uuids(), enddate=st.dates())
 def test_get_update_cmd(mock_session, uuid, enddate):
