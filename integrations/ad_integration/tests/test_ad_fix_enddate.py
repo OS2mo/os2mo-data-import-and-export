@@ -14,8 +14,11 @@ from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import UpdateEndDate
+from ..ad_reader import ADParameterReader
 from .mocks import AD_UUID_FIELD
 from .mocks import MO_UUID
+from .mocks import MockADParameterReader
+from .mocks import MockADParameterReaderWithMOUUID
 
 
 ENDDATE_FIELD = "enddate_field"
@@ -205,3 +208,22 @@ def test_get_end_dates_to_fix_handles_keyerror(
         _MockADEndDateSourceMatchingADUser(),
     )
     assert instance.get_end_dates_to_fix(True) == {}
+
+
+@pytest.mark.parametrize(
+    "reader,expected_result",
+    [
+        (MockADParameterReader(), []),
+        (MockADParameterReaderWithMOUUID(), [ADUserEndDate(MO_UUID, None)]),
+    ],
+)
+def test_ad_end_date_source(
+    reader: ADParameterReader, expected_result: list[ADUserEndDate]
+):
+    with patch(
+        "integrations.ad_integration.ad_fix_enddate.ADParameterReader",
+        return_value=reader,
+    ):
+        instance = ADEndDateSource(AD_UUID_FIELD, ENDDATE_FIELD, settings=TEST_SETTINGS)
+        actual_result = list(instance.get_all_matching_mo())
+        assert actual_result == expected_result

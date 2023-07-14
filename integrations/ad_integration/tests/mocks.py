@@ -115,6 +115,17 @@ class MockOnlyCPRADParameterReader(MockADParameterReader):
             return super().read_user(cpr=cpr, **kwargs)
 
 
+class MockADParameterReaderWithMOUUID(MockADParameterReader):
+    """Mock an `ADParameterReader` which returns an AD user whose `AD_FIELD_UUID` field
+    contains `MO_UUID`.
+    """
+
+    def read_user(self, **kwargs):
+        ad_user = super().read_user(**kwargs)
+        ad_user[AD_UUID_FIELD] = MO_UUID
+        return ad_user
+
+
 class MockMORESTSource(MORESTSource):
     def __init__(self, from_date, to_date):
         self.from_date = from_date
