@@ -1,4 +1,5 @@
 import datetime
+from typing import Iterator
 from unittest.mock import Mock
 from unittest.mock import patch
 
@@ -8,12 +9,13 @@ from hypothesis import HealthCheck
 from hypothesis import settings
 from hypothesis import strategies as st
 
+from ..ad_fix_enddate import ADEndDateSource
+from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import UpdateEndDate
 from .mocks import AD_UUID_FIELD
 from .mocks import MO_UUID
-from .mocks import MockADParameterReader
 
 
 ENDDATE_FIELD = "enddate_field"
@@ -27,33 +29,44 @@ TEST_SETTINGS = {
 }
 
 
-class _TestableCompareEndDateNoMatchingADUser(CompareEndDate):
-    def __init__(self, mo_engagement_date_source: MOEngagementDateSource):
+class _MockADEndDateSource(ADEndDateSource):
+    def __init__(self):
+        # Explicitly avoid calling `super().__init__(...)` as we don't want to create an
+        # `ADParameterReader` instance.
+        pass
+
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        raise NotImplementedError("must be implemented by subclass")
+
+
+class _MockADEndDateSourceNoMatchingADUser(_MockADEndDateSource):
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        return iter([])
+
+
+class _MockADEndDateSourceMatchingADUser(_MockADEndDateSource):
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, None)
+
+
+class _MockADEndDateSourceMatchingADUserAndEndDate(_MockADEndDateSource):
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, "2022-12-31")
+
+
+class _TestableCompareEndDate(CompareEndDate):
+    def __init__(
+        self,
+        mo_engagement_date_source: MOEngagementDateSource,
+        ad_end_date_source: ADEndDateSource,
+    ):
         super().__init__(
             ENDDATE_FIELD,
             AD_UUID_FIELD,
             mo_engagement_date_source,
+            ad_end_date_source,
             settings=TEST_SETTINGS,
         )
-
-    def get_all_ad_users(self):
-        return MockADParameterReader().read_it_all()
-
-
-class _TestableCompareEndDateADUserHasMOUUID(_TestableCompareEndDateNoMatchingADUser):
-    def get_all_ad_users(self):
-        ad_users = super().get_all_ad_users()
-        for ad_user in ad_users:
-            ad_user[AD_UUID_FIELD] = MO_UUID
-        return ad_users
-
-
-class _TestableCompareEndDateADUserUpToDate(_TestableCompareEndDateADUserHasMOUUID):
-    def get_all_ad_users(self):
-        ad_users = super().get_all_ad_users()
-        for ad_user in ad_users:
-            ad_user[ENDDATE_FIELD] = "2022-12-31"
-        return ad_users
 
 
 class _TestableUpdateEndDate(UpdateEndDate):
@@ -90,12 +103,6 @@ def mock_mo_engagement_date_source_raising_keyerror(
     mock_graphql_session_raising_keyerror,
 ):
     return MOEngagementDateSource(mock_graphql_session_raising_keyerror, 0)
-
-
-@pytest.fixture()
-def mock_compare_end_date(mock_mo_engagement_date_source: MOEngagementDateSource):
-    with patch("integrations.ad_integration.ad_common.AD._create_session"):
-        return _TestableCompareEndDateADUserHasMOUUID(mock_mo_engagement_date_source)
 
 
 @given(date=st.datetimes())
@@ -164,23 +171,29 @@ def test_get_update_cmd(mock_session, uuid, enddate):
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @pytest.mark.parametrize(
-    "cls,expected_result",
+    "mock_ad_enddate_source,expected_result",
     [
         # If no matching AD user, don't return a MO user UUID and MO end date
-        (_TestableCompareEndDateNoMatchingADUser, {}),
+        (_MockADEndDateSourceNoMatchingADUser(), {}),
         # If matching AD user exists *and* its AD end date is already up to date, don't
         # return a MO user UUID and MO end date.
-        (_TestableCompareEndDateADUserUpToDate, {}),
+        (_MockADEndDateSourceMatchingADUserAndEndDate(), {}),
         # If matching AD user exists *but* its AD end date is *not* up to date, return
         # the MO user UUID and MO end date.
-        (_TestableCompareEndDateADUserHasMOUUID, {MO_UUID: "2022-12-31"}),
+        (_MockADEndDateSourceMatchingADUser(), {MO_UUID: "2022-12-31"}),
     ],
 )
 def test_get_end_dates_to_fix(
-    mock_create_session, mock_mo_engagement_date_source, cls, expected_result
+    mock_create_session,
+    mock_mo_engagement_date_source: MOEngagementDateSource,
+    mock_ad_enddate_source: ADEndDateSource,
+    expected_result,
 ):
-    instance = cls(mock_mo_engagement_date_source)
-    actual_result = instance.get_end_dates_to_fix(MO_UUID)
+    instance = _TestableCompareEndDate(
+        mock_mo_engagement_date_source,
+        mock_ad_enddate_source,
+    )
+    actual_result = instance.get_end_dates_to_fix(True)
     assert actual_result == expected_result
 
 
@@ -189,7 +202,8 @@ def test_get_end_dates_to_fix_handles_keyerror(
     mock_create_session,
     mock_mo_engagement_date_source_raising_keyerror,
 ):
-    instance = _TestableCompareEndDateADUserHasMOUUID(
-        mock_mo_engagement_date_source_raising_keyerror
+    instance = _TestableCompareEndDate(
+        mock_mo_engagement_date_source_raising_keyerror,
+        _MockADEndDateSourceMatchingADUser(),
     )
-    assert instance.get_end_dates_to_fix(MO_UUID) == {}
+    assert instance.get_end_dates_to_fix(True) == {}

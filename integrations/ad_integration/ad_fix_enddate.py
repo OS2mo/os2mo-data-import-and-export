@@ -1,5 +1,7 @@
 import datetime
 import logging
+from dataclasses import dataclass
+from typing import Iterator
 
 import click
 import dateutil.parser
@@ -98,36 +100,60 @@ class MOEngagementDateSource:
         return max(end_dates)
 
 
+@dataclass
+class ADUserEndDate:
+    mo_uuid: str
+    end_date: str | None
+
+
+class ADEndDateSource:
+    def __init__(
+        self, uuid_field: str, enddate_field: str, settings: dict | None = None
+    ):
+        self._uuid_field = uuid_field
+        self._enddate_field = enddate_field
+        self._reader = ADParameterReader(all_settings=settings)
+
+    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+        for ad_user in self._reader.read_it_all():
+            if self._uuid_field not in ad_user:
+                click.echo(
+                    f"User with {ad_user['ObjectGuid']=} does not have an "
+                    f"{self._uuid_field} field, and will be skipped"
+                )
+                continue
+
+            yield ADUserEndDate(
+                ad_user[self._uuid_field],
+                ad_user.get(self._enddate_field, None),
+            )
+
+
 class CompareEndDate(ADParameterReader):
     def __init__(
         self,
         enddate_field: str,
         uuid_field: str,
         mo_engagement_date_source: MOEngagementDateSource,
+        ad_end_date_source: ADEndDateSource,
         settings: dict | None = None,
     ):
         super().__init__(all_settings=settings)
         self.enddate_field = enddate_field
         self.uuid_field = uuid_field
         self._mo_engagement_date_source = mo_engagement_date_source
-
-    def get_all_ad_users(self):
-        return ADParameterReader.read_it_all(self, print_progress=True)
+        self._ad_end_date_source = ad_end_date_source
 
     def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
         # Compare AD users to MO users
         print("Find users from AD")
-        ad_users = self.get_all_ad_users()
+        ad_users: list[ADUserEndDate] = list(
+            self._ad_end_date_source.get_all_matching_mo()
+        )
         end_dates_to_fix = {}
         print("Compare to MO engagement data per user")
         for ad_user in tqdm(ad_users, unit="user"):
-            if not (self.uuid_field in ad_user):
-                click.echo(
-                    f"User with {ad_user['ObjectGuid']=} does not have an {self.uuid_field} field, and will be skipped"
-                )
-                continue
-
-            uuid = ad_user[self.uuid_field]
+            uuid = ad_user.mo_uuid
 
             try:
                 mo_end_date = self._mo_engagement_date_source.get_employee_end_date(
@@ -138,38 +164,30 @@ class CompareEndDate(ADParameterReader):
             else:
                 mo_end_date = mo_end_date.strftime("%Y-%m-%d")
 
-            if not (self.enddate_field in ad_user):
+            if ad_user.end_date is None:
                 logger.info(
-                    "User "
-                    + ad_user[self.uuid_field]
-                    + " does not have the field "
-                    + self.enddate_field
+                    "User %s does not have the field %r", uuid, self.enddate_field
                 )
                 # if the user does not have an end date, give it one
                 end_dates_to_fix[uuid] = mo_end_date
                 continue
 
-            if ad_user[self.enddate_field] == mo_end_date:
+            if ad_user.end_date == mo_end_date:
                 continue
 
             end_dates_to_fix[uuid] = mo_end_date
 
         if show_date_diffs:
             for ad_user in ad_users:
-                if not (self.uuid_field in ad_user):
-                    continue
-
-                uuid = ad_user[self.uuid_field]
-
+                uuid = ad_user.mo_uuid
                 if uuid in end_dates_to_fix:
-
-                    if self.enddate_field in ad_user:
-                        ad_end = ad_user[self.enddate_field]
+                    if ad_user.end_date:
+                        ad_end = ad_user.end_date
                     else:
                         ad_end = "None"
-
                     logger.info(
-                        f"User with id: {uuid} has AD end date: {ad_end} and MO end date: {end_dates_to_fix[uuid]}"
+                        f"User {uuid} has AD end date: {ad_end} and MO end date: "
+                        f"{end_dates_to_fix[uuid]}"
                     )
 
         return end_dates_to_fix
@@ -266,7 +284,16 @@ def cli(
             session,
             pydantic_settings.lookahead_days,
         )
-        c = CompareEndDate(enddate_field, uuid_field, mo_engagement_date_source)
+        ad_end_date_source = ADEndDateSource(
+            uuid_field,
+            enddate_field,
+        )
+        c = CompareEndDate(
+            enddate_field,
+            uuid_field,
+            mo_engagement_date_source,
+            ad_end_date_source,
+        )
         end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs=show_date_diffs)
         u = UpdateEndDate(enddate_field, uuid_field)
 
