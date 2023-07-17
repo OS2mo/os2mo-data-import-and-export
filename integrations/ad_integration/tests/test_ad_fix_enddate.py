@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Iterator
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -78,6 +79,17 @@ class _TestableCompareEndDate(CompareEndDate):
 class _TestableUpdateEndDate(UpdateEndDate):
     def __init__(self):
         super().__init__(settings=TEST_SETTINGS)
+        self._ps_scripts_run = []
+
+    def _run_ps_script(self, ps_script):
+        self._ps_scripts_run.append(ps_script)
+        return {}
+
+
+class _TestableUpdateEndDateReturningError(_TestableUpdateEndDate):
+    def _run_ps_script(self, ps_script):
+        super()._run_ps_script(ps_script)
+        return {"error": "is mocked"}  # non-empty dict indicates a Powershell error
 
 
 def _get_mock_graphql_session(return_value):
@@ -153,9 +165,7 @@ def test_get_employee_end_date(eng):
         _get_mock_graphql_session(eng), 0
     )
     known_latest_date = datetime.date(2023, 9, 2)
-    found_latest_date = mo_engagement_date_source.get_employee_end_date(
-        MO_UUID,
-    )
+    found_latest_date = mo_engagement_date_source.get_employee_end_date(MO_UUID)
     print(found_latest_date)
     assert found_latest_date == known_latest_date
 
@@ -166,21 +176,6 @@ def test_get_employee_end_date_raises_keyerror_on_no_engagements():
     )
     with pytest.raises(KeyError):
         mo_engagement_date_source.get_employee_end_date(MO_UUID)
-
-
-@patch("integrations.ad_integration.ad_common.AD._create_session")
-@given(uuid=st.uuids(), enddate=st.dates())
-def test_get_update_cmd(mock_session, uuid, enddate):
-    u = _TestableUpdateEndDate()
-    cmd = u.get_update_cmd(AD_UUID_FIELD, uuid, ENDDATE_FIELD, enddate)
-    assert (
-        cmd
-        == f"""
-        Get-ADUser  -SearchBase "{TEST_SEARCH_BASE}"  -Credential $usercredential -Filter \'{AD_UUID_FIELD} -eq "{uuid}"\' |
-        Set-ADUser  -Credential $usercredential -Replace @{{{ENDDATE_FIELD}="{enddate}"}} |
-        ConvertTo-Json
-        """
-    )
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
@@ -243,3 +238,73 @@ def test_ad_end_date_source(
         instance = ADEndDateSource(AD_UUID_FIELD, ENDDATE_FIELD, settings=TEST_SETTINGS)
         actual_result = list(instance.get_all_matching_mo())
         assert actual_result == expected_result
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+@given(uuid=st.uuids(), enddate=st.dates())
+def test_get_update_cmd(mock_session, uuid, enddate):
+    u = _TestableUpdateEndDate()
+    cmd = u.get_update_cmd(AD_UUID_FIELD, uuid, ENDDATE_FIELD, enddate)
+    assert (
+        cmd
+        == f"""
+        Get-ADUser  -SearchBase "{TEST_SEARCH_BASE}"  -Credential $usercredential -Filter \'{AD_UUID_FIELD} -eq "{uuid}"\' |
+        Set-ADUser  -Credential $usercredential -Replace @{{{ENDDATE_FIELD}="{enddate}"}} |
+        ConvertTo-Json
+        """
+    )
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+@given(end_dates_to_fix=st.dictionaries(st.text(min_size=1), st.text() | st.none()))
+def test_update_all(mock_session, end_dates_to_fix: dict):
+    u = _TestableUpdateEndDate()
+    retval = u.update_all(
+        end_dates_to_fix,
+        AD_UUID_FIELD,
+        ENDDATE_FIELD,
+        True,  # `print_commands`
+        False,  # `dry_run`
+    )
+    assert len(retval) == len(end_dates_to_fix)
+    for ps_script, ps_result in retval:
+        assert "Set-ADUser" in ps_script
+        assert ps_result == {}
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+def test_update_all_logs_results_and_errors(mock_session, caplog):
+    end_dates_to_fix = {"mock_uuid": "mock_end_date"}
+    u = _TestableUpdateEndDateReturningError()
+    with caplog.at_level(logging.INFO):
+        u.update_all(
+            end_dates_to_fix,
+            AD_UUID_FIELD,
+            ENDDATE_FIELD,
+            True,  # `print_commands`
+            False,  # `dry_run`
+        )
+    assert len(caplog.records) == 5
+    assert caplog.records[0].message == "Command to run: "
+    assert "Set-ADUser" in caplog.records[1].message  # command itself
+    assert caplog.records[2].message.startswith("Result: ")  # command result
+    assert caplog.records[3].message.endswith("users end dates corrected")
+    assert caplog.records[4].message == "All end dates are fixed"
+
+
+@patch("integrations.ad_integration.ad_common.AD._create_session")
+def test_update_all_dry_run(mock_session):
+    end_dates_to_fix = {"mock_uuid": "mock_end_date"}
+    u = _TestableUpdateEndDate()
+    retval = u.update_all(
+        end_dates_to_fix,
+        AD_UUID_FIELD,
+        ENDDATE_FIELD,
+        False,  # `print_commands`
+        True,  # `dry_run`
+    )
+    assert len(retval) == len(end_dates_to_fix)
+    ps_script, ps_result = retval[0]
+    assert "Set-ADUser" in ps_script
+    assert ps_result == "<dry run>"
+    assert len(u._ps_scripts_run) == 0

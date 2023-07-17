@@ -218,6 +218,36 @@ class UpdateEndDate(AD):
     def run(self, cmd) -> dict:
         return self._run_ps_script("%s\n%s" % (self._build_user_credential(), cmd))
 
+    def update_all(
+        self,
+        end_dates_to_fix,
+        uuid_field: str,
+        end_date_field: str,
+        print_commands: bool = False,
+        dry_run: bool = False,
+    ) -> list:
+        retval = []
+        for uuid, end_date in tqdm(
+            end_dates_to_fix.items(), unit="user", desc="Changing enddate in AD"
+        ):
+            cmd = self.get_update_cmd(uuid_field, uuid, end_date_field, end_date)
+            if print_commands:
+                logger.info("Command to run: ")
+                logger.info(cmd)
+
+            if not dry_run:
+                result = self.run(cmd)
+                if result:
+                    logger.info("Result: %r", result)
+                retval.append((cmd, result))
+            else:
+                retval.append((cmd, "<dry run>"))  # type: ignore
+
+        logger.info("%d users end dates corrected", len(end_dates_to_fix))
+        logger.info("All end dates are fixed")
+
+        return retval
+
 
 @click.command()
 @click.option(
@@ -294,23 +324,12 @@ def cli(
             ad_end_date_source,
         )
         end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs)
-
-    u = UpdateEndDate()
-    for uuid, end_date in tqdm(
-        end_dates_to_fix.items(), unit="user", desc="Changing enddate in AD"
-    ):
-        cmd = u.get_update_cmd(uuid_field, uuid, enddate_field, end_date)
-        if print_commands:
-            logger.info("Command to run: ")
-            logger.info(cmd)
-
-        if not dry_run:
-            result = u.run(cmd)
-            if result:
-                logger.info("Result: %r" % result)
-
-    logger.info(f"{len(end_dates_to_fix)} users end dates corrected")
-    logger.info("All end dates are fixed")
+        u = UpdateEndDate()
+        u.update_all(
+            end_dates_to_fix,
+            uuid_field,
+            enddate_field,
+        )
 
 
 if __name__ == "__main__":
