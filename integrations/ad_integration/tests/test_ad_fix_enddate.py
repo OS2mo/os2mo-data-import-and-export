@@ -77,7 +77,7 @@ class _TestableCompareEndDate(CompareEndDate):
 
 class _TestableUpdateEndDate(UpdateEndDate):
     def __init__(self):
-        super().__init__(ENDDATE_FIELD, AD_UUID_FIELD, settings=TEST_SETTINGS)
+        super().__init__(settings=TEST_SETTINGS)
 
 
 def _get_mock_graphql_session(return_value):
@@ -172,7 +172,7 @@ def test_get_employee_end_date_raises_keyerror_on_no_engagements():
 @given(uuid=st.uuids(), enddate=st.dates())
 def test_get_update_cmd(mock_session, uuid, enddate):
     u = _TestableUpdateEndDate()
-    cmd = u.get_update_cmd(uuid, enddate)
+    cmd = u.get_update_cmd(AD_UUID_FIELD, uuid, ENDDATE_FIELD, enddate)
     assert (
         cmd
         == f"""

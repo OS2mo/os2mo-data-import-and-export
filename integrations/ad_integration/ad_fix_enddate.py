@@ -190,12 +190,16 @@ class CompareEndDate:
 
 
 class UpdateEndDate(AD):
-    def __init__(self, enddate_field, uuid_field, settings=None):
+    def __init__(self, settings=None):
         super().__init__(all_settings=settings)
-        self.enddate_field = enddate_field
-        self.uuid_field = uuid_field
 
-    def get_update_cmd(self, uuid, end_date):
+    def get_update_cmd(
+        self,
+        uuid_field: str,
+        uuid: str,
+        end_date_field: str,
+        end_date: str,
+    ):
         cmd_f = """
         Get-ADUser %(complete)s -Filter '%(uuid_field)s -eq "%(uuid)s"' |
         Set-ADUser %(credentials)s -Replace @{%(enddate_field)s="%(end_date)s"} |
@@ -204,8 +208,8 @@ class UpdateEndDate(AD):
         cmd = cmd_f % dict(
             uuid=uuid,
             end_date=end_date,
-            enddate_field=self.enddate_field,
-            uuid_field=self.uuid_field,
+            enddate_field=end_date_field,
+            uuid_field=uuid_field,
             complete=self._ps_boiler_plate()["complete"],
             credentials=self._ps_boiler_plate()["credentials"],
         )
@@ -289,13 +293,13 @@ def cli(
             mo_engagement_date_source,
             ad_end_date_source,
         )
-        end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs=show_date_diffs)
-        u = UpdateEndDate(enddate_field, uuid_field)
+        end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs)
 
+    u = UpdateEndDate()
     for uuid, end_date in tqdm(
         end_dates_to_fix.items(), unit="user", desc="Changing enddate in AD"
     ):
-        cmd = u.get_update_cmd(uuid, end_date)
+        cmd = u.get_update_cmd(uuid_field, uuid, enddate_field, end_date)
         if print_commands:
             logger.info("Command to run: ")
             logger.info(cmd)
