@@ -9,6 +9,7 @@ from hypothesis import given
 from hypothesis import HealthCheck
 from hypothesis import settings
 from hypothesis import strategies as st
+from ramodels.mo import Validity
 
 from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
@@ -91,6 +92,24 @@ class _TestableUpdateEndDateReturningError(_TestableUpdateEndDate):
     def _run_ps_script(self, ps_script):
         super()._run_ps_script(ps_script)
         return {"error": "is mocked"}  # non-empty dict indicates a Powershell error
+
+
+def dt(val: str):
+    return datetime.datetime.fromisoformat(val).astimezone()
+
+
+def validity(start, end) -> dict:
+    obj = Validity(**{"from": start, "to": end})
+    return {
+        "validity": {
+            "from": str(obj.from_date),
+            "to": str(obj.to_date) if obj.to_date else None,
+        }
+    }
+
+
+def engagement_objects(*validities: dict) -> dict:
+    return {"engagements": [{"objects": validities}]}
 
 
 def _get_mock_graphql_session(return_value):
@@ -184,6 +203,118 @@ def test_get_employee_end_date(eng):
     found_latest_date = mo_engagement_date_source.get_employee_end_date(MO_UUID)
     print(found_latest_date)
     assert found_latest_date == known_latest_date
+
+
+@pytest.mark.parametrize(
+    "mock_response,expected_split",
+    [
+        # Case A1: only past and present engagements; latest engagement has a blank end
+        # date.
+        (
+            engagement_objects(
+                validity("2020-01-01", "2021-12-31"),
+                validity("2022-01-01", None),
+            ),
+            (
+                None,
+                Unset(),
+            ),
+        ),
+        # Case A2: only past and present engagements; latest engagement has a non-blank
+        # end date.
+        (
+            engagement_objects(
+                validity("2020-01-01", "2021-12-31"),
+                validity("2022-01-01", "2022-12-31"),
+            ),
+            (
+                dt("2022-12-31"),
+                Unset(),
+            ),
+        ),
+        # Case B1: only future engagements; earliest engagement has a blank end date
+        (
+            engagement_objects(
+                validity("2024-01-01", None),
+                validity("2025-01-01", None),
+            ),
+            (
+                Unset(),
+                None,
+            ),
+        ),
+        # Case B2: only future engagements; earliest engagement has an end date
+        (
+            engagement_objects(
+                validity("2024-01-01", "2024-12-31"),
+                validity("2025-01-01", None),
+            ),
+            (
+                Unset(),
+                dt("2024-12-31"),
+            ),
+        ),
+        # Case C1: engagements in the past, present and future. Both the latest
+        # engagement in the present, and the earliest engagement in the future, have a
+        # blank end date.
+        (
+            engagement_objects(
+                validity("2020-01-01", "2021-12-31"),
+                validity("2022-01-01", None),
+                validity("2024-01-01", None),
+                validity("2025-01-01", None),
+            ),
+            (
+                None,
+                None,
+            ),
+        ),
+        # Case C2: engagements in the past, present and future. The latest engagement in
+        # the present has a blank end date, while the earliest engagement in the future
+        # has a non-blank end date.
+        (
+            engagement_objects(
+                validity("2020-01-01", "2021-12-31"),
+                validity("2022-01-01", None),
+                validity("2024-01-01", "2024-12-31"),
+                validity("2025-01-01", None),
+            ),
+            (
+                None,
+                dt("2024-12-31"),
+            ),
+        ),
+        # Case C3: engagements in the past, present and future. The latest engagement in
+        # the present has a non-blank end date, while the earliest engagement in the
+        # future has a blank end date.
+        (
+            engagement_objects(
+                validity("2020-01-01", "2021-12-31"),
+                validity("2022-01-01", "2022-12-31"),
+                validity("2024-01-01", None),
+                validity("2025-01-01", None),
+            ),
+            (
+                dt("2022-12-31"),
+                None,
+            ),
+        ),
+    ],
+)
+def test_split_engagement_dates(mock_response, expected_split):
+    mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session(mock_response), 0
+    )
+    actual_split = mo_engagement_date_source.split_engagement_dates(MO_UUID)
+    assert actual_split == expected_split
+
+
+def test_split_engagement_dates_raises_exception_on_no_engagements():
+    mock_mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session(engagement_objects()), 0
+    )
+    with pytest.raises(Exception):
+        mock_mo_engagement_date_source.split_engagement_dates(MO_UUID)
 
 
 def test_get_employee_end_date_raises_keyerror_on_no_engagements():

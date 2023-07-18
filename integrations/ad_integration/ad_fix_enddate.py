@@ -9,6 +9,7 @@ import httpx
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from gql import gql
+from more_itertools import partition
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_setting
 from ra_utils.tqdm_wrapper import tqdm
@@ -107,6 +108,75 @@ class MOEngagementDateSource:
             for obj in engagement["objects"]
         ]
         return max(end_dates)
+
+    def split_engagement_dates(self, uuid: str):
+        def from_iso_or_none(val: str) -> datetime.datetime | None:
+            try:
+                return datetime.datetime.fromisoformat(val)
+            except (TypeError, ValueError):
+                logger.debug(
+                    "%r is not a valid ISO datetime (MO user UUID = %r)",
+                    val,
+                    uuid,
+                )
+                return None
+
+        def fold_in_utc(val: datetime.datetime | None, default: datetime.datetime):
+            return (
+                val.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+                if val is not None
+                else default
+            )
+
+        def _parse(
+            validity: dict,
+        ) -> tuple[datetime.datetime | None, datetime.datetime | None]:
+            start = from_iso_or_none(validity["from"])
+            end = from_iso_or_none(validity["to"])
+            folded_start = fold_in_utc(start, datetime.datetime.min)
+            folded_end = fold_in_utc(end, datetime.datetime.max)
+            assert folded_start <= folded_end
+            return start, end
+
+        def _split(validity):
+            local_date = datetime.datetime.now().astimezone().date()
+            start_date = fold_in_utc(validity[0], datetime.datetime.min).date()
+            return start_date > local_date
+
+        parsed_validities = [
+            _parse(obj["validity"])
+            for engagement in self.get_employee_engagement_dates(uuid)
+            for obj in engagement["objects"]
+        ]
+
+        # Split by whether the engagement *starts* in the future, or not
+        current, future = partition(_split, parsed_validities)
+
+        # Sort by validity end - validity with latest end appears first in list
+        current = sorted(
+            current,
+            key=lambda validity: fold_in_utc(validity[1], datetime.datetime.max),
+            reverse=True,
+        )
+
+        # Sort by validity start - validity with earliest start appears first in list
+        future = sorted(
+            future,
+            key=lambda validity: fold_in_utc(validity[0], datetime.datetime.min),
+            reverse=False,
+        )
+
+        if current and future:
+            # Return end date of latest current validity and earliest future validity
+            return current[0][1], future[0][1]
+        elif current and not future:
+            # Return only end date of latest current validity
+            return current[0][1], Unset()
+        elif not current and future:
+            # Return only end date of earliest future validity
+            return Unset(), future[0][1]
+
+        raise Exception("unhandled fall-through case")
 
 
 @dataclass
