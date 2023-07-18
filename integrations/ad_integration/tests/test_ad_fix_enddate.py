@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest as pytest
+from click.testing import CliRunner
 from hypothesis import given
 from hypothesis import HealthCheck
 from hypothesis import settings
@@ -13,6 +14,7 @@ from ramodels.mo import Validity
 
 from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
+from ..ad_fix_enddate import cli
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import Unset
@@ -455,3 +457,16 @@ def test_update_all_dry_run(mock_session):
     assert "Set-ADUser" in ps_script
     assert ps_result == "<dry run>"
     assert len(u._ps_scripts_run) == 0
+
+
+@patch(
+    "integrations.ad_integration.ad_fix_enddate.ADEndDateSource",
+    cls=_MockADEndDateSourceNoMatchingADUser,
+)
+def test_cli(mock_ad_end_date_source, caplog):
+    runner = CliRunner()
+    with caplog.at_level(logging.INFO):
+        result = runner.invoke(cli)
+    assert result.exception is None
+    assert caplog.records[0].message.startswith("Command line args: ")
+    assert caplog.records[-1].message == "All end dates are fixed"
