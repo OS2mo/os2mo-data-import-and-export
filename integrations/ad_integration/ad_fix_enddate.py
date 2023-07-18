@@ -167,7 +167,7 @@ class CompareEndDate:
             except KeyError:
                 continue
             else:
-                mo_end_date = mo_end_date.strftime("%Y-%m-%d")
+                mo_end_date = mo_end_date.strftime("%Y-%m-%d")  # type: ignore
 
             if ad_user.end_date is None:
                 logger.info(
