@@ -73,13 +73,14 @@ class MOEngagementDateSource:
         stop=stop_after_delay(10 * 60),
         retry=retry_if_exception_type(httpx.HTTPError),
     )
-    def get_employee_end_date(self, uuid: str) -> datetime.date:
+    def get_employee_engagement_dates(self, uuid: str) -> list[dict]:
         query = gql(
             """
-            query Get_mo_engagements($to_date: DateTime, $employees: [UUID!]) {
-                engagements(from_date: null, to_date: $to_date, employees: $employees) {
+            query Get_mo_engagements($employees: [UUID!]) {
+                engagements(employees: $employees, from_date: null, to_date: null) {
                     objects {
                         validity {
+                            from
                             to
                         }
                     }
@@ -88,25 +89,23 @@ class MOEngagementDateSource:
             """
         )
 
-        now = datetime.datetime.now()
-        lookahead = datetime.timedelta(days=self._lookahead_days)
-        to_date = now + lookahead
-        to_date = to_date.astimezone()
-
         result = self._graphql_session.execute(
             query,
-            variable_values=jsonable_encoder({"to_date": to_date, "employees": uuid}),
+            variable_values=jsonable_encoder({"employees": uuid}),
         )
 
         if not result["engagements"]:
             raise KeyError("User not found in mo")
 
+        return result["engagements"]
+
+    def get_employee_end_date(self, uuid: str) -> datetime.date:
+        engagement_dates = self.get_employee_engagement_dates(uuid)
         end_dates = [
             self.to_enddate(obj["validity"]["to"])
-            for engagement in result["engagements"]
+            for engagement in engagement_dates
             for obj in engagement["objects"]
         ]
-
         return max(end_dates)
 
 
