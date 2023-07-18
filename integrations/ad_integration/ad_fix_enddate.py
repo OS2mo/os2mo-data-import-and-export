@@ -26,6 +26,16 @@ from integrations.ad_integration.ad_reader import ADParameterReader
 logger = logging.getLogger(__name__)
 
 
+class Unset:
+    def __repr__(self) -> str:
+        return "Unset()"
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, Unset):
+            return True
+        return super().__eq__(other)
+
+
 class AdFixEndDateSettings(JobSettings):
     lookahead_days = 0
 

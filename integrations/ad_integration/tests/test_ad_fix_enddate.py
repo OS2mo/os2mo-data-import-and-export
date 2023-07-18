@@ -14,6 +14,7 @@ from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import MOEngagementDateSource
+from ..ad_fix_enddate import Unset
 from ..ad_fix_enddate import UpdateEndDate
 from ..ad_reader import ADParameterReader
 from .mocks import AD_UUID_FIELD
@@ -121,6 +122,21 @@ def mock_mo_engagement_date_source_raising_keyerror(
     mock_graphql_session_raising_keyerror,
 ):
     return MOEngagementDateSource(mock_graphql_session_raising_keyerror, 0)
+
+
+@given(st.builds(Unset), st.builds(Unset))
+def test_unset_class_always_equals_itself(unset_a: Unset, unset_b: Unset):
+    assert unset_a == unset_b
+
+
+@given(st.builds(Unset), st.datetimes() | st.none())
+def test_unset_class_never_equals_other_types(unset: Unset, other: dict | None):
+    assert unset != other
+
+
+@given(st.builds(Unset))
+def test_unset_repr_is_constant(unset: Unset):
+    assert repr(unset) == "Unset()"
 
 
 @given(date=st.datetimes())
