@@ -1,3 +1,18 @@
+#!/bin/bash
+
+export DIPEXAR=${DIPEXAR:=$(realpath -L $(dirname $(realpath -L "${BASH_SOURCE}"))/..)}
+cd ${DIPEXAR}
+source ${DIPEXAR}/tools/prefixed_settings.sh
+cd ${DIPEXAR}
+
+# read the run-job script et al
+for module in tools/job-runner.d/*.sh; do
+    #echo sourcing $module
+    source $module
+done
+
+prometrics-job-start "backup"
+
 # Check preconditions
 CONTAINER_NAME=${CONTAINER_NAME:-"mox_database"}
 if ! [ -x "$(command -v docker)" ]; then
@@ -19,6 +34,8 @@ docker exec -t ${CONTAINER_NAME} \
        --command "pg_dump --data-only ${DATABASE_NAME} -f ${DOCKER_SNAPSHOT_DESTINATION}" \
        postgres
 EXIT_CODE=$?
+
+prometrics-job-end "backup" ${EXIT_CODE}
 if [ ${EXIT_CODE} -ne 0 ]; then
     echo "Unable to snapshot database"
     exit 1
