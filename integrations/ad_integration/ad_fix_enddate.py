@@ -1,7 +1,9 @@
 import datetime
 import logging
 from dataclasses import dataclass
+from typing import Any
 from typing import Iterator
+from typing import Sequence
 
 import click
 import httpx
@@ -196,7 +198,7 @@ class ADUserEndDate:
             return datetime.datetime.fromisoformat(self.field_value).astimezone()  # type: ignore
         except (TypeError, ValueError):
             logger.debug("cannot parse %r as ISO datetime", self.field_value)
-            return None
+            return Invalid()
 
 
 class ADEndDateSource:
@@ -336,10 +338,10 @@ class UpdateEndDate(AD):
 
     def run_all(
         self,
-        changes: Iterator[tuple[ADUserEndDate, datetime.datetime]],
+        changes: Sequence[tuple[ADUserEndDate, datetime.datetime]],
         uuid_field: str,
         dry: bool = False,
-    ) -> list[tuple[str, dict]]:
+    ) -> list[tuple[str, Any]]:
         changes = tqdm(list(changes))
         num_changes = 0
         retval = []
@@ -362,7 +364,7 @@ class UpdateEndDate(AD):
                 retval.append((cmd, "<dry run>"))
             else:
                 result = self.run(cmd)
-                retval.append((cmd, result))
+                retval.append((cmd, result))  # type: ignore
                 if result != {}:
                     logger.error("AD error response %r", result)
                 else:

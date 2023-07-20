@@ -25,6 +25,7 @@ from .mocks import MockADParameterReaderWithMOUUID
 
 
 ENDDATE_FIELD = "enddate_field"
+ENDDATE_FIELD_FUTURE = "enddate_field_future"
 TEST_SEARCH_BASE = "search_base"
 TEST_SETTINGS = {
     "primary": {
@@ -33,6 +34,26 @@ TEST_SETTINGS = {
         "password": "password",
     },
 }
+VALID_AD_DATE = "2020-01-01"
+VALID_AD_DATE_FUTURE = "2025-01-01"
+INVALID_AD_DATE = "<invalid date>"
+
+
+class MockADParameterReaderWithMOUUIDAndInvalidDate(MockADParameterReaderWithMOUUID):
+    def read_user(self, **kwargs):
+        ad_user = super().read_user(**kwargs)
+        ad_user[ENDDATE_FIELD] = INVALID_AD_DATE
+        return ad_user
+
+
+class MockADParameterReaderWithMOUUIDAndValidSplitDates(
+    MockADParameterReaderWithMOUUID
+):
+    def read_user(self, **kwargs):
+        ad_user = super().read_user(**kwargs)
+        ad_user[ENDDATE_FIELD] = VALID_AD_DATE
+        ad_user[ENDDATE_FIELD_FUTURE] = VALID_AD_DATE_FUTURE
+        return ad_user
 
 
 class _MockADEndDateSource(ADEndDateSource):
@@ -403,18 +424,46 @@ def test_get_end_dates_to_fix_handles_keyerror(
 
 
 @pytest.mark.parametrize(
-    "reader,expected_result",
+    "reader,enddate_field_future,expected_result,expected_normalized_value",
     [
-        (MockADParameterReader(), []),
+        (MockADParameterReader(), None, [], "<unused>"),
         (
             MockADParameterReaderWithMOUUID(),
+            None,
             [ADUserEndDate(MO_UUID, ENDDATE_FIELD, Invalid())],
+            Invalid(),
+        ),
+        (
+            MockADParameterReaderWithMOUUIDAndInvalidDate(),
+            None,
+            [ADUserEndDate(MO_UUID, ENDDATE_FIELD, INVALID_AD_DATE)],
+            Invalid(),
+        ),
+        (
+            MockADParameterReaderWithMOUUIDAndValidSplitDates(),
+            ENDDATE_FIELD_FUTURE,
+            [
+                ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
+                ADUserEndDate(MO_UUID, ENDDATE_FIELD_FUTURE, VALID_AD_DATE_FUTURE),
+            ],
+            Invalid(),
         ),
     ],
 )
 def test_ad_end_date_source(
-    reader: ADParameterReader, expected_result: list[ADUserEndDate]
+    reader: ADParameterReader,
+    enddate_field_future: str | None,
+    expected_result: list[ADUserEndDate],
+    expected_normalized_value: datetime.datetime | Invalid,
 ):
+    def assert_result_matches(actual_result, expected_result):
+        assert actual_result == expected_result
+        if actual_result:
+            assert [
+                actual.normalized_value == expected_normalized_value
+                for actual in actual_result
+            ]
+
     with patch(
         "integrations.ad_integration.ad_fix_enddate.ADParameterReader",
         return_value=reader,
@@ -422,11 +471,12 @@ def test_ad_end_date_source(
         instance = ADEndDateSource(
             AD_UUID_FIELD,
             ENDDATE_FIELD,
-            None,  # enddate_field_future
+            enddate_field_future,
             settings=TEST_SETTINGS,
         )
-        actual_result = list(instance.of_all_users())
-        assert actual_result == expected_result
+
+        assert_result_matches(list(instance.of_all_users()), expected_result)
+        assert_result_matches(list(instance.of_one_user("username")), expected_result)
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
@@ -472,7 +522,11 @@ def test_run_all_logs_results_and_errors(mock_session, caplog):
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-@given(st.lists(st.tuples(st.builds(ADUserEndDate), st.datetimes()), min_size=1, max_size=1))
+@given(
+    st.lists(
+        st.tuples(st.builds(ADUserEndDate), st.datetimes()), min_size=1, max_size=1
+    )
+)
 def test_run_all_supports_dry_run(mock_session, changes: list):
     u = _TestableUpdateEndDate()
     retval = u.run_all(changes, AD_UUID_FIELD, dry=True)
