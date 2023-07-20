@@ -308,52 +308,13 @@ class CompareEndDate:
                 )
 
     def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
-        # Compare AD users to MO users
-        print("Find users from AD")
-        ad_users: list[ADUserEndDate] = list(
-            self._ad_end_date_source.get_all_matching_mo()
-        )
-        end_dates_to_fix = {}
-        print("Compare to MO engagement data per user")
-        for ad_user in tqdm(ad_users, unit="user"):
-            uuid = ad_user.mo_uuid
+        result = {}
 
-            try:
-                mo_end_date = self._mo_engagement_date_source.get_employee_end_date(
-                    uuid
-                )
-            except KeyError:
-                continue
-            else:
-                mo_end_date = mo_end_date.strftime("%Y-%m-%d")  # type: ignore
+        for ad_user, new_end_date in self.get_changes():
+            if new_end_date != Unset():
+                result[ad_user.mo_uuid] = new_end_date.strftime("%Y-%m-%d")
 
-            if ad_user.end_date is None:
-                logger.info(
-                    "User %s does not have the field %r", uuid, self.enddate_field
-                )
-                # if the user does not have an end date, give it one
-                end_dates_to_fix[uuid] = mo_end_date
-                continue
-
-            if ad_user.end_date == mo_end_date:
-                continue
-
-            end_dates_to_fix[uuid] = mo_end_date
-
-        if show_date_diffs:
-            for ad_user in ad_users:
-                uuid = ad_user.mo_uuid
-                if uuid in end_dates_to_fix:
-                    if ad_user.end_date:
-                        ad_end = ad_user.end_date
-                    else:
-                        ad_end = "None"
-                    logger.info(
-                        f"User {uuid} has AD end date: {ad_end} and MO end date: "
-                        f"{end_dates_to_fix[uuid]}"
-                    )
-
-        return end_dates_to_fix
+        return result
 
 
 class UpdateEndDate(AD):
