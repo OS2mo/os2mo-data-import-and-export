@@ -229,12 +229,18 @@ def test_unset_repr_is_constant(unset: Unset):
         },
     ],
 )
-def test_get_employee_end_date(eng):
+def test_get_end_date(eng):
     mo_engagement_date_source = MOEngagementDateSource(_get_mock_graphql_session(eng))
-    known_latest_date = datetime.date(2023, 9, 2)
-    found_latest_date = mo_engagement_date_source.get_employee_end_date(MO_UUID)
-    print(found_latest_date)
-    assert found_latest_date == known_latest_date
+    expected_latest_date = datetime.date(2023, 9, 2)
+    actual_latest_date = mo_engagement_date_source.get_end_date(MO_UUID).date()
+    assert actual_latest_date == expected_latest_date
+
+
+def test_get_end_date_returns_unset_on_no_engagements():
+    mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session(engagement_objects())
+    )
+    assert mo_engagement_date_source.get_end_date(MO_UUID) == Unset()
 
 
 @pytest.mark.parametrize(
@@ -350,14 +356,6 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements():
     assert actual_result == expected_result
 
 
-def test_get_employee_end_date_raises_keyerror_on_no_engagements():
-    mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session({"engagements": []})
-    )
-    with pytest.raises(KeyError):
-        mo_engagement_date_source.get_employee_end_date(MO_UUID)
-
-
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @pytest.mark.parametrize(
     "mock_ad_enddate_source,expected_result",
@@ -375,7 +373,7 @@ def test_get_employee_end_date_raises_keyerror_on_no_engagements():
         (_MockADEndDateSourceMatchingADUserWrongEndDate(), {MO_UUID: "2022-12-31"}),
     ],
 )
-def test_get_end_dates_to_fix(
+def test_get_changes_single_end_date(
     mock_create_session,  # patch(...)
     mock_mo_engagement_date_source: MOEngagementDateSource,  # pytest fixture
     mock_ad_enddate_source: ADEndDateSource,  # pytest parametrize, arg 0
@@ -385,7 +383,10 @@ def test_get_end_dates_to_fix(
         mock_mo_engagement_date_source,
         mock_ad_enddate_source,
     )
-    actual_result = instance.get_end_dates_to_fix(True)
+    actual_result = {
+        ad_user_end_date.mo_uuid: new_end_date.strftime("%Y-%m-%d")
+        for ad_user_end_date, new_end_date in instance.get_changes()
+    }
     assert actual_result == expected_result
 
 
@@ -398,7 +399,7 @@ def test_get_end_dates_to_fix_handles_keyerror(
         mock_mo_engagement_date_source_raising_keyerror,
         _MockADEndDateSourceMatchingADUser(),
     )
-    assert instance.get_end_dates_to_fix(True) == {}
+    assert list(instance.get_changes()) == []
 
 
 @pytest.mark.parametrize(
@@ -444,54 +445,38 @@ def test_get_update_cmd(mock_session, uuid, enddate):
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-@given(end_dates_to_fix=st.dictionaries(st.text(min_size=1), st.text() | st.none()))
-def test_update_all(mock_session, end_dates_to_fix: dict):
+@given(st.lists(st.tuples(st.builds(ADUserEndDate), st.datetimes()), max_size=10))
+def test_run_all(mock_session, changes: list):
     u = _TestableUpdateEndDate()
-    retval = u.update_all(
-        end_dates_to_fix,
-        AD_UUID_FIELD,
-        ENDDATE_FIELD,
-        True,  # `print_commands`
-        False,  # `dry_run`
-    )
-    assert len(retval) == len(end_dates_to_fix)
+    retval = u.run_all(changes, AD_UUID_FIELD)
+    assert len(retval) == len(changes)
     for ps_script, ps_result in retval:
         assert "Set-ADUser" in ps_script
         assert ps_result == {}
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-def test_update_all_logs_results_and_errors(mock_session, caplog):
-    end_dates_to_fix = {"mock_uuid": "mock_end_date"}
+def test_run_all_logs_results_and_errors(mock_session, caplog):
+    mock_changes = [
+        (ADUserEndDate(MO_UUID, ENDDATE_FIELD, "2022-01-01"), dt("2022-06-01"))
+    ]
     u = _TestableUpdateEndDateReturningError()
-    with caplog.at_level(logging.INFO):
-        u.update_all(
-            end_dates_to_fix,
-            AD_UUID_FIELD,
-            ENDDATE_FIELD,
-            True,  # `print_commands`
-            False,  # `dry_run`
-        )
+    with caplog.at_level(logging.DEBUG):
+        u.run_all(mock_changes, AD_UUID_FIELD)
     assert len(caplog.records) == 5
-    assert caplog.records[0].message == "Command to run: "
-    assert "Set-ADUser" in caplog.records[1].message  # command itself
-    assert caplog.records[2].message.startswith("Result: ")  # command result
-    assert caplog.records[3].message.endswith("users end dates corrected")
+    assert "Updating AD user" in caplog.records[0].message
+    assert "Set-ADUser" in caplog.records[1].message  # command itself is logged
+    assert "AD error response" in caplog.records[2].message  # error from AD is logged
+    assert caplog.records[3].message == "0 users end dates corrected"
     assert caplog.records[4].message == "All end dates are fixed"
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-def test_update_all_dry_run(mock_session):
-    end_dates_to_fix = {"mock_uuid": "mock_end_date"}
+@given(st.lists(st.tuples(st.builds(ADUserEndDate), st.datetimes()), min_size=1, max_size=1))
+def test_run_all_supports_dry_run(mock_session, changes: list):
     u = _TestableUpdateEndDate()
-    retval = u.update_all(
-        end_dates_to_fix,
-        AD_UUID_FIELD,
-        ENDDATE_FIELD,
-        False,  # `print_commands`
-        True,  # `dry_run`
-    )
-    assert len(retval) == len(end_dates_to_fix)
+    retval = u.run_all(changes, AD_UUID_FIELD, dry=True)
+    assert len(retval) == len(changes)
     ps_script, ps_result = retval[0]
     assert "Set-ADUser" in ps_script
     assert ps_result == "<dry run>"

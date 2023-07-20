@@ -89,12 +89,15 @@ class MOEngagementDateSource:
             return Unset()
         else:
             parsed_validities = self._parse_validities(engagements)
-            return max(
-                (validity[1] for validity in parsed_validities),
-                key=lambda end_datetime: self._fold_in_utc(
-                    end_datetime, datetime.datetime.max
-                ),
-            )
+            if parsed_validities:
+                return max(
+                    (validity[1] for validity in parsed_validities),
+                    key=lambda end_datetime: self._fold_in_utc(
+                        end_datetime, datetime.datetime.max
+                    ),
+                )
+            else:
+                return Unset()
 
     def get_split_end_dates(
         self, uuid: str
@@ -283,7 +286,13 @@ class CompareEndDate:
         for ad_user, mo_value in self.get_results():
             ad_value = ad_user.normalized_value
             mo_value = mo_value or self._max_date
-            if ad_value != mo_value:
+            if mo_value == Unset():
+                logger.info(
+                    "MO user %r: skipping %r update as MO value is unset",
+                    ad_user.mo_uuid,
+                    ad_user.field_name,
+                )
+            elif ad_value != mo_value:
                 yield ad_user, mo_value
             else:
                 logger.info(
@@ -329,31 +338,33 @@ class UpdateEndDate(AD):
         self,
         changes: Iterator[tuple[ADUserEndDate, datetime.datetime]],
         uuid_field: str,
-    ):
+        dry: bool = False,
+    ) -> list[tuple[str, dict]]:
         changes = tqdm(list(changes))
         num_changes = 0
+        retval = []
 
         for ad_user, mo_value in changes:
-            if mo_value == Unset():
-                logger.debug(
-                    "skipping %r %r as it is unset", ad_user.mo_uuid, ad_user.field_name
-                )
+            cmd = self.get_update_cmd(
+                uuid_field,
+                ad_user.mo_uuid,
+                ad_user.field_name,
+                mo_value.strftime("%Y-%m-%d"),
+            )
+            logger.info(
+                "Updating AD user %r, %r = %r",
+                ad_user.mo_uuid,
+                ad_user.field_name,
+                mo_value.strftime("%Y-%m-%d"),
+            )
+            logger.debug(cmd)
+            if dry:
+                retval.append((cmd, "<dry run>"))
             else:
-                cmd = self.get_update_cmd(
-                    uuid_field,
-                    ad_user.mo_uuid,
-                    ad_user.field_name,
-                    mo_value.strftime("%Y-%m-%d"),
-                )
-                logger.info(
-                    "Updating AD user %r, %r = %r",
-                    ad_user.mo_uuid,
-                    ad_user.field_name,
-                    mo_value.strftime("%Y-%m-%d"),
-                )
                 result = self.run(cmd)
+                retval.append((cmd, result))
                 if result != {}:
-                    raise Exception(result)
+                    logger.error("AD error response %r", result)
                 else:
                     num_changes += 1
 
