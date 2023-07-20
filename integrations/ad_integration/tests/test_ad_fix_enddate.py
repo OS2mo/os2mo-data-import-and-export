@@ -10,7 +10,6 @@ from hypothesis import given
 from hypothesis import HealthCheck
 from hypothesis import settings
 from hypothesis import strategies as st
-from ramodels.mo import Validity
 
 from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
@@ -100,12 +99,13 @@ def dt(val: str):
     return datetime.datetime.fromisoformat(val).astimezone()
 
 
-def validity(start, end) -> dict:
-    obj = Validity(**{"from": start, "to": end})
+def validity(start: str, end: str | None) -> dict:
+    from_date = dt(start)
+    to_date = dt(end) if end else None
     return {
         "validity": {
-            "from": str(obj.from_date),
-            "to": str(obj.to_date) if obj.to_date else None,
+            "from": str(from_date),
+            "to": str(to_date) if to_date else None,
         }
     }
 
