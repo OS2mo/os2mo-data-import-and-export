@@ -107,45 +107,27 @@ class MOEngagementDateSource:
         ]
         return max(end_dates)
 
-    def split_engagement_dates(self, uuid: str):
-        def from_iso_or_none(val: str) -> datetime.datetime | None:
-            try:
-                return datetime.datetime.fromisoformat(val)
-            except (TypeError, ValueError):
-                logger.debug(
-                    "%r is not a valid ISO datetime (MO user UUID = %r)",
-                    val,
-                    uuid,
-                )
-                return None
+    def get_end_date(self, uuid: str) -> datetime.datetime | Unset:
+        try:
+            engagements = self.get_employee_engagement_dates(uuid)
+        except KeyError:
+            return Unset()
+        else:
+            parsed_validities = self._parse_validities(engagements)
+            return max(validity[1] for validity in parsed_validities)
 
-        def fold_in_utc(val: datetime.datetime | None, default: datetime.datetime):
-            return (
-                val.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-                if val is not None
-                else default
-            )
-
-        def _parse(
-            validity: dict,
-        ) -> tuple[datetime.datetime | None, datetime.datetime | None]:
-            start = from_iso_or_none(validity["from"])
-            end = from_iso_or_none(validity["to"])
-            folded_start = fold_in_utc(start, datetime.datetime.min)
-            folded_end = fold_in_utc(end, datetime.datetime.max)
-            assert folded_start <= folded_end
-            return start, end
-
+    def get_split_end_dates(self, uuid: str) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
         def _split(validity):
             local_date = datetime.datetime.now().astimezone().date()
-            start_date = fold_in_utc(validity[0], datetime.datetime.min).date()
+            start_date = self._fold_in_utc(validity[0], datetime.datetime.min).date()
             return start_date > local_date
 
-        parsed_validities = [
-            _parse(obj["validity"])
-            for engagement in self.get_employee_engagement_dates(uuid)
-            for obj in engagement["objects"]
-        ]
+        try:
+            engagements = self.get_employee_engagement_dates(uuid)
+        except KeyError:
+            return Unset(), Unset()
+
+        parsed_validities = self._parse_validities(engagements)
 
         # Split by whether the engagement *starts* in the future, or not
         current, future = partition(_split, parsed_validities)
@@ -153,14 +135,14 @@ class MOEngagementDateSource:
         # Sort by validity end - validity with latest end appears first in list
         current = sorted(
             current,
-            key=lambda validity: fold_in_utc(validity[1], datetime.datetime.max),
+            key=lambda validity: self._fold_in_utc(validity[1], datetime.datetime.max),
             reverse=True,
         )
 
         # Sort by validity start - validity with earliest start appears first in list
         future = sorted(
             future,
-            key=lambda validity: fold_in_utc(validity[0], datetime.datetime.min),
+            key=lambda validity: self._fold_in_utc(validity[0], datetime.datetime.min),
             reverse=False,
         )
 
@@ -174,7 +156,45 @@ class MOEngagementDateSource:
             # Return only end date of earliest future validity
             return Unset(), future[0][1]
 
-        raise Exception("unhandled fall-through case")
+        return Unset(), Unset()  # no engagements at all
+
+    def _fold_in_utc(
+        self,
+        val: datetime.datetime | None,
+        default: datetime.datetime,
+    ) -> datetime.datetime:
+        return (
+            val.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+            if val is not None
+            else default
+        )
+
+    def _parse_validities(
+        self,
+        engagements
+    ) -> list[tuple[datetime.datetime, datetime.datetime]]:
+        def from_iso_or_none(val: str) -> datetime.datetime | None:
+            if val:
+                maybe_naive_dt = datetime.datetime.fromisoformat(val)
+                return maybe_naive_dt.astimezone()
+
+        def _parse(
+            validity: dict,
+        ) -> tuple[datetime.datetime | None, datetime.datetime | None]:
+            start = from_iso_or_none(validity["from"])
+            end = from_iso_or_none(validity["to"])
+            folded_start = self._fold_in_utc(start, datetime.datetime.min)
+            folded_end = self._fold_in_utc(end, datetime.datetime.max)
+            assert folded_start <= folded_end
+            return start, end
+
+        parsed_validities = [
+            _parse(obj["validity"])
+            for engagement in engagements
+            for obj in engagement["objects"]
+        ]
+
+        return parsed_validities
 
 
 @dataclass

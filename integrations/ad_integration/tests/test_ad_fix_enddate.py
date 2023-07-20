@@ -303,20 +303,21 @@ def test_get_employee_end_date(eng):
         ),
     ],
 )
-def test_split_engagement_dates(mock_response, expected_split):
+def test_get_split_end_dates(mock_response, expected_split):
     mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session(mock_response), 0
+        _get_mock_graphql_session(mock_response)
     )
-    actual_split = mo_engagement_date_source.split_engagement_dates(MO_UUID)
+    actual_split = mo_engagement_date_source.get_split_end_dates(MO_UUID)
     assert actual_split == expected_split
 
 
-def test_split_engagement_dates_raises_exception_on_no_engagements():
+def test_get_split_end_dates_returns_unset_tuple_on_no_engagements():
     mock_mo_engagement_date_source = MOEngagementDateSource(
         _get_mock_graphql_session(engagement_objects())
     )
-    with pytest.raises(Exception):
-        mock_mo_engagement_date_source.split_engagement_dates(MO_UUID)
+    expected_result = Unset(), Unset()
+    actual_result = mock_mo_engagement_date_source.get_split_end_dates(MO_UUID)
+    assert actual_result == expected_result
 
 
 def test_get_employee_end_date_raises_keyerror_on_no_engagements():
