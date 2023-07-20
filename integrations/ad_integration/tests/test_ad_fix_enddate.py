@@ -14,6 +14,7 @@ from hypothesis import strategies as st
 from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import cli
+from ..ad_fix_enddate import Invalid
 from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import Unset
@@ -42,28 +43,28 @@ class _MockADEndDateSource(ADEndDateSource):
         # `ADParameterReader` instance.
         pass
 
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+    def __iter__(self) -> Iterator[ADUserEndDate]:
         raise NotImplementedError("must be implemented by subclass")
 
 
 class _MockADEndDateSourceNoMatchingADUser(_MockADEndDateSource):
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
+    def __iter__(self) -> Iterator[ADUserEndDate]:
         return iter([])
 
 
 class _MockADEndDateSourceMatchingADUser(_MockADEndDateSource):
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
-        yield ADUserEndDate(MO_UUID, None)
+    def __iter__(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, None)
 
 
 class _MockADEndDateSourceMatchingADUserAndEndDate(_MockADEndDateSource):
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
-        yield ADUserEndDate(MO_UUID, "2022-12-31")
+    def __iter__(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, "2022-12-31")
 
 
 class _MockADEndDateSourceMatchingADUserWrongEndDate(_MockADEndDateSource):
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
-        yield ADUserEndDate(MO_UUID, "2023-01-01")
+    def __iter__(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, "2023-01-01")
 
 
 class _TestableCompareEndDate(CompareEndDate):
@@ -74,6 +75,7 @@ class _TestableCompareEndDate(CompareEndDate):
     ):
         super().__init__(
             ENDDATE_FIELD,
+            None,  # enddate_field_future
             mo_engagement_date_source,
             ad_end_date_source,
         )
@@ -374,7 +376,10 @@ def test_get_end_dates_to_fix_handles_keyerror(
     "reader,expected_result",
     [
         (MockADParameterReader(), []),
-        (MockADParameterReaderWithMOUUID(), [ADUserEndDate(MO_UUID, None)]),
+        (
+            MockADParameterReaderWithMOUUID(),
+            [ADUserEndDate(MO_UUID, ENDDATE_FIELD, Invalid())],
+        ),
     ],
 )
 def test_ad_end_date_source(
@@ -384,8 +389,13 @@ def test_ad_end_date_source(
         "integrations.ad_integration.ad_fix_enddate.ADParameterReader",
         return_value=reader,
     ):
-        instance = ADEndDateSource(AD_UUID_FIELD, ENDDATE_FIELD, settings=TEST_SETTINGS)
-        actual_result = list(instance.get_all_matching_mo())
+        instance = ADEndDateSource(
+            AD_UUID_FIELD,
+            ENDDATE_FIELD,
+            None,  # enddate_field_future
+            settings=TEST_SETTINGS,
+        )
+        actual_result = list(instance.of_all_users())
         assert actual_result == expected_result
 
 

@@ -9,6 +9,7 @@ import httpx
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
 from gql import gql
+from more_itertools import one
 from more_itertools import partition
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_setting
@@ -29,12 +30,16 @@ logger = logging.getLogger(__name__)
 
 class Unset:
     def __repr__(self) -> str:
-        return "Unset()"
+        return f"{self.__class__.__name__}()"
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, Unset):
+        if isinstance(other, self.__class__):
             return True
         return super().__eq__(other)
+
+
+class Invalid(Unset):
+    pass
 
 
 class AdFixEndDateSettings(JobSettings):
@@ -182,19 +187,26 @@ class MOEngagementDateSource:
 @dataclass
 class ADUserEndDate:
     mo_uuid: str
-    end_date: str | None
+    field_name: str
+    field_value: str | None | Invalid
 
 
 class ADEndDateSource:
     def __init__(
-        self, uuid_field: str, enddate_field: str, settings: dict | None = None
+        self,
+        uuid_field: str,
+        enddate_field: str,
+        enddate_field_future: str | None,
+        settings: dict | None = None,
     ):
         self._uuid_field = uuid_field
         self._enddate_field = enddate_field
+        self._enddate_field_future = enddate_field_future
         self._reader = ADParameterReader(all_settings=settings)
+        self._ad_users = []
 
-    def get_all_matching_mo(self) -> Iterator[ADUserEndDate]:
-        for ad_user in self._reader.read_it_all():
+    def __iter__(self) -> Iterator[ADUserEndDate]:
+        for ad_user in self._ad_users:
             if self._uuid_field not in ad_user:
                 click.echo(
                     f"User with {ad_user['ObjectGuid']=} does not have an "
@@ -204,18 +216,44 @@ class ADEndDateSource:
 
             yield ADUserEndDate(
                 ad_user[self._uuid_field],
-                ad_user.get(self._enddate_field, None),
+                self._enddate_field,
+                self._get_case_insensitive(ad_user, self._enddate_field),
             )
+
+            if self._enddate_field_future:
+                yield ADUserEndDate(
+                    ad_user[self._uuid_field],
+                    self._enddate_field_future,
+                    self._get_case_insensitive(ad_user, self._enddate_field_future),
+                )
+
+    def of_all_users(self) -> "ADEndDateSource":
+        self._ad_users = self._reader.read_it_all()
+        return self
+
+    def of_one_user(self, username: str) -> "ADEndDateSource":
+        self._ad_users = [self._reader.read_user(user=username)]
+        return self
+
+    def _get_case_insensitive(self, ad_user: dict, field_name: str) -> str | Invalid:
+        try:
+            return one(
+                (v for k, v in ad_user.items() if k.lower() == field_name.lower())
+            )
+        except ValueError:
+            return Invalid()
 
 
 class CompareEndDate:
     def __init__(
         self,
         enddate_field: str,
+        enddate_field_future: str | None,
         mo_engagement_date_source: MOEngagementDateSource,
         ad_end_date_source: ADEndDateSource,
     ):
-        self.enddate_field = enddate_field
+        self._enddate_field = enddate_field
+        self._enddate_field_future = enddate_field_future
         self._mo_engagement_date_source = mo_engagement_date_source
         self._ad_end_date_source = ad_end_date_source
 
@@ -333,7 +371,15 @@ class UpdateEndDate(AD):
     "--enddate-field",
     default=load_setting("integrations.ad_writer.fixup_enddate_field"),
 )
+@click.option(
+    "--enddate-field-future",
+    default=load_setting("integrations.ad_writer.fixup_enddate_field_future", None),
+)
 @click.option("--uuid-field", default=load_setting("integrations.ad.write.uuid_field"))
+@click.option(
+    "--ad-user",
+    help="If given, update only one AD user (specified by username)",
+)
 @click.option("--dry-run", is_flag=True)
 @click.option("--show-date-diffs", is_flag=True)
 @click.option("--print-commands", is_flag=True)
@@ -344,7 +390,9 @@ class UpdateEndDate(AD):
 @click.option("--auth-server", envvar="AUTH_SERVER", default="http://keycloak")
 def cli(
     enddate_field,
+    enddate_field_future,
     uuid_field,
+    ad_user,
     dry_run,
     show_date_diffs,
     print_commands,
@@ -388,23 +436,27 @@ def cli(
         httpx_client_kwargs={"timeout": None},
     )
 
+    ad_end_date_source = ADEndDateSource(
+        uuid_field,
+        enddate_field,
+        enddate_field_future,
+    )
+    if ad_user:
+        ad_end_date_source = ad_end_date_source.of_one_user(ad_user)
+    else:
+        ad_end_date_source = ad_end_date_source.of_all_users()
+
     with graphql_client as session:
-        mo_engagement_date_source = MOEngagementDateSource(
-            session,
-            pydantic_settings.lookahead_days,
-        )
-        ad_end_date_source = ADEndDateSource(
-            uuid_field,
+        mo_engagement_date_source = MOEngagementDateSource(session, 0)
+        compare = CompareEndDate(
             enddate_field,
-        )
-        c = CompareEndDate(
-            enddate_field,
+            enddate_field_future,
             mo_engagement_date_source,
             ad_end_date_source,
         )
-        end_dates_to_fix = c.get_end_dates_to_fix(show_date_diffs)
-        u = UpdateEndDate()
-        u.update_all(
+        end_dates_to_fix = compare.get_end_dates_to_fix(show_date_diffs)
+        update = UpdateEndDate()
+        update.update_all(
             end_dates_to_fix,
             uuid_field,
             enddate_field,
