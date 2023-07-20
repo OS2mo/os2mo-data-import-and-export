@@ -459,14 +459,33 @@ def test_update_all_dry_run(mock_session):
     assert len(u._ps_scripts_run) == 0
 
 
+def mock_option_default(option, context, **kwargs):
+    if option.name == "auth_server":
+        return "http://keycloak"
+    return None
+
+
+@patch("click.core.Option.get_default", new=mock_option_default)
+@patch("integrations.ad_integration.ad_common.read_settings", return_value={})
+@patch("integrations.ad_integration.ad_common.AD._create_session")
 @patch(
     "integrations.ad_integration.ad_fix_enddate.ADEndDateSource",
     cls=_MockADEndDateSourceNoMatchingADUser,
 )
-def test_cli(mock_ad_end_date_source, caplog):
+@pytest.mark.parametrize(
+    "args",
+    [
+        [],
+        ["--ad-user", "foobar"],
+    ],
+)
+def test_cli(
+    mock_read_settings, mock_create_session, mock_ad_end_date_source, args, caplog
+):
     runner = CliRunner()
     with caplog.at_level(logging.INFO):
-        result = runner.invoke(cli)
-    assert result.exception is None
+        result = runner.invoke(cli, args)
+    if result.exception is not None:
+        raise result.exception
     assert caplog.records[0].message.startswith("Command line args: ")
     assert caplog.records[-1].message == "All end dates are fixed"
