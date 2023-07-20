@@ -7,8 +7,6 @@ from unittest.mock import patch
 import pytest as pytest
 from click.testing import CliRunner
 from hypothesis import given
-from hypothesis import HealthCheck
-from hypothesis import settings
 from hypothesis import strategies as st
 
 from ..ad_fix_enddate import ADEndDateSource
@@ -164,20 +162,6 @@ def test_unset_class_never_equals_other_types(unset: Unset, other: dict | None):
 @given(st.builds(Unset))
 def test_unset_repr_is_constant(unset: Unset):
     assert repr(unset) == "Unset()"
-
-
-@given(date=st.datetimes())
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_to_enddate(date, mock_mo_engagement_date_source):
-    assert mock_mo_engagement_date_source.to_enddate(str(date)) == date.date()
-    assert (
-        mock_mo_engagement_date_source.to_enddate(None)
-        == MOEngagementDateSource._ad_null_date
-    )
-    assert (
-        mock_mo_engagement_date_source.to_enddate("9999-12-31")
-        == MOEngagementDateSource._ad_null_date
-    )
 
 
 @pytest.mark.parametrize(

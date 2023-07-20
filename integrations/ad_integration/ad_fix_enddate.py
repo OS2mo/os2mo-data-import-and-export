@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Iterator
 
 import click
-import dateutil.parser
 import httpx
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
@@ -48,30 +47,8 @@ class AdFixEndDateSettings(JobSettings):
 
 
 class MOEngagementDateSource:
-    _ad_null_date = datetime.date(9999, 12, 31)
-
     def __init__(self, graphql_session: SyncClientSession):
         self._graphql_session: SyncClientSession = graphql_session
-
-    def get_employee_end_date(self, uuid: str) -> datetime.date | None:
-        end_date = self.get_end_date(uuid)
-        if end_date != Unset():
-            return end_date.date()  # type: ignore
-        else:
-            raise KeyError()
-
-    def to_enddate(self, date_str: str | None) -> datetime.date:
-        """
-        Takes a string and converts it to a date, taking into account that when an
-        engagement does not have an end date, MO handles it as None, while AD handles it
-        as "9999-12-31".
-        """
-        if not date_str:
-            return self._ad_null_date
-        end_date = dateutil.parser.parse(date_str).date()
-        if end_date.year == self._ad_null_date.year:
-            return self._ad_null_date
-        return end_date
 
     @retry(
         wait=wait_fixed(5),
@@ -318,15 +295,6 @@ class CompareEndDate:
                     ad_user.field_value,
                 )
 
-    def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
-        result = {}
-
-        for ad_user, new_end_date in self.get_changes():
-            if new_end_date != Unset():
-                result[ad_user.mo_uuid] = new_end_date.strftime("%Y-%m-%d")
-
-        return result
-
 
 class UpdateEndDate(AD):
     def __init__(self, settings=None):
@@ -390,34 +358,6 @@ class UpdateEndDate(AD):
                     num_changes += 1
 
         logger.info("%d users end dates corrected", num_changes)
-        logger.info("All end dates are fixed")
-
-    def update_all(
-        self,
-        end_dates_to_fix,
-        uuid_field: str,
-        end_date_field: str,
-        print_commands: bool = False,
-        dry_run: bool = False,
-    ) -> list:
-        retval = []
-        for uuid, end_date in tqdm(
-            end_dates_to_fix.items(), unit="user", desc="Changing enddate in AD"
-        ):
-            cmd = self.get_update_cmd(uuid_field, uuid, end_date_field, end_date)
-            if print_commands:
-                logger.info("Command to run: ")
-                logger.info(cmd)
-
-            if not dry_run:
-                result = self.run(cmd)
-                if result:
-                    logger.info("Result: %r", result)
-                retval.append((cmd, result))
-            else:
-                retval.append((cmd, "<dry run>"))  # type: ignore
-
-        logger.info("%d users end dates corrected", len(end_dates_to_fix))
         logger.info("All end dates are fixed")
 
         return retval
