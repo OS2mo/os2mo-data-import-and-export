@@ -53,6 +53,13 @@ class MOEngagementDateSource:
     def __init__(self, graphql_session: SyncClientSession):
         self._graphql_session: SyncClientSession = graphql_session
 
+    def get_employee_end_date(self, uuid: str) -> datetime.date | None:
+        end_date: datetime.datetime | Unset = self.get_end_date(uuid)
+        if end_date != Unset():
+            return end_date.date()
+        else:
+            raise KeyError()
+
     def to_enddate(self, date_str: str | None) -> datetime.date:
         """
         Takes a string and converts it to a date, taking into account that when an
@@ -97,15 +104,6 @@ class MOEngagementDateSource:
             raise KeyError("User not found in mo")
 
         return result["engagements"]
-
-    def get_employee_end_date(self, uuid: str) -> datetime.date:
-        engagement_dates = self.get_employee_engagement_dates(uuid)
-        end_dates = [
-            self.to_enddate(obj["validity"]["to"])
-            for engagement in engagement_dates
-            for obj in engagement["objects"]
-        ]
-        return max(end_dates)
 
     def get_end_date(self, uuid: str) -> datetime.datetime | Unset:
         try:
