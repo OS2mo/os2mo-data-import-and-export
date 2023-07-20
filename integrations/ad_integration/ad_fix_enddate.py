@@ -391,8 +391,6 @@ class UpdateEndDate(AD):
     help="If given, update only one AD user (specified by username)",
 )
 @click.option("--dry-run", is_flag=True)
-@click.option("--show-date-diffs", is_flag=True)
-@click.option("--print-commands", is_flag=True)
 @click.option("--mora-base", envvar="MORA_BASE", default="http://mo")
 @click.option("--client-id", envvar="CLIENT_ID", default="dipex")
 @click.option("--client-secret", envvar="CLIENT_SECRET")
@@ -404,8 +402,6 @@ def cli(
     uuid_field,
     ad_user,
     dry_run,
-    show_date_diffs,
-    print_commands,
     mora_base: str,
     client_id: str,
     client_secret: str,
@@ -425,10 +421,9 @@ def cli(
     logger.info(
         f"Command line args:"
         f" end-date-field = {enddate_field},"
+        f" end-date-field-future = {enddate_field_future},"
         f" uuid-field = {uuid_field},"
         f" dry-run = {dry_run},"
-        f" show-date-diffs = {show_date_diffs},"
-        f" print-commands = {print_commands},"
         f" mora-base = {mora_base},"
         f" client-id = {client_id},"
         f" client-secret = not logged,"
@@ -465,7 +460,7 @@ def cli(
             ad_end_date_source,
         )
         update = UpdateEndDate()
-        update.run_all(compare.get_changes(), uuid_field)
+        update.run_all(compare.get_changes(), uuid_field, dry=dry_run)
 
 
 if __name__ == "__main__":

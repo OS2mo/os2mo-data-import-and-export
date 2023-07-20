@@ -626,6 +626,7 @@ def mock_option_default(option, context, **kwargs):
     [
         [],
         ["--ad-user", "foobar"],
+        ["--dry-run"],
     ],
 )
 def test_cli(
