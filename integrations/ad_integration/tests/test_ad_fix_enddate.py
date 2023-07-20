@@ -14,8 +14,8 @@ from hypothesis import strategies as st
 from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import cli
-from ..ad_fix_enddate import Invalid
 from ..ad_fix_enddate import CompareEndDate
+from ..ad_fix_enddate import Invalid
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import Unset
 from ..ad_fix_enddate import UpdateEndDate
@@ -126,7 +126,11 @@ def _get_mock_graphql_session(return_value):
 @pytest.fixture()
 def mock_graphql_session():
     return _get_mock_graphql_session(
-        {"engagements": [{"objects": [{"validity": {"from": "2022-01-01", "to": "2022-12-31"}}]}]}
+        {
+            "engagements": [
+                {"objects": [{"validity": {"from": "2022-01-01", "to": "2022-12-31"}}]}
+            ]
+        }
     )
 
 
@@ -181,18 +185,60 @@ def test_to_enddate(date, mock_mo_engagement_date_source):
     [
         {
             "engagements": [
-                {"objects": [{"validity": {"from": "2020-09-02T00:00:00+02:00", "to": "2021-09-02T00:00:00+02:00"}}]},
-                {"objects": [{"validity": {"from": "2021-09-02T00:00:00+02:00", "to": "2022-09-02T00:00:00+02:00"}}]},
-                {"objects": [{"validity": {"from": "2022-09-02T00:00:00+02:00", "to": "2023-09-02T00:00:00+02:00"}}]},
+                {
+                    "objects": [
+                        {
+                            "validity": {
+                                "from": "2020-09-02T00:00:00+02:00",
+                                "to": "2021-09-02T00:00:00+02:00",
+                            }
+                        }
+                    ]
+                },
+                {
+                    "objects": [
+                        {
+                            "validity": {
+                                "from": "2021-09-02T00:00:00+02:00",
+                                "to": "2022-09-02T00:00:00+02:00",
+                            }
+                        }
+                    ]
+                },
+                {
+                    "objects": [
+                        {
+                            "validity": {
+                                "from": "2022-09-02T00:00:00+02:00",
+                                "to": "2023-09-02T00:00:00+02:00",
+                            }
+                        }
+                    ]
+                },
             ]
         },
         {
             "engagements": [
                 {
                     "objects": [
-                        {"validity": {"from": "2020-09-02T00:00:00+02:00", "to": "2021-09-02T00:00:00+02:00"}},
-                        {"validity": {"from": "2021-09-02T00:00:00+02:00", "to": "2022-09-02T00:00:00+02:00"}},
-                        {"validity": {"from": "2022-09-02T00:00:00+02:00", "to": "2023-09-02T00:00:00+02:00"}},
+                        {
+                            "validity": {
+                                "from": "2020-09-02T00:00:00+02:00",
+                                "to": "2021-09-02T00:00:00+02:00",
+                            }
+                        },
+                        {
+                            "validity": {
+                                "from": "2021-09-02T00:00:00+02:00",
+                                "to": "2022-09-02T00:00:00+02:00",
+                            }
+                        },
+                        {
+                            "validity": {
+                                "from": "2022-09-02T00:00:00+02:00",
+                                "to": "2023-09-02T00:00:00+02:00",
+                            }
+                        },
                     ]
                 }
             ]
@@ -346,10 +392,10 @@ def test_get_employee_end_date_raises_keyerror_on_no_engagements():
     ],
 )
 def test_get_end_dates_to_fix(
-    mock_create_session,
-    mock_mo_engagement_date_source: MOEngagementDateSource,
-    mock_ad_enddate_source: ADEndDateSource,
-    expected_result,
+    mock_create_session,  # patch(...)
+    mock_mo_engagement_date_source: MOEngagementDateSource,  # pytest fixture
+    mock_ad_enddate_source: ADEndDateSource,  # pytest parametrize, arg 0
+    expected_result,  # pytest parametrize, arg 1
 ):
     instance = _TestableCompareEndDate(
         mock_mo_engagement_date_source,

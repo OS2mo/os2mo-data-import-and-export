@@ -54,9 +54,9 @@ class MOEngagementDateSource:
         self._graphql_session: SyncClientSession = graphql_session
 
     def get_employee_end_date(self, uuid: str) -> datetime.date | None:
-        end_date: datetime.datetime | Unset = self.get_end_date(uuid)
+        end_date = self.get_end_date(uuid)
         if end_date != Unset():
-            return end_date.date()
+            return end_date.date()  # type: ignore
         else:
             raise KeyError()
 
@@ -105,16 +105,23 @@ class MOEngagementDateSource:
 
         return result["engagements"]
 
-    def get_end_date(self, uuid: str) -> datetime.datetime | Unset:
+    def get_end_date(self, uuid: str) -> datetime.datetime | None | Unset:
         try:
             engagements = self.get_employee_engagement_dates(uuid)
         except KeyError:
             return Unset()
         else:
             parsed_validities = self._parse_validities(engagements)
-            return max(validity[1] for validity in parsed_validities)
+            return max(
+                (validity[1] for validity in parsed_validities),
+                key=lambda end_datetime: self._fold_in_utc(
+                    end_datetime, datetime.datetime.max
+                ),
+            )
 
-    def get_split_end_dates(self, uuid: str) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
+    def get_split_end_dates(
+        self, uuid: str
+    ) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
         def _split(validity):
             local_date = datetime.datetime.now().astimezone().date()
             start_date = self._fold_in_utc(validity[0], datetime.datetime.min).date()
@@ -168,13 +175,13 @@ class MOEngagementDateSource:
         )
 
     def _parse_validities(
-        self,
-        engagements
-    ) -> list[tuple[datetime.datetime, datetime.datetime]]:
+        self, engagements
+    ) -> list[tuple[datetime.datetime | None, datetime.datetime | None]]:
         def from_iso_or_none(val: str) -> datetime.datetime | None:
             if val:
                 maybe_naive_dt = datetime.datetime.fromisoformat(val)
                 return maybe_naive_dt.astimezone()
+            return None
 
         def _parse(
             validity: dict,
@@ -202,9 +209,11 @@ class ADUserEndDate:
     field_value: str | None | Invalid
 
     @property
-    def normalized_value(self) -> datetime.date | None:
+    def normalized_value(self) -> datetime.datetime | None | Invalid:
+        if self.field_value == Invalid():
+            return Invalid()
         try:
-            return datetime.datetime.fromisoformat(self.field_value).astimezone()
+            return datetime.datetime.fromisoformat(self.field_value).astimezone()  # type: ignore
         except (TypeError, ValueError):
             logger.debug("cannot parse %r as ISO datetime", self.field_value)
             return None
@@ -222,7 +231,7 @@ class ADEndDateSource:
         self._enddate_field = enddate_field
         self._enddate_field_future = enddate_field_future
         self._reader = ADParameterReader(all_settings=settings)
-        self._ad_users = []
+        self._ad_users: list[dict] = []
 
     def __iter__(self) -> Iterator[ADUserEndDate]:
         for ad_user in self._ad_users:
@@ -280,7 +289,9 @@ class CompareEndDate:
     def get_results(self):
         for ad_user in self._ad_end_date_source:
             if self._enddate_field_future:
-                split = self._mo_engagement_date_source.get_split_end_dates(ad_user.mo_uuid)
+                split = self._mo_engagement_date_source.get_split_end_dates(
+                    ad_user.mo_uuid
+                )
                 current_mo_end_date, future_mo_end_date = split
                 if ad_user.field_name == self._enddate_field:
                     yield ad_user, current_mo_end_date
