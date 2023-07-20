@@ -137,14 +137,14 @@ def mock_graphql_session_raising_keyerror():
 
 @pytest.fixture()
 def mock_mo_engagement_date_source(mock_graphql_session):
-    return MOEngagementDateSource(mock_graphql_session, 0)
+    return MOEngagementDateSource(mock_graphql_session)
 
 
 @pytest.fixture()
 def mock_mo_engagement_date_source_raising_keyerror(
     mock_graphql_session_raising_keyerror,
 ):
-    return MOEngagementDateSource(mock_graphql_session_raising_keyerror, 0)
+    return MOEngagementDateSource(mock_graphql_session_raising_keyerror)
 
 
 @given(st.builds(Unset), st.builds(Unset))
@@ -200,9 +200,7 @@ def test_to_enddate(date, mock_mo_engagement_date_source):
     ],
 )
 def test_get_employee_end_date(eng):
-    mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session(eng), 0
-    )
+    mo_engagement_date_source = MOEngagementDateSource(_get_mock_graphql_session(eng))
     known_latest_date = datetime.date(2023, 9, 2)
     found_latest_date = mo_engagement_date_source.get_employee_end_date(MO_UUID)
     print(found_latest_date)
@@ -315,7 +313,7 @@ def test_split_engagement_dates(mock_response, expected_split):
 
 def test_split_engagement_dates_raises_exception_on_no_engagements():
     mock_mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session(engagement_objects()), 0
+        _get_mock_graphql_session(engagement_objects())
     )
     with pytest.raises(Exception):
         mock_mo_engagement_date_source.split_engagement_dates(MO_UUID)
@@ -323,7 +321,7 @@ def test_split_engagement_dates_raises_exception_on_no_engagements():
 
 def test_get_employee_end_date_raises_keyerror_on_no_engagements():
     mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session({"engagements": []}), 0
+        _get_mock_graphql_session({"engagements": []})
     )
     with pytest.raises(KeyError):
         mo_engagement_date_source.get_employee_end_date(MO_UUID)

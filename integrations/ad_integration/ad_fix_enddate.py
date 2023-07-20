@@ -43,8 +43,6 @@ class Invalid(Unset):
 
 
 class AdFixEndDateSettings(JobSettings):
-    lookahead_days = 0
-
     class Config:
         settings_json_prefix = "integrations.ad.write"
 
@@ -52,13 +50,8 @@ class AdFixEndDateSettings(JobSettings):
 class MOEngagementDateSource:
     _ad_null_date = datetime.date(9999, 12, 31)
 
-    def __init__(
-        self,
-        graphql_session: SyncClientSession,
-        lookahead_days: int,
-    ):
+    def __init__(self, graphql_session: SyncClientSession):
         self._graphql_session: SyncClientSession = graphql_session
-        self._lookahead_days = lookahead_days
 
     def to_enddate(self, date_str: str | None) -> datetime.date:
         """
@@ -447,7 +440,7 @@ def cli(
         ad_end_date_source = ad_end_date_source.of_all_users()
 
     with graphql_client as session:
-        mo_engagement_date_source = MOEngagementDateSource(session, 0)
+        mo_engagement_date_source = MOEngagementDateSource(session)
         compare = CompareEndDate(
             enddate_field,
             enddate_field_future,
