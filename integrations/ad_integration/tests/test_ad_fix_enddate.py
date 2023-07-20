@@ -126,7 +126,7 @@ def _get_mock_graphql_session(return_value):
 @pytest.fixture()
 def mock_graphql_session():
     return _get_mock_graphql_session(
-        {"engagements": [{"objects": [{"validity": {"to": "2022-12-31"}}]}]}
+        {"engagements": [{"objects": [{"validity": {"from": "2022-01-01", "to": "2022-12-31"}}]}]}
     )
 
 
@@ -181,18 +181,18 @@ def test_to_enddate(date, mock_mo_engagement_date_source):
     [
         {
             "engagements": [
-                {"objects": [{"validity": {"to": "2021-09-02T00:00:00+02:00"}}]},
-                {"objects": [{"validity": {"to": "2022-09-02T00:00:00+02:00"}}]},
-                {"objects": [{"validity": {"to": "2023-09-02T00:00:00+02:00"}}]},
+                {"objects": [{"validity": {"from": "2020-09-02T00:00:00+02:00", "to": "2021-09-02T00:00:00+02:00"}}]},
+                {"objects": [{"validity": {"from": "2021-09-02T00:00:00+02:00", "to": "2022-09-02T00:00:00+02:00"}}]},
+                {"objects": [{"validity": {"from": "2022-09-02T00:00:00+02:00", "to": "2023-09-02T00:00:00+02:00"}}]},
             ]
         },
         {
             "engagements": [
                 {
                     "objects": [
-                        {"validity": {"to": "2021-09-02T00:00:00+02:00"}},
-                        {"validity": {"to": "2022-09-02T00:00:00+02:00"}},
-                        {"validity": {"to": "2023-09-02T00:00:00+02:00"}},
+                        {"validity": {"from": "2020-09-02T00:00:00+02:00", "to": "2021-09-02T00:00:00+02:00"}},
+                        {"validity": {"from": "2021-09-02T00:00:00+02:00", "to": "2022-09-02T00:00:00+02:00"}},
+                        {"validity": {"from": "2022-09-02T00:00:00+02:00", "to": "2023-09-02T00:00:00+02:00"}},
                     ]
                 }
             ]
