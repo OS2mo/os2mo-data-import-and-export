@@ -185,6 +185,14 @@ def test_unset_repr_is_constant(unset: Unset):
     assert repr(unset) == "Unset()"
 
 
+def test_mo_engagement_date_source_raises_keyerror_on_no_engagements():
+    mock_mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session({"engagements": []})
+    )
+    with pytest.raises(KeyError):
+        mock_mo_engagement_date_source.get_employee_engagement_dates(MO_UUID)
+
+
 @pytest.mark.parametrize(
     "eng",
     [
@@ -368,9 +376,16 @@ def test_get_split_end_dates(mock_response, expected_split):
     assert actual_split == expected_split
 
 
-def test_get_split_end_dates_returns_unset_tuple_on_no_engagements():
+@pytest.mark.parametrize(
+    "engagement_objects",
+    [
+        {"engagements": []},  # no engagements
+        engagement_objects(),  # `engagements` key is present but `objects` is empty
+    ],
+)
+def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_objects):
     mock_mo_engagement_date_source = MOEngagementDateSource(
-        _get_mock_graphql_session(engagement_objects())
+        _get_mock_graphql_session(engagement_objects)
     )
     expected_result = Unset(), Unset()
     actual_result = mock_mo_engagement_date_source.get_split_end_dates(MO_UUID)
