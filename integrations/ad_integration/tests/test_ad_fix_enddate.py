@@ -427,7 +427,7 @@ def test_get_changes_single_end_date(
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-def test_get_end_dates_to_fix_handles_keyerror(
+def test_get_changes_handles_keyerror(
     mock_create_session,
     mock_mo_engagement_date_source_raising_keyerror,
 ):
