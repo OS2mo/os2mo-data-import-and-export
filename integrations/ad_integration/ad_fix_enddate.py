@@ -201,6 +201,14 @@ class ADUserEndDate:
     field_name: str
     field_value: str | None | Invalid
 
+    @property
+    def normalized_value(self) -> datetime.date | None:
+        try:
+            return datetime.datetime.fromisoformat(self.field_value).astimezone()
+        except (TypeError, ValueError):
+            logger.debug("cannot parse %r as ISO datetime", self.field_value)
+            return None
+
 
 class ADEndDateSource:
     def __init__(
@@ -267,6 +275,37 @@ class CompareEndDate:
         self._enddate_field_future = enddate_field_future
         self._mo_engagement_date_source = mo_engagement_date_source
         self._ad_end_date_source = ad_end_date_source
+        self._max_date = datetime.datetime.fromisoformat("9999-12-31").astimezone()
+
+    def get_results(self):
+        for ad_user in self._ad_end_date_source:
+            if self._enddate_field_future:
+                split = self._mo_engagement_date_source.get_split_end_dates(ad_user.mo_uuid)
+                current_mo_end_date, future_mo_end_date = split
+                if ad_user.field_name == self._enddate_field:
+                    yield ad_user, current_mo_end_date
+                if ad_user.field_name == self._enddate_field_future:
+                    yield ad_user, future_mo_end_date
+            else:
+                end_date = self._mo_engagement_date_source.get_end_date(ad_user.mo_uuid)
+                if ad_user.field_name == self._enddate_field:
+                    yield ad_user, end_date
+
+    def get_changes(self):
+        for ad_user, mo_value in self.get_results():
+            ad_value = ad_user.normalized_value
+            mo_value = mo_value or self._max_date
+            if ad_value != mo_value:
+                yield ad_user, mo_value
+            else:
+                logger.info(
+                    "MO user %r: normalized MO and AD values are identical in field %r "
+                    "(values in MO: %r, AD: %r)",
+                    ad_user.mo_uuid,
+                    ad_user.field_name,
+                    mo_value.strftime("%Y-%m-%d"),
+                    ad_user.field_value,
+                )
 
     def get_end_dates_to_fix(self, show_date_diffs: bool) -> dict:
         # Compare AD users to MO users
