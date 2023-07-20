@@ -13,6 +13,7 @@ from ..ad_fix_enddate import ADEndDateSource
 from ..ad_fix_enddate import ADUserEndDate
 from ..ad_fix_enddate import cli
 from ..ad_fix_enddate import CompareEndDate
+from ..ad_fix_enddate import DEFAULT_TIMEZONE
 from ..ad_fix_enddate import Invalid
 from ..ad_fix_enddate import MOEngagementDateSource
 from ..ad_fix_enddate import Unset
@@ -124,7 +125,7 @@ class _TestableUpdateEndDateReturningError(_TestableUpdateEndDate):
 
 
 def dt(val: str):
-    return datetime.datetime.fromisoformat(val).astimezone()
+    return datetime.datetime.fromisoformat(val).astimezone(DEFAULT_TIMEZONE)
 
 
 def validity(start: str, end: str | None) -> dict:

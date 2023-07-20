@@ -8,6 +8,7 @@ from typing import Sequence
 import click
 import httpx
 import sentry_sdk
+from dateutil import tz
 from fastapi.encoders import jsonable_encoder
 from gql import gql
 from more_itertools import one
@@ -27,6 +28,12 @@ from integrations.ad_integration.ad_reader import ADParameterReader
 
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_TIMEZONE = tz.gettz("Europe/Copenhagen")
+
+
+def in_default_tz(val: datetime.datetime) -> datetime.datetime:
+    return val.astimezone(DEFAULT_TIMEZONE)
 
 
 class Unset:
@@ -105,7 +112,7 @@ class MOEngagementDateSource:
         self, uuid: str
     ) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
         def _split(validity):
-            local_date = datetime.datetime.now().astimezone().date()
+            local_date = in_default_tz(datetime.datetime.now()).date()
             start_date = self._fold_in_utc(validity[0], datetime.datetime.min).date()
             return start_date > local_date
 
@@ -162,7 +169,7 @@ class MOEngagementDateSource:
         def from_iso_or_none(val: str) -> datetime.datetime | None:
             if val:
                 maybe_naive_dt = datetime.datetime.fromisoformat(val)
-                return maybe_naive_dt.astimezone()
+                return in_default_tz(maybe_naive_dt)
             return None
 
         def _parse(
@@ -195,7 +202,7 @@ class ADUserEndDate:
         if self.field_value == Invalid():
             return Invalid()
         try:
-            return datetime.datetime.fromisoformat(self.field_value).astimezone()  # type: ignore
+            return in_default_tz(datetime.datetime.fromisoformat(self.field_value))  # type: ignore
         except (TypeError, ValueError):
             logger.debug("cannot parse %r as ISO datetime", self.field_value)
             return Invalid()
@@ -266,7 +273,7 @@ class CompareEndDate:
         self._enddate_field_future = enddate_field_future
         self._mo_engagement_date_source = mo_engagement_date_source
         self._ad_end_date_source = ad_end_date_source
-        self._max_date = datetime.datetime.fromisoformat("9999-12-31").astimezone()
+        self._max_date = in_default_tz(datetime.datetime.fromisoformat("9999-12-31"))
 
     def get_results(self):
         for ad_user in self._ad_end_date_source:
