@@ -346,6 +346,41 @@ class UpdateEndDate(AD):
     def run(self, cmd) -> dict:
         return self._run_ps_script("%s\n%s" % (self._build_user_credential(), cmd))
 
+    def run_all(
+        self,
+        changes: Iterator[tuple[ADUserEndDate, datetime.datetime]],
+        uuid_field: str,
+    ):
+        changes = tqdm(list(changes))
+        num_changes = 0
+
+        for ad_user, mo_value in changes:
+            if mo_value == Unset():
+                logger.debug(
+                    "skipping %r %r as it is unset", ad_user.mo_uuid, ad_user.field_name
+                )
+            else:
+                cmd = self.get_update_cmd(
+                    uuid_field,
+                    ad_user.mo_uuid,
+                    ad_user.field_name,
+                    mo_value.strftime("%Y-%m-%d"),
+                )
+                logger.info(
+                    "Updating AD user %r, %r = %r",
+                    ad_user.mo_uuid,
+                    ad_user.field_name,
+                    mo_value.strftime("%Y-%m-%d"),
+                )
+                result = self.run(cmd)
+                if result != {}:
+                    raise Exception(result)
+                else:
+                    num_changes += 1
+
+        logger.info("%d users end dates corrected", num_changes)
+        logger.info("All end dates are fixed")
+
     def update_all(
         self,
         end_dates_to_fix,
@@ -465,13 +500,8 @@ def cli(
             mo_engagement_date_source,
             ad_end_date_source,
         )
-        end_dates_to_fix = compare.get_end_dates_to_fix(show_date_diffs)
         update = UpdateEndDate()
-        update.update_all(
-            end_dates_to_fix,
-            uuid_field,
-            enddate_field,
-        )
+        update.run_all(compare.get_changes(), uuid_field)
 
 
 if __name__ == "__main__":
