@@ -78,7 +78,7 @@ class _MockADEndDateSourceMatchingADUser(_MockADEndDateSource):
 
 class _MockADEndDateSourceMatchingADUserAndEndDate(_MockADEndDateSource):
     def __iter__(self) -> Iterator[ADUserEndDate]:
-        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, "2022-12-31")
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE)
 
 
 class _MockADEndDateSourceMatchingADUserWrongEndDate(_MockADEndDateSource):
@@ -86,15 +86,22 @@ class _MockADEndDateSourceMatchingADUserWrongEndDate(_MockADEndDateSource):
         yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, "2023-01-01")
 
 
+class _MockADEndDateSourceMatchingADUserWithSplitEndDates(_MockADEndDateSource):
+    def __iter__(self) -> Iterator[ADUserEndDate]:
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE)
+        yield ADUserEndDate(MO_UUID, ENDDATE_FIELD_FUTURE, VALID_AD_DATE_FUTURE)
+
+
 class _TestableCompareEndDate(CompareEndDate):
     def __init__(
         self,
         mo_engagement_date_source: MOEngagementDateSource,
         ad_end_date_source: ADEndDateSource,
+        enddate_field_future: str | None = None,
     ):
         super().__init__(
             ENDDATE_FIELD,
-            None,  # enddate_field_future
+            enddate_field_future,
             mo_engagement_date_source,
             ad_end_date_source,
         )
@@ -147,7 +154,7 @@ def mock_graphql_session():
     return _get_mock_graphql_session(
         {
             "engagements": [
-                {"objects": [{"validity": {"from": "2022-01-01", "to": "2022-12-31"}}]}
+                {"objects": [{"validity": {"from": "2020-01-01", "to": VALID_AD_DATE}}]}
             ]
         }
     )
@@ -392,6 +399,55 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_ob
     assert actual_result == expected_result
 
 
+@pytest.mark.parametrize(
+    "mock_engagements,mock_ad_enddate_source,expected_result",
+    [
+        # Case 1: we are updating only the normal end date in AD, and the user only has
+        # one engagement (in the past.) We should write the end date of that engagement
+        # to the regular end date field in AD.
+        (
+            engagement_objects(validity(VALID_AD_DATE, VALID_AD_DATE)),
+            _MockADEndDateSourceMatchingADUserAndEndDate(),
+            [
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
+                    dt(VALID_AD_DATE),
+                ),
+            ],
+        ),
+        # Case 2: we are updating both the normal and the future end date in AD, and the
+        # user only has one engagement (in the past.) We should write the end date of
+        # that engagement to the regular end date field in AD, and leave the future
+        # end date field in AD unset.
+        (
+            engagement_objects(validity(VALID_AD_DATE, VALID_AD_DATE)),
+            _MockADEndDateSourceMatchingADUserWithSplitEndDates(),
+            [
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
+                    dt(VALID_AD_DATE),
+                ),
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD_FUTURE, VALID_AD_DATE_FUTURE),
+                    Unset(),
+                ),
+            ],
+        ),
+    ],
+)
+def test_get_results(mock_engagements, mock_ad_enddate_source, expected_result):
+    mock_mo_engagement_date_source = MOEngagementDateSource(
+        _get_mock_graphql_session(mock_engagements)
+    )
+    instance = _TestableCompareEndDate(
+        mock_mo_engagement_date_source,
+        mock_ad_enddate_source,
+        enddate_field_future=ENDDATE_FIELD_FUTURE,
+    )
+    actual_result = list(instance.get_results())
+    assert actual_result == expected_result
+
+
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @pytest.mark.parametrize(
     "mock_ad_enddate_source,expected_result",
@@ -403,10 +459,10 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_ob
         (_MockADEndDateSourceMatchingADUserAndEndDate(), {}),
         # If matching AD user exists *but* its AD end date is *blank*, return the MO
         # user UUID and MO end date.
-        (_MockADEndDateSourceMatchingADUser(), {MO_UUID: "2022-12-31"}),
+        (_MockADEndDateSourceMatchingADUser(), {MO_UUID: VALID_AD_DATE}),
         # If matching AD user exists *but* its AD end date is *not up to date*, return
         # the MO user UUID and MO end date.
-        (_MockADEndDateSourceMatchingADUserWrongEndDate(), {MO_UUID: "2022-12-31"}),
+        (_MockADEndDateSourceMatchingADUserWrongEndDate(), {MO_UUID: VALID_AD_DATE}),
     ],
 )
 def test_get_changes_single_end_date(
