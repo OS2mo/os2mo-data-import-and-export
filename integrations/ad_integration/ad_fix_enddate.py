@@ -156,7 +156,7 @@ class MOEngagementDateSource:
 
     def get_split_end_dates(
         self, uuid: str
-    ) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
+    ) -> tuple[datetime.datetime | None | Unset, datetime.datetime | None | Unset]:
         """Return a 2-tuple of (current, future) engagement end dates for a given MO
         user UUID.
         """
@@ -179,13 +179,19 @@ class MOEngagementDateSource:
             # nor the future end date.
             return Unset(), Unset()
 
-        parsed_validities = self._parse_validities(engagements)
+        parsed_validities: list[
+            tuple[datetime.datetime | None, datetime.datetime | None]
+        ] = self._parse_validities(engagements)
 
         # Split by whether the engagement *starts* in the future, or not
+        current: Iterator[tuple[datetime.datetime | None, datetime.datetime | None]]
+        future: Iterator[tuple[datetime.datetime | None, datetime.datetime | None]]
         current, future = partition(_split, parsed_validities)
 
         # Sort by validity end - the validity with the latest end appears first in list
-        current = sorted(
+        current_list: list[
+            tuple[datetime.datetime | None, datetime.datetime | None]
+        ] = sorted(
             current,
             key=lambda validity: self._fold_in_utc(validity[1], datetime.datetime.max),
             reverse=True,
@@ -193,22 +199,26 @@ class MOEngagementDateSource:
 
         # Sort by validity start - the validity with the earliest start appears first in
         # list.
-        future = sorted(
+        future_list: list[
+            tuple[datetime.datetime | None, datetime.datetime | None]
+        ] = sorted(
             future,
             key=lambda validity: self._fold_in_utc(validity[0], datetime.datetime.min),
             reverse=False,
         )
 
-        if current and future:
+        # Check if either `current` or `future` (or both) is a 0-length list, and return
+        # results accordingly.
+        if current_list and future_list:
             # Return end date of the latest current validity and the earliest future
             # validity.
-            return current[0][1], future[0][1]
-        elif current and not future:
+            return current_list[0][1], future_list[0][1]
+        elif current_list and not future_list:
             # Return only end date of the latest current validity
-            return current[0][1], Unset()
-        elif not current and future:
+            return current_list[0][1], Unset()
+        elif not current_list and future_list:
             # Return only end date of the earliest future validity
-            return Unset(), future[0][1]
+            return Unset(), future_list[0][1]
 
         return Unset(), Unset()  # no engagements at all
 
