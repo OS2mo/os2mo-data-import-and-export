@@ -141,17 +141,17 @@ class MOEngagementDateSource:
             engagements = self.get_employee_engagement_dates(uuid)
         except KeyError:
             return Unset()
+
+        parsed_validities = self._parse_validities(engagements)
+        if parsed_validities:
+            return max(
+                (validity[1] for validity in parsed_validities),
+                key=lambda end_datetime: self._fold_in_utc(
+                    end_datetime, datetime.datetime.max
+                ),
+            )
         else:
-            parsed_validities = self._parse_validities(engagements)
-            if parsed_validities:
-                return max(
-                    (validity[1] for validity in parsed_validities),
-                    key=lambda end_datetime: self._fold_in_utc(
-                        end_datetime, datetime.datetime.max
-                    ),
-                )
-            else:
-                return Unset()
+            return Unset()
 
     def get_split_end_dates(
         self, uuid: str
