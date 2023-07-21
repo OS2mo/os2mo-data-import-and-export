@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from typing import Any
 from typing import Iterable
 from typing import Iterator
+from typing import Self
 
 import click
 import httpx
@@ -332,12 +333,12 @@ class ADEndDateSource:
                     self._get_case_insensitive(ad_user, self._enddate_field_future),
                 )
 
-    def of_all_users(self) -> "ADEndDateSource":
+    def of_all_users(self) -> Self:
         """Return `ADEndDateSource` for all AD users"""
         self._ad_users = self._reader.read_it_all()
         return self
 
-    def of_one_user(self, username: str) -> "ADEndDateSource":
+    def of_one_user(self, username: str) -> Self:
         """Return `ADEndDateSource` for a single AD user given by its AD `username`"""
         self._ad_users = [self._reader.read_user(user=username)]
         return self
