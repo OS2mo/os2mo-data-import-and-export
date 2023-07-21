@@ -395,9 +395,10 @@ def export_engagement(
                     primær = 1
                     for bruger in brugere_rows:
                         if bruger["BrugerId"] == employee["uuid"]:
-                            udvidelse_2 = engv["extensions"].get("udvidelse_2")
-                            if udvidelse_2:
-                                bruger["Stilling"] = udvidelse_2
+                            # extension_3 from the job-function-configurator repo.
+                            udvidelse_3 = engv["extensions"].get("udvidelse_3")
+                            if udvidelse_3:
+                                bruger["Stilling"] = udvidelse_3
                             else:
                                 job_function = engv["job_function"]
                                 stilling = lc.classes[job_function]["title"]
