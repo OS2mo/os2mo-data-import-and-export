@@ -416,7 +416,7 @@ class CompareEndDate:
             elif ad_value != mo_value:
                 yield ad_user, mo_value
             else:
-                logger.info(
+                logger.debug(
                     "MO user %r: normalized MO and AD values are identical in field %r "
                     "(values in MO: %r, AD: %r)",
                     ad_user.mo_uuid,
