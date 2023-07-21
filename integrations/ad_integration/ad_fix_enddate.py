@@ -2,8 +2,8 @@ import datetime
 import logging
 from dataclasses import dataclass
 from typing import Any
+from typing import Iterable
 from typing import Iterator
-from typing import Sequence
 
 import click
 import httpx
@@ -291,7 +291,7 @@ class CompareEndDate:
                 if ad_user.field_name == self._enddate_field:
                     yield ad_user, end_date
 
-    def get_changes(self):
+    def get_changes(self) -> Iterator[tuple[ADUserEndDate, datetime.datetime]]:
         for ad_user, mo_value in self.get_results():
             ad_value = ad_user.normalized_value
             mo_value = mo_value or self._max_date
@@ -324,7 +324,7 @@ class UpdateEndDate(AD):
         uuid: str,
         end_date_field: str,
         end_date: str,
-    ):
+    ) -> str:
         cmd_f = """
         Get-ADUser %(complete)s -Filter '%(uuid_field)s -eq "%(uuid)s"' |
         Set-ADUser %(credentials)s -Replace @{%(enddate_field)s="%(end_date)s"} |
@@ -345,7 +345,7 @@ class UpdateEndDate(AD):
 
     def run_all(
         self,
-        changes: Sequence[tuple[ADUserEndDate, datetime.datetime]],
+        changes: Iterable[tuple[ADUserEndDate, datetime.datetime]],
         uuid_field: str,
         dry: bool = False,
     ) -> list[tuple[str, Any]]:
