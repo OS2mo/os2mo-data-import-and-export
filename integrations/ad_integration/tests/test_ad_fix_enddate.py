@@ -16,6 +16,8 @@ from ..ad_fix_enddate import CompareEndDate
 from ..ad_fix_enddate import DEFAULT_TIMEZONE
 from ..ad_fix_enddate import Invalid
 from ..ad_fix_enddate import MOEngagementDateSource
+from ..ad_fix_enddate import NegativeInfinity
+from ..ad_fix_enddate import PositiveInfinity
 from ..ad_fix_enddate import Unset
 from ..ad_fix_enddate import UpdateEndDate
 from ..ad_reader import ADParameterReader
@@ -291,7 +293,7 @@ def test_get_end_date_returns_unset_on_no_engagements():
                 validity("2022-01-01", None),
             ),
             (
-                None,
+                PositiveInfinity(),
                 Unset(),
             ),
         ),
@@ -315,7 +317,7 @@ def test_get_end_date_returns_unset_on_no_engagements():
             ),
             (
                 Unset(),
-                None,
+                PositiveInfinity(),
             ),
         ),
         # Case B2: only future engagements; earliest engagement has an end date
@@ -340,8 +342,8 @@ def test_get_end_date_returns_unset_on_no_engagements():
                 validity("2025-01-01", None),
             ),
             (
-                None,
-                None,
+                PositiveInfinity(),
+                PositiveInfinity(),
             ),
         ),
         # Case C2: engagements in the past, present and future. The latest engagement in
@@ -355,7 +357,7 @@ def test_get_end_date_returns_unset_on_no_engagements():
                 validity("2025-01-01", None),
             ),
             (
-                None,
+                PositiveInfinity(),
                 dt("2024-12-31"),
             ),
         ),
@@ -371,7 +373,7 @@ def test_get_end_date_returns_unset_on_no_engagements():
             ),
             (
                 dt("2022-12-31"),
-                None,
+                PositiveInfinity(),
             ),
         ),
     ],
@@ -403,7 +405,7 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_ob
 @pytest.mark.parametrize(
     "mock_engagements,mock_ad_enddate_source,expected_result",
     [
-        # Case 1: we are updating only the normal end date in AD, and the user only has
+        # Case 1a: we are updating only the normal end date in AD, and the user only has
         # one engagement (in the past.) We should write the end date of that engagement
         # to the regular end date field in AD.
         (
@@ -416,9 +418,22 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_ob
                 ),
             ],
         ),
-        # Case 2: we are updating both the normal and the future end date in AD, and the
-        # user only has one engagement (in the past.) We should write the end date of
-        # that engagement to the regular end date field in AD, and leave the future
+        # Case 1b: we are updating only the normal end date in AD, and the user only has
+        # one engagement (in the past), whose end date is blank. We should write the end
+        # date of that engagement to the regular end date field in AD.
+        (
+            engagement_objects(validity(VALID_AD_DATE, None)),
+            _MockADEndDateSourceMatchingADUserAndEndDate(),
+            [
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
+                    PositiveInfinity(),
+                ),
+            ],
+        ),
+        # Case 2a: we are updating both the normal and the future end date in AD, and
+        # the user only has one engagement (in the past.) We should write the end date
+        # of that engagement to the regular end date field in AD, and leave the future
         # end date field in AD unset.
         (
             engagement_objects(validity(VALID_AD_DATE, VALID_AD_DATE)),
@@ -427,6 +442,24 @@ def test_get_split_end_dates_returns_unset_tuple_on_no_engagements(engagement_ob
                 (
                     ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
                     dt(VALID_AD_DATE),
+                ),
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD_FUTURE, VALID_AD_DATE_FUTURE),
+                    Unset(),
+                ),
+            ],
+        ),
+        # Case 2b: we are updating both the normal and the future end date in AD, and
+        # the user only has one engagement (in the past), whose end date is blank.  We
+        # should write the end date of that engagement to the regular end date field in
+        # AD, and leave the future end date field in AD unset.
+        (
+            engagement_objects(validity(VALID_AD_DATE, None)),
+            _MockADEndDateSourceMatchingADUserWithSplitEndDates(),
+            [
+                (
+                    ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE),
+                    PositiveInfinity(),
                 ),
                 (
                     ADUserEndDate(MO_UUID, ENDDATE_FIELD_FUTURE, VALID_AD_DATE_FUTURE),
@@ -447,6 +480,44 @@ def test_get_results(mock_engagements, mock_ad_enddate_source, expected_result):
     )
     actual_result = list(instance.get_results())
     assert actual_result == expected_result
+
+
+@pytest.mark.parametrize(
+    "input_mo_value,expected_mo_value",
+    [
+        # MO and AD values are identical, yield nothing
+        (dt(VALID_AD_DATE), []),
+        # MO and AD values differ, yield MO value
+        (dt("2023-01-01"), dt("2023-01-01")),
+        # MO value is None, yield "max date"
+        (None, PositiveInfinity().as_datetime()),
+        # MO value is positive infinity, yield its datetime value
+        (PositiveInfinity(), PositiveInfinity().as_datetime()),
+        # MO value is negative infinity, yield its datetime value
+        (NegativeInfinity(), NegativeInfinity().as_datetime()),
+        # MO value is unset, yield nothing
+        (Unset(), []),
+    ],
+)
+def test_get_changes_converts_symbolic_constants(input_mo_value, expected_mo_value):
+    instance = _TestableCompareEndDate(
+        None,  # mo_engagement_date_source, unused in this test
+        None,  # ad_end_date_source, unused in this test
+    )
+    ad_user = ADUserEndDate(MO_UUID, ENDDATE_FIELD, VALID_AD_DATE)
+    # Patch the `get_results` method to return our mock data, so we can test how it is
+    # processed by `get_changes`.
+    with patch.object(
+        instance,
+        "get_results",
+        return_value=((ad_user, mo_value) for mo_value in [input_mo_value]),
+    ):
+        changes = list(instance.get_changes())
+        if expected_mo_value == []:
+            assert len(changes) == 0
+        else:
+            assert len(changes) == 1
+            assert changes[0] == (ad_user, expected_mo_value)
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")

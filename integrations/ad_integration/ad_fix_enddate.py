@@ -59,14 +59,8 @@ def in_default_tz(val: datetime.datetime) -> datetime.datetime:
     return val.astimezone(DEFAULT_TIMEZONE)
 
 
-class Unset:
-    """Represents an end date that should *not* be updated in AD.
-    Typically because the MO user has no engagements at all, or because the MO user has
-    no engagements in the future, or the past/present.
-
-    When encountering an `Unset` end date, the program should not update the matching
-    AD field.
-    """
+class _SymbolicConstant:
+    # Helper class which is always equal to itself
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
@@ -77,12 +71,44 @@ class Unset:
         return super().__eq__(other)
 
 
-class Invalid(Unset):
+class Unset(_SymbolicConstant):
+    """Represents an end date that should *not* be updated in AD.
+    Typically because the MO user has no engagements at all, or because the MO user has
+    no engagements in the future, or the past/present.
+
+    When encountering an `Unset` end date, the program should not update the matching
+    AD field.
+    """
+
+
+class Invalid(_SymbolicConstant):
     """Represents an invalid AD end date, usually due to malformed or unexpected data,
     that cannot be parsed into a `datetime.datetime` object.
     """
 
-    pass
+
+class PositiveInfinity(_SymbolicConstant):
+    """Represents the upper bound of a validity period if MO returns `None`, i.e. the
+    validity period ends at "infinity."
+    """
+
+    def as_datetime(self) -> datetime.datetime:
+        return in_default_tz(datetime.datetime.fromisoformat("9999-12-31"))
+
+
+class NegativeInfinity(_SymbolicConstant):
+    """Represents the lower bound of a validity period if MO returns `None`, i.e. the
+    validity period begins at "-infinity."
+    """
+
+    def as_datetime(self) -> datetime.datetime:
+        return in_default_tz(datetime.datetime.fromisoformat("1930-01-01"))
+
+
+ValidityTuple = tuple[
+    datetime.datetime | NegativeInfinity,  # from
+    datetime.datetime | PositiveInfinity,  # to
+]
 
 
 class AdFixEndDateSettings(JobSettings):
@@ -135,7 +161,7 @@ class MOEngagementDateSource:
 
         return result["engagements"]
 
-    def get_end_date(self, uuid: str) -> datetime.datetime | None | Unset:
+    def get_end_date(self, uuid: str) -> datetime.datetime | PositiveInfinity | Unset:
         """Return a single engagement end date for a given MO user UUID"""
 
         try:
@@ -145,18 +171,22 @@ class MOEngagementDateSource:
 
         parsed_validities = self._parse_validities(engagements)
         if parsed_validities:
-            return max(
+            end_date: datetime.datetime | PositiveInfinity = max(
                 (validity[1] for validity in parsed_validities),
                 key=lambda end_datetime: self._fold_in_utc(
                     end_datetime, datetime.datetime.max
                 ),
             )
+            return end_date
         else:
             return Unset()
 
     def get_split_end_dates(
         self, uuid: str
-    ) -> tuple[datetime.datetime | None | Unset, datetime.datetime | None | Unset]:
+    ) -> tuple[
+        datetime.datetime | PositiveInfinity | Unset,
+        datetime.datetime | PositiveInfinity | Unset,
+    ]:
         """Return a 2-tuple of (current, future) engagement end dates for a given MO
         user UUID.
         """
@@ -179,19 +209,15 @@ class MOEngagementDateSource:
             # nor the future end date.
             return Unset(), Unset()
 
-        parsed_validities: list[
-            tuple[datetime.datetime | None, datetime.datetime | None]
-        ] = self._parse_validities(engagements)
+        parsed_validities: list[ValidityTuple] = self._parse_validities(engagements)
 
         # Split by whether the engagement *starts* in the future, or not
-        current: Iterator[tuple[datetime.datetime | None, datetime.datetime | None]]
-        future: Iterator[tuple[datetime.datetime | None, datetime.datetime | None]]
+        current: Iterator[ValidityTuple]
+        future: Iterator[ValidityTuple]
         current, future = partition(_split, parsed_validities)
 
         # Sort by validity end - the validity with the latest end appears first in list
-        current_list: list[
-            tuple[datetime.datetime | None, datetime.datetime | None]
-        ] = sorted(
+        current_list: list[ValidityTuple] = sorted(
             current,
             key=lambda validity: self._fold_in_utc(validity[1], datetime.datetime.max),
             reverse=True,
@@ -199,9 +225,7 @@ class MOEngagementDateSource:
 
         # Sort by validity start - the validity with the earliest start appears first in
         # list.
-        future_list: list[
-            tuple[datetime.datetime | None, datetime.datetime | None]
-        ] = sorted(
+        future_list: list[ValidityTuple] = sorted(
             future,
             key=lambda validity: self._fold_in_utc(validity[0], datetime.datetime.min),
             reverse=False,
@@ -224,35 +248,39 @@ class MOEngagementDateSource:
 
     def _fold_in_utc(
         self,
-        val: datetime.datetime | None,
+        val: datetime.datetime | None | PositiveInfinity | NegativeInfinity,
         default: datetime.datetime,
     ) -> datetime.datetime:
         # Fold in UTC as `datetime.datetime.max` and `datetime.datetime.min` cannot be
         # converted into other timezones without surprising issues.
         return (
-            val.astimezone(datetime.timezone.utc).replace(tzinfo=None)
-            if val is not None
-            else default
+            default
+            if val in (None, PositiveInfinity(), NegativeInfinity())
+            else val.astimezone(datetime.timezone.utc).replace(tzinfo=None)  # type: ignore
         )
 
-    def _parse_validities(
-        self, engagements
-    ) -> list[tuple[datetime.datetime | None, datetime.datetime | None]]:
+    def _parse_validities(self, engagements) -> list[ValidityTuple]:
         """Convert validities from string values to 2-tuple of `datetime.datetime`
         objects.
         """
 
-        def from_iso_or_none(val: str) -> datetime.datetime | None:
+        def _from_iso_or_none(val: str, none: PositiveInfinity | NegativeInfinity):
             if val:
                 maybe_naive_dt = datetime.datetime.fromisoformat(val)
                 return in_default_tz(maybe_naive_dt)
-            return None
+            # If val is None or '', convert to the `none` value provided by the caller,
+            # either `PositiveInfinity` or `NegativeInfinity`.
+            return none
 
-        def _parse(
-            validity: dict,
-        ) -> tuple[datetime.datetime | None, datetime.datetime | None]:
-            start = from_iso_or_none(validity["from"])
-            end = from_iso_or_none(validity["to"])
+        def _start_from_iso_or_none(val: str) -> datetime.datetime | NegativeInfinity:
+            return _from_iso_or_none(val, NegativeInfinity())
+
+        def _end_from_iso_or_none(val: str) -> datetime.datetime | PositiveInfinity:
+            return _from_iso_or_none(val, PositiveInfinity())
+
+        def _parse(validity: dict) -> ValidityTuple:
+            start = _start_from_iso_or_none(validity["from"])
+            end = _end_from_iso_or_none(validity["to"])
 
             # Sanity check that engagement start is indeed before engagement end
             folded_start = self._fold_in_utc(start, datetime.datetime.min)
@@ -386,9 +414,10 @@ class CompareEndDate:
         self._enddate_field_future = enddate_field_future
         self._mo_engagement_date_source = mo_engagement_date_source
         self._ad_end_date_source = ad_end_date_source
-        self._max_date = in_default_tz(datetime.datetime.fromisoformat("9999-12-31"))
 
-    def get_results(self):
+    def get_results(
+        self,
+    ) -> Iterator[tuple[ADUserEndDate, datetime.datetime | Unset | PositiveInfinity]]:
         """For each AD user end date in `self._ad_end_date_source`, produce the relevant
         MO end date(s).
         """
@@ -416,22 +445,34 @@ class CompareEndDate:
         """
         for ad_user, mo_value in self.get_results():
             ad_value = ad_user.normalized_value
-            mo_value = mo_value or self._max_date
+
+            # Convert `None` to "max date"
+            if mo_value is None:
+                mo_value = PositiveInfinity().as_datetime()
+
+            # Convert `PositiveInfinity` and `NegativeInfinity` to their respective
+            # `datetime.datetime` values.
+            if mo_value in (PositiveInfinity(), NegativeInfinity()):
+                mo_value = mo_value.as_datetime()  # type: ignore
+
             if mo_value == Unset():
+                # If MO value is `Unset`, leave it out of the set of changes
                 logger.info(
                     "MO user %r: skipping %r update as MO value is unset",
                     ad_user.mo_uuid,
                     ad_user.field_name,
                 )
             elif ad_value != mo_value:
-                yield ad_user, mo_value
+                # If MO and AD values differ, include in the list of changes
+                yield ad_user, mo_value  # type: ignore
             else:
+                # MO and AD values must be equal
                 logger.debug(
                     "MO user %r: normalized MO and AD values are identical in field %r "
                     "(values in MO: %r, AD: %r)",
                     ad_user.mo_uuid,
                     ad_user.field_name,
-                    mo_value.strftime("%Y-%m-%d"),
+                    mo_value.strftime("%Y-%m-%d"),  # type: ignore
                     ad_user.field_value,
                 )
 
