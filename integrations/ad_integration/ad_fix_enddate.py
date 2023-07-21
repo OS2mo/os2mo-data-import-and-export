@@ -1,3 +1,25 @@
+"""ad_fix_enddate.py
+
+This program takes engagement end dates from MO and writes them to the corresponding AD
+user.
+
+The program has evolved from a "one-time fix script" to be responsible for all updates
+of end dates in AD. In other words, it has "taken over" writing end dates from
+"mo_to_ad_sync.py" (which is unable to "see" past end dates, as it only considers
+engagements in the present or future, and thus cannot process terminated engagements.)
+
+The program currently supports two modes of operation:
+    a) Writing a single MO end date to a single AD field on each AD user.
+    b) Writing two MO end dates to two AD fields on each AD user.
+
+In the first mode, the end date to write is the latest end date of all engagements found
+for a given MO user.
+
+In the second mode, the engagement end dates are split into two:
+    - the "current" end date is the latest end date occurring in either the past or
+      present.
+    - the "future" end date is the first end date occurring in the future.
+"""
 import datetime
 import logging
 from dataclasses import dataclass
@@ -37,6 +59,14 @@ def in_default_tz(val: datetime.datetime) -> datetime.datetime:
 
 
 class Unset:
+    """Represents an end date that should *not* be updated in AD.
+    Typically because the MO user has no engagements at all, or because the MO user has
+    no engagements in the future, or the past/present.
+
+    When encountering an `Unset` end date, the program should not update the matching
+    AD field.
+    """
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
 
@@ -47,15 +77,26 @@ class Unset:
 
 
 class Invalid(Unset):
+    """Represents an invalid AD end date, usually due to malformed or unexpected data,
+    that cannot be parsed into a `datetime.datetime` object.
+    """
+
     pass
 
 
 class AdFixEndDateSettings(JobSettings):
+    # Currently only used for calling `.start_logging_based_on_settings` in `cli`
+
     class Config:
         settings_json_prefix = "integrations.ad.write"
 
 
 class MOEngagementDateSource:
+    """Fetch engagement dates from MO for a given MO user UUID, and return either:
+    - a single end date (`get_end_date`), or
+    - a current and a future end date (`get_split_end_dates`)
+    """
+
     def __init__(self, graphql_session: SyncClientSession):
         self._graphql_session: SyncClientSession = graphql_session
 
@@ -66,6 +107,8 @@ class MOEngagementDateSource:
         retry=retry_if_exception_type(httpx.HTTPError),
     )
     def get_employee_engagement_dates(self, uuid: str) -> list[dict]:
+        """Fetch all MO engagement validities for a given MO user UUID"""
+
         query = gql(
             """
             query Get_mo_engagements($employees: [UUID!]) {
@@ -92,6 +135,8 @@ class MOEngagementDateSource:
         return result["engagements"]
 
     def get_end_date(self, uuid: str) -> datetime.datetime | None | Unset:
+        """Return a single engagement end date for a given MO user UUID"""
+
         try:
             engagements = self.get_employee_engagement_dates(uuid)
         except KeyError:
@@ -111,14 +156,26 @@ class MOEngagementDateSource:
     def get_split_end_dates(
         self, uuid: str
     ) -> tuple[datetime.datetime | Unset, datetime.datetime | Unset]:
+        """Return a 2-tuple of (current, future) engagement end dates for a given MO
+        user UUID.
+        """
+
         def _split(validity):
+            """Split the set of engagement validities into two partitions:
+            - one partition of past and present engagements.
+            - one partition of future engagements.
+            The split is determined by looking at the "from" part of the validity.
+            """
             local_date = in_default_tz(datetime.datetime.now()).date()
+            # Take either engagement start date, or "negative infinity" if blank
             start_date = self._fold_in_utc(validity[0], datetime.datetime.min).date()
             return start_date > local_date
 
         try:
             engagements = self.get_employee_engagement_dates(uuid)
         except KeyError:
+            # If MO user has no engagements, we should not update neither the current
+            # nor the future end date.
             return Unset(), Unset()
 
         parsed_validities = self._parse_validities(engagements)
@@ -126,14 +183,15 @@ class MOEngagementDateSource:
         # Split by whether the engagement *starts* in the future, or not
         current, future = partition(_split, parsed_validities)
 
-        # Sort by validity end - validity with latest end appears first in list
+        # Sort by validity end - the validity with the latest end appears first in list
         current = sorted(
             current,
             key=lambda validity: self._fold_in_utc(validity[1], datetime.datetime.max),
             reverse=True,
         )
 
-        # Sort by validity start - validity with earliest start appears first in list
+        # Sort by validity start - the validity with the earliest start appears first in
+        # list.
         future = sorted(
             future,
             key=lambda validity: self._fold_in_utc(validity[0], datetime.datetime.min),
@@ -141,13 +199,14 @@ class MOEngagementDateSource:
         )
 
         if current and future:
-            # Return end date of latest current validity and earliest future validity
+            # Return end date of the latest current validity and the earliest future
+            # validity.
             return current[0][1], future[0][1]
         elif current and not future:
-            # Return only end date of latest current validity
+            # Return only end date of the latest current validity
             return current[0][1], Unset()
         elif not current and future:
-            # Return only end date of earliest future validity
+            # Return only end date of the earliest future validity
             return Unset(), future[0][1]
 
         return Unset(), Unset()  # no engagements at all
@@ -157,6 +216,8 @@ class MOEngagementDateSource:
         val: datetime.datetime | None,
         default: datetime.datetime,
     ) -> datetime.datetime:
+        # Fold in UTC as `datetime.datetime.max` and `datetime.datetime.min` cannot be
+        # converted into other timezones without surprising issues.
         return (
             val.astimezone(datetime.timezone.utc).replace(tzinfo=None)
             if val is not None
@@ -166,6 +227,10 @@ class MOEngagementDateSource:
     def _parse_validities(
         self, engagements
     ) -> list[tuple[datetime.datetime | None, datetime.datetime | None]]:
+        """Convert validities from string values to 2-tuple of `datetime.datetime`
+        objects.
+        """
+
         def from_iso_or_none(val: str) -> datetime.datetime | None:
             if val:
                 maybe_naive_dt = datetime.datetime.fromisoformat(val)
@@ -177,9 +242,12 @@ class MOEngagementDateSource:
         ) -> tuple[datetime.datetime | None, datetime.datetime | None]:
             start = from_iso_or_none(validity["from"])
             end = from_iso_or_none(validity["to"])
+
+            # Sanity check that engagement start is indeed before engagement end
             folded_start = self._fold_in_utc(start, datetime.datetime.min)
             folded_end = self._fold_in_utc(end, datetime.datetime.max)
             assert folded_start <= folded_end
+
             return start, end
 
         parsed_validities = [
@@ -193,6 +261,8 @@ class MOEngagementDateSource:
 
 @dataclass
 class ADUserEndDate:
+    """Represents an existing AD end date."""
+
     mo_uuid: str
     field_name: str
     field_value: str | None | Invalid
@@ -209,6 +279,15 @@ class ADUserEndDate:
 
 
 class ADEndDateSource:
+    """Fetch AD end date(s) for one or all AD users.
+
+    In case we are updating more than one AD end date (`enddate_field_future` is set),
+    this class will yield two `ADUserEndDate` instances per AD user.
+
+    In case we are only updating one AD end date  (`enddate_field_future` is None),
+    this class will yield one `ADUserEndDate` instances per AD user.
+    """
+
     def __init__(
         self,
         uuid_field: str,
@@ -220,9 +299,18 @@ class ADEndDateSource:
         self._enddate_field = enddate_field
         self._enddate_field_future = enddate_field_future
         self._reader = ADParameterReader(all_settings=settings)
+
+        # This holds the "raw" result of calling either `ADParameterReader.read_it_all`
+        # (in `of_all_users`), or `ADParameterReader.read_user` (in `of_one_user`.)
         self._ad_users: list[dict] = []
 
     def __iter__(self) -> Iterator[ADUserEndDate]:
+        """Yield one or two `ADUserEndDate` instances for each AD user in
+        `self._ad_users`.
+
+        Iterating over an `ADEndDateSource` only makes sense after calling either
+        `of_all_users` or `of_one_user`.
+        """
         for ad_user in self._ad_users:
             if self._uuid_field not in ad_user:
                 click.echo(
@@ -245,14 +333,23 @@ class ADEndDateSource:
                 )
 
     def of_all_users(self) -> "ADEndDateSource":
+        """Return `ADEndDateSource` for all AD users"""
         self._ad_users = self._reader.read_it_all()
         return self
 
     def of_one_user(self, username: str) -> "ADEndDateSource":
+        """Return `ADEndDateSource` for a single AD user given by its AD `username`"""
         self._ad_users = [self._reader.read_user(user=username)]
         return self
 
     def _get_case_insensitive(self, ad_user: dict, field_name: str) -> str | Invalid:
+        # There may be case inconsistencies in AD field names between the name we ask
+        # for, and the name that is actually returned. E.g. asking for a field name in
+        # all lowercase may return the same field but with a mixed-case name.
+        # This method handles this by treating both field names as lowercase.
+        #
+        # If the field name is not present in the given AD user, an `Invalid` instance
+        # is returned.
         try:
             return one(
                 (v for k, v in ad_user.items() if k.lower() == field_name.lower())
@@ -262,6 +359,11 @@ class ADEndDateSource:
 
 
 class CompareEndDate:
+    """Compares the end dates in `mo_engagement_date_source` and
+    `ad_end_date_source`, and produces a list of changes that need to be made in AD
+    (`get_changes`.)
+    """
+
     def __init__(
         self,
         enddate_field: str,
@@ -276,8 +378,12 @@ class CompareEndDate:
         self._max_date = in_default_tz(datetime.datetime.fromisoformat("9999-12-31"))
 
     def get_results(self):
+        """For each AD user end date in `self._ad_end_date_source`, produce the relevant
+        MO end date(s).
+        """
         for ad_user in self._ad_end_date_source:
             if self._enddate_field_future:
+                # Mode two: we are updating a "current" and "future" end date in AD
                 split = self._mo_engagement_date_source.get_split_end_dates(
                     ad_user.mo_uuid
                 )
@@ -287,11 +393,16 @@ class CompareEndDate:
                 if ad_user.field_name == self._enddate_field_future:
                     yield ad_user, future_mo_end_date
             else:
+                # Mode one: we are updating a single end date in AD
                 end_date = self._mo_engagement_date_source.get_end_date(ad_user.mo_uuid)
                 if ad_user.field_name == self._enddate_field:
                     yield ad_user, end_date
 
     def get_changes(self) -> Iterator[tuple[ADUserEndDate, datetime.datetime]]:
+        """For each pair of (AD user end date, MO end date), compare the two, and
+        produce a "hit" if the AD user end date differs from the MO end date, and thus
+        needs to be updated.
+        """
         for ad_user, mo_value in self.get_results():
             ad_value = ad_user.normalized_value
             mo_value = mo_value or self._max_date
@@ -315,6 +426,10 @@ class CompareEndDate:
 
 
 class UpdateEndDate(AD):
+    """Given a list of changes, perform one or two update commands against AD, to bring
+    the end dates of the AD users up-to-date.
+    """
+
     def __init__(self, settings=None):
         super().__init__(all_settings=settings)
 
@@ -325,6 +440,9 @@ class UpdateEndDate(AD):
         end_date_field: str,
         end_date: str,
     ) -> str:
+        """Return the relevant Powershell update command to update the given end date
+        field in AD with the given value."""
+
         cmd_f = """
         Get-ADUser %(complete)s -Filter '%(uuid_field)s -eq "%(uuid)s"' |
         Set-ADUser %(credentials)s -Replace @{%(enddate_field)s="%(end_date)s"} |
@@ -341,6 +459,7 @@ class UpdateEndDate(AD):
         return cmd
 
     def run(self, cmd) -> dict:
+        """Run a PowerShell command against AD"""
         return self._run_ps_script("%s\n%s" % (self._build_user_credential(), cmd))
 
     def run_all(
@@ -349,6 +468,11 @@ class UpdateEndDate(AD):
         uuid_field: str,
         dry: bool = False,
     ) -> list[tuple[str, Any]]:
+        """Take the output of `CompareEndDate.get_changes` and turn it into update
+        commands. Run the update commands against AD if `dry` is False, or else just log
+        the commands that would have been run.
+        """
+
         changes = tqdm(list(changes))
         num_changes = 0
         retval = []
@@ -415,9 +539,8 @@ def cli(
     auth_realm: str,
     auth_server: str,
 ):
-    """Fix enddates of terminated users.
-    AD-writer does not support writing enddate of a terminated employee,
-    this script finds and corrects the enddate in AD of terminated engagements.
+    """Writes MO engagements end date(s) to one or more fields on the corresponding AD
+    user(s).
     """
     pydantic_settings = AdFixEndDateSettings()
     pydantic_settings.start_logging_based_on_settings()
