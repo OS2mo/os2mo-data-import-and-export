@@ -14,7 +14,6 @@ from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import import ImportHelper  # type: ignore
 from os2mo_data_import.mox_data_types import Itsystem
 
-
 logger = logging.getLogger(__name__)
 
 

@@ -14,7 +14,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import column
 from sqlalchemy.sql import table
-from unidecode import unidecode
 
 from .ad_exceptions import ImproperlyConfigured
 from .ad_reader import ADParameterReader
@@ -305,83 +304,6 @@ class UserNameGenPermutation(UserNameGen):
                 raise ValueError("cannot create username for input %r" % name)
 
         return result
-
-
-class UserNameGenSvendborg(UserNameGen):
-    def __init__(self):
-        super().__init__()
-
-    def create_username(self, name: NameType, dry_run: bool = False) -> str:
-        parts = self._normalize_username(name)
-        username = None
-
-        if len(parts) < 2:
-            raise ValueError("need at least two name parts to generate username")
-        elif len(parts) == 2:
-            username = self._get_username_for_case_a(parts)
-        elif len(parts) > 2:
-            username = self._get_username_for_case_b(parts)
-
-        assert len(username) == 6  # type: ignore
-
-        return username  # type: ignore
-
-    def _normalize_username(self, name: NameType) -> NameType:
-        # ["FirstName", "MiddleName LastName"] -> ["FirstName", "MiddleName", "LastName"]
-        # ["FirstName", "MiddleName-LastName"] -> ["FirstName", "MiddleName", "LastName"]
-        parts = flatten(map(partial(re.split, r"[\-\s+]"), name))
-        # Uppercase each name part
-        parts = map(str.upper, parts)
-        # "Unaccent" any accented letters in each name part
-        parts = map(unidecode, parts)
-        return list(parts)
-
-    def _get_username_for_case_a(self, parts: NameType) -> str:
-        bits = (
-            (3, 3),
-            (2, 4),
-            (4, 2),
-            (5, 1),
-            (1, 5),
-        )
-
-        for p1, p2 in bits:
-            # Pad name parts with one or more 'X' characters if name part is too short
-            # for the given values of `p1` and `p2`.
-            if (len(parts[0]) < p1) or (len(parts[1]) < p2):
-                parts = [parts[0].ljust(p1, "X"), parts[1].ljust(p2, "X")]
-            new_username = "".join([parts[0][:p1], parts[1][:p2]])
-            if not self.is_username_occupied(new_username):
-                self.occupied_names.add(new_username)
-                return new_username
-
-        raise ValueError("could not create unique username (two name parts)")
-
-    def _get_username_for_case_b(self, parts: NameType) -> str:
-        bits = (
-            (3, 0, 3),
-            (2, 2, 2),
-            (2, 0, 4),
-            (4, 0, 2),
-            (3, 1, 2),
-            (2, 1, 3),
-        )
-
-        for p1, p2, p3 in bits:
-            # Pad name parts with one or more 'X' characters if name part is too short
-            # for the given values of `p1`, `p2` and `p3`.
-            if (len(parts[0]) < p1) or (len(parts[1]) < p2) or (len(parts[-1]) < p3):
-                parts = [
-                    parts[0].ljust(p1, "X"),
-                    parts[1].ljust(p2, "X"),
-                    parts[-1].ljust(p3, "X"),
-                ]
-            new_username = "".join([parts[0][:p1], parts[1][:p2], parts[-1][:p3]])
-            if not self.is_username_occupied(new_username):
-                self.occupied_names.add(new_username)
-                return new_username
-
-        raise ValueError("could not create unique username (three or more name parts)")
 
 
 class UserNameSet:

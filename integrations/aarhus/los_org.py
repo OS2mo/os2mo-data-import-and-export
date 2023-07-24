@@ -16,6 +16,7 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 
+import dar_helper
 import los_files
 import payloads as mo_payloads
 import pydantic
@@ -31,9 +32,6 @@ from more_itertools import unzip
 from pydantic import Field
 from pydantic import validator
 from ra_utils.generate_uuid import uuid_generator
-
-from integrations.dar_helper import dar_helper
-
 
 logger = logging.getLogger(__name__)
 

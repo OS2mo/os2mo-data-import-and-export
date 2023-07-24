@@ -10,19 +10,105 @@ Helper class to make a number of pre-defined queries into MO
 """
 import os
 import time
+from functools import lru_cache
+from pathlib import Path
+from typing import Any
+from uuid import UUID
 
-import common_queries as cq
 from anytree import PreOrderIter
+from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.job_settings import JobSettings
+from raclients.graph.client import GraphQLClient
 
-from exporters.common_query_exports.common_graphql import get_managers_for_export
-from exporters.common_query_exports.config import get_common_query_export_settings
-from exporters.common_query_exports.config import setup_gql_client
+import common_queries as cq
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
+
+
+def get_managers_for_export(
+    gql_session: SyncClientSession, org_uuid: list[UUID]
+) -> list[dict[str, Any]]:
+    """
+    Makes a GraphQL call, to retrieve an Organisation Units' manager(s)
+    and all relevant details.
+
+    :args:
+    GraphQL session
+    Organisation Unit uuid.
+
+    :returns:
+    A list with a payload of manager object consisting of: responsibilities,
+    persons name and addresses.
+
+    :example:
+    "[{'objects': [{'employee': [{'addresses': [{'address_type': {'scope': 'EMAIL'},
+                                            'name': 'tracya@kolding.dk'},
+                                           {'address_type': {'scope': 'DAR'},
+                                            'name': 'Finmarken 94, 6000 '
+                                                    'Kolding'},
+                                           {'address_type': {'scope': 'PHONE'},
+                                            'name': '67338448'}],
+                             'name': 'Tracy Andersen'}],
+               'responsibilities': [{'full_name': 'Personale: '
+                                                  'ansættelse/afskedigelse'},
+                                    {'full_name': 'Personale: Sygefravær'},
+                                    {'full_name': 'Ansvar for bygninger og '
+                                                  'arealer'}]}]}]"
+    """
+
+    graphql_query = gql(
+        """
+    query FindManagers($org_unit_uuid: [UUID!]) {
+      managers(org_units: $org_unit_uuid) {
+        objects {
+          responsibilities {
+            full_name
+          }
+          employee {
+            name
+            addresses {
+              address_type {
+                scope
+              }
+              name
+            }
+          }
+        }
+      }
+    }
+      """
+    )
+    response = gql_session.execute(
+        graphql_query, variable_values={"org_unit_uuid": org_uuid}
+    )
+
+    return response["managers"]
+
+
+class CommonQueryExportSettings(JobSettings):
+    # common settings for clients:
+    file_export_path: Path = Path("/opt/docker/os2mo/queries")
+
+
+@lru_cache()
+def get_common_query_export_settings(*args, **kwargs) -> CommonQueryExportSettings:
+    return CommonQueryExportSettings(*args, **kwargs)
+
+
+def setup_gql_client(settings: CommonQueryExportSettings) -> GraphQLClient:
+    return GraphQLClient(
+        url=f"{settings.mora_base}/graphql/v3",
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        auth_realm=settings.auth_realm,
+        auth_server=settings.auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    )
 
 
 def export_udvalg(mh, nodes, filename, fieldnames, org_types):

@@ -1,4 +1,3 @@
-import string
 import unittest
 from typing import Any
 from unittest import mock
@@ -18,7 +17,6 @@ from ..ad_exceptions import ImproperlyConfigured
 from ..user_names import UserNameGen
 from ..user_names import UserNameGenMethod2
 from ..user_names import UserNameGenPermutation
-from ..user_names import UserNameGenSvendborg
 from ..user_names import UserNameSet
 from ..user_names import UserNameSetCSVFile
 from ..user_names import UserNameSetCSVFileSubstring
@@ -850,39 +848,6 @@ class TestUserNameGenPermutation(unittest.TestCase):
     def test_max_iterations(self):
         with self.assertRaises(ValueError):
             self.instance.create_username(["A"])
-
-
-class TestUserNameGenSvendborg(unittest.TestCase):
-    _letters = tuple(string.ascii_letters + "ÆØÅæøå")
-
-    @given(
-        st.one_of(
-            st.lists(st.text(min_size=2, alphabet=_letters), min_size=3),
-            st.lists(st.text(min_size=3, alphabet=_letters), min_size=2),
-        ),
-    )
-    def test_valid_input(self, name):
-        instance = UserNameGenSvendborg()
-        username = instance.create_username(name)
-        self.assertEqual(len(username), 6)
-        self.assertTrue(all(ch.isupper() for ch in username))
-        self.assertTrue(all(ch in string.ascii_uppercase for ch in username))
-
-    def test_raises_exception_on_only_one_name_part(self):
-        instance = UserNameGenSvendborg()
-        with self.assertRaises(ValueError):
-            instance.create_username(["Aa"])
-
-    @parameterized.expand(
-        [
-            (["Aa", "Bb"], "AAXBBX"),  # two name parts
-            (["A", "B", "C"], "AXXCXX"),  # three name parts
-        ]
-    )
-    def test_input_shorter_than_six_chars_is_padded(self, name, expected_username):
-        instance = UserNameGenSvendborg()
-        username = instance.create_username(name)
-        self.assertEqual(username, expected_username)
 
 
 class TestUserNameSet(unittest.TestCase):

@@ -160,44 +160,15 @@ imports_opus_diff_import(){
     ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
 }
 
-imports_sd_update_primary(){
-    echo "updating primary engagements"
-    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
-        # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
-        echo FEJL i updating primary engagements, men kører videre
-    )
-}
-
 
 imports_ad_sync(){
     echo running imports_ad_sync
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
 }
 
-imports_ballerup_apos(){
-    echo running imports_ballerup_apos
-    ${VENV}/bin/python3 integrations/ballerup/ballerup.py
-}
-
-imports_ballerup_udvalg(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/udvalg.log"
-    )
-    echo running imports_ballerup_udvalg
-    ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
-}
-
 imports_ad_group_into_mo(){
     echo running imports_ad_group_into_mo
     ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
-}
-
-imports_kle_online(){
-    BACK_UP_AND_TRUNCATE+=(
-        "${DIPEXAR}/kle_online.log"
-    )
-    echo running imports_kle_online
-    "${VENV}/bin/python3" os2mo_data_import/kle/kle_import.py
 }
 
 imports_aak_los(){
@@ -279,11 +250,6 @@ exports_ad_life_cycle(){
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
-exports_ad_life_cycle_disable_accounts(){
-    echo "running exports_ad_life_cycle_disable_accounts"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --disable-ad-accounts
-}
-
 exports_mo_to_ad_sync(){
     echo "running exports_mo_to_ad_sync"
     ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
@@ -358,15 +324,6 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
-reports_svendborg(){
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
-}
-
-reports_svendborg_engagements(){
-  echo running reports_svendborg_engagements
-  ${VENV}/bin/python3 ${DIPEXAR}/reports/os2mo_new_and_ended_engagement_reports/get_engagements.py
-}
-
 reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
@@ -408,10 +365,6 @@ exports_historic_skip_past_cache_loracache() {
 }
 
 
-reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
-}
-
 reports_sd_db_overview(){
     echo running reports_sd_db_overview
     ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
@@ -419,11 +372,57 @@ reports_sd_db_overview(){
     return $STATUS
 }
 
-# read the run-job script et al
-for module in tools/job-runner.d/*.sh; do
-    #echo sourcing $module
-    source $module
-done
+run-job(){
+    local JOB=$1
+    prometrics-job-start ${JOB}
+    set -o pipefail
+    # Detect if we are running from cron
+    if [ "$TERM" == "dumb" ]; then
+        # Capture both stdout and stderr using "|&" (requires Bash 4+.)
+        # Send stdout and stderr to systemd journal using the identifier given by the "-t" option.
+        # Job output can be retrieved using e.g. "journalctl -t dipex:job-runner.sh:exports_actual_state_export", etc.
+        $JOB |& systemd-cat -t "dipex:job-runner.sh:$JOB"
+    else
+        $JOB
+    fi
+
+    JOB_STATUS=$?
+    prometrics-job-end ${JOB} ${JOB_STATUS}
+    return $JOB_STATUS
+}
+
+prometrics-job-start(){
+    [ -z "${CRON_LOG_PROM_API}" ] && return 0
+    cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/$1/"
+    # TYPE mo_start_time gauge
+    # HELP mo_start_time Unixtime for job start time
+    mo_start_time $(date +%s)
+EOF
+}
+
+prometrics-job-end(){
+    [ -z "${CRON_LOG_PROM_API}" ] && return 0
+    cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/$1"
+    # TYPE mo_end_time gauge
+    # HELP mo_end_time Unixtime for job end time
+    mo_end_time $(date +%s)
+    # TYPE mo_return_code gauge
+    # HELP mo_return_code Return code of job
+    mo_return_code $2
+EOF
+}
+
+prometrics-git(){
+    git_version=$(git describe --tags)
+
+    [ -z "${CRON_LOG_PROM_API}" ] && return 0
+    cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/git/git_version/${git_version}"
+    # TYPE git_info gauge
+    # HELP git_info A metric with a timestamp to sort by, labeled by git_hash, branch and local_changes
+    git_info $(date +%s)
+EOF
+}
+
 
 prometrics-git
 
@@ -441,16 +440,8 @@ imports(){
         run-job imports_test_sd_connectivity || return 2
     fi
 
-    if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
-        run-job imports_sd_fix_departments || return 2
-    fi
-
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         run-job imports_sd_changed_at || return 2
-    fi
-
-    if [ "${RUN_SD_UPDATE_PRIMARY}" == "true" ]; then
-        run-job imports_sd_update_primary || return 2
     fi
 
     if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
@@ -461,20 +452,8 @@ imports(){
         run-job imports_ad_sync || return 2
     fi
 
-    if [ "${RUN_BALLERUP_APOS}" == "true" ]; then
-        run-job imports_ballerup_apos || return 2
-    fi
-
-    if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
-        run-job imports_ballerup_udvalg || return 2
-    fi
-
     if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
         run-job imports_ad_group_into_mo || return 2
-    fi
-
-    if [ "${RUN_KLE_ONLINE}" == "true" ]; then
-        run-job imports_kle_online || return 2
     fi
 
     if [ "${RUN_IMPORTS_AAK_LOS}" == "true" ]; then
@@ -556,10 +535,6 @@ exports(){
         run-job exports_ad_life_cycle &
     fi
 
-    if [ "${RUN_EXPORTS_AD_LIFE_CYCLE_DISABLE_ACCOUNTS}" == "true" ]; then
-        run-job exports_ad_life_cycle_disable_accounts &
-    fi
-
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
         run-job exports_mo_to_ad_sync &
     fi
@@ -574,10 +549,6 @@ exports(){
 
     if [ "${RUN_PLAN2LEARN}" == "true" ]; then
         run-job exports_plan2learn &
-    fi
-
-    if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
-        run-job exports_test &
     fi
 
 }
@@ -599,10 +570,6 @@ reports(){
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
         run-job reports_frederikshavn &
-    fi
-
-    if [ "${RUN_REPORTS_SVENDBORG}" == "true" ]; then
-        run-job reports_svendborg &
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then

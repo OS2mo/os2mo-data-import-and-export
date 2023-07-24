@@ -5,12 +5,14 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
+from operator import itemgetter
 from typing import Dict, List
 
 import jmespath
 import numpy as np
 import pandas as pd
 import xlsxwriter
+import xlsxwriter.worksheet
 from gql import gql
 from more_itertools import prepend
 from pydantic import BaseSettings
@@ -26,7 +28,47 @@ from exporters.sql_export.sql_table_defs import (
     Enhed,
     Tilknytning,
 )
-from reports.XLSXExporter import XLSXExporter
+
+
+class XLSXExporter:
+    """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its
+    content.
+
+    Accepts data in lists of lists where first lists contains the title of the columns,
+    eg:
+    [["Navn", "Email", "Tilknytningstype", "Enhed"]
+    ["Fornavn Efternavn", "email@example.com", "Formand", "Enhed"]]
+    """
+
+    def __init__(self, xlsx_file: str):
+        self.xlsx_file = xlsx_file
+
+    @staticmethod
+    def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
+        for index, row in enumerate(data):
+            worksheet.write_row(index, 0, row)
+
+    @staticmethod
+    def get_column_width(data, field: int):
+        data = filter(itemgetter(field), data)
+        field_length = max(len(row[field]) for row in data)
+        return field_length
+
+    def add_sheet(self, workbook, sheet: str, data: list):
+        worksheet = workbook.add_worksheet(name=sheet)
+        worksheet.autofilter(0, 0, len(data), len(data[0]) - 1)
+
+        for index in range(len(data[0])):
+            worksheet.set_column(
+                index,
+                index,
+                width=self.get_column_width(data, index),
+            )
+
+        bold = workbook.add_format({"bold": 1})
+        worksheet.set_row(0, cell_format=bold)
+
+        self.write_rows(worksheet, data)
 
 
 def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
