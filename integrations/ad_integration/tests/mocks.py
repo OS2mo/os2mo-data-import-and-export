@@ -52,6 +52,7 @@ class MockADParameterReader(TestADWriterMixin):
     def read_user(self, cpr=None, **kwargs):
         def _override_objectguid(ad_person):
             ad_person["ObjectGUID"] = self._mo_uuid
+            ad_person["ObjectGuid"] = self._mo_uuid
             return ad_person
 
         return self._prepare_get_from_ad(ad_transformer=_override_objectguid)
@@ -112,6 +113,17 @@ class MockOnlyCPRADParameterReader(MockADParameterReader):
             return None
         if cpr:
             return super().read_user(cpr=cpr, **kwargs)
+
+
+class MockADParameterReaderWithMOUUID(MockADParameterReader):
+    """Mock an `ADParameterReader` which returns an AD user whose `AD_FIELD_UUID` field
+    contains `MO_UUID`.
+    """
+
+    def read_user(self, **kwargs):
+        ad_user = super().read_user(**kwargs)
+        ad_user[AD_UUID_FIELD] = MO_UUID
+        return ad_user
 
 
 class MockMORESTSource(MORESTSource):
