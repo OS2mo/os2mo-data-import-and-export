@@ -7,21 +7,25 @@ import pandas as pd
 import xlsxwriter
 from openpyxl import load_workbook
 
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Tilknytning
-from reports.query_actualstate import get_engine
-from reports.query_actualstate import list_employees
-from reports.query_actualstate import list_MED_members
-from reports.query_actualstate import map_dynamic_class
-from reports.query_actualstate import merge_dynamic_classes
-from reports.query_actualstate import rearrange
-from reports.query_actualstate import sessionmaker
-from reports.query_actualstate import set_of_org_units
-from reports.query_actualstate import XLSXExporter
+from exporters.sql_export.sql_table_defs import (
+    Adresse,
+    Base,
+    Bruger,
+    Engagement,
+    Enhed,
+    Tilknytning,
+)
+from reports.query_actualstate import (
+    XLSXExporter,
+    get_engine,
+    list_employees,
+    list_MED_members,
+    map_dynamic_class,
+    merge_dynamic_classes,
+    rearrange,
+    sessionmaker,
+    set_of_org_units,
+)
 
 
 class Tests_xlxs(unittest.TestCase):

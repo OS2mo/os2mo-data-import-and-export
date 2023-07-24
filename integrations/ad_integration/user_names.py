@@ -14,7 +14,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import column
 from sqlalchemy.sql import table
-from unidecode import unidecode
 
 from .ad_exceptions import ImproperlyConfigured
 from .ad_reader import ADParameterReader

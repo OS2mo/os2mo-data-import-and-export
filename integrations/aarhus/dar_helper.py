@@ -1,13 +1,15 @@
-from typing import List, Optional, Tuple
-
 import asyncio
 from collections import ChainMap
 from functools import partial
 from operator import itemgetter
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from aiohttp import ClientSession, TCPConnector
-from more_itertools import chunked, unzip
-
+from aiohttp import ClientSession
+from aiohttp import TCPConnector
+from more_itertools import chunked
+from more_itertools import unzip
 from ra_utils.async_to_sync import async_to_sync
 
 
@@ -48,7 +50,7 @@ async def dar_fetch_non_chunked(uuids, addrtype, client=None):
         response.raise_for_status()
         body = await response.json()
 
-        result = {addr['id']: addr for addr in body}
+        result = {addr["id"]: addr for addr in body}
 
         found_uuids = set(map(itemgetter("id"), body))
         missing = set(uuids) - found_uuids
@@ -122,7 +124,9 @@ async def sync_dar_fetch(uuids, addrtype="adresser", chunk_size=150):
 
 
 @ensure_session
-async def dar_datavask(address: str, client: ClientSession) -> Tuple[str, Optional[dict]]:
+async def dar_datavask(
+    address: str, client: ClientSession
+) -> Tuple[str, Optional[dict]]:
     """
     Perform search in DAR using the 'datavask' API
     """
@@ -133,14 +137,16 @@ async def dar_datavask(address: str, client: ClientSession) -> Tuple[str, Option
         result = await response.json()
         # A and B are safe matches, and will only have one result in the array
         # https://dawadocs.dataforsyningen.dk/dok/api/adresse#datavask
-        if result['kategori'] in ['A', 'B']:
-            return address, result['resultater'][0]['adresse']['id']
+        if result["kategori"] in ["A", "B"]:
+            return address, result["resultater"][0]["adresse"]["id"]
 
     return address, None
 
 
 @ensure_session
-async def dar_datavask_multiple(addresses: List[str], client: ClientSession) -> List[Tuple[str, Optional[dict]]]:
+async def dar_datavask_multiple(
+    addresses: List[str], client: ClientSession
+) -> List[Tuple[str, Optional[dict]]]:
     """Perform search in DAR on multiple address strings"""
     tasks = map(partial(dar_datavask, client=client), addresses)
     results = await asyncio.gather(*tasks)
