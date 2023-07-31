@@ -472,15 +472,15 @@ def export_engagement(
                                 continue
                             for bruger in brugere_rows:
                                 if bruger["BrugerId"] == employee["uuid"]:
-                                    if eng["extension_2"]:
-                                        bruger["Stilling"] = eng["extension_2"]
+                                    if eng["extension_3"]:
+                                        bruger["Stilling"] = eng["extension_3"]
                                     else:
                                         bruger["Stilling"] = eng["job_function"]["name"]
                     else:
                         for bruger in brugere_rows:
                             if bruger["BrugerId"] == employee["uuid"]:
-                                if eng["extension_2"]:
-                                    bruger["Stilling"] = eng["extension_2"]
+                                if eng["extension_3"]:
+                                    bruger["Stilling"] = eng["extension_3"]
                                 else:
                                     bruger["Stilling"] = eng["job_function"]["name"]
                 else:
