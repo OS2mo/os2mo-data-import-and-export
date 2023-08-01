@@ -2,6 +2,7 @@ import datetime
 import unittest
 import uuid
 from collections import OrderedDict
+from copy import deepcopy
 from datetime import date
 from datetime import timedelta
 from unittest.mock import call
@@ -762,7 +763,7 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-    @unittest.skip("Will be finished when fix is deployed...")
+    @unittest.skip("WIP...")
     def test_skip_sd_employments_in_skip_list(self):
         """
         Test that SD employments with JobPositionIdentifiers in the skip list
@@ -774,15 +775,7 @@ class Test_sd_changed_at(unittest.TestCase):
             updates={"sd_skip_employment_types": ["1", "2", "3"]}
         )
 
-        # _, read_employment_result = read_employment_fixture(
-        #     cpr="1234569999",
-        #     employment_id="12345",
-        #     job_id="2",  # Found in the skip list
-        #     job_title="Kung Fu Fighter",
-        # )
-        # from pprint import pprint
-        # pprint(read_employment_result)
-        sd_updater.read_employment_changed = lambda: [
+        read_employment_changed = [
             OrderedDict(
                 {
                     "PersonCivilRegistrationIdentifier": "1212129999",
@@ -822,6 +815,7 @@ class Test_sd_changed_at(unittest.TestCase):
             )
         ]
 
+        sd_updater.read_employment_changed = lambda: read_employment_changed
         morahelper = sd_updater.morahelper_mock
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
 
@@ -833,12 +827,13 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.update_all_employments()
 
         # Assert
+        expected_argument = deepcopy(read_employment_changed)
+        from pprint import pprint
 
-        # Since the SD employment has a JobPositionIdentifier in the skip list,
-        # we must ensure that engagements are not created or modified
-        sd_updater.create_new_engagement.assert_not_called()
-        sd_updater.edit_engagement.assert_not_called()
-        sd_updater._terminate_engagement.assert_not_called()
+        pprint(expected_argument)
+        expected_argument[0]["Employment"]["Profession"].pop(0)
+
+        sd_updater.create_new_engagement.assert_called_once_with(expected_argument)
 
     @parameterized.expand([("2021-10-15", "2021-10-15"), ("9999-12-31", None)])
     def test_handle_status_changes_terminates_let_go_employment_status(
