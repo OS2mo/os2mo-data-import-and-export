@@ -508,13 +508,10 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj["primary_uuid"]
-                res_obj.pop("is_primary")
-                if prim:
-                    res_obj["primary_boolean"] = True
-                else:
-                    res_obj["primary_boolean"] = None
-
+                prim = res_obj.pop("primary")
+                res_obj["primary_boolean"] = False
+                if prim and "scope" in prim:
+                    res_obj["primary_boolean"] = int(prim.get("scope")) > 0
             return res
 
         query = """
@@ -525,8 +522,11 @@ class GQLLoraCache:
                         user_key
                         engagement_type_uuid
                         primary_uuid
+                        primary {
+                            user_key
+                            scope
+                        }
                         job_function_uuid
-                        is_primary
                         extension_1
                         extension_2
                         extension_3
