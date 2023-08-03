@@ -147,7 +147,6 @@ def profession(profession, org, job_function_facet):
         facet_uuid=job_function_facet,
         org_uuid=org,
         scope="TEXT",
-        dato="1930-01-01",
     )
     return klasse
 

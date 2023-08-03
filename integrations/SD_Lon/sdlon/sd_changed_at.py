@@ -628,7 +628,7 @@ class ChangeAtSD:
             logger.info(msg)
         return relevant_engagement
 
-    def _create_class(self, payload):
+    def _create_class(self, payload, facet_user_key):
         """Create a new class using the provided class payload.
 
         Args:
@@ -638,7 +638,7 @@ class ChangeAtSD:
             uuid of the newly created class.
         """
         response = requests.post(
-            url=self.settings.mox_base + "/klassifikation/klasse", json=payload
+            url=self.settings.mora_base + f"/service/f/{facet_user_key}/", json=payload
         )
         assert response.status_code == 201
         return response.json()["uuid"]
@@ -651,7 +651,7 @@ class ChangeAtSD:
         payload = sd_payloads.engagement_type(
             engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
         )
-        engagement_type_uuid = self._create_class(payload)
+        engagement_type_uuid = self._create_class(payload, self.engagement_type_facet)
         self.engagement_types[engagement_type_ref] = engagement_type_uuid
 
         self.job_sync.sync_from_sd(job_position, refresh=True)
@@ -664,7 +664,7 @@ class ChangeAtSD:
         payload = sd_payloads.profession(
             job_function, self.org_uuid, self.job_function_facet
         )
-        job_uuid = self._create_class(payload)
+        job_uuid = self._create_class(payload, self.job_function_facet)
         self.job_functions[job_function] = job_uuid
 
         self.job_sync.sync_from_sd(job_position, refresh=True)
