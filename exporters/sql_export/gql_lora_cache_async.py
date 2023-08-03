@@ -98,6 +98,19 @@ def convert_dict(
     return {uuid: replace(query_res, replace_dict)}
 
 
+async def set_primary_boolean(res: dict) -> dict:
+    for res_obj in res["obj"]:
+        if res_obj is None:
+            continue
+        prim = res_obj.pop("primary_uuid")
+        if prim:
+            res_obj["primary_boolean"] = True
+        else:
+            res_obj["primary_boolean"] = None
+
+    return res
+
+
 class GQLLoraCache:
     def __init__(
         self,
@@ -547,6 +560,7 @@ class GQLLoraCache:
                 obj = align_current(obj)
 
             obj = collect_extensions(obj)
+            obj = set_primary_boolean(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.engagements)
 
@@ -608,18 +622,6 @@ class GQLLoraCache:
             insert_obj(obj, self.leaves)
 
     async def _cache_lora_it_connections(self) -> None:
-        async def set_primary_boolean(res: dict) -> dict:
-            for res_obj in res["obj"]:
-                if res_obj is None:
-                    continue
-                prim = res_obj.pop("primary_uuid")
-                if prim:
-                    res_obj["primary_boolean"] = True
-                else:
-                    res_obj["primary_boolean"] = None
-
-            return res
-
         query = """
                         uuid
                         employee_uuid
