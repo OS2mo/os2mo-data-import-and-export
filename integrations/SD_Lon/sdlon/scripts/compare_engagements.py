@@ -152,7 +152,7 @@ def get_mo_engagements(
             },
             "job_function": engagement["current"]["job_function"]["name"],
             "primary": engagement["current"]["primary"]["name"],
-            "org_unit": one(engagement["objects"])["org_unit"]
+            "org_unit": one(one(engagement["objects"])["org_unit"])
         }
         for engagement in r["engagements"]["objects"]
     }
@@ -290,8 +290,6 @@ def main(
 
     # TODO: verify that SD persons have unique cprs
 
-    pprint(sd_employments.Person[0])
-
     gql_client = get_mo_client(
         auth_server, client_id, client_secret, mo_base_url
     )
@@ -312,14 +310,32 @@ def main(
             emp_id = sd_employment.EmploymentIdentifier
             mo_engagement = mo_engagements.pop(emp_id, None)
             if mo_engagement is None:
-                diffs[cpr] = {"sd": sd_employment, "mo": None}
+                diffs[cpr] = {
+                    "sd": sd_employment,
+                    "mo": None,
+                    "mismatches": ["MO eng not found"]
+                }
             sd_ny_dep = sd_dep_map[sd_employment.EmploymentDepartment.DepartmentUUIDIdentifier]
-            match = engagement_match(sd_employment, sd_ny_dep, mo_engagement)
-            if not match:
-                diffs[cpr] = {"sd": sd_employment, "mo": mo_engagement}
-            if mo_engagements:
-                diffs[cpr] = {"sd": None, "mo": mo_engagements}
 
+            pprint(sd_employment)
+            pprint(mo_engagement)
+            print(sd_ny_dep)
+
+            match, mismatches = engagement_match(sd_employment, sd_ny_dep, mo_engagement)
+            if not match:
+                diffs[cpr] = {
+                    "sd": sd_employment,
+                    "mo": mo_engagement,
+                    "mismatches": mismatches
+                }
+            if mo_engagements:
+                diffs[cpr] = {
+                    "sd": None,
+                    "mo": mo_engagements,
+                    "mismatches": mismatches
+                }
+
+    print(diffs)
 
 if __name__ == "__main__":
     main()
