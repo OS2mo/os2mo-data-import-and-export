@@ -99,7 +99,7 @@ def get_NY_level_department_map(
 
 
 def get_mo_engagements(
-    gql_client: GraphQLClient, employee_uuid: UUID
+    gql_client: GraphQLClient, employee_uuid: UUID | None
 ) -> dict[str, dict[str, Any]]:
     """
     Get MO engagements for a given employee.
@@ -111,6 +111,9 @@ def get_mo_engagements(
     Returns:
         List of dicts
     """
+
+    if employee_uuid is None:
+        return {}
 
     query = gql("""
         query GetEngagements($uuid: [UUID!]!) {
@@ -304,7 +307,7 @@ def main(
         sd_employments = sd_person.Employment
         mo_engagements = get_mo_engagements(
             gql_client,
-            mo_cpr_to_uuid_map[cpr]
+            mo_cpr_to_uuid_map.get(cpr, None)
         )
         for sd_employment in sd_employments:
             emp_id = sd_employment.EmploymentIdentifier
