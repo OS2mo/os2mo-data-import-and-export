@@ -79,12 +79,12 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
     r = gql_client.execute(query)
 
     employees = []
-    for employee in r["employees"]:
+    for employee in r["employees"]["objects"]:
         try:
             employees.append(
                 Employee(
-                    cpr_no=one(employee["objects"])["current"]["cpr_no"],
-                    uuid=one(employee["objects"])["uuid"]
+                    cpr_no=employee["current"]["cpr_no"],
+                    uuid=employee["uuid"]
                 )
             )
         except ValueError:
