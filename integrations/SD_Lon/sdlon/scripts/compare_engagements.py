@@ -335,7 +335,10 @@ def main(
                     "mismatches": mismatches
                 }
     for key in diffs.keys():
-        print(diffs[key]["mismatches"])
+        mismatches = diffs[key]["mismatches"]
+        print(mismatches)
+        if not mismatches == ['MO eng not found']:
+            print(diffs[key])
 
 if __name__ == "__main__":
     main()
