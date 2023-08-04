@@ -138,22 +138,23 @@ def get_mo_engagements(
                     }
                 }
             }
+        }
         """)
 
     r = gql_client.execute(query, variable_values={"uuid": str(employee_uuid)})
 
     engagements = {
-        engagement["uuid"]: {
-            "user_key": one(engagement["objects"])["current"]["user_key"],
+        engagement["current"]["user_key"]: {
+            "user_key": engagement["current"]["user_key"],
             "validity": {
-                "from": one(engagement["objects"])["current"]["validity"]["from"],
-                "to": one(engagement["objects"])["current"]["validity"]["to"]
+                "from": engagement["current"]["validity"]["from"],
+                "to": engagement["current"]["validity"]["to"]
             },
-            "job_function": one(engagement["objects"])["current"]["job_function"]["name"],
-            "primary": one(engagement["objects"])["current"]["primary"]["name"],
-            "org_unit": one(one(engagement["objects"])["objects"])["org_unit"]
+            "job_function": engagement["current"]["job_function"]["name"],
+            "primary": engagement["current"]["primary"]["name"],
+            "org_unit": one(engagement["objects"])["org_unit"]
         }
-        for engagement in r["engagements"]
+        for engagement in r["engagements"]["objects"]
     }
     return engagements
 
