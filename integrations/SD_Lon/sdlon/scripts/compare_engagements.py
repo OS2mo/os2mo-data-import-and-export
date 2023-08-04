@@ -87,13 +87,13 @@ def get_NY_level_department_map(
     ]
     afd_to_ny_map = {}
     for dep_ref in afd_dep_refs:
-        ny_level_dep_ref = one(dep_ref.DepartmentReference)
+        parent_dep_ref = one(dep_ref.DepartmentReference)
+        while parent_dep_ref.DepartmentLevelIdentifier in too_deep:
+            parent_dep_ref = one(parent_dep_ref.DepartmentReference)
 
-        # TODO: make proper recursion, but lets just assert for now
-        # as we are in a hurry
-        assert ny_level_dep_ref.DepartmentLevelIdentifier not in too_deep
+        assert parent_dep_ref.DepartmentLevelIdentifier not in too_deep
 
-        afd_to_ny_map[dep_ref.DepartmentUUIDIdentifier] = ny_level_dep_ref.DepartmentUUIDIdentifier
+        afd_to_ny_map[dep_ref.DepartmentUUIDIdentifier] = parent_dep_ref.DepartmentUUIDIdentifier
 
     return afd_to_ny_map
 
