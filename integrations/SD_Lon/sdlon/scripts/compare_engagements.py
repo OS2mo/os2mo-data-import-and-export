@@ -321,10 +321,6 @@ def main(
                 continue
             sd_ny_dep = sd_dep_map[sd_employment.EmploymentDepartment.DepartmentUUIDIdentifier]
 
-            pprint(sd_employment)
-            pprint(mo_engagement)
-            print(sd_ny_dep)
-
             match, mismatches = engagement_match(sd_employment, sd_ny_dep, mo_engagement)
             if not match:
                 diffs[cpr] = {
@@ -338,8 +334,8 @@ def main(
                     "mo": mo_engagements,
                     "mismatches": mismatches
                 }
-
-    print(diffs)
+    for key in diffs.keys():
+        print(diffs[key]["mismatches"])
 
 if __name__ == "__main__":
     main()
