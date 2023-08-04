@@ -318,6 +318,7 @@ def main(
                     "mo": None,
                     "mismatches": ["MO eng not found"]
                 }
+                continue
             sd_ny_dep = sd_dep_map[sd_employment.EmploymentDepartment.DepartmentUUIDIdentifier]
 
             pprint(sd_employment)
