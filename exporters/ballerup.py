@@ -134,7 +134,7 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
         if not path_dict:
             continue
         employees = mh.read_organisation_people(
-            node.name, person_type="association", split_name=True
+            node.name, "association", split_name=True
         )
         for uuid, employee in employees.items():
             row = {}
