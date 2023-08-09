@@ -1530,5 +1530,35 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
 
+@cli.command()
+@click.option(
+    "--from-date",
+    type=click.DateTime(),
+    required=True,
+    help="The start date to run from",
+)
+@click.option(
+    "--to-date", type=click.DateTime(), required=True, help="The end date to run to"
+)
+def date_interval_run(
+    from_date: datetime.datetime,
+    to_date: datetime.datetime,
+):
+    logger.info("Date interval run started")
+
+    settings = get_changed_at_settings()
+    settings.job_settings.start_logging_based_on_settings()
+
+    sd_updater = ChangeAtSD(settings, from_date, to_date)  # type: ignore
+
+    logger.info("Update changed persons")
+    sd_updater.update_changed_persons()
+
+    logger.info("Update all employments")
+    sd_updater.update_all_employments()
+
+    logger.info("Date interval run finished")
+
+
 if __name__ == "__main__":
     cli()
