@@ -244,6 +244,16 @@ class ChangeAtSD:
         sd_to_ad_it_system_uuid = get_sd_to_ad_it_system_uuid(
             self.mo_graphql_client, self.settings.sd_phone_number_id_for_ad_string
         )
+
+        if self.dry_run:
+            logger.debug(
+                f"Dry-run: add IT-system to employee: "
+                f"emp_uuid={str(employee_uuid)}, "
+                f"IT-system UUID={str(sd_to_ad_it_system_uuid)}, "
+                f"user_key={user_key}",
+            )
+            return
+
         add_it_system_to_employee(
             self.mo_graphql_client,
             employee_uuid,
