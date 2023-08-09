@@ -322,7 +322,10 @@ class ChangeAtSD:
         return employment_response
 
     def get_sd_persons_changed(
-        self, from_date: datetime.datetime, to_date: Optional[datetime.datetime] = None
+        self,
+        from_date: datetime.datetime,
+        to_date: datetime.datetime | None = None,
+        cpr: str | None = None,
     ) -> List[OrderedDict[str, Any]]:
         """
         Get list of SD Løn persons that have changed between `from_date`
@@ -344,6 +347,8 @@ class ChangeAtSD:
             "PostalAddressIndicator": "false"
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
+        if cpr is not None:
+            params["PersonCivilRegistrationIdentifier"] = cpr
         if to_date:
             params["DeactivationDate"] = to_date.strftime("%d.%m.%Y")
             params["DeactivationTime"] = to_date.strftime("%H:%M")
@@ -380,17 +385,27 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(self, in_cpr: Optional[str] = None) -> None:
+    def update_changed_persons(
+        self,
+        in_cpr: str | None = None,
+        changed_at_run_cpr: str | None = None,
+    ) -> None:
         """Update and insert (upsert) changed persons.
 
         Args:
             in_cpr: Optional CPR number of a specific person to upsert instead of
                     using SDs GetPersonChangedAtDate endpoint.
+            changed_at_run_cpr: If set, SD-changed-at will only run the
+                function for the given CPR
 
         Note:
             This method does not create employments at all, as this responsibility is
             handled by the update_employment method instead.
         """
+
+        assert not (
+            in_cpr is not None and changed_at_run_cpr is not None
+        ), "in_cpr and changed_at_run_cpr cannot be set simultaneously"
 
         def fetch_mo_person(person: SDBasePerson) -> MOBasePerson | None:
             employee = get_employee(self.mo_graphql_client, person.cpr)
@@ -439,7 +454,7 @@ class ChangeAtSD:
         else:
             logger.info("Update all persons")
             all_sd_persons_changed = self.get_sd_persons_changed(
-                self.from_date, self.to_date
+                self.from_date, self.to_date, changed_at_run_cpr
             )
 
         logger.info(f"Number of changed persons: {len(all_sd_persons_changed)}")
@@ -1548,12 +1563,14 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 @click.option(
     "--to-date", type=click.DateTime(), required=True, help="The end date to run to"
 )
+@click.option("--cpr", help="CPR as 10 digits if the run should be for a single user")
 @click.option(
     "--dry-run", is_flag=True, help="If flag is set, no changes will be made to MO"
 )
 def date_interval_run(
     from_date: datetime.datetime,
     to_date: datetime.datetime,
+    cpr: str,
     dry_run: bool,
 ):
     logger.info("Date interval run started")
@@ -1564,10 +1581,10 @@ def date_interval_run(
     sd_updater = ChangeAtSD(settings, from_date, to_date, dry_run)  # type: ignore
 
     logger.info("Update changed persons")
-    sd_updater.update_changed_persons()
+    sd_updater.update_changed_persons(changed_at_run_cpr=cpr)
 
     logger.info("Update all employments")
-    sd_updater.update_all_employments()
+    sd_updater.update_all_employments(in_cpr=cpr)
 
     logger.info("Date interval run finished")
 
