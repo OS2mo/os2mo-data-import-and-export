@@ -86,8 +86,10 @@ class ChangeAtSD:
         settings: ChangedAtSettings,
         from_date: datetime.datetime,
         to_date: Optional[datetime.datetime] = None,
+        dry_run: bool = False,
     ):
         self.settings = settings
+        self.dry_run = dry_run
 
         job_function_type = self.settings.sd_job_function
         if job_function_type == JobFunction.job_position_identifier:
@@ -368,9 +370,7 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(
-        self, in_cpr: Optional[str] = None, dry_run: bool = False
-    ) -> None:
+    def update_changed_persons(self, in_cpr: Optional[str] = None) -> None:
         """Update and insert (upsert) changed persons.
 
         Args:
@@ -398,7 +398,7 @@ class ChangeAtSD:
                 org=OrganisationRef(uuid=self.org_uuid),
             )
             payload = jsonable_encoder(model.dict(by_alias=True, exclude_none=True))
-            if dry_run:
+            if self.dry_run:
                 print("Dry-run: upsert_employee", payload)
                 return "invalid-uuid"
             response = self.helper._mo_post("e/create", payload)
@@ -415,7 +415,7 @@ class ChangeAtSD:
             payload = sd_payloads.connect_it_system_to_user(
                 sam_account_name, self._fetch_ad_it_system_uuid(), user_uuid
             )
-            if dry_run:
+            if self.dry_run:
                 print("Dry-run: create_itsystem_connection", payload)
                 return
             logger.debug("Connect it-system: {}".format(payload))
@@ -1298,9 +1298,7 @@ class ChangeAtSD:
                 continue
             self.edit_engagement(sd_employment, person_uuid)
 
-    def update_all_employments(
-        self, in_cpr: Optional[str] = None, dry_run: bool = False
-    ) -> None:
+    def update_all_employments(self, in_cpr: Optional[str] = None) -> None:
         if in_cpr is not None:
             employments_changed = self.read_employment_changed(in_cpr=in_cpr)
         else:
@@ -1336,7 +1334,7 @@ class ChangeAtSD:
             if not mo_person:
                 logger.warning("This person should be in MO, but is not")
                 try:
-                    self.update_changed_persons(in_cpr=cpr, dry_run=dry_run)
+                    self.update_changed_persons(in_cpr=cpr)
                     mo_person = self.helper.read_user(
                         user_cpr=cpr, org_uuid=self.org_uuid
                     )
@@ -1350,7 +1348,7 @@ class ChangeAtSD:
             person_uuid = mo_person["uuid"]
 
             self._refresh_mo_engagements(person_uuid)
-            if dry_run:
+            if self.dry_run:
                 print("Dry-run: update_user_employments", sd_employments, person_uuid)
             else:
                 self._update_user_employments(cpr, sd_employments, person_uuid)
@@ -1362,7 +1360,7 @@ class ChangeAtSD:
 
         logger.info("Beginning recalculation of all users...")
         for user_uuid in recalculate_users:
-            if dry_run:
+            if self.dry_run:
                 print("Dry-run: recalculate_user", user_uuid)
                 continue
 
@@ -1525,9 +1523,9 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 
     settings = get_changed_at_settings()
 
-    sd_updater = ChangeAtSD(settings, from_date, None)
-    sd_updater.update_changed_persons(cpr, dry_run=dry_run)
-    sd_updater.update_all_employments(cpr, dry_run=dry_run)
+    sd_updater = ChangeAtSD(settings, from_date, None, dry_run)
+    sd_updater.update_changed_persons(cpr)
+    sd_updater.update_all_employments(cpr)
 
 
 @cli.command()
@@ -1540,16 +1538,20 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 @click.option(
     "--to-date", type=click.DateTime(), required=True, help="The end date to run to"
 )
+@click.option(
+    "--dry-run", is_flag=True, help="If flag is set, no changes will be made to MO"
+)
 def date_interval_run(
     from_date: datetime.datetime,
     to_date: datetime.datetime,
+    dry_run: bool,
 ):
     logger.info("Date interval run started")
 
     settings = get_changed_at_settings()
     settings.job_settings.start_logging_based_on_settings()
 
-    sd_updater = ChangeAtSD(settings, from_date, to_date)  # type: ignore
+    sd_updater = ChangeAtSD(settings, from_date, to_date, dry_run)  # type: ignore
 
     logger.info("Update changed persons")
     sd_updater.update_changed_persons()
