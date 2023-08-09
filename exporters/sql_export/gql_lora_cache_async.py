@@ -387,10 +387,9 @@ class GQLLoraCache:
                     map(
                         lambda m: m["uuid"],
                         filter(
-                            lambda man: (man["org_unit_uuid"] == qr["uuid"])
-                            and (
+                            lambda ma: (
                                 self.settings.exporters_actual_state_manager_responsibility_class
-                                in man["responsibility_uuids"]
+                                in ma["responsibility_uuids"]
                             ),
                             managers,
                         ),
