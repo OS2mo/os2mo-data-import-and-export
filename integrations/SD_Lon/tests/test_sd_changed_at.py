@@ -1520,16 +1520,28 @@ def test_updater_field_is_none_when_primary_engagement_calc_disabled():
     assert sd_updater.updater is None
 
 
-def test_apply_ny_logic() -> None:
+@pytest.mark.parametrize(
+    "too_deep,expected_target_ou",
+    [
+        ([], "00000000-0000-0000-0000-000000000000"),
+        (
+            ["Afdelings-niveau"],
+            "10000000-0000-0000-0000-000000000000",
+        ),
+        (
+            ["Afdelings-niveau", "NY1-niveau"],
+            "20000000-0000-0000-0000-000000000000",
+        ),
+    ],
+)
+def test_apply_ny_logic(too_deep: list[str], expected_target_ou: str) -> None:
     """
     Test the case where an SD employment is moved to a new SD department, which
     is an "Afdelings-niveau". The apply_NY_logic function should then return
     the UUID of the first "NY-niveau" which is not in the "too_deep" list.
     """
     # Arrange
-    sd_updater = setup_sd_changed_at(
-        {"sd_import_too_deep": ["Afdelings-niveau", "NY1-niveau"]}
-    )
+    sd_updater = setup_sd_changed_at({"sd_import_too_deep": too_deep})
 
     ou_uuid_afd = "00000000-0000-0000-0000-000000000000"
     ou_uuid_ny1 = "10000000-0000-0000-0000-000000000000"
@@ -1564,4 +1576,4 @@ def test_apply_ny_logic() -> None:
     )
 
     # Assert
-    assert target_ou_uuid == ou_uuid_ny2
+    assert target_ou_uuid == expected_target_ou
