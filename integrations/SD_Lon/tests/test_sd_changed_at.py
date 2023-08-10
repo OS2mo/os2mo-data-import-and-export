@@ -1518,3 +1518,62 @@ def test_read_forced_uuid_use_empty_dict():
 def test_updater_field_is_none_when_primary_engagement_calc_disabled():
     sd_updater = setup_sd_changed_at({"sd_update_primary_engagement": False})
     assert sd_updater.updater is None
+
+
+@pytest.mark.parametrize(
+    "too_deep,expected_target_ou",
+    [
+        ([], "00000000-0000-0000-0000-000000000000"),
+        (
+            ["Afdelings-niveau"],
+            "10000000-0000-0000-0000-000000000000",
+        ),
+        (
+            ["Afdelings-niveau", "NY1-niveau"],
+            "20000000-0000-0000-0000-000000000000",
+        ),
+    ],
+)
+def test_apply_ny_logic(too_deep: list[str], expected_target_ou: str) -> None:
+    """
+    Test the case where an SD employment is moved to a new SD department, which
+    is an "Afdelings-niveau". The apply_NY_logic function should then return
+    the UUID of the first "NY-niveau" which is not in the "too_deep" list.
+    """
+    # Arrange
+    sd_updater = setup_sd_changed_at({"sd_import_too_deep": too_deep})
+
+    ou_uuid_afd = "00000000-0000-0000-0000-000000000000"
+    ou_uuid_ny1 = "10000000-0000-0000-0000-000000000000"
+    ou_uuid_ny2 = "20000000-0000-0000-0000-000000000000"
+    ou_uuid_ny3 = "30000000-0000-0000-0000-000000000000"
+    person_uuid = str(uuid.uuid4())
+
+    sd_updater.helper.read_ou = MagicMock(
+        return_value={
+            "uuid": ou_uuid_afd,
+            "org_unit_level": {"user_key": "Afdelings-niveau"},
+            "parent": {
+                "uuid": ou_uuid_ny1,
+                "org_unit_level": {"user_key": "NY1-niveau"},
+                "parent": {
+                    "uuid": ou_uuid_ny2,
+                    "org_unit_level": {"user_key": "NY2-niveau"},
+                    "parent": {
+                        "uuid": ou_uuid_ny3,
+                        "org_unit_level": {"user_key": "NY3-niveau"},
+                        "parent": None,
+                    },
+                },
+            },
+        }
+    )
+    sd_updater.create_association = MagicMock()
+
+    # Act
+    target_ou_uuid = sd_updater.apply_NY_logic(
+        ou_uuid_afd, 12345, {"from": "2023-08-01", "to": None}, person_uuid
+    )
+
+    # Assert
+    assert target_ou_uuid == expected_target_ou
