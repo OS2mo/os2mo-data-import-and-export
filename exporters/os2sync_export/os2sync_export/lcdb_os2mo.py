@@ -51,6 +51,7 @@ scope_to_scope = {
     "Ansvarlig": "ANSVARLIG",
     "Udførende": "UDFOERENDE",
     "Indsigt": "INDSIGT",
+    "Url": "URL",
 }
 
 
@@ -208,34 +209,6 @@ def get_sts_user_raw(
     return sts_user
 
 
-top_per_unit: Dict[str, Dict] = {}
-
-
-def get_top_unit(session, lc_enhed):
-    """
-    return the top unit for a unit
-    """
-    top_unit = top_per_unit.get(lc_enhed.uuid)
-    if top_unit:
-        return top_unit
-    branch = [lc_enhed.uuid]
-
-    # walk as far up as necessary
-    while lc_enhed.forældreenhed_uuid is not None:
-        uuid = lc_enhed.forældreenhed_uuid
-        top_unit = top_per_unit.get(uuid)
-        if top_unit:
-            break
-        branch.append(uuid)
-        lc_enhed = session.query(Enhed).filter(Enhed.uuid == uuid).one()
-        top_unit = uuid  # last one effective
-
-    # register top unit for all encountered
-    for buuid in branch:
-        top_per_unit[buuid] = top_unit
-    return top_unit
-
-
 def is_ignored(unit, settings: Settings):
     """Determine if unit should be left out of transfer
 
@@ -281,13 +254,6 @@ def get_sts_orgunit(session, uuid, settings: Settings) -> Optional[OrgUnit]:
             base.uuid,
             base.enhedsniveau_titel,
             base.enhedstype_titel,
-        )
-        return None
-
-    top_unit = get_top_unit(session, base)
-    if not top_unit or (UUID(top_unit) != settings.os2sync_top_unit_uuid):
-        logger.debug(
-            f"ignoring unit {uuid=}, as it is not a unit below {settings.os2sync_top_unit_uuid=}"
         )
         return None
 
