@@ -111,12 +111,6 @@ def create_fastramqpi(**kwargs) -> FastRAMQPI:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
     fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings)
-    #
-    # amqpsystem = fastramqpi.get_amqpsystem()
-    # amqpsystem.router.registry.update(amqp_router.registry)
-    # fastramqpi.add_context(
-    #     settings=settings, os2sync_client=OS2SyncClient(settings=settings)
-    # )
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
