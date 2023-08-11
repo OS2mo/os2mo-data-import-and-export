@@ -140,7 +140,7 @@ imports_sd_fix_departments(){
 
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
-    if [[ ${USE_DOCKER_SD_CHANGED_AT} == "true" ]]; then
+    if [[ ${USE_DOCKER_SD_CHANGED_AT:-"false"} == "true" ]]; then
         curl -X POST http://localhost:8030/trigger
         EXIT_CODE=$?
     else
