@@ -140,14 +140,19 @@ imports_sd_fix_departments(){
 
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
-    BACK_UP_AFTER_JOBS+=(
-        ${DIPEXAR}/cpr_mo_ad_map.csv
-        ${DIPEXAR}/settings/cpr_uuid_map.csv
-    )
-    cd integrations/SD_Lon/
-    ${POETRYPATH} run python -m sdlon.sd_changed_at changed-at-cli
-    EXIT_CODE=$?
-    cd ../..
+    if [[ ${USE_DOCKER_SD_CHANGED_AT} == "true" ]]; then
+        curl -X POST http://localhost:8030/trigger
+        EXIT_CODE=$?
+    else
+        BACK_UP_AFTER_JOBS+=(
+            ${DIPEXAR}/cpr_mo_ad_map.csv
+            ${DIPEXAR}/settings/cpr_uuid_map.csv
+        )
+        cd integrations/SD_Lon/
+        ${POETRYPATH} run python -m sdlon.sd_changed_at changed-at-cli
+        EXIT_CODE=$?
+        cd ../..
+    fi
     return $EXIT_CODE
 }
 
