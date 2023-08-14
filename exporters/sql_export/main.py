@@ -2,23 +2,31 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Integration entrypoint."""
-# TODO: This is mostly copied from FastRAMQPI, when we can use Python 3.10 in DIPEX
-#       consider switching over to that instead.
-from typing import Any
+import logging
+from typing import Dict
 
+import ra_utils
+import sentry_sdk
+from fastapi import APIRouter
+from fastapi import BackgroundTasks
 from fastapi import FastAPI
-from prometheus_client import Info
-from prometheus_fastapi_instrumentator import Instrumentator
-from pydantic import BaseSettings
-from pydantic import Field
+from fastramqpi.config import Settings as FastRAMQPISettings
+from fastramqpi.main import FastRAMQPI  # type: ignore
+from ra_utils.ensure_single_run import ensure_single_run
+from ra_utils.job_settings import JobSettings
 
+from .lora_gql_equivalence_tester import cache_equivalence
+from .lora_gql_equivalence_tester import LoraGqlEquivalenceTesterSettings
+from .lora_gql_equivalence_tester import notify_prometheus
+from .sql_export import SqlExport
 from .sql_export import SqlExportSettings
-from .trigger import trigger_router
 
-build_information = Info("build_information", "Build information")
+logger = logging.getLogger(__name__)
+
+fastapi_router = APIRouter()
 
 
-class Settings(BaseSettings):  # type: ignore
+class Settings(FastRAMQPISettings, JobSettings):
     """Settings for the SQLExport FastAPI application."""
 
     class Config:
@@ -26,72 +34,90 @@ class Settings(BaseSettings):  # type: ignore
 
         frozen = True
 
-    # We assume these will be set by the docker build process,
-    # and as such will contain release information at runtime.
-    commit_tag: str = Field("HEAD", description="Git commit tag.")
-    commit_sha: str = Field("HEAD", description="Git commit SHA.")
 
-    enable_metrics: bool = Field(True, description="Whether to enable metrics.")
+class ExportSettings(LoraGqlEquivalenceTesterSettings, SqlExportSettings):
+    class Config:
+        pass
 
 
-def update_build_information(version: str, build_hash: str) -> None:
-    """Update build information.
-
-    Args:
-        version: The version to set.
-        build_hash: The build hash to set.
-
-    Returns:
-        None.
-    """
-    build_information.info(
-        {
-            "version": version,
-            "hash": build_hash,
-        }
+def wrap_export(args: dict) -> None:
+    settings = ExportSettings()
+    sql_export = SqlExport(
+        force_sqlite=args["force_sqlite"],
+        historic=args["historic"],
+        settings=settings,
     )
+    try:
+        lock_name = "sql_export_actual"
+
+        if args["historic"]:
+            lock_name = "sql_export_historic"
+        try:
+            notify_prometheus(settings=settings, job=args["job_name"], start=True)
+            ensure_single_run(
+                func=sql_export.export,
+                lock_name=lock_name,
+                resolve_dar=args["resolve_dar"],
+                use_pickle=args["read_from_cache"],
+            )
+            notify_prometheus(settings=settings, job=args["job_name"])
+        except Exception as e:
+            notify_prometheus(settings=settings, job=args["job_name"], error=True)
+            raise e
+
+    except ra_utils.ensure_single_run.LockTaken as name_of_lock:
+        logger.warning(f"Lock {name_of_lock} taken, aborting export")
+        if "log_overlapping_aak" in settings and settings.get("log_overlapping_aak"):
+            sql_export.log_overlapping_runs_aak()
 
 
-def create_app(**kwargs: Any) -> FastAPI:
-    """FastAPI application factory.
+@fastapi_router.post("/trigger_sql_export", status_code=202)
+def trigger_sql_exporter(
+    job_name: str,
+    historic: bool,
+    skip_past: bool,
+    resolve_dar: bool,
+    dry_run: bool = False,
+    skip_associations: bool = False,
+):
+    args = {
+        "job_name": job_name,
+        "historic": historic,
+        "skip_past": skip_past,
+        "resolve_dar": resolve_dar,
+        "dry_run": dry_run,
+        "skip_associations": skip_associations,
+    }
+    wrap_export(args)
 
-    Args:
-        kwargs: Various settings overrides.
 
-    Returns:
-        FastAPI application.
-    """
-    pydantic_settings = SqlExportSettings()
-    pydantic_settings.start_logging_based_on_settings()
+@fastapi_router.post("/trigger_cache_equivalence", status_code=202)
+async def trigger_cache_equivalence(
+    background_tasks: BackgroundTasks,
+) -> Dict[str, str]:
+    background_tasks.add_task(cache_equivalence)
+    return {"triggered": "OK"}
 
-    settings = Settings(**kwargs)
 
-    app = FastAPI(
-        title="sql_export",
-        version=settings.commit_tag,
-        contact={
-            "name": "Magenta Aps",
-            "url": "https://www.magenta.dk/",
-            "email": "info@magenta.dk>",
-        },
-        license_info={
-            "name": "MPL-2.0",
-            "url": "https://www.mozilla.org/en-US/MPL/2.0/",
-        },
-    )
+@fastapi_router.get("/")
+async def index() -> dict[str, str]:
+    return {"name": "sql_export"}
 
-    @app.get("/")
-    async def index() -> dict[str, str]:
-        return {"name": "sql_export"}
 
-    app.include_router(trigger_router)
+def create_fastramqpi(**kwargs) -> FastRAMQPI:
+    settings: Settings = Settings(**kwargs)
+    settings.start_logging_based_on_settings()
+    if settings.sentry_dsn:
+        sentry_sdk.init(dsn=settings.sentry_dsn)
 
-    if settings.enable_metrics:
-        # Update metrics info
-        update_build_information(
-            version=settings.commit_tag, build_hash=settings.commit_sha
-        )
+    fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings)
 
-        Instrumentator().instrument(app).expose(app)
+    app = fastramqpi.get_app()
+    app.include_router(fastapi_router)
 
-    return app
+    return fastramqpi
+
+
+def create_app(**kwargs) -> FastAPI:
+    fastramqpi = create_fastramqpi(**kwargs)
+    return fastramqpi.get_app()
