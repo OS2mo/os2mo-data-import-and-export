@@ -33,7 +33,7 @@ lora-utils = {git = "https://github.com/magenta-aps/lora-utils.git", rev = "mast
 ra-utils = {extras = ["prometheus-client"], version = "^1.13.9"}
 os2mo-dar-client = "^1.0.1"
 prometheus-client = "^0.16.0"
-os2mo-data-import = "^5.3.3"
+os2mo-data-import = "^5.4.3"
 uvicorn = "^0.22.0"
 prometheus-fastapi-instrumentator = "^6.0.0"
 psycopg2-binary = "^2.9.6"
