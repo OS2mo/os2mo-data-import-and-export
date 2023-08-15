@@ -72,6 +72,23 @@ sanity_check_mo_data(){
     ${VENV}/bin/python3 tools/check_data.py
 }
 
+sd_changed_at_status(){
+    PROM_STATUS=$(curl -s localhost:8000/metrics | grep sd_changed_at_state | grep "1.0" | awk -F\" '{print $2}')
+    if [[ $? != 0 ]]; then
+        # curl did not return with status 0
+        return 4
+    fi
+    if [[ ${PROM_STATUS} == "ok" ]]; then
+        return 0
+    elif [[ ${PROM_STATUS} == "running" ]]; then
+        return 1
+    elif [[ ${PROM_STATUS} == "failure" ]]; then
+        return 2
+    else
+        return 3
+    fi
+}
+
 move_backup_to_archive() {
     if [ -z $1 ]; then
         # This should never happen, but just in case...
@@ -142,7 +159,25 @@ imports_sd_changed_at(){
     echo running imports_sd_changed_at
     if [[ ${USE_DOCKER_SD_CHANGED_AT:-"false"} == "true" ]]; then
         curl -X POST http://localhost:8030/trigger
-        EXIT_CODE=$?
+        if [[ $? != 0 ]]; then
+            return $?
+        fi
+
+        sd_changed_at_status
+        SD_STATUS=$?
+        SD_STATUS_CHECK_START=$(date +%s)
+
+        while [[ ${SD_STATUS} != 0 ]]; do
+            SD_CURRENT_TIMESTAMP=$(date +%s)
+            if [[ ${SD_CURRENT_TIMESTAMP} -ge $((${SD_STATUS_CHECK_START} + 900)) ]]; then
+                SD_STATUS=1
+                break
+            fi
+            sleep 2
+            sd_changed_at_status
+            SD_STATUS=$?
+        done
+        return ${SD_STATUS}
     else
         BACK_UP_AFTER_JOBS+=(
             ${DIPEXAR}/cpr_mo_ad_map.csv
