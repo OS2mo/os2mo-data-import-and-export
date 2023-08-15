@@ -5,7 +5,13 @@ FROM python:3.11
 
 # Install binary database connection libraries
 RUN apt-get update \
-    && apt-get --no-install-recommends -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev \
+ && apt-get --no-install-recommends -y install software-properties-common unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev \
+ && curl https://packages.microsoft.com/keys/microsoft.asc | tee /etc/apt/trusted.gpg.d/microsoft.asc \
+ && add-apt-repository --yes "$(wget -qO- https://packages.microsoft.com/config/debian/11/prod.list)" \
+ # I have no idea why this needs to be run twice.
+ && add-apt-repository --yes "$(wget -qO- https://packages.microsoft.com/config/debian/11/prod.list)" \
+ && apt-get update \
+ && apt-get --no-install-recommends -y install sqlcmd \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
