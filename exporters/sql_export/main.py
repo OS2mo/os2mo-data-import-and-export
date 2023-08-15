@@ -20,6 +20,7 @@ from .lora_gql_equivalence_tester import LoraGqlEquivalenceTesterSettings
 from .lora_gql_equivalence_tester import notify_prometheus
 from .sql_export import SqlExport
 from .sql_export import SqlExportSettings
+from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,7 @@ def create_fastramqpi(**kwargs) -> FastRAMQPI:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
     fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings)
+    fastramqpi.get_app().include_router(trigger_router)
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
