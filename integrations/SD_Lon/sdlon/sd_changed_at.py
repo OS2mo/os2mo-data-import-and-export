@@ -1404,10 +1404,8 @@ class ChangeAtSD:
             person_uuid = mo_person["uuid"]
 
             self._refresh_mo_engagements(person_uuid)
-            if self.dry_run:
-                print("Dry-run: update_user_employments", sd_employments, person_uuid)
-            else:
-                self._update_user_employments(cpr, sd_employments, person_uuid)
+            self._update_user_employments(cpr, sd_employments, person_uuid)
+
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
 
