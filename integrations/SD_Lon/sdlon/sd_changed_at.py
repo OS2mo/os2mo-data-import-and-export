@@ -181,7 +181,7 @@ class ChangeAtSD:
         return SDPrimaryEngagementUpdater()
 
     def _get_fix_departments(self) -> FixDepartments:
-        return FixDepartments(self.settings)
+        return FixDepartments(self.settings, self.dry_run)
 
     def _get_mora_helper(self, mora_base) -> MoraHelper:
         return MoraHelper(hostname=mora_base, use_cache=False)
@@ -747,6 +747,9 @@ class ChangeAtSD:
             mo_eng, person_uuid, str(self.leave_uuid), job_id, self._validity(status)
         )
 
+        if self.dry_run:
+            print("Dry-run (details/create)", payload)
+            return
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
 
@@ -769,6 +772,9 @@ class ChangeAtSD:
             payload = sd_payloads.create_association(
                 department, person_uuid, str(self.association_uuid), job_id, validity
             )
+            if self.dry_run:
+                print("Dry-run (details/create): ", payload)
+                return
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
         else:
@@ -874,8 +880,12 @@ class ChangeAtSD:
             validity=validity,
             **extension,
         )
-        response = self.helper._mo_post("details/create", payload)
-        assert response.status_code == 201
+
+        if self.dry_run:
+            print("Dry-run (details/create): ", payload)
+        else:
+            response = self.helper._mo_post("details/create", payload)
+            assert response.status_code == 201
 
         self._refresh_mo_engagements(person_uuid)
         logger.info("Engagement {} created".format(user_key))
@@ -925,9 +935,12 @@ class ChangeAtSD:
         }
 
         logger.debug("Terminate payload: {}".format(payload))
-        response = self.helper._mo_post("details/terminate", payload)
-        logger.debug("Terminate response: {}".format(response.text))
-        mora_assert(response)
+        if self.dry_run:
+            print("Dry-run (details/terminate): ", payload)
+        else:
+            response = self.helper._mo_post("details/terminate", payload)
+            logger.debug("Terminate response: {}".format(response.text))
+            mora_assert(response)
 
         self._refresh_mo_engagements(person_uuid)
 
@@ -979,16 +992,22 @@ class ChangeAtSD:
                 data = {"org_unit": {"uuid": org_unit}, "validity": validity}
                 payload = sd_payloads.association(data, current_association)
                 logger.debug("Association edit payload: {}".format(payload))
-                response = self.helper._mo_post("details/edit", payload)
-                mora_assert(response)
+                if self.dry_run:
+                    print("Dry-run (details/edit): ", payload)
+                else:
+                    response = self.helper._mo_post("details/edit", payload)
+                    mora_assert(response)
 
             org_unit = self.apply_NY_logic(org_unit, job_id, validity, person_uuid)
 
             logger.debug("New org unit for edited engagement: {}".format(org_unit))
             data = {"org_unit": {"uuid": org_unit}, "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
-            response = self.helper._mo_post("details/edit", payload)
-            mora_assert(response)
+            if self.dry_run:
+                print("Dry-run (details/edit): ", payload)
+            else:
+                response = self.helper._mo_post("details/edit", payload)
+                mora_assert(response)
 
     def determine_engagement_type(self, engagement, job_position):
         split = self.settings.sd_monthly_hourly_divide
@@ -1035,8 +1054,11 @@ class ChangeAtSD:
             data = {"engagement_type": {"uuid": engagement_type}, "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug("Update engagement type payload: {}".format(payload))
-            response = self.helper._mo_post("details/edit", payload)
-            mora_assert(response)
+            if self.dry_run:
+                print("Dry-run (details/edit): ", payload)
+            else:
+                response = self.helper._mo_post("details/edit", payload)
+                mora_assert(response)
 
     def edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
@@ -1090,8 +1112,11 @@ class ChangeAtSD:
                 payload = sd_payloads.engagement(data, mo_eng)
                 logger.debug("Update profession payload: {}".format(payload))
 
-                response = self.helper._mo_post("details/edit", payload)
-                mora_assert(response)
+                if self.dry_run:
+                    print("Dry-run (details/edit): ", payload)
+                else:
+                    response = self.helper._mo_post("details/edit", payload)
+                    mora_assert(response)
 
     def edit_engagement_worktime(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
@@ -1106,8 +1131,11 @@ class ChangeAtSD:
             data = {"fraction": int(working_time * 1000000), "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug("Change worktime, payload: {}".format(payload))
-            response = self.helper._mo_post("details/edit", payload)
-            mora_assert(response)
+            if self.dry_run:
+                print("Dry-run (details/edit): ", payload)
+            else:
+                response = self.helper._mo_post("details/edit", payload)
+                mora_assert(response)
 
     def _set_non_primary(self, status, mo_eng):
         logger.debug("Setting non-primary for: {}".format(mo_eng["uuid"]))
@@ -1122,6 +1150,9 @@ class ChangeAtSD:
         payload = sd_payloads.engagement(data, mo_eng)
         logger.debug("Setting non-primary payload: {}".format(payload))
 
+        if self.dry_run:
+            print("Dry-run (details/edit): ", payload)
+            return
         response = self.helper._mo_post("details/edit", payload)
         mora_assert(response)
 
