@@ -14,7 +14,9 @@ from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
+from ra_utils.job_settings import JobSettings
 
+from .lora_gql_equivalence_tester import cache_equivalence
 from .sql_export import SqlExport
 
 logger = logging.getLogger(__name__)
@@ -34,7 +36,7 @@ class DatabaseConfiguration(BaseSettings):  # type: ignore
     password: SecretStr | None
 
 
-class DatabaseSettings(BaseSettings):  # type: ignore
+class DatabaseSettings(JobSettings):
     class Config:
         frozen = True
         env_nested_delimiter = "__"
@@ -44,6 +46,9 @@ class DatabaseSettings(BaseSettings):  # type: ignore
 
     actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)
     historic_state: DatabaseConfiguration | None
+    log_overlapping_aak: bool = False
+    use_new_cache: bool = False
+    primary_manager_responsibility: str | None = None
 
     def to_old_settings(self) -> dict[str, Any]:
         """Convert our DatabaseSettings to a settings.json format.
@@ -73,6 +78,8 @@ class DatabaseSettings(BaseSettings):  # type: ignore
             "exporters.actual_state.password": secret_val_or_none(
                 self.actual_state.password
             ),
+            "primary_manager_responsibility": self.primary_manager_responsibility,
+            "use_new_cache": self.use_new_cache,
         }
         if self.historic_state is not None:
             settings.update(
@@ -89,6 +96,8 @@ class DatabaseSettings(BaseSettings):  # type: ignore
                         self.historic_state.password
                     )
                     or secret_val_or_none(self.actual_state.password),
+                    "primary_manager_responsibility": self.primary_manager_responsibility,
+                    "use_new_cache": self.use_new_cache,
                 }
             )
         return settings
@@ -118,6 +127,14 @@ def refresh_db(
         lock.release()
 
 
+@trigger_router.post("/trigger_cache_equivalence")
+async def trigger_cache_equivalence(
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    background_tasks.add_task(cache_equivalence)
+    return {"triggered": "OK"}
+
+
 @trigger_router.post("/trigger")
 def trigger(
     background_tasks: BackgroundTasks,
@@ -127,6 +144,14 @@ def trigger(
 ) -> dict[str, str]:
     acquired = lock.acquire(blocking=False)
     if not acquired:
+        settings = DatabaseSettings()
+        if settings.log_overlapping_aak:
+            sql_export = SqlExport(
+                force_sqlite=False,
+                historic=historic,
+                settings=settings.to_old_settings(),
+            )
+            sql_export.log_overlapping_runs_aak()
         raise HTTPException(409, "Already running")
 
     background_tasks.add_task(refresh_db, resolve_dar, historic, read_from_cache, lock)
