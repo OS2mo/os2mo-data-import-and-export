@@ -18,16 +18,12 @@ from .old_lora_cache import OldLoraCache as LoraCache
 logger = logging.getLogger(__name__)
 
 
-class LoraGqlEquivalenceTesterSettings(GqlLoraCacheSettings):
-    prometheus_pushgateway: str = "pushgateway"
-
-    class Config:
-        settings_json_prefix = "exporters.actual_state"
-
-
 # This is an equivalency test, an integration test, and is thus not designed to
 # be run as part of the ci-pipeline
 class TestEquivalence:
+    def __init__(self, settings):
+        self.settings: GqlLoraCacheSettings = settings
+
     # The old lora cache had some bugs, this accounts for them when comparing.
     # History and end dates for units, it connections, and managers were bugged, and
     # so was some of the addresses
@@ -37,7 +33,9 @@ class TestEquivalence:
 
         ref_cache = {}
 
-        lc_gql = GQLLoraCache(resolve_dar=True, full_history=True, skip_past=False)
+        lc_gql = GQLLoraCache(
+            resolve_dar=True, full_history=True, skip_past=False, settings=self.settings
+        )
 
         if cache_type != "addresses":
             ref_cache = self.new_cache_helper(lc_gql, cache_type)
@@ -134,14 +132,18 @@ class TestEquivalence:
     def test_populate(self, historic: bool, skip_past: bool, resolve_dar: bool):
 
         old_cache = LoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
+            resolve_dar=resolve_dar,
+            full_history=historic,
+            skip_past=skip_past,
+            settings=self.settings.to_old_settings(),
         )
 
         new_cache = GQLLoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
+            resolve_dar=resolve_dar,
+            full_history=historic,
+            skip_past=skip_past,
+            settings=self.settings,
         )
-
-        new_cache.settings.start_logging_based_on_settings()
 
         new_cache.populate_cache(dry_run=False, skip_associations=False)
 
@@ -186,7 +188,7 @@ class TestEquivalence:
 
 
 def notify_prometheus(
-    settings: LoraGqlEquivalenceTesterSettings,
+    settings: GqlLoraCacheSettings,
     job: str,
     start: bool = False,
     error: bool = False,
@@ -227,13 +229,13 @@ def notify_prometheus(
 
 
 def cache_equivalence():
-    settings = LoraGqlEquivalenceTesterSettings()
+    settings = GqlLoraCacheSettings()
     settings.start_logging_based_on_settings()
 
     job_name = "cache_equivalence_actual_state"
     try:
         notify_prometheus(settings=settings, job=job_name, start=True)
-        tester = TestEquivalence()
+        tester = TestEquivalence(settings)
         tester.test_populate(historic=False, skip_past=True, resolve_dar=True)
         notify_prometheus(settings=settings, job=job_name)
     except Exception as e:
@@ -243,7 +245,7 @@ def cache_equivalence():
     job_name = "cache_equivalence_historic"
     try:
         notify_prometheus(settings=settings, job=job_name, start=True)
-        tester = TestEquivalence()
+        tester = TestEquivalence(settings)
         tester.test_populate(historic=True, skip_past=False, resolve_dar=True)
         notify_prometheus(settings=settings, job=job_name)
     except Exception as e:
@@ -253,7 +255,7 @@ def cache_equivalence():
     job_name = "cache_equivalence_historic_skip_past"
     try:
         notify_prometheus(settings=settings, job=job_name, start=True)
-        tester = TestEquivalence()
+        tester = TestEquivalence(settings)
         tester.test_populate(historic=True, skip_past=True, resolve_dar=True)
         notify_prometheus(settings=settings, job=job_name)
     except Exception as e:
