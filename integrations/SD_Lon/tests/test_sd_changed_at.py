@@ -1493,22 +1493,6 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
             self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
 
-    def test_fix_department_called_with_date(self):
-        # Arrange
-        sd_updater = setup_sd_changed_at()
-        fix_date = datetime.datetime.today() + datetime.timedelta(weeks=80)
-        sd_updater.helper.read_ou.return_value = {"status": "found"}
-
-        # Act
-        sd_updater.apply_NY_logic(
-            "00000000-0000-0000-0000-000000000000", "job_id", None, "person_uuid"
-        )
-
-        # Assert
-        sd_updater.fix_departments_mock.fix_department.assert_called_once_with(
-            "00000000-0000-0000-0000-000000000000", fix_date.date()
-        )
-
 
 def test_read_forced_uuid_use_empty_dict():
     sd_updater = setup_sd_changed_at({"sd_read_forced_uuids": False})
@@ -1577,3 +1561,56 @@ def test_apply_ny_logic(too_deep: list[str], expected_target_ou: str) -> None:
 
     # Assert
     assert target_ou_uuid == expected_target_ou
+
+
+def test_apply_ny_logic_for_non_existing_future_unit() -> None:
+    """
+    Test the scenario where "apply_NY_logic" is called on a currently
+    non-existing OU in MO, but on an SD unit which should be created with
+    a future from date in MO. We test that "read_ou" and "fix_department"
+    are called with the correct dates.
+    """
+    # Arrange
+    sd_updater = setup_sd_changed_at({"sd_import_too_deep": ["Afdelings-niveau"]})
+
+    ou_uuid_afd = "00000000-0000-0000-0000-000000000000"
+    ou_uuid_ny1 = "10000000-0000-0000-0000-000000000000"
+    person_uuid = str(uuid.uuid4())
+    department_from_date = "2200-01-01"  # A date in the future
+
+    mock_read_ou = MagicMock(
+        side_effect=[
+            {"status": 404},
+            {
+                "uuid": ou_uuid_afd,
+                "org_unit_level": {"user_key": "Afdelings-niveau"},
+                "parent": {
+                    "uuid": ou_uuid_ny1,
+                    "org_unit_level": {"user_key": "NY1-niveau"},
+                    "parent": None,
+                },
+            },
+        ]
+    )
+    sd_updater.helper.read_ou = mock_read_ou
+
+    mock_fix_department = MagicMock()
+    sd_updater.department_fixer.fix_department = mock_fix_department
+
+    mock_create_association = MagicMock()
+    sd_updater.create_association = mock_create_association
+
+    # Act
+    sd_updater.apply_NY_logic(
+        ou_uuid_afd, 12345, {"from": department_from_date, "to": None}, person_uuid
+    )
+
+    # Assert
+    assert mock_read_ou.call_args_list == [
+        call(ou_uuid_afd, at=department_from_date, use_cache=False),
+        call(ou_uuid_afd, at=department_from_date, use_cache=False),
+    ]
+    mock_fix_department.assert_called_once_with(ou_uuid_afd, department_from_date)
+    mock_create_association.assert_called_once_with(
+        ou_uuid_afd, person_uuid, 12345, {"from": department_from_date, "to": None}
+    )

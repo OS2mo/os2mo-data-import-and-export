@@ -785,26 +785,16 @@ class ChangeAtSD:
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings.sd_import_too_deep
         # Move users and make associations according to NY logic
-        today = datetime.datetime.today().date()
-        ou_info = self.helper.read_ou(org_unit, use_cache=False)
+        ou_info = self.helper.read_ou(org_unit, at=validity["from"], use_cache=False)
         if "status" in ou_info:
-            # This unit does not exist, read its state in the not-too
-            # distant future.
-            fix_date = today + datetime.timedelta(weeks=80)
-            self.department_fixer.fix_department(org_unit, fix_date)
-            ou_info = self.helper.read_ou(org_unit, use_cache=False)
-            if "status" in ou_info:
-                # TODO: This code should be removed once the 80-week magic number
-                #       is eliminated, right now it serves to ensure solely that
-                #       the SD integration does not crash due to the bad code.
-                #       The solution will then be to fix all the issues using SDTool.
-                logger.warning("Unable to apply NY-logic on unit %s", org_unit)
-                return org_unit
+            self.department_fixer.fix_department(org_unit, validity["from"])
+            ou_info = self.helper.read_ou(
+                org_unit, at=validity["from"], use_cache=False
+            )
 
         if ou_info["org_unit_level"]["user_key"] in too_deep:
             self.create_association(org_unit, person_uuid, job_id, validity)
 
-        # logger.debug('OU info is currently: {}'.format(ou_info))
         while ou_info["org_unit_level"]["user_key"] in too_deep:
             ou_info = ou_info["parent"]
             logger.debug("Parent unit: {}".format(ou_info))
