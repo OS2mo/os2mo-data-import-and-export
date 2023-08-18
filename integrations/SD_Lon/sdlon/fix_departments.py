@@ -49,9 +49,10 @@ def setup_logging():
 
 
 class FixDepartments:
-    def __init__(self, settings: ChangedAtSettings):
+    def __init__(self, settings: ChangedAtSettings, dry_run: bool = False):
         logger.info("Start program")
         self.settings = settings
+        self.dry_run = dry_run
 
         self.institution_uuid = self.get_institution()
         self.helper = self._get_mora_helper(self.settings)
@@ -135,6 +136,9 @@ class FixDepartments:
             parent=effective_parent_uuid,
         )
         logger.debug("Create department MO payload: {}".format(payload))
+        if self.dry_run:
+            print("Dry-run (ou/create): ", payload)
+            return None
         response = self.helper._mo_post("ou/create", payload)
         response.raise_for_status()
         logger.info("Created unit {}".format(department["DepartmentIdentifier"]))
@@ -209,6 +213,9 @@ class FixDepartments:
             to_date=to_date,
         )
         logger.debug("Edit payload to fix unit: {}".format(payload))
+        if self.dry_run:
+            print("Dry-run (details/edit): ", payload)
+            return None
         response = self.helper._mo_post("details/edit", payload)
         logger.debug("Edit response status: {}".format(response.status_code))
         if response.status_code == 400:
@@ -456,6 +463,9 @@ class FixDepartments:
                     }
                     payload = sd_payloads.engagement(data, mo_engagement)
                     logger.debug("Move engagement payload: {}".format(payload))
+                    if self.dry_run:
+                        print("Dry-run (details/edit): ", payload)
+                        return
                     response = self.helper._mo_post("details/edit", payload)
                     mora_assert(response)
 
