@@ -35,242 +35,251 @@ from .titles import export_titles
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=None)
-def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
-    mapping_path = Path(mapping_path_str)
-    if not mapping_path.is_file():
-        logger.critical("Mapping file does not exist: %s", mapping_path)
-        sys.exit(3)
+class RollekatalogsExporter:
+    def __init__(self, settings: RollekatalogSettings) -> None:
+        self.settings = settings
+        self.mh = self._get_mora_helper(settings.mora_base)
 
-    try:
-        with open(mapping_path) as f:
-            csv_reader = csv.DictReader(f, delimiter=";")
-            content = {
-                line["mo_uuid"]: (line["ad_guid"], line["sam_account_name"])
-                for line in csv_reader
-            }
-    except FileNotFoundError as err:
-        logger.critical("%s: %r", err.strerror, err.filename)
-        sys.exit(3)
-    return content
+    def _get_mora_helper(self, mora_base):
+        return MoraHelper(hostname=mora_base, export_ansi=False)
 
+    @lru_cache(maxsize=None)
+    def get_employee_mapping(self, mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
+        mapping_path = Path(mapping_path_str)
+        if not mapping_path.is_file():
+            logger.critical("Mapping file does not exist: %s", mapping_path)
+            sys.exit(3)
 
-def get_employee_from_map(
-    employee_uuid: str, mapping_file_path: str
-) -> Tuple[str, str]:
-    mapping = get_employee_mapping(mapping_file_path)
+        try:
+            with open(mapping_path) as f:
+                csv_reader = csv.DictReader(f, delimiter=";")
+                content = {
+                    line["mo_uuid"]: (line["ad_guid"], line["sam_account_name"])
+                    for line in csv_reader
+                }
+        except FileNotFoundError as err:
+            logger.critical("%s: %r", err.strerror, err.filename)
+            sys.exit(3)
+        return content
 
-    if employee_uuid not in mapping:
-        logger.critical(
-            "Unable to find employee in mapping with UUID {}".format(employee_uuid)
-        )
-        sys.exit(3)
-    return mapping[employee_uuid]
+    def get_employee_from_map(
+        self, employee_uuid: str, mapping_file_path: str
+    ) -> Tuple[str, str]:
+        mapping = self.get_employee_mapping(mapping_file_path)
 
-
-def get_parent_org_unit_uuid(
-    ou: dict, ou_filter: bool, mo_root_org_unit: UUID
-) -> Optional[str]:
-
-    if UUID(ou["uuid"]) == mo_root_org_unit:
-        # This is the root, there are no parents
-        return None
-
-    parent = ou["parent"]
-    if ou_filter:
-        assert parent, f"The org_unit {ou['uuid']} should have been filtered"
-
-    if parent:
-        return parent["uuid"]
-    # Rollekataloget only support one root org unit, so all other root org
-    # units get put under the main one, if filtering is not active.
-    return str(mo_root_org_unit)
-
-
-def get_org_units(
-    mh: MoraHelper,
-    mo_root_org_unit: UUID,
-    ou_filter: bool,
-    mapping_file_path: str,
-) -> Dict[str, Dict[str, Any]]:
-    org = mh.read_organisation()
-    search_root = mo_root_org_unit if ou_filter else None
-    org_units = mh.read_ou_root(org, search_root)
-
-    converted_org_units = {}
-    for org_unit in org_units:
-
-        org_unit_uuid = org_unit["uuid"]
-        # Fetch the OU again, as the 'parent' field is missing in the data
-        # when listing all org units
-        ou = mh.read_ou(org_unit_uuid)
-
-        def get_manager(org_unit_uuid, mh: MoraHelper):
-
-            present = mh._mo_lookup(
-                org_unit_uuid, "ou/{}/details/manager?validity=present"
+        if employee_uuid not in mapping:
+            logger.critical(
+                "Unable to find employee in mapping with UUID {}".format(employee_uuid)
             )
-            future = mh._mo_lookup(
-                org_unit_uuid, "ou/{}/details/manager?validity=future"
-            )
-            managers = present + future
+            sys.exit(3)
+        return mapping[employee_uuid]
 
-            if not managers:
-                return None
-            if len(managers) > 1:
-                logger.warning(
-                    "More than one manager exists for {}".format(org_unit_uuid)
-                )
-            manager = managers[0]
+    def get_parent_org_unit_uuid(
+        self, ou: dict, ou_filter: bool, mo_root_org_unit: UUID
+    ) -> Optional[str]:
 
-            person = manager.get("person")
-            if not person:
-                return None
-
-            ad_guid, sam_account_name = get_employee_from_map(
-                person["uuid"], mapping_file_path
-            )
-            # Only import users who are in AD
-            if not ad_guid or not sam_account_name:
-                return {}
-
-            return {"uuid": person["uuid"], "userId": sam_account_name}
-
-        def get_kle(org_unit_uuid: str, mh: MoraHelper) -> Tuple[List[str], List[str]]:
-            present = mh._mo_lookup(org_unit_uuid, "ou/{}/details/kle?validity=present")
-            future = mh._mo_lookup(org_unit_uuid, "ou/{}/details/kle?validity=future")
-            kles = present + future
-
-            def get_kle_tuples(
-                kles: List[dict],
-            ) -> Generator[Tuple[str, str], None, None]:
-                for kle in kles:
-                    number = kle["kle_number"]["user_key"]
-                    for aspect in kle["kle_aspect"]:
-                        yield number, aspect["scope"]
-
-            kle_tuples = get_kle_tuples(kles)
-            buckets = bucket(kle_tuples, key=itemgetter(1))
-
-            interest = map(itemgetter(0), buckets["INDSIGT"])
-            performing = map(itemgetter(0), buckets["UDFOERENDE"])
-
-            return list(interest), list(performing)
-
-        kle_performing, kle_interest = get_kle(org_unit_uuid, mh)
-
-        payload = {
-            "uuid": org_unit_uuid,
-            "name": ou["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(
-                ou, ou_filter, mo_root_org_unit
-            ),
-            "manager": get_manager(org_unit_uuid, mh),
-            "klePerforming": kle_performing,
-            "kleInterest": kle_interest,
-        }
-        converted_org_units[org_unit_uuid] = payload
-
-    return converted_org_units
-
-
-def get_employee_engagements(employee_uuid, mh: MoraHelper):
-    present = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=present")
-    future = mh._mo_lookup(employee_uuid, "e/{}/details/engagement?validity=future")
-    return present + future
-
-
-def convert_position(e: Dict, sync_titles: bool = False):
-    position = {
-        "name": e["job_function"]["name"],
-        "orgUnitUuid": e["org_unit"]["uuid"],
-    }
-    if sync_titles:
-        position["titleUuid"] = e["job_function"]["uuid"]
-    return position
-
-
-def get_users(
-    mh: MoraHelper,
-    mapping_file_path: str,
-    org_unit_uuids: Set[str],
-    ou_filter: bool,
-    use_nickname: bool = False,
-    sync_titles: bool = False,
-) -> List[Dict[str, Any]]:
-    # read mapping
-    employees = mh.read_all_users()
-
-    converted_users = []
-    for employee in employees:
-        employee_uuid = employee["uuid"]
-
-        ad_guid, sam_account_name = get_employee_from_map(
-            employee_uuid, mapping_file_path
-        )
-
-        # Only import users who are in AD
-        if not ad_guid or not sam_account_name:
-            continue
-
-        def get_employee_email(employee_uuid, mh: MoraHelper):
-            present = mh._mo_lookup(
-                employee_uuid, "e/{}/details/address?validity=present"
-            )
-            future = mh._mo_lookup(
-                employee_uuid, "e/{}/details/address?validity=future"
-            )
-            addresses = present + future
-
-            emails = list(
-                filter(
-                    lambda address: address["address_type"]["scope"] == "EMAIL",
-                    addresses,
-                )
-            )
-
-            if emails:
-                if len(emails) > 1:
-                    logger.warning(
-                        "More than one email exists for user {}".format(employee_uuid)
-                    )
-                return emails[0]["value"]
+        if UUID(ou["uuid"]) == mo_root_org_unit:
+            # This is the root, there are no parents
             return None
 
-        # Read positions first to filter any persons with engagements
-        # in organisations not in org_unit_uuids
-        engagements = get_employee_engagements(employee_uuid, mh)
-        convert = partial(convert_position, sync_titles=sync_titles)
-        # Convert MO engagements to Rollekatalog positions
-        converted_positions = map(convert, engagements)
+        parent = ou["parent"]
+        if ou_filter:
+            assert parent, f"The org_unit {ou['uuid']} should have been filtered"
 
-        # Filter positions outside relevant orgunits
-        positions = list(
+        if parent:
+            return parent["uuid"]
+        # Rollekataloget only support one root org unit, so all other root org
+        # units get put under the main one, if filtering is not active.
+        return str(mo_root_org_unit)
+
+    def get_org_units(
+        self,
+        mo_root_org_unit: UUID,
+        ou_filter: bool,
+        mapping_file_path: str,
+    ) -> Dict[str, Dict[str, Any]]:
+        org = self.mh.read_organisation()
+        search_root = mo_root_org_unit if ou_filter else None
+        org_units = self.mh.read_ou_root(org, search_root)
+
+        converted_org_units = {}
+        for org_unit in org_units:
+
+            org_unit_uuid = org_unit["uuid"]
+            # Fetch the OU again, as the 'parent' field is missing in the data
+            # when listing all org units
+            ou = self.mh.read_ou(org_unit_uuid)
+
+            def get_manager(org_unit_uuid):
+
+                present = self.mh._mo_lookup(
+                    org_unit_uuid, "ou/{}/details/manager?validity=present"
+                )
+                future = self.mh._mo_lookup(
+                    org_unit_uuid, "ou/{}/details/manager?validity=future"
+                )
+                managers = present + future
+
+                if not managers:
+                    return None
+                if len(managers) > 1:
+                    logger.warning(
+                        "More than one manager exists for {}".format(org_unit_uuid)
+                    )
+                manager = managers[0]
+
+                person = manager.get("person")
+                if not person:
+                    return None
+
+                ad_guid, sam_account_name = self.get_employee_from_map(
+                    person["uuid"], mapping_file_path
+                )
+                # Only import users who are in AD
+                if not ad_guid or not sam_account_name:
+                    return {}
+
+                return {"uuid": person["uuid"], "userId": sam_account_name}
+
+            def get_kle(org_unit_uuid: str) -> Tuple[List[str], List[str]]:
+                present = self.mh._mo_lookup(
+                    org_unit_uuid, "ou/{}/details/kle?validity=present"
+                )
+                future = self.mh._mo_lookup(
+                    org_unit_uuid, "ou/{}/details/kle?validity=future"
+                )
+                kles = present + future
+
+                def get_kle_tuples(
+                    kles: List[dict],
+                ) -> Generator[Tuple[str, str], None, None]:
+                    for kle in kles:
+                        number = kle["kle_number"]["user_key"]
+                        for aspect in kle["kle_aspect"]:
+                            yield number, aspect["scope"]
+
+                kle_tuples = get_kle_tuples(kles)
+                buckets = bucket(kle_tuples, key=itemgetter(1))
+
+                interest = map(itemgetter(0), buckets["INDSIGT"])
+                performing = map(itemgetter(0), buckets["UDFOERENDE"])
+
+                return list(interest), list(performing)
+
+            kle_performing, kle_interest = get_kle(org_unit_uuid)
+
+            payload = {
+                "uuid": org_unit_uuid,
+                "name": ou["name"],
+                "parentOrgUnitUuid": self.get_parent_org_unit_uuid(
+                    ou, ou_filter, mo_root_org_unit
+                ),
+                "manager": get_manager(org_unit_uuid),
+                "klePerforming": kle_performing,
+                "kleInterest": kle_interest,
+            }
+            converted_org_units[org_unit_uuid] = payload
+
+        return converted_org_units
+
+    def get_employee_engagements(self, employee_uuid):
+        present = self.mh._mo_lookup(
+            employee_uuid, "e/{}/details/engagement?validity=present"
+        )
+        future = self.mh._mo_lookup(
+            employee_uuid, "e/{}/details/engagement?validity=future"
+        )
+        return present + future
+
+    def get_employee_email(self, employee_uuid):
+        present = self.mh._mo_lookup(
+            employee_uuid, "e/{}/details/address?validity=present"
+        )
+        future = self.mh._mo_lookup(
+            employee_uuid, "e/{}/details/address?validity=future"
+        )
+        addresses = present + future
+        emails = list(
             filter(
-                lambda position: position["orgUnitUuid"] in org_unit_uuids,
-                converted_positions,
+                lambda address: address["address_type"]["scope"] == "EMAIL",
+                addresses,
             )
         )
-        if not positions:
-            continue
+        if emails:
+            if len(emails) > 1:
+                logger.warning(
+                    "More than one email exists for user {}".format(employee_uuid)
+                )
+            return emails[0]["value"]
+        return None
 
-        def get_employee_name(employee: dict) -> str:
-            name = employee["name"]
-            if not use_nickname:
-                return name
-            nickname = employee.get("nickname")
-            return nickname or name
+    def get_users(
+        self,
+        mapping_file_path: str,
+        org_unit_uuids: Set[str],
+        ou_filter: bool,
+        use_nickname: bool = False,
+        sync_titles: bool = False,
+    ) -> List[Dict[str, Any]]:
+        # read mapping
+        employees = self.mh.read_all_users()
 
-        payload = {
-            "extUuid": employee["uuid"],
-            "userId": sam_account_name,
-            "name": get_employee_name(employee),
-            "email": get_employee_email(employee_uuid, mh),
-            "positions": positions,
-        }
-        converted_users.append(payload)
+        converted_users = []
 
-    return converted_users
+        def convert_position(e: Dict, sync_titles: bool = False):
+            position = {
+                "name": e["job_function"]["name"],
+                "orgUnitUuid": e["org_unit"]["uuid"],
+            }
+            if sync_titles:
+                position["titleUuid"] = e["job_function"]["uuid"]
+            return position
+
+        for employee in employees:
+            employee_uuid = employee["uuid"]
+
+            ad_guid, sam_account_name = self.get_employee_from_map(
+                employee_uuid, mapping_file_path
+            )
+
+            # Only import users who are in AD
+            if not ad_guid or not sam_account_name:
+                continue
+
+            # Read positions first to filter any persons with engagements
+            # in organisations not in org_unit_uuids
+            engagements = self.get_employee_engagements(employee_uuid)
+            convert = partial(convert_position, sync_titles=sync_titles)
+            # Convert MO engagements to Rollekatalog positions
+            converted_positions = map(convert, engagements)
+
+            # Filter positions outside relevant orgunits
+            positions = list(
+                filter(
+                    lambda position: position["orgUnitUuid"] in org_unit_uuids,
+                    converted_positions,
+                )
+            )
+            if not positions:
+                continue
+
+            def get_employee_name(employee: dict) -> str:
+                name = employee["name"]
+                if not use_nickname:
+                    return name
+                nickname = employee.get("nickname")
+                return nickname or name
+
+            payload = {
+                "extUuid": employee["uuid"],
+                "userId": sam_account_name,
+                "name": get_employee_name(employee),
+                "email": self.get_employee_email(employee_uuid),
+                "positions": positions,
+            }
+            converted_users.append(payload)
+
+        return converted_users
 
 
 @click.command()
@@ -406,6 +415,8 @@ def main(
     settings = RollekatalogSettings()
     settings.start_logging_based_on_settings()
 
+    rollekatalog_exporter = RollekatalogsExporter(settings=settings)
+
     if sync_titles:
         export_titles(
             mora_base=mora_base,
@@ -418,11 +429,11 @@ def main(
             dry_run=dry_run,
         )
 
-    mh = MoraHelper(hostname=mora_base, export_ansi=False)
-
     try:
         logger.info("Reading organisation")
-        org_units = get_org_units(mh, mo_root_org_unit, ou_filter, mapping_file_path)
+        org_units = rollekatalog_exporter.get_org_units(
+            mo_root_org_unit, ou_filter, mapping_file_path
+        )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
@@ -432,8 +443,7 @@ def main(
 
     try:
         logger.info("Reading employees")
-        users = get_users(
-            mh,
+        users = rollekatalog_exporter.get_users(
             mapping_file_path,
             org_unit_uuids,
             ou_filter,
