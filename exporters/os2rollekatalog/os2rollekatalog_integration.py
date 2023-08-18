@@ -10,7 +10,6 @@ import json
 import logging
 import sys
 from functools import lru_cache
-from functools import partial
 from operator import itemgetter
 from pathlib import Path
 from typing import Any
@@ -18,7 +17,6 @@ from typing import Dict
 from typing import Generator
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Tuple
 from uuid import UUID
 
@@ -26,7 +24,6 @@ import click
 import requests
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
 
 from .config import RollekatalogSettings
 from .titles import export_titles
@@ -44,8 +41,10 @@ class RollekatalogsExporter:
         return MoraHelper(hostname=mora_base, export_ansi=False)
 
     @lru_cache(maxsize=None)
-    def get_employee_mapping(self, mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
-        mapping_path = Path(mapping_path_str)
+    def get_employee_mapping(
+        self,
+    ) -> Dict[str, Tuple[str, str]]:
+        mapping_path = Path(self.settings.exporters_os2rollekatalog_mapping_file_path)
         if not mapping_path.is_file():
             logger.critical("Mapping file does not exist: %s", mapping_path)
             sys.exit(3)
@@ -62,10 +61,8 @@ class RollekatalogsExporter:
             sys.exit(3)
         return content
 
-    def get_employee_from_map(
-        self, employee_uuid: str, mapping_file_path: str
-    ) -> Tuple[str, str]:
-        mapping = self.get_employee_mapping(mapping_file_path)
+    def get_employee_from_map(self, employee_uuid: str) -> Tuple[str, str]:
+        mapping = self.get_employee_mapping()
 
         if employee_uuid not in mapping:
             logger.critical(
@@ -74,32 +71,32 @@ class RollekatalogsExporter:
             sys.exit(3)
         return mapping[employee_uuid]
 
-    def get_parent_org_unit_uuid(
-        self, ou: dict, ou_filter: bool, mo_root_org_unit: UUID
-    ) -> Optional[str]:
+    def get_parent_org_unit_uuid(self, ou: dict) -> Optional[str]:
 
-        if UUID(ou["uuid"]) == mo_root_org_unit:
+        if (
+            UUID(ou["uuid"])
+            == self.settings.exporters_os2rollekatalog_main_root_org_unit
+        ):
             # This is the root, there are no parents
             return None
 
         parent = ou["parent"]
-        if ou_filter:
+        if self.settings.exporters_os2rollekatalog_ou_filter:
             assert parent, f"The org_unit {ou['uuid']} should have been filtered"
 
         if parent:
             return parent["uuid"]
         # Rollekataloget only support one root org unit, so all other root org
         # units get put under the main one, if filtering is not active.
-        return str(mo_root_org_unit)
+        return str(self.settings.exporters_os2rollekatalog_main_root_org_unit)
 
-    def get_org_units(
-        self,
-        mo_root_org_unit: UUID,
-        ou_filter: bool,
-        mapping_file_path: str,
-    ) -> Dict[str, Dict[str, Any]]:
+    def get_org_units(self) -> Dict[str, Dict[str, Any]]:
         org = self.mh.read_organisation()
-        search_root = mo_root_org_unit if ou_filter else None
+        search_root = (
+            self.settings.exporters_os2rollekatalog_main_root_org_unit
+            if self.settings.exporters_os2rollekatalog_ou_filter
+            else None
+        )
         org_units = self.mh.read_ou_root(org, search_root)
 
         converted_org_units = {}
@@ -132,9 +129,7 @@ class RollekatalogsExporter:
                 if not person:
                     return None
 
-                ad_guid, sam_account_name = self.get_employee_from_map(
-                    person["uuid"], mapping_file_path
-                )
+                ad_guid, sam_account_name = self.get_employee_from_map(person["uuid"])
                 # Only import users who are in AD
                 if not ad_guid or not sam_account_name:
                     return {}
@@ -171,9 +166,7 @@ class RollekatalogsExporter:
             payload = {
                 "uuid": org_unit_uuid,
                 "name": ou["name"],
-                "parentOrgUnitUuid": self.get_parent_org_unit_uuid(
-                    ou, ou_filter, mo_root_org_unit
-                ),
+                "parentOrgUnitUuid": self.get_parent_org_unit_uuid(ou),
                 "manager": get_manager(org_unit_uuid),
                 "klePerforming": kle_performing,
                 "kleInterest": kle_interest,
@@ -213,34 +206,25 @@ class RollekatalogsExporter:
             return emails[0]["value"]
         return None
 
-    def get_users(
-        self,
-        mapping_file_path: str,
-        org_unit_uuids: Set[str],
-        ou_filter: bool,
-        use_nickname: bool = False,
-        sync_titles: bool = False,
-    ) -> List[Dict[str, Any]]:
+    def convert_position(self, e: Dict):
+        position = {
+            "name": e["job_function"]["name"],
+            "orgUnitUuid": e["org_unit"]["uuid"],
+        }
+        if self.settings.exporters_os2rollekatalog_sync_titles:
+            position["titleUuid"] = e["job_function"]["uuid"]
+        return position
+
+    def get_users(self, org_unit_uuids) -> List[Dict[str, Any]]:
         # read mapping
         employees = self.mh.read_all_users()
 
         converted_users = []
 
-        def convert_position(e: Dict, sync_titles: bool = False):
-            position = {
-                "name": e["job_function"]["name"],
-                "orgUnitUuid": e["org_unit"]["uuid"],
-            }
-            if sync_titles:
-                position["titleUuid"] = e["job_function"]["uuid"]
-            return position
-
         for employee in employees:
             employee_uuid = employee["uuid"]
 
-            ad_guid, sam_account_name = self.get_employee_from_map(
-                employee_uuid, mapping_file_path
-            )
+            ad_guid, sam_account_name = self.get_employee_from_map(employee_uuid)
 
             # Only import users who are in AD
             if not ad_guid or not sam_account_name:
@@ -249,9 +233,9 @@ class RollekatalogsExporter:
             # Read positions first to filter any persons with engagements
             # in organisations not in org_unit_uuids
             engagements = self.get_employee_engagements(employee_uuid)
-            convert = partial(convert_position, sync_titles=sync_titles)
+
             # Convert MO engagements to Rollekatalog positions
-            converted_positions = map(convert, engagements)
+            converted_positions = map(self.convert_position, engagements)
 
             # Filter positions outside relevant orgunits
             positions = list(
@@ -265,7 +249,7 @@ class RollekatalogsExporter:
 
             def get_employee_name(employee: dict) -> str:
                 name = employee["name"]
-                if not use_nickname:
+                if not self.settings.exporters_os2rollekatalog_use_nickname:
                     return name
                 nickname = employee.get("nickname")
                 return nickname or name
@@ -284,127 +268,12 @@ class RollekatalogsExporter:
 
 @click.command()
 @click.option(
-    "--mora-base",
-    default=load_setting("mora.base", "http://localhost:5000"),
-    help="URL for OS2mo.",
-)
-@click.option(
-    "--rollekatalog-url",
-    default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
-    help="URL for Rollekataloget.",
-    required=True,
-)
-@click.option(
-    "--rollekatalog-api-key",
-    default=load_setting("exporters.os2rollekatalog.rollekatalog.api_token"),
-    type=click.UUID,
-    required=True,
-    help="API key to write to Rollekataloget.",
-)
-@click.option(
-    "--mo-root-org-unit",
-    default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
-    type=click.UUID,
-    required=True,
-    help=(
-        "Root uuid in os2mo"
-        "Also root in rollekataloget unless rollekatalog_root_uuid is specified."
-        "Rollekataloget only supports one root org unit. "
-        "All other root org units in OS2mo will be made children of this one."
-        "Unless they are filtered by setting ou_filter=true"
-    ),
-)
-@click.option(
-    "--ou-filter",
-    default=load_setting("exporters.os2rollekatalog.ou_filter", False),
-    type=click.BOOL,
-    help=(
-        "Option to filter by mo_root_org_unit."
-        "Only get org_units below mo_root_org_unit and employees in these org units."
-        "Defaults to false (select every org unit and put other root units "
-        "below main_root)"
-    ),
-)
-@click.option(
-    "--rollekatalog-root-uuid",
-    default=load_setting("exporters.os2rollekatalog.rollekatalog_root_uuid", None),
-    type=click.UUID,
-    required=False,
-    help=(
-        "Root uuid in rollekataloget"
-        "Optional setting if the root uuid in rollekataloget is different to MO"
-    ),
-)
-@click.option(
-    "--mapping-file-path",
-    default="cpr_mo_ad_map.csv",
-    type=click.Path(exists=True),
-    help="Path to the cpr_mo_ad_map.csv file.",
-    envvar="MOX_ROLLE_MAPPING",
-)
-@click.option(
-    "--client-id",
-    default="dipex",
-    envvar="CLIENT_ID",
-)
-@click.option(
-    "--client-secret",
-    envvar="CLIENT_SECRET",
-)
-@click.option(
-    "--auth-realm",
-    default="mo",
-    envvar="AUTH_REALM",
-)
-@click.option(
-    "--auth-server",
-    envvar="AUTH_SERVER",
-)
-@click.option(
-    "--use-nickname",
-    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
-    type=click.BOOL,
-    required=False,
-    help=(
-        "Use employee nicknames if available. Will use name if nickname is unavailable"
-    ),
-)
-@click.option(
-    "--use-nickname",
-    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
-    type=click.BOOL,
-    required=False,
-    help=(
-        "Use employee nicknames if available. Will use name if nickname is unavailable"
-    ),
-)
-@click.option(
-    "--sync-titles",
-    default=load_setting("exporters.os2rollekatalog.sync_titles", False),
-    type=click.BOOL,
-    required=False,
-    help="Sync engagement_job_functions to titles in rollekataloget",
-)
-@click.option(
     "--dry-run",
     default=False,
     is_flag=True,
     help="Dump payload, rather than writing to rollekataloget.",
 )
 def main(
-    mora_base: str,
-    rollekatalog_url: str,
-    rollekatalog_api_key: UUID,
-    mo_root_org_unit: UUID,
-    ou_filter: bool,
-    rollekatalog_root_uuid: UUID,
-    mapping_file_path: str,
-    client_id: str,
-    client_secret: str,
-    auth_realm: str,
-    auth_server: str,
-    use_nickname: bool,
-    sync_titles: bool,
     dry_run: bool,
 ):
     """OS2Rollekatalog exporter.
@@ -417,23 +286,21 @@ def main(
 
     rollekatalog_exporter = RollekatalogsExporter(settings=settings)
 
-    if sync_titles:
+    if settings.exporters_os2rollekatalog_sync_titles:
         export_titles(
-            mora_base=mora_base,
-            client_id=client_id,
-            client_secret=client_secret,
-            auth_realm=auth_realm,
-            auth_server=auth_server,
-            rollekatalog_url=rollekatalog_url,
-            rollekatalog_api_key=rollekatalog_api_key,
+            mora_base=settings.mora_base,
+            client_id=settings.client_id,
+            client_secret=settings.client_secret,
+            auth_realm=settings.auth_realm,
+            auth_server=settings.auth_server,
+            rollekatalog_url=settings.exporters_os2rollekatalog_rollekatalog_url,
+            rollekatalog_api_key=settings.exporters_os2rollekatalog_rollekatalog_api_key,
             dry_run=dry_run,
         )
 
     try:
         logger.info("Reading organisation")
-        org_units = rollekatalog_exporter.get_org_units(
-            mo_root_org_unit, ou_filter, mapping_file_path
-        )
+        org_units = rollekatalog_exporter.get_org_units()
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
@@ -443,13 +310,7 @@ def main(
 
     try:
         logger.info("Reading employees")
-        users = rollekatalog_exporter.get_users(
-            mapping_file_path,
-            org_unit_uuids,
-            ou_filter,
-            use_nickname,
-            sync_titles=sync_titles,
-        )
+        users = rollekatalog_exporter.get_users(org_unit_uuids)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
@@ -457,9 +318,12 @@ def main(
 
     payload = {"orgUnits": list(org_units.values()), "users": users}
     # Option to replace root organisations uuid with one given in settings
-    if rollekatalog_root_uuid:
+    if settings.exporters_os2rollekatalog_rollekatalog_root_uuid:
         p = json.dumps(payload)
-        p = p.replace(str(mo_root_org_unit), str(rollekatalog_root_uuid))
+        p = p.replace(
+            str(settings.exporters_os2rollekatalog_main_root_org_unit),
+            str(settings.exporters_os2rollekatalog_rollekatalog_root_uuid),
+        )
         payload = json.loads(p)
 
     if dry_run:
@@ -469,9 +333,11 @@ def main(
     try:
         logger.info("Writing to Rollekataloget")
         result = requests.post(
-            rollekatalog_url,
+            settings.exporters_os2rollekatalog_rollekatalog_url,
             json=payload,
-            headers={"ApiKey": str(rollekatalog_api_key)},
+            headers={
+                "ApiKey": str(settings.exporters_os2rollekatalog_rollekatalog_api_key)
+            },
             verify=False,
         )
         logger.info(result.json())
