@@ -3,9 +3,8 @@ from uuid import uuid4
 
 from parameterized import parameterized
 
-from exporters.os2rollekatalog.os2rollekatalog_integration import (
-    get_parent_org_unit_uuid,
-)
+from exporters.os2rollekatalog.config import RollekatalogSettings
+from exporters.os2rollekatalog.os2rollekatalog_integration import RollekatalogsExporter
 
 
 class MockOU:
@@ -27,7 +26,7 @@ limit = uuid4()
 testparent = uuid4()
 
 
-class RollekatalogTestUnits(unittest.TestCase):
+class RollekatalogTestUnits(unittest.TestCase, RollekatalogsExporter):
     @parameterized.expand(
         [
             # No ou filtering:
@@ -46,7 +45,11 @@ class RollekatalogTestUnits(unittest.TestCase):
     )
     def test_get_parent(self, parent_uuid, uuid, limit, expected):
         mocked_ou = get_mocked_ou(uuid, parent_uuid)
-        res = get_parent_org_unit_uuid(mocked_ou, limit, root)
+        self.settings = RollekatalogSettings(
+            exporters_os2rollekatalog_ou_filter=limit,
+            exporters_os2rollekatalog_main_root_org_unit=root,
+        )
+        res = self.get_parent_org_unit_uuid(mocked_ou)
         self.assertEqual(res, expected)
 
     @parameterized.expand(
@@ -58,7 +61,11 @@ class RollekatalogTestUnits(unittest.TestCase):
             (None, uuid4(), True, None),
         ]
     )
-    def test_assert_filtered(self, parent_uuid, uuid, limit, expected):
+    def test_assert_filtered(self, parent_uuid, uuid, limit, _):
+        self.settings = RollekatalogSettings(
+            exporters_os2rollekatalog_ou_filter=limit,
+            exporters_os2rollekatalog_main_root_org_unit=root,
+        )
         mocked_ou = get_mocked_ou(uuid, parent_uuid)
         with self.assertRaises(AssertionError):
-            get_parent_org_unit_uuid(mocked_ou, limit, root)
+            self.get_parent_org_unit_uuid(mocked_ou)

@@ -2,10 +2,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from exporters.os2rollekatalog.os2rollekatalog_integration import convert_position
-from exporters.os2rollekatalog.os2rollekatalog_integration import (
-    get_employee_engagements,
-)
+from exporters.os2rollekatalog.config import RollekatalogSettings
+from exporters.os2rollekatalog.os2rollekatalog_integration import RollekatalogsExporter
 
 MO_TEST_ENG_1 = {
     "job_function": {"name": "tester", "uuid": "job_function_uuid"},
@@ -29,6 +27,11 @@ POSITIONS_TITLES_2 = {
 }
 
 
+class MockRollekatalogExporter(RollekatalogsExporter):
+    def _get_mora_helper(self, mora_base):
+        return MagicMock()
+
+
 @pytest.mark.parametrize(
     "current,future",
     [
@@ -44,11 +47,11 @@ POSITIONS_TITLES_2 = {
     ],
 )
 def test_get_employee_engagements(current, future):
-    mh = MagicMock()
-    mh._mo_lookup.side_effect = [current, future]
-    positions = get_employee_engagements("dummy_uuid", mh)
+    re = MockRollekatalogExporter(settings=RollekatalogSettings())
+    re.mh._mo_lookup.side_effect = [current, future]
+    positions = re.get_employee_engagements("dummy_uuid")
     assert list(positions) == current + future
-    assert mh._mo_lookup.call_count == 2
+    assert re.mh._mo_lookup.call_count == 2
 
 
 @pytest.mark.parametrize(
@@ -63,4 +66,7 @@ def test_get_employee_engagements(current, future):
     ],
 )
 def test_convert_position(sync_titles, engagement, expected):
-    assert convert_position(engagement, sync_titles=sync_titles) == expected
+    settings = RollekatalogSettings(exporters_os2rollekatalog_sync_titles=sync_titles)
+    re = MockRollekatalogExporter(settings=settings)
+
+    assert re.convert_position(engagement) == expected
