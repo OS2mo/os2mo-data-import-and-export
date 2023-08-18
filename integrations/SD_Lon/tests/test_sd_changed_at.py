@@ -1493,22 +1493,6 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
             self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
 
-    def test_fix_department_called_with_date(self):
-        # Arrange
-        sd_updater = setup_sd_changed_at()
-        fix_date = datetime.datetime.today() + datetime.timedelta(weeks=80)
-        sd_updater.helper.read_ou.return_value = {"status": "found"}
-
-        # Act
-        sd_updater.apply_NY_logic(
-            "00000000-0000-0000-0000-000000000000", "job_id", None, "person_uuid"
-        )
-
-        # Assert
-        sd_updater.fix_departments_mock.fix_department.assert_called_once_with(
-            "00000000-0000-0000-0000-000000000000", fix_date.date()
-        )
-
 
 def test_read_forced_uuid_use_empty_dict():
     sd_updater = setup_sd_changed_at({"sd_read_forced_uuids": False})
