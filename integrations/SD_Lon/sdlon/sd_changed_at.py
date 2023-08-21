@@ -47,7 +47,7 @@ from sdlon.sd_to_pydantic import convert_to_sd_base_person
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
-from .date_utils import date_to_datetime
+from .date_utils import date_to_datetime, parse_datetime
 from .date_utils import gen_date_intervals
 from .date_utils import sd_to_mo_termination_date
 from .engagement import create_engagement, filtered_professions
@@ -787,7 +787,9 @@ class ChangeAtSD:
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit, at=validity["from"], use_cache=False)
         if "status" in ou_info:
-            self.department_fixer.fix_department(org_unit, validity["from"])
+            self.department_fixer.fix_department(
+                org_unit, parse_datetime(validity["from"]).date()
+            )
             ou_info = self.helper.read_ou(
                 org_unit, at=validity["from"], use_cache=False
             )

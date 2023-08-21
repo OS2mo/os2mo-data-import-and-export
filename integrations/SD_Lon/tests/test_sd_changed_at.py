@@ -1610,7 +1610,7 @@ def test_apply_ny_logic_for_non_existing_future_unit() -> None:
         call(ou_uuid_afd, at=department_from_date, use_cache=False),
         call(ou_uuid_afd, at=department_from_date, use_cache=False),
     ]
-    mock_fix_department.assert_called_once_with(ou_uuid_afd, department_from_date)
+    mock_fix_department.assert_called_once_with(ou_uuid_afd, date(2200, 1, 1))
     mock_create_association.assert_called_once_with(
         ou_uuid_afd, person_uuid, 12345, {"from": department_from_date, "to": None}
     )
