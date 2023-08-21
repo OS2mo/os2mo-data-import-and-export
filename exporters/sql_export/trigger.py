@@ -22,7 +22,8 @@ from .sql_export import SqlExport
 logger = logging.getLogger(__name__)
 trigger_router = APIRouter()
 # Concurrency lock to ensure that only 1 operation is running at a time
-lock = Lock()
+lock_actual = Lock()
+lock_historic = Lock()
 
 
 class DatabaseConfiguration(BaseSettings):  # type: ignore
@@ -142,6 +143,10 @@ def trigger(
     historic: bool = Query(False),
     read_from_cache: bool = Query(False),
 ) -> dict[str, str]:
+    if historic:
+        lock = lock_historic
+    else:
+        lock = lock_actual
     acquired = lock.acquire(blocking=False)
     if not acquired:
         settings = DatabaseSettings()
