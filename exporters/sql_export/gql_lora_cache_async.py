@@ -139,7 +139,7 @@ class GQLLoraCache:
         logger.info(msg.format(resolve_dar, full_history))
         if isinstance(settings, dict):
             settings = None
-        self.std_page_size = 500
+        self.std_page_size = 400
         self.resolve_dar = resolve_dar
         self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
 
