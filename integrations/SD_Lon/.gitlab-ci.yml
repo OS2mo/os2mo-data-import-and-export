@@ -8,12 +8,11 @@ stages:
   - release
 
 include:
-  - project: 'labs/salt-automation'
-    ref: 'master'
-    file: '/gitlab-ci-templates/common/docker-build-meta.v2.yml'
-  - project: 'labs/salt-automation'
-    ref: 'master'
-    file: '/gitlab-ci-templates/common/docker-release-meta.v1.yml'
+  - project: labs/salt-automation
+    file:
+      - gitlab-ci-templates/common/docker-release-meta.v1.yml
+      - gitlab-ci-templates/common/docker-build-meta.v2.yml
+      - gitlab-ci-templates/common/config-updater-meta.v1.yml
 
 variables:
   SD_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sd-changed-at
@@ -100,3 +99,39 @@ Release SD_INIT release image:
   variables:
     CI_IMAGE: ${SD_INIT_IMAGE_SHA}
     RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
+
+Release SDChangedAt to Flux dev:
+  extends: .release-to-dev
+  needs: ["Release version"]
+  variables:
+    ENDPOINT: os2mo/flux/sdchangedat/update-dev
+
+Release SDChangedAt to Flux test:
+  extends: .release-to-test
+  needs: []
+  variables:
+    ENDPOINT: os2mo/flux/sdchangedat/update-test
+
+Release SDChangedAt Flux prod:
+  extends: .release-to-prod
+  needs: []
+  variables:
+    ENDPOINT: os2mo/flux/sdchangedat/update-prod
+
+Release SDChangedAt to Salt dev:
+  extends: .release-to-dev
+  needs: ["Release version"]
+  variables:
+    ENDPOINT: os2mo/salt/sdchangedat/update-dev
+
+Release SDChangedAt to Salt test:
+  extends: .release-to-test
+  needs: []
+  variables:
+    ENDPOINT: os2mo/salt/sdchangedat/update-test
+
+Release SDChangedAt Salt prod:
+  extends: .release-to-prod
+  needs: []
+  variables:
+    ENDPOINT: os2mo/salt/sdchangedat/update-prod
