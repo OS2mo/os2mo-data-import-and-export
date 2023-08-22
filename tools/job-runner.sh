@@ -73,7 +73,7 @@ sanity_check_mo_data(){
 }
 
 sd_changed_at_status(){
-    PROM_STATUS=$(curl -s localhost:8000/metrics | grep sd_changed_at_state | grep "1.0" | awk -F\" '{print $2}')
+    PROM_STATUS=$(curl -s localhost:8030/metrics | grep sd_changed_at_state | grep "1.0" | awk -F\" '{print $2}')
     if [[ $? != 0 ]]; then
         # curl did not return with status 0
         return 4
@@ -158,7 +158,7 @@ imports_sd_fix_departments(){
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
     if [[ ${USE_DOCKER_SD_CHANGED_AT:-"false"} == "true" ]]; then
-        curl -X POST http://localhost:8030/trigger
+        curl -s -X POST --output /dev/null "http://localhost:8030/trigger"
         if [[ $? != 0 ]]; then
             return $?
         fi
@@ -167,6 +167,7 @@ imports_sd_changed_at(){
         SD_STATUS=$?
         SD_STATUS_CHECK_START=$(date +%s)
 
+        echo "Waiting for SD-changed-at to finish"
         while [[ ${SD_STATUS} != 0 ]]; do
             SD_CURRENT_TIMESTAMP=$(date +%s)
             if [[ ${SD_CURRENT_TIMESTAMP} -ge $((${SD_STATUS_CHECK_START} + 900)) ]]; then
@@ -177,6 +178,7 @@ imports_sd_changed_at(){
             sd_changed_at_status
             SD_STATUS=$?
         done
+        echo "Exit imports_sd_changed_at with status: ${SD_STATUS}"
         return ${SD_STATUS}
     else
         BACK_UP_AFTER_JOBS+=(
