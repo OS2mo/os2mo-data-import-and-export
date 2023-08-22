@@ -26,7 +26,7 @@ export POETRY_VIRTUALENVS_IN_PROJECT=true
 $POETRYPATH env use python3.11
 $POETRYPATH install --no-interaction
 
-.venv/bin/pip install --editable .
+#.venv/bin/pip install --editable . this was the cause of 57056
 
 cd $DIPEXAR/integrations/SD_Lon/
 $POETRYPATH env use python3.11
