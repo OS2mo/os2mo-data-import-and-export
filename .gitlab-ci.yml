@@ -340,21 +340,3 @@ Release DIPEX to PyPI:
     PYPI_TOKEN: ${DIPEX_PYPI_TOKEN}
   extends:
     - .release_to_pypi_cc
-
-Release SDChangedAt to Flux dev:
-  extends: .release-to-dev
-  needs: ["Release version"]
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-dev
-
-Release SDChangedAt to Flux test:
-  extends: .release-to-test
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-test
-
-Release SDChangedAt Flux prod:
-  extends: .release-to-prod
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-prod
