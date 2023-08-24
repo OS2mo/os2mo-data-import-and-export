@@ -6,6 +6,7 @@ import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from .config import CommonSettings
+from .config import get_changed_at_settings
 from .models import JobFunction
 from .sd_common import mora_assert
 from .sd_common import sd_lookup
@@ -114,7 +115,7 @@ class JobIdSync:
             "JobPositionIdentifier": job_pos_id,
         }
         try:
-            job_pos_response = sd_lookup("GetProfession20080201", params)
+            job_pos_response = sd_lookup("GetProfession20080201", self.settings, params)
         except Exception:  # TODO: Be specific here
             logger.info("This job_position could not be found in SD")
             return None
@@ -235,14 +236,15 @@ class JobIdSync:
 )
 def sync_jobid(job_pos_id, title, sync_all):
     """Job Position Synchronize tool."""
+    settings = get_changed_at_settings()
     setup_logging()
 
     if job_pos_id is None and sync_all is None:
         raise click.ClickException("Either job-pos-id or sync-all must be given")
     if job_pos_id and sync_all:
-        raise click.ClickException("job-pos-id and sync-all are mutually exclusive")
+        raise click.ClickException("job-pos-id and sync-all are mutually ex`clusive")
 
-    sync_tool = JobIdSync()
+    sync_tool = JobIdSync(settings)
 
     if job_pos_id:
         print(job_pos_id)
