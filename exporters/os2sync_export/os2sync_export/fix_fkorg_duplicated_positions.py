@@ -12,26 +12,7 @@ from os2sync_export.os2synccli import update_single_user
 logger = logging.getLogger(__name__)
 
 
-def doofus():
-    # Stub returning test data while I wait for access to Ballerup DEV or TEST
-    return [
-        {
-            "Uuid": "aae73669-8ed9-4a52-9c99-7fcec8131c1f",
-            "UserId": "NN",
-            "Name": "Name Nameson",
-            "Email": "NN@nn.dk",
-            "Telephone": "whatever",
-            "Positions": [
-                {"Uuid": "319b0db8-2a93-4a2c-9f84-b650187ba67b", "Name": "Ingen"},
-                {"Uuid": "319b0db8-2a93-4a2c-9f84-b650187ba67b", "Name": "Ingen"},
-            ],
-        }
-    ]
-
-
 def get_hierarchy_users(settings, client):
-    return doofus()  # TODO: remove!
-
     request_uuid = trigger_hierarchy(client, os2sync_api_url=settings.os2sync_api_url)
     existing_os2sync_org_units, existing_os2sync_users = get_hierarchy(
         client,
