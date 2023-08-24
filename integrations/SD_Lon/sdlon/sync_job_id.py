@@ -242,7 +242,7 @@ def sync_jobid(job_pos_id, title, sync_all):
     if job_pos_id is None and sync_all is None:
         raise click.ClickException("Either job-pos-id or sync-all must be given")
     if job_pos_id and sync_all:
-        raise click.ClickException("job-pos-id and sync-all are mutually ex`clusive")
+        raise click.ClickException("job-pos-id and sync-all are mutually exclusive")
 
     sync_tool = JobIdSync(settings)
 
