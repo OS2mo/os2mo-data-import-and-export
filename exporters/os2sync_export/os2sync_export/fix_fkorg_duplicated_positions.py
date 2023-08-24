@@ -1,6 +1,4 @@
 import logging
-from collections import Counter
-from operator import itemgetter
 from uuid import UUID
 
 import click
@@ -33,6 +31,7 @@ def doofus():
 
 def get_hierarchy_users(settings, client):
     return doofus()  # TODO: remove!
+
     request_uuid = trigger_hierarchy(client, os2sync_api_url=settings.os2sync_api_url)
     existing_os2sync_org_units, existing_os2sync_users = get_hierarchy(
         client,
@@ -43,16 +42,16 @@ def get_hierarchy_users(settings, client):
 
 
 def get_user_uuids_to_fix(hierarchy_users: list[dict]) -> list[UUID]:
+    def has_duplicated_positions(item: dict):
+        # `item` must have more than one position
+        if len(item.get("Positions", [])) < 1:
+            return False
+        # Detect duplicated positions
+        positions: list[tuple] = [(p["Uuid"], p["Name"]) for p in item["Positions"]]
+        return len(positions) > len(set(positions))
+
     return [
-        UUID(item["Uuid"])
-        for item in hierarchy_users
-        if len(item.get("Positions", [])) > 0  # item must have more than one position
-        and any(
-            # If the same position UUID occurs more than once in the list "Positions",
-            # this item counts as a "hit" that needs to be fixed.
-            count > 1
-            for count in Counter(map(itemgetter("Uuid"), item["Positions"])).values()
-        )
+        UUID(item["Uuid"]) for item in hierarchy_users if has_duplicated_positions(item)
     ]
 
 
