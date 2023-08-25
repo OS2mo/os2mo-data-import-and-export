@@ -1,12 +1,13 @@
 import codecs
 import logging
+import ssl
 from abc import ABC
 from datetime import datetime
 from ftplib import FTP, FTP_TLS
 from io import BytesIO, StringIO
 from typing import List, Optional, Tuple, TypeVar
 
-import config
+from customers.Frederikshavn import config
 import paramiko
 from more_itertools import one
 from paramiko.client import SSHClient
@@ -21,12 +22,6 @@ class FileSet(ABC):
     def __init__(self):
         super().__init__()
         self._settings = config.get_employee_phone_book_settings()
-
-    def get_import_filenames(self) -> List[str]:
-        raise NotImplementedError("must be implemented by subclass")
-
-    def get_modified_datetime(self, filename: str) -> datetime:
-        raise NotImplementedError("must be implemented by subclass")
 
     def read_file(self, filename: str) -> List[str]:
         raise NotImplementedError("must be implemented by subclass")
@@ -170,17 +165,17 @@ class SFTPFileSet(FileSet):
 
 
 def upload_csv_to_ftps_server(
-        server: str, username: str, password: str, csv_data: str, file_name: str, target_folder: str
+        host: str, username: str, password: str, file_name: str, target_folder: str, target_name: str
 ) -> bool:
     """
     Connects to an FTPS server and uploads a CSV file to the specified folder.
 
     Args:
-        server: The FTPS server address.
+        host: The FTPS server address.
         username: The username to authenticate with the server.
         password: The password to authenticate with the server.
-        csv_data: The data to write to the CSV file.
         file_name: The name of the CSV file to be created on the server.
+        target_name: Bla bl
         target_folder: The folder path on the FTPS server to upload the file to.
 
     Returns:
@@ -188,15 +183,18 @@ def upload_csv_to_ftps_server(
     """
     try:
         # Connect to the FTPS server
-        ftps = FTP_TLS(server)
+        ftps = FTP_TLS()
+#        ftps.ssl_version = ssl.PROTOCOL_SSLv23
+#        ftps.debugging = 2
+        ftps.connect(host, port=990)
         ftps.login(username, password)
-        ftps.prot_p()
+        #ftps.prot_p()
 
         # Set the target folder on the server
         ftps.cwd(target_folder)
 
         # Write the CSV data to a file on the server
-        ftps.storlines("STOR {}".format(file_name), csv_data.encode("utf-8"))
+        ftps.storlines(f"STOR {target_name}", open(file_name))
 
         # Close the FTPS connection
         ftps.quit()

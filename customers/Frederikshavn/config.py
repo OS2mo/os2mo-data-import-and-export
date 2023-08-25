@@ -15,6 +15,7 @@ class EmployeePhoneBookSettings(JobSettings):
     ftp_folder: str | None
 
     # Settings for Employee Phonebook:
+    # TODO remove these once the script is ready to run, and set them in Salt.
     sql_cell_phone_number_field: str | None = (
         "AD-Mobil"  # Desired cell phone type - "AD-Mobil".
     )

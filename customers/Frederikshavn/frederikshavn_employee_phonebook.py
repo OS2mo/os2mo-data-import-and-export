@@ -5,7 +5,7 @@ from more_itertools import prepend
 from sqlalchemy import and_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
-from customers.Frederikshavn.ftp_connnector import SFTPFileSet, upload_csv_to_ftps_server
+from customers.Frederikshavn.ftp_connector import SFTPFileSet, upload_csv_to_ftps_server
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
 from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
 
@@ -117,10 +117,12 @@ if __name__ == "__main__":
         "Frederikshavn Kommune",
         file_path + "/Medarbejdertelefonbog.csv",
     )
+
     upload_csv_to_ftps_server(
-        server="ftps://frederikshavn.dk", username="Magenta",
-        password="6HLZv~NLKN", csv_data="/Medarbejdertelefonbog.csv",
-        file_name="MedarbejderTelefonbog", target_folder="C:/Storage/Prod/EmployeeData")
+        host="ftps://cura-frederikshavn-prod.kru.so", username="Magenta",
+        password="6HLZv~NLKN",
+        file_name="/opt/docker/os2mo/queries/Medarbejdertelefonbog.csv", target_folder="/",
+        target_name="MedarbejderTelefonbog")
     # with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
     #     s = io.StringIO(f.read())
     #     ftp.write_file("Medarbejder Telefonbog", s, folder=settings.ftp_folder)
