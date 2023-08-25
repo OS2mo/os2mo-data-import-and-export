@@ -277,14 +277,20 @@ class GQLLoraCache:
             offset=offset,
             simple_query=simple_query,
         )
-
-        async for obj in execute_paged(
-            gql_session=self.gql_client_session,
-            document=gql_query,
-            variable_values=gql_variable_values,
-            per_page=(page_size or self.std_page_size),
-        ):
-            yield obj
+        try:
+            async for obj in execute_paged(
+                gql_session=self.gql_client_session,
+                document=gql_query,
+                variable_values=gql_variable_values,
+                per_page=(page_size or self.std_page_size),
+            ):
+                yield obj
+        except Exception as e:
+            logger.error(e)
+            logger.error(offset)
+            logger.error(gql_query)
+            logger.error(gql_variable_values)
+            raise e
 
     # Used to set a value in the __init__, if this was async, init would have to be
     # as well, which would mean that the new cache could only be initiated from
