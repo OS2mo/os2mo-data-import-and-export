@@ -118,9 +118,9 @@ if __name__ == "__main__":
         file_path + "/Medarbejdertelefonbog.csv",
     )
     upload_csv_to_ftps_server(
-        server=settings.ftp_url, username=settings.ftp_user,
-        password=settings.ftp_pass, csv_data=file_path + "/Medarbejdertelefonbog.csv",
-        file_name="MedarbejderTelefonbog", target_folder=settings.ftp_folder)
+        server="ftps://frederikshavn.dk", username="Magenta",
+        password="6HLZv~NLKN", csv_data="/Medarbejdertelefonbog.csv",
+        file_name="MedarbejderTelefonbog", target_folder="C:/Storage/Prod/EmployeeData")
     # with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
     #     s = io.StringIO(f.read())
     #     ftp.write_file("Medarbejder Telefonbog", s, folder=settings.ftp_folder)
