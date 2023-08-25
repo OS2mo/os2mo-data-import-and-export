@@ -6,7 +6,6 @@ from os2sync_export.config import get_os2sync_settings
 from os2sync_export.os2sync import get_hierarchy_raw
 from os2sync_export.os2sync import get_os2sync_session
 from os2sync_export.os2sync import trigger_hierarchy
-from os2sync_export.os2synccli import update_single_user
 
 
 logger = logging.getLogger(__name__)
@@ -47,23 +46,6 @@ def _remove_from_fkorg(settings, client, user_uuids: list[UUID]) -> None:
             click.echo(f"Removed user {user_uuid} from FK ORG")
 
 
-def _remove_from_os2sync(user_uuids: list[UUID]) -> str:
-    # Emit SQL which removes the given user UUIDs from the `success_users` table
-    user_uuids_sql = ", ".join(["'%s'" % uuid for uuid in user_uuids])
-    delete_sql: str = f"delete from success_users where uuid in ({user_uuids_sql})"
-    return delete_sql
-
-
-def _redo_export(settings, user_uuids: list[UUID], dry_run: bool = True):
-    for user_uuid in user_uuids:
-        try:
-            update_single_user(user_uuid, settings, dry_run)
-        except Exception:
-            logger.exception("could not re-export user %r", user_uuid)
-        else:
-            click.echo(f"Re-exported user {user_uuid} to OS2sync")
-
-
 @click.group(
     help="""
         Intended usage:
@@ -74,11 +56,9 @@ def _redo_export(settings, user_uuids: list[UUID], dry_run: bool = True):
         2. Remove affected users from FK ORG:
         $ python -m os2sync_export.fix_fkorg_duplicated_positions remove_from_fkorg
 
-        3. Remove affected users from OS2sync (`success_users` table in MySQL):
-        $ python -m os2sync_export.fix_fkorg_duplicated_positions remove_from_os2sync
+        3. Remove all entries in OS2sync `success_users` MySQL table.
 
-        4. Re-export affected users from MO to OS2sync:
-        $ python -m os2sync_export.fix_fkorg_duplicated_positions redo_export
+        4. Trigger a full re-export of all MO data to OS2sync.
     """
 )
 @click.pass_context
@@ -112,20 +92,6 @@ def remove_from_fkorg(ctx):
     _remove_from_fkorg(
         ctx.obj["settings"], ctx.obj["client"], ctx.obj["user_uuids_to_fix"]
     )
-
-
-@cli.command(help="Emit SQL to remove users from OS2sync `success_users` table")
-@click.pass_context
-def remove_from_os2sync(ctx):
-    click.echo("SQL to remove users from OS2sync:")
-    click.echo(_remove_from_os2sync(ctx.obj["user_uuids_to_fix"]))
-
-
-@cli.command(help="Re-export affected users from MO to OS2sync")
-@click.pass_context
-def redo_export(ctx, dry_run):
-    click.echo(f"Re-exporting {len(ctx.obj['user_uuids_to_fix'])} users to OS2sync ...")
-    _redo_export(ctx.obj["settings"], ctx.obj["user_uuids_to_fix"], dry_run=False)
 
 
 if __name__ == "__main__":
