@@ -3,7 +3,7 @@ from uuid import UUID
 
 import click
 from os2sync_export.config import get_os2sync_settings
-from os2sync_export.os2sync import get_hierarchy
+from os2sync_export.os2sync import get_hierarchy_raw
 from os2sync_export.os2sync import get_os2sync_session
 from os2sync_export.os2sync import trigger_hierarchy
 from os2sync_export.os2synccli import update_single_user
@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 
 def get_hierarchy_users(settings, client):
     request_uuid = trigger_hierarchy(client, os2sync_api_url=settings.os2sync_api_url)
-    existing_os2sync_org_units, existing_os2sync_users = get_hierarchy(
+    response = get_hierarchy_raw(
         client,
         os2sync_api_url=settings.os2sync_api_url,
         request_uuid=request_uuid,
     )
-    return existing_os2sync_users
+    return response["Users"]
 
 
 def get_user_uuids_to_fix(hierarchy_users: list[dict]) -> list[UUID]:

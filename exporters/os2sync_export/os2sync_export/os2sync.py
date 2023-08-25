@@ -175,15 +175,23 @@ def trigger_hierarchy(client: requests.Session, os2sync_api_url: str) -> UUID:
     stop=stop_after_delay(10 * 60),
     retry=retry_if_exception_type(requests.HTTPError),
 )
-def get_hierarchy(
+def get_hierarchy_raw(
     client: requests.Session, os2sync_api_url: str, request_uuid: UUID
-) -> Tuple[Set[UUID], Set[UUID]]:
+) -> dict:
     """Fetches the hierarchy from os2sync. Retries for 10 minutes until it is ready."""
     r = client.get(f"{os2sync_api_url}/hierarchy/{str(request_uuid)}")
     r.raise_for_status()
     hierarchy = r.json()["Result"]
     if hierarchy is None:
         raise ConnectionError("Check connection to FK-ORG")
+    return hierarchy
+
+
+def get_hierarchy(
+    client: requests.Session, os2sync_api_url: str, request_uuid: UUID
+) -> Tuple[Set[UUID], Set[UUID]]:
+    """Return 2-tuple of (org unit UUIDs, employee UUIDs)"""
+    hierarchy = get_hierarchy_raw(client, os2sync_api_url, request_uuid)
     existing_os2sync_org_units = {UUID(o["Uuid"]) for o in hierarchy["OUs"]}
     existing_os2sync_users = {UUID(u["Uuid"]) for u in hierarchy["Users"]}
     return existing_os2sync_org_units, existing_os2sync_users
