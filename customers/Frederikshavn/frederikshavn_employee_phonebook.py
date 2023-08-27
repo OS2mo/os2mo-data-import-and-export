@@ -1,13 +1,14 @@
-import io
+import logging
 
 import pandas as pd
 from more_itertools import prepend
 from sqlalchemy import and_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
-from customers.Frederikshavn.ftp_connector import SFTPFileSet, upload_csv_to_ftps_server
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
 from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
+
+logger = logging.getLogger(__name__)
 
 
 def list_employees_for_phonebook(session, org_name: str) -> list:
@@ -97,33 +98,24 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
 
 if __name__ == "__main__":
-    ftp = SFTPFileSet()
+    logger.info("Finding settings")
     settings = EmployeePhoneBookSettings()
     settings.start_logging_based_on_settings()
     file_path = settings.report_dir_path
+    logger.info("Settings in place. Initiating report.")
 
-    print("Initiating report.")
     run_report(
         list_employees_for_phonebook,
         "Medarbejdertelefonbog",
         "Frederikshavn Kommune",
         file_path + "/Medarbejdertelefonbog.xlsx",
     )
-    print("Report successfully done!")
+    logger.info("Ran employee xlsx format report successfully!")
 
-    print("Initiating CSV report.")
+    logger.info("Initiating CSV report.")
     run_report_as_csv(
         list_employees_for_phonebook,
         "Frederikshavn Kommune",
         file_path + "/Medarbejdertelefonbog.csv",
     )
-
-    upload_csv_to_ftps_server(
-        host="ftps://cura-frederikshavn-prod.kru.so", username="Magenta",
-        password="6HLZv~NLKN",
-        file_name="/opt/docker/os2mo/queries/Medarbejdertelefonbog.csv", target_folder="/",
-        target_name="MedarbejderTelefonbog")
-    # with open(file_path + "/Medarbejdertelefonbog.csv", "r") as f:
-    #     s = io.StringIO(f.read())
-    #     ftp.write_file("Medarbejder Telefonbog", s, folder=settings.ftp_folder)
-    print("CSV report successfully done!")
+    logger.info("Ran employee CSV format report successfully!")

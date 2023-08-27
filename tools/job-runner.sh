@@ -369,6 +369,14 @@ reports_frederikshavn(){
 reports_employee_phonebook_for_frederikshavn(){
   echo "Running Employee Phonebook for Frederikshavn now"
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/frederikshavn_employee_phonebook.py
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "Trying to upload report to FTPS server..."
+      lftp -u "$FTPS_USERNAME,$FTPS_PASSWORRD" -d "$FTPS_URL" -e "set ssl:verify-certificate/$FTPS_CERTIFICATE no ; ls ; put $FILE_TO_UPLOAD_TO_FTPS_SERVER"
+      echo "Successfully uploaded report!"
+    else
+      echo "An error occurred, report not uploaded to FTPS server..."
+    fi
 }
 
 reports_svendborg(){

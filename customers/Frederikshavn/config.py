@@ -7,15 +7,17 @@ class EmployeePhoneBookSettings(JobSettings):
     # Common settings for Frederikshavn
     report_dir_path: str = "/opt/docker/os2mo/queries"
 
-    # FTP settings for Frederikshavn:
-    ftp_url: str | None
-    ftp_port: int | None
-    ftp_user: str | None
-    ftp_pass: str | None
-    ftp_folder: str | None
+    # FTPS settings for Frederikshavn:
+
+    ftps_url: str | None
+    ftps_port: int | None
+    ftps_user: str | None
+    ftps_pass: str | None
+    ftps_folder: str | None
+    ftps_certificate: str | None
+    file_to_upload_to_ftps_server: str | None
 
     # Settings for Employee Phonebook:
-    # TODO remove these once the script is ready to run, and set them in Salt.
     sql_cell_phone_number_field: str | None = (
         "AD-Mobil"  # Desired cell phone type - "AD-Mobil".
     )
