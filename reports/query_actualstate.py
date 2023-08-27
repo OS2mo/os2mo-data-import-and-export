@@ -70,6 +70,8 @@ class XLSXExporter:
         worksheet.set_row(0, cell_format=bold)
 
         self.write_rows(worksheet, data)
+
+
 from exporters.sql_export.sql_table_defs import (
     Adresse,
     Bruger,
