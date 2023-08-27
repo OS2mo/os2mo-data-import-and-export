@@ -31,7 +31,6 @@ from exporters.sql_export.sql_table_defs import (
 )
 
 
-
 class XLSXExporter:
     """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its
     content.
@@ -71,11 +70,13 @@ class XLSXExporter:
         worksheet.set_row(0, cell_format=bold)
 
         self.write_rows(worksheet, data)
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import Tilknytning
+from exporters.sql_export.sql_table_defs import (
+    Adresse,
+    Bruger,
+    Engagement,
+    Enhed,
+    Tilknytning,
+)
 from reports.XLSXExporter import XLSXExporter
 
 
