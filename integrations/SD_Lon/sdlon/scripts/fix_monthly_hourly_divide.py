@@ -186,7 +186,7 @@ def main(
         dry_run: bool
 ):
     gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url
+        auth_server, client_id, client_secret, mo_base_url, 5
     )
 
     hourly_eng_type_uuid = get_eng_type_uuid(gql_client, SalaryType.HOURLY)

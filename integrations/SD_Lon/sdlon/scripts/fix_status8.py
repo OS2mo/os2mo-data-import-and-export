@@ -287,7 +287,7 @@ def main(
     print("Number of SD employments:", len(sd_employments.Person))
 
     gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url
+        auth_server, client_id, client_secret, mo_base_url, 3
     )
     employees = get_mo_employees(gql_client)
 

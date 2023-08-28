@@ -6,6 +6,7 @@ def get_mo_client(
     client_id: str,
     client_secret: str,
     mo_base_url: str,
+    gql_version: int,
     timeout: int = 600,
 ) -> GraphQLClient:
     """
@@ -16,6 +17,7 @@ def get_mo_client(
         client_id: Keycloak client ID
         client_secret: Keycloak client secret
         mo_base_url: MOs base URL
+        gql_version: GraphQL version
         timeout: timeout for the client
 
     Returns:
@@ -23,7 +25,7 @@ def get_mo_client(
     """
 
     return GraphQLClient(
-        url=f"{mo_base_url}/graphql/v5",
+        url=f"{mo_base_url}/graphql/v{str(gql_version)}",
         client_id=client_id,
         client_secret=client_secret,
         auth_server=auth_server,
