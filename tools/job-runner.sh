@@ -371,11 +371,17 @@ reports_employee_phonebook_for_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/frederikshavn_employee_phonebook.py
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
-      SETTING_PREFIX="customers.Frederikshavn.config" source ${DIPEXAR}/tools/prefixed_settings.sh
       echo "Trying to upload report to FTPS server..."
       lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put ${file_to_upload_to_ftps_server}; quit"
-    else
-      echo "An error occurred, report not uploaded to FTPS server..."
+
+      EXIT_CODE_LFTP=$?
+      if [ $EXIT_CODE_LFTP -eq 0 ]; then
+        echo "Successfully uploaded report to FTPS server!"
+      fi
+
+      if [ $EXIT_CODE_LFTP -ne 0 ]; then
+        echo "An error occurred, report not uploaded to FTPS server - error code: ${EXIT_CODE_LFTP}"
+      fi
     fi
 }
 
