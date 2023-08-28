@@ -366,6 +366,24 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
+reports_employee_phonebook_for_frederikshavn(){
+  echo "Running Employee Phonebook for Frederikshavn now"
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/frederikshavn_employee_phonebook.py
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -eq 0 ]; then
+      echo "Trying to upload report to FTPS server..."
+      lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put ${file_to_upload_to_ftps_server}; quit"
+
+      EXIT_CODE_LFTP=$?
+      if [ $EXIT_CODE_LFTP -eq 0 ]; then
+        echo "Successfully uploaded report to FTPS server!"
+      else
+        echo "An error occurred, report not uploaded to FTPS server - error code: ${EXIT_CODE_LFTP}"
+      fi
+
+    fi
+}
+
 reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
@@ -612,6 +630,10 @@ reports(){
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
         run-job reports_frederikshavn &
+    fi
+
+    if [ "${RUN_EMPLOYEE_PHONEBOOK_FREDERIKSHAVN}" == "true" ]; then
+      run-job reports_employee_phonebook_for_frederikshavn &
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
