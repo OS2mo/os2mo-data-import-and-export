@@ -377,11 +377,10 @@ reports_employee_phonebook_for_frederikshavn(){
       EXIT_CODE_LFTP=$?
       if [ $EXIT_CODE_LFTP -eq 0 ]; then
         echo "Successfully uploaded report to FTPS server!"
-      fi
-
-      if [ $EXIT_CODE_LFTP -ne 0 ]; then
+      else
         echo "An error occurred, report not uploaded to FTPS server - error code: ${EXIT_CODE_LFTP}"
       fi
+
     fi
 }
 

@@ -8,7 +8,6 @@ class EmployeePhoneBookSettings(JobSettings):
     report_dir_path: str = "/opt/docker/os2mo/queries"
 
     # FTPS settings for Frederikshavn:
-
     ftps_url: str | None
     ftps_port: int | None
     ftps_user: str | None
@@ -39,10 +38,6 @@ class EmployeePhoneBookSettings(JobSettings):
         "f11963f6-2df5-9642-f1e3-0983dad332f4"  # Exclude certain
     )
     # organisation units by uuid.
-
-
-class ImproperlyConfigured(Exception):
-    pass
 
 
 @lru_cache()
