@@ -96,6 +96,7 @@ ra-utils = "^1.13.7"
 mkdocs = "^1.4.2"
 aiofiles = "^23.1.0"
 iteration-utilities = "^0.11.0"
+flatdict = "^4.0.1"
 
 
 [tool.poetry.dev-dependencies]

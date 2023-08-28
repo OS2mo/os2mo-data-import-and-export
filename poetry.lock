@@ -883,6 +883,16 @@ docs = ["furo (>=2023.5.20)", "sphinx (>=7.0.1)", "sphinx-autodoc-typehints (>=1
 testing = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "diff-cover (>=7.5)", "pytest (>=7.3.1)", "pytest-cov (>=4.1)", "pytest-mock (>=3.10)", "pytest-timeout (>=2.1)"]
 
 [[package]]
+name = "flatdict"
+version = "4.0.1"
+description = "Python module for interacting with nested dicts as a single level dict with delimited keys."
+optional = false
+python-versions = "*"
+files = [
+    {file = "flatdict-4.0.1.tar.gz", hash = "sha256:cd32f08fd31ed21eb09ebc76f06b6bd12046a24f77beb1fd0281917e47f26742"},
+]
+
+[[package]]
 name = "freezegun"
 version = "0.3.15"
 description = "Let your Python tests travel through time"
@@ -3956,4 +3966,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "07b62798a5faf077fa1ea25568d54df8ea7dc7914219a29a87b4b5a1fd0fa278"
+content-hash = "2d924ac403119a80d5f5ef2bdfc59dee2ce081cbb8626c331106f7f955da4b27"
