@@ -1,4 +1,5 @@
 import asyncio
+import enum
 from typing import Iterable
 from contextlib import contextmanager
 from functools import partial
@@ -12,12 +13,38 @@ from integrations.rundb.db_overview import DBOverview
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
 
+
+class State(enum.Enum):
+    RUNNING = "running"
+    OK = "ok"
+    FAILURE = "failure"
+    UNKNOWN = "unknown"
+
+
+def get_state() -> State:
+    try:
+        settings = get_changed_at_settings()
+        run_db = settings.sd_import_run_db
+        db_overview = DBOverview(run_db)
+
+        status_line = db_overview._read_last_line("status")
+
+        if "Running since" in status_line:
+            return State.RUNNING
+        if "Update finished" in status_line:
+            return State.OK
+
+        return State.UNKNOWN
+    except:
+        return State.FAILURE
+
+
 state = Enum(
     "sd_changed_at_state",
     "Current state of the SD Changed At integration",
-    states=["running", "ok", "failure", "unknown"],
+    states=[s.value for s in State],
 )
-state.state("unknown")
+state.state(get_state().value)
 start_time = Gauge(
     "sd_changed_at_start_time", "Start time of the latest SD Changed At run"
 )
