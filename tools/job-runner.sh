@@ -368,6 +368,7 @@ reports_frederikshavn(){
 
 reports_employee_phonebook_for_frederikshavn(){
   echo "Running Employee Phonebook for Frederikshavn now"
+    SETTING_PREFIX="ftps" source ${DIPEXAR}/tools/prefixed_settings.sh
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/frederikshavn_employee_phonebook.py
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
