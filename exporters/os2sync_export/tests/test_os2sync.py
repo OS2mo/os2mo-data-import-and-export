@@ -14,6 +14,7 @@ o2 = OrgUnit(
     LOSShortName="Some losShortName",
     PayoutUnitUuid=uuid4(),
     ContactPlaces=[uuid4()],
+    SOR="SOR ID",
     Tasks=[uuid4()],
 )
 

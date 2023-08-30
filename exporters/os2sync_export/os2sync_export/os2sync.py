@@ -145,6 +145,7 @@ def upsert_org_unit(
     org_unit.PayoutUnitUuid = org_unit.PayoutUnitUuid or current.PayoutUnitUuid
     org_unit.ContactPlaces = org_unit.ContactPlaces or current.ContactPlaces
     org_unit.ContactOpenHours = org_unit.ContactOpenHours or current.ContactOpenHours
+    org_unit.SOR = org_unit.SOR or current.SOR
 
     if dry_run:
         logger.info(f"Found changes to {org_unit.Uuid=}? {current != org_unit}")
