@@ -9,8 +9,8 @@ services:
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
-      MORA_BASE: "http://mo"
-      MOX_BASE: "http://mo/lora"
+      MORA_BASE: "http://mo:5000"
+      MOX_BASE: "http://mo:5000/lora"
 
       LOG_LEVEL: DEBUG
 
@@ -20,7 +20,7 @@ services:
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
       ENABLE_METRICS: "false"
-      FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg_broker:5672/"
+      FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
     ports:
       - 8000:8000/tcp
     volumes:
