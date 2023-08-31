@@ -60,6 +60,8 @@ def update_state_metric() -> Iterable[None]:
     """Update SDChangedAt state metrics."""
     start_time.set_to_current_time()
 
+    # TODO: write a test of this contextmanager
+    # TODO: refactor the contextmanager to use the get_state function above
     settings = get_changed_at_settings()
     run_db = settings.sd_import_run_db
     db_overview = DBOverview(run_db)
