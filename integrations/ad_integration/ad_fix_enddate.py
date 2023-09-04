@@ -48,6 +48,7 @@ from tenacity import wait_fixed
 
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
+from integrations.ad_integration.ad_template_engine import render_update_by_mo_uuid_cmd
 
 
 logger = logging.getLogger(__name__)
@@ -494,21 +495,15 @@ class UpdateEndDate(AD):
     ) -> str:
         """Return the relevant Powershell update command to update the given end date
         field in AD with the given value."""
-
-        cmd_f = """
-        Get-ADUser %(complete)s -Filter '%(uuid_field)s -eq "%(uuid)s"' |
-        Set-ADUser %(credentials)s -Replace @{%(enddate_field)s="%(end_date)s"} |
-        ConvertTo-Json
-        """
-        cmd = cmd_f % dict(
-            uuid=uuid,
-            end_date=end_date,
-            enddate_field=end_date_field,
-            uuid_field=uuid_field,
-            complete=self._ps_boiler_plate()["complete"],
-            credentials=self._ps_boiler_plate()["credentials"],
+        return self.remove_redundant(
+            render_update_by_mo_uuid_cmd(
+                self._ps_boiler_plate()["complete"],
+                self._ps_boiler_plate()["credentials"],
+                uuid_field,
+                uuid,
+                dict(**{end_date_field: end_date}),
+            )
         )
-        return cmd
 
     def run(self, cmd) -> dict:
         """Run a PowerShell command against AD"""

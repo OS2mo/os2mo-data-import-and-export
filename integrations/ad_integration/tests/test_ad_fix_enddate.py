@@ -626,15 +626,13 @@ def test_ad_end_date_source(
 @given(uuid=st.uuids(), enddate=st.dates())
 def test_get_update_cmd(mock_session, uuid, enddate):
     u = _TestableUpdateEndDate()
-    cmd = u.get_update_cmd(AD_UUID_FIELD, uuid, ENDDATE_FIELD, enddate)
-    assert (
-        cmd
-        == f"""
-        Get-ADUser  -SearchBase "{TEST_SEARCH_BASE}"  -Credential $usercredential -Filter \'{AD_UUID_FIELD} -eq "{uuid}"\' |
-        Set-ADUser  -Credential $usercredential -Replace @{{{ENDDATE_FIELD}="{enddate}"}} |
-        ConvertTo-Json
-        """
-    )
+    expected_cmd = f"""
+    Get-ADUser -SearchBase "{TEST_SEARCH_BASE}" -Credential $usercredential -Filter \'{AD_UUID_FIELD} -eq "{uuid}"\' |
+    Set-ADUser -Credential $usercredential -Replace @{{"{ENDDATE_FIELD}"="{enddate}"}} |
+    ConvertTo-Json
+    """
+    actual_cmd = u.get_update_cmd(AD_UUID_FIELD, uuid, ENDDATE_FIELD, enddate)
+    assert actual_cmd == u.remove_redundant(expected_cmd)
 
 
 @patch("integrations.ad_integration.ad_common.AD._create_session")

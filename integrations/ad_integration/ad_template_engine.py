@@ -439,3 +439,61 @@ def template_powershell(
     # Render the final template using the context
     final_template = load_jinja_template(environment, full_template)
     return final_template.render(**context)
+
+
+def render_update_by_mo_uuid_cmd(
+    complete: str,
+    credentials: str,
+    uuid_field: str,
+    uuid_value: str,
+    field_map: dict[str, str],
+    environment: Environment = Environment(undefined=StrictUndefined),
+) -> str:
+    """Build a 'Set-ADUser' Powershell command using the MO UUID field in AD.
+
+    Args:
+        complete: must be `AD._ps_boiler_plate()["complete"]`.
+        credentials: must be `AD._ps_boiler_plate()["credentials"]`.
+        uuid_field: name of the AD field containing the MO user UUID.
+        uuid_value: MO user UUID (as string.)
+        field_map: dictionary mapping AD field names to their new values.
+        environment: Jinja template environment.
+
+    Returns:
+        str: An executable powershell script.
+    """
+
+    # Quote field names in `field_map`, if required by Powershell
+    field_map_quoted: dict = quote_templates(field_map)
+
+    # Divide `field_map` into "parameters" and "other_attributes"
+    parameters: dict
+    other_attributes: dict
+    parameters, other_attributes = partition_templates("Set-ADUser", field_map_quoted)
+
+    context: dict = {
+        "complete": complete,
+        "credentials": credentials,
+        "uuid_field": uuid_field,
+        "uuid_value": uuid_value,
+        "parameters": parameters,
+        "other_attributes": other_attributes,
+    }
+
+    cmd_template: str = """
+        Get-ADUser {{ complete }} -Filter '{{ uuid_field }} -eq "{{ uuid_value }}"' |
+        Set-ADUser {{ credentials }}
+        {% for parameter, value in parameters.items() %}
+            -{{ parameter }} {{ value }}
+        {% endfor %}
+        {% if other_attributes %}
+            -Replace @{
+            {%- for attribute, value in other_attributes.items() -%}
+                "{{ attribute }}"={{ value }}{%- if not loop.last -%};{%- endif -%}
+            {%- endfor -%}
+            }
+        {% endif %} |
+        ConvertTo-Json
+    """
+    cmd_template_jinja: Template = load_jinja_template(environment, cmd_template)
+    return cmd_template_jinja.render(context)
