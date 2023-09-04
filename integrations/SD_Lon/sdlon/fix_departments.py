@@ -453,7 +453,7 @@ class FixDepartments:
 
                     from_date = datetime.datetime.strptime(
                         eng["validity"]["from"], "%Y-%m-%d"
-                    )
+                    ).date()
                     if from_date < validity_date:
                         eng["validity"]["from"] = validity_date.strftime("%Y-%m-%d")
 
