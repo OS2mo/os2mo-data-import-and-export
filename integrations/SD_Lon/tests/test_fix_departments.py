@@ -411,7 +411,16 @@ class TestFixDepartment(TestCase):
             call("22222222-2222-2222-2222-222222222222", date(2020, 1, 1)),
         ]
 
-    def test_fix_ny_logic(self):
+    def test_fix_ny_logic_elevates_engagement_from_too_deep_levels(self) -> None:
+        """
+        Test that an engagement is elevated from the "too deep" OU levels to
+        the appropriate NY-levels above (happens when the SDTool button is
+        pressed). Note: this was the first test of the "apply_NY_logic" function -
+        we just test that (parts of it) is works "as is". We really should
+        1) Find out what the function should actually do
+        2) Test that the engagements dates are set correctly!
+        """
+
         # Arrange
         unit_uuid = str(uuid4())
         parent_unit_uuid = str(uuid4())
