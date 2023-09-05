@@ -174,8 +174,8 @@ class GQLLoraCache:
             client_secret=self.settings.client_secret,
             auth_realm=self.settings.auth_realm,
             auth_server=self.settings.auth_server,
-            httpx_client_kwargs={"timeout": None},
-            execute_timeout=None,
+            httpx_client_kwargs={"timeout": 300},
+            execute_timeout=300,
         )
 
     def get_historic_query(self) -> dict:
