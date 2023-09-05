@@ -215,12 +215,95 @@ class Cache:
             except QueueEmpty:
                 break
 
+    async def get_facets_uuids(self):
+        query_type = "facets"
+        export_type = ExportFacet
+        await self.cache_init_generator(query_type, export_type, self.facets)
+
+    async def get_classes_uuids(self):
+        query_type = "classes"
+        export_type = ExportClass
+        await self.cache_init_generator(query_type, export_type, self.classes)
+
+    async def get_users_uuids(self):
+        query_type = "employees"
+        export_type = ExportPerson
+        await self.cache_init_generator(query_type, export_type, self.users)
+
+    async def get_units_uuids(self):
+        query_type = "org_units"
+        export_type = ExportOrgUnit
+        await self.cache_init_generator(query_type, export_type, self.units)
+
+    async def get_addresses_uuids(self):
+        query_type = "addresses"
+        export_type = ExportAddress
+        await self.cache_init_generator(query_type, export_type, self.addresses)
+
+    async def get_engagements_uuids(self):
+        query_type = "engagements"
+        export_type = ExportEngagement
+        await self.cache_init_generator(query_type, export_type, self.engagements)
+
+    async def get_managers_uuids(self):
+        query_type = "managers"
+        export_type = ExportManager
+        await self.cache_init_generator(query_type, export_type, self.managers)
+
+    async def get_associations_uuids(self):
+        query_type = "associations"
+        export_type = ExportAssociation
+        await self.cache_init_generator(query_type, export_type, self.associations)
+
+    async def get_leaves_uuids(self):
+        query_type = "leaves"
+        export_type = ExportLeave
+        await self.cache_init_generator(query_type, export_type, self.leaves)
+
+    async def get_roles_uuids(self):
+        query_type = "roles"
+        export_type = ExportRole
+        await self.cache_init_generator(query_type, export_type, self.roles)
+
+    async def get_itsystems_uuids(self):
+        query_type = "itsystems"
+        export_type = ExportItSystem
+        await self.cache_init_generator(query_type, export_type, self.itsystems)
+
+    async def get_it_connections_uuids(self):
+        query_type = "itusers"
+        export_type = ExportItConnection
+        await self.cache_init_generator(query_type, export_type, self.it_connections)
+
+    async def get_kles_uuids(self):
+        query_type = "kles"
+        export_type = ExportKle
+        await self.cache_init_generator(query_type, export_type, self.kles)
+
+    async def get_related_uuids(self):
+        query_type = "related_units"
+        export_type = ExportRelated
+        await self.cache_init_generator(query_type, export_type, self.related)
+
     async def populate_cache_async(self, dry_run=None, skip_associations=False):
 
         time1 = datetime.now()
         async with asyncio.TaskGroup() as tg:
-            for key, value in mapping.items():
-                tg.create_task(self.cache_init_generator(key))
+            tg.create_task(self.get_facets_uuids())
+            tg.create_task(self.get_classes_uuids())
+            tg.create_task(self.get_users_uuids())
+            tg.create_task(self.get_units_uuids())
+            tg.create_task(self.get_addresses_uuids())
+            tg.create_task(self.get_engagements_uuids())
+            tg.create_task(self.get_managers_uuids())
+            if not skip_associations:
+                tg.create_task(self.get_associations_uuids())
+            tg.create_task(self.get_leaves_uuids())
+            tg.create_task(self.get_roles_uuids())
+            tg.create_task(self.get_itsystems_uuids())
+            tg.create_task(self.get_it_connections_uuids())
+            tg.create_task(self.get_kles_uuids())
+            tg.create_task(self.get_related_uuids())
 
         logger.info(f"got uuids in  {(datetime.now()-time1)} minutes")
         print(f"got uuids in  {(datetime.now()-time1)} minutes")

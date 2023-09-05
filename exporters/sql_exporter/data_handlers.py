@@ -57,17 +57,15 @@ class DataHandler:
             query, jsonable_encoder(job.variables)
         )
 
+        export = []
         item = result.get("item")
-        for objects in item["list_of_objects"]:
-            if objects is None or len(objects) == 0:
-                continue
-
-            obj = objects.get('single_obj')
-            if obj is None:
-                continue
+        for data in item["list_of_objects"]:
+            obj = data.get('single_obj')
             if not isinstance(obj, list):
                 obj = [obj]
             for entry in obj:
-                exp_obj = copy(export_obj)
-                await exp_obj.build_from_query_result(entry.copy())
-                yield exp_obj
+                populated = copy(export_obj)
+                await populated.build_from_query_result(entry)
+                export.append(populated)
+        return export
+

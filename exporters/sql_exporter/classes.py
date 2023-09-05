@@ -55,7 +55,7 @@ class ExportBaseSemiStatic:
     def build_from_query_result(self, obj: dict) -> None:
         pass
 
-    def cache_obj(self) -> dict:
+    def dict(self) -> dict:
         return {}
 
     def get_query_helper(self, body: str) -> GraphQLJob:
@@ -105,7 +105,7 @@ class ExportManager(ExportBase):
 
         self.set_validity(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "manager_level": self.manager_level_uuid,
             "manager_responsibility": self.manager_responsibility_uuids,
@@ -144,7 +144,7 @@ class ExportFacet(ExportBaseSemiStatic):
     async def build_from_query_result(self, obj: dict) -> None:
         self.user_key = get_user_key(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         return {self.uuid: {"user_key": self.user_key}}
 
     async def get_query(self) -> GraphQLJob:
@@ -165,7 +165,7 @@ class ExportClass(ExportBaseSemiStatic):
         self.scope = obj.get("scope")
         self.facet = get_uuid_from_nested_dict(obj, "facet")
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "title": self.name,
             "user_key": self.user_key,
@@ -210,7 +210,7 @@ class ExportPerson(ExportBase):
         self.nickname_surname = obj.get("nickname_surname")
         self.set_validity(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "cpr": self.cpr_number,
@@ -308,7 +308,7 @@ class ExportOrgUnit(ExportBase):
         if not self.historic and "ancestors" in obj:
             self.location = await self.build_location(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user_key": self.user_key,
@@ -423,7 +423,7 @@ class ExportEngagement(ExportBase):
 
         self.set_validity(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         extension_dict = {
             "udvidelse_1": self.extension_1,
             "udvidelse_2": self.extension_2,
@@ -498,7 +498,7 @@ class ExportRole(ExportBase):
         self.role_type_uuid = get_uuid_from_nested_dict(obj, "role_type")
         self.set_validity(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user": self.person_uuid,
@@ -539,7 +539,7 @@ class ExportLeave(ExportBase):
         self.leave_type = get_uuid_from_nested_dict(obj, "leave_type")
         self.engagement_uuid = get_uuid_from_nested_dict(obj, "engagement")
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user": self.person_uuid,
@@ -577,10 +577,10 @@ class ExportItSystem(ExportBaseSemiStatic):
         self.user_key = get_user_key(obj)
         self.name = get_name(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {"user_key": self.user_key, "name": self.name}
 
-        self.cache.update({self.uuid: body.copy()})
+        return {self.uuid: body.copy()}
 
     async def get_query(self) -> GraphQLJob:
         body = """
@@ -615,7 +615,7 @@ class ExportItConnection(ExportBase):
         self.itsystem_uuid = get_uuid_from_nested_dict(obj, "itsystem")
         self.primary_boolean = self.get_primary_boolean(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user": self.person_uuid,
@@ -661,7 +661,7 @@ class ExportKle(ExportBase):
         self.kle_number_uuid = get_uuid_from_nested_dict(obj, "kle_number")
         self.kle_aspects_uuid_list = get_list_of_uuids(obj, "kle_aspects")
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "unit": self.org_unit_uuid,
@@ -673,11 +673,9 @@ class ExportKle(ExportBase):
         kle_obj_list = []
         for aspect in self.kle_aspects_uuid_list:
             body["kle_aspect"] = aspect
+            kle_obj_list.append(body.copy())
 
-            if self.uuid in self.cache:
-                self.cache[self.uuid].append(body.copy())
-            else:
-                self.cache.update({self.uuid: [body.copy()]})
+        return {self.uuid: kle_obj_list}
 
     async def get_query(self) -> GraphQLJob:
         body = """
@@ -704,7 +702,7 @@ class ExportRelated(ExportBase):
         self.org_unit_uuid_list = get_list_of_uuids(obj, "org_units")
         self.set_validity(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {"uuid": self.uuid}
         body = self.append_validity(body)
 
@@ -757,7 +755,7 @@ class ExportAssociation(ExportBase):
             self.job_function_uuid = None
         self.primary_boolean = await self.is_primary(obj)
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user": self.person_uuid,
@@ -829,7 +827,7 @@ class ExportAddress(ExportBase):
         if address_type is not None:
             self.scope = self.scope_map[address_type.get("scope")]
 
-    async def cache_obj(self) -> dict:
+    async def dict(self) -> dict:
         body = {
             "uuid": self.uuid,
             "user": self.person_uuid,
