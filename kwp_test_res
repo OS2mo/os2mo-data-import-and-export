@@ -1,0 +1,92 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.4, pytest-7.4.0, pluggy-1.2.0
+rootdir: /home/kari/magenta_code/dipex/exporters/sql_exporter
+configfile: pyproject.toml
+plugins: aioresponses-0.2.0, asyncio-0.21.0, anyio-3.7.1, split-0.8.1, hypothesis-6.81.1, cov-4.1.0
+asyncio: mode=Mode.STRICT
+collected 1 item
+
+exporters/sql_exporter/equvivalence_test.py building actual state cache
+F
+
+=================================== FAILURES ===================================
+_______________________________ test_equivalence _______________________________
+  + Exception Group Traceback (most recent call last):
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/runner.py", line 341, in from_call
+  |     result: Optional[TResult] = func()
+  |                                 ^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/runner.py", line 262, in <lambda>
+  |     lambda: ihook(item=item, **kwds), when=when, reraise=reraise
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_hooks.py", line 433, in __call__
+  |     return self._hookexec(self.name, self._hookimpls, kwargs, firstresult)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_manager.py", line 112, in _hookexec
+  |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_callers.py", line 155, in _multicall
+  |     return outcome.get_result()
+  |            ^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_result.py", line 108, in get_result
+  |     raise exc.with_traceback(exc.__traceback__)
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_callers.py", line 80, in _multicall
+  |     res = hook_impl.function(*args)
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/runner.py", line 177, in pytest_runtest_call
+  |     raise e
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/runner.py", line 169, in pytest_runtest_call
+  |     item.runtest()
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/python.py", line 1788, in runtest
+  |     self.ihook.pytest_pyfunc_call(pyfuncitem=self)
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_hooks.py", line 433, in __call__
+  |     return self._hookexec(self.name, self._hookimpls, kwargs, firstresult)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_manager.py", line 112, in _hookexec
+  |     return self._inner_hookexec(hook_name, methods, kwargs, firstresult)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_callers.py", line 155, in _multicall
+  |     return outcome.get_result()
+  |            ^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_result.py", line 108, in get_result
+  |     raise exc.with_traceback(exc.__traceback__)
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/pluggy/_callers.py", line 80, in _multicall
+  |     res = hook_impl.function(*args)
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/_pytest/python.py", line 194, in pytest_pyfunc_call
+  |     result = testfunction(**testargs)
+  |              ^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/equvivalence_test.py", line 45, in test_equivalence
+  |     start_testing()
+  |   File "/home/kari/magenta_code/dipex/.venv/lib/python3.11/site-packages/ra_utils/async_to_sync.py", line 38, in wrapper
+  |     return asyncio.run(func(*args, **kwargs))  # type: ignore
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/usr/lib/python3.11/asyncio/runners.py", line 190, in run
+  |     return runner.run(main)
+  |            ^^^^^^^^^^^^^^^^
+  |   File "/usr/lib/python3.11/asyncio/runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/usr/lib/python3.11/asyncio/base_events.py", line 653, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/equvivalence_test.py", line 40, in start_testing
+  |     await e.perform_equivalence_test()
+  |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/equvivalence_test.py", line 328, in perform_equivalence_test
+  |     await self.build_new_caches()
+  |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/equvivalence_test.py", line 233, in build_new_caches
+  |     await self.new_actual_state.populate_cache_async()
+  |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/cache.py", line 221, in populate_cache_async
+  |     async with asyncio.TaskGroup() as tg:
+  |   File "/usr/lib/python3.11/asyncio/taskgroups.py", line 147, in __aexit__
+  |     raise me from None
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/home/kari/magenta_code/dipex/exporters/sql_exporter/cache.py", line 223, in populate_cache_async
+    |     tg.create_task(self.cache_init_generator(key))
+    |                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    | TypeError: Cache.cache_init_generator() missing 2 required positional arguments: 'export_type' and 'cache'
+    +------------------------------------
+=========================== short test summary info ============================
+FAILED exporters/sql_exporter/equvivalence_test.py::test_equivalence - Except...
+============================== 1 failed in 34.33s ==============================

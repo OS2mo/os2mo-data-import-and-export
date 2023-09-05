@@ -3,13 +3,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import hashlib
+import io
+import logging
+import uuid
 
 import paramiko
-import logging
 import xmltodict
-import hashlib
-import uuid
-import io
 
 logger = logging.getLogger("spsftp")
 

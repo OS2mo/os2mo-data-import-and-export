@@ -1,12 +1,14 @@
 from collections import OrderedDict
 from copy import deepcopy
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import pytest
 from parameterized import parameterized
-
 from sdlon.config import ChangedAtSettings
-from sdlon.skip import cpr_env_filter, skip_job_position_id
+from sdlon.skip import cpr_env_filter
+from sdlon.skip import skip_job_position_id
+
 from .test_config import DEFAULT_CHANGED_AT_SETTINGS
 
 

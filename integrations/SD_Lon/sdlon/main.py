@@ -1,16 +1,16 @@
 import asyncio
-from typing import Iterable
 from contextlib import contextmanager
 from functools import partial
+from typing import Iterable
 
 from fastapi import FastAPI
-from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Enum
 from prometheus_client import Gauge
-from integrations.rundb.db_overview import DBOverview
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from .config import get_changed_at_settings
 from .sd_changed_at import changed_at
+from integrations.rundb.db_overview import DBOverview
 
 state = Enum(
     "sd_changed_at_state",

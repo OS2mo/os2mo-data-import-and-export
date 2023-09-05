@@ -4,13 +4,12 @@ from copy import deepcopy
 
 import pytest
 from more_itertools import one
+from sdlon.engagement import _is_external
+from sdlon.engagement import create_engagement
+from sdlon.engagement import filtered_professions
+from sdlon.engagement import is_employment_id_and_no_salary_minimum_consistent
 
 from .fixtures import get_read_employment_changed_fixture
-from sdlon.engagement import _is_external, filtered_professions
-from sdlon.engagement import (
-    create_engagement,
-    is_employment_id_and_no_salary_minimum_consistent,
-)
 
 
 class TestIsExternal(unittest.TestCase):

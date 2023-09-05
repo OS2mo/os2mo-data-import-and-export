@@ -12,8 +12,8 @@ from gql import gql
 from more_itertools import one
 from pydantic import BaseModel
 from raclients.graph.client import GraphQLClient
-
-from sdlon.date_utils import format_date, parse_datetime
+from sdlon.date_utils import format_date
+from sdlon.date_utils import parse_datetime
 from sdlon.graphql import get_mo_client
 
 
@@ -29,9 +29,7 @@ class Engagement(BaseModel):
     from_date: date
 
 
-def get_eng_type_uuid(
-        gql_client: GraphQLClient, salary_type: SalaryType
-) -> UUID:
+def get_eng_type_uuid(gql_client: GraphQLClient, salary_type: SalaryType) -> UUID:
     """
     Get the UUID of the "Timelønnet" engagement type
     """
@@ -55,9 +53,7 @@ def get_eng_type_uuid(
     return UUID(one(r["classes"]["objects"])["uuid"])
 
 
-def get_engagement_user_key_and_type(
-        gql_client: GraphQLClient
-) -> list[Engagement]:
+def get_engagement_user_key_and_type(gql_client: GraphQLClient) -> list[Engagement]:
     """
     Get all engagements (user_keys and engagement_types)
 
@@ -99,14 +95,16 @@ def get_engagement_user_key_and_type(
             eng_uuid=UUID(one(obj["objects"])["uuid"]),
             user_key=one(obj["objects"])["user_key"],
             eng_type_uuid=UUID(one(obj["objects"])["engagement_type"]["uuid"]),
-            from_date=parse_datetime(one(obj["objects"])["validity"]["from"][:10]).date()
+            from_date=parse_datetime(
+                one(obj["objects"])["validity"]["from"][:10]
+            ).date(),
         )
         for obj in objects
     ]
 
 
 def update_engagement_type(
-        gql_client: GraphQLClient, eng_uuid: UUID, eng_type_uuid: UUID, from_date: date
+    gql_client: GraphQLClient, eng_uuid: UUID, eng_type_uuid: UUID, from_date: date
 ) -> None:
     """
     Update the engagement type of an engagement from a given date.
@@ -127,13 +125,16 @@ def update_engagement_type(
         """
     )
 
-    gql_client.execute(mutation, variable_values={
-        "input": {
-            "uuid": str(eng_uuid),
-            "validity": {"from": format_date(from_date)},
-            "engagement_type": str(eng_type_uuid)
-        }
-    })
+    gql_client.execute(
+        mutation,
+        variable_values={
+            "input": {
+                "uuid": str(eng_uuid),
+                "validity": {"from": format_date(from_date)},
+                "engagement_type": str(eng_type_uuid),
+            }
+        },
+    )
 
 
 @click.command()
@@ -142,52 +143,47 @@ def update_engagement_type(
     "auth_server",
     type=click.STRING,
     default="http://localhost:8090/auth",
-    help="Keycloak auth server URL"
+    help="Keycloak auth server URL",
 )
 @click.option(
     "--client-id",
     "client_id",
     type=click.STRING,
     default="dipex",
-    help="Keycloak client id"
+    help="Keycloak client id",
 )
 @click.option(
     "--client-secret",
     "client_secret",
     type=click.STRING,
     required=True,
-    help="Keycloak client secret for the DIPEX client"
+    help="Keycloak client secret for the DIPEX client",
 )
 @click.option(
     "--mo-base-url",
     "mo_base_url",
     type=click.STRING,
     default="http://localhost:5000",
-    help="Base URL for calling MO"
+    help="Base URL for calling MO",
 )
 @click.option(
     "--monthly-hourly-divide",
     type=click.INT,
     required=True,
-    help="The new SD_MONTHLY_HOURLY_DIVIDE"
+    help="The new SD_MONTHLY_HOURLY_DIVIDE",
 )
 @click.option(
-    "--dry-run",
-    "dry_run",
-    is_flag=True,
-    help="Do not perform any changes in MO"
+    "--dry-run", "dry_run", is_flag=True, help="Do not perform any changes in MO"
 )
 def main(
-        auth_server: str,
-        client_id: str,
-        client_secret: str,
-        mo_base_url: str,
-        monthly_hourly_divide: int,
-        dry_run: bool
+    auth_server: str,
+    client_id: str,
+    client_secret: str,
+    mo_base_url: str,
+    monthly_hourly_divide: int,
+    dry_run: bool,
 ):
-    gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url, 5
-    )
+    gql_client = get_mo_client(auth_server, client_id, client_secret, mo_base_url, 5)
 
     hourly_eng_type_uuid = get_eng_type_uuid(gql_client, SalaryType.HOURLY)
     monthly_eng_type_uuid = get_eng_type_uuid(gql_client, SalaryType.MONTHLY)
@@ -195,28 +191,36 @@ def main(
     engagements = get_engagement_user_key_and_type(gql_client)
 
     hourly_engagements_to_fix = [
-        eng for eng in engagements
-        if eng.eng_type_uuid == hourly_eng_type_uuid and
-           int(eng.user_key) < monthly_hourly_divide
+        eng
+        for eng in engagements
+        if eng.eng_type_uuid == hourly_eng_type_uuid
+        and int(eng.user_key) < monthly_hourly_divide
     ]
     print("Number of hourly engagements to fix:", len(hourly_engagements_to_fix))
     for eng in hourly_engagements_to_fix:
         if not dry_run:
             update_engagement_type(
-                gql_client, eng.eng_uuid, monthly_eng_type_uuid, eng.from_date)
-        print(f"Updated engagement {eng.eng_uuid} from hourly to monthly from {format_date(eng.from_date)}")
+                gql_client, eng.eng_uuid, monthly_eng_type_uuid, eng.from_date
+            )
+        print(
+            f"Updated engagement {eng.eng_uuid} from hourly to monthly from {format_date(eng.from_date)}"
+        )
 
     monthly_engagements_to_fix = [
-        eng for eng in engagements
-        if eng.eng_type_uuid == monthly_eng_type_uuid and
-           int(eng.user_key) >= monthly_hourly_divide
+        eng
+        for eng in engagements
+        if eng.eng_type_uuid == monthly_eng_type_uuid
+        and int(eng.user_key) >= monthly_hourly_divide
     ]
     print("Number of monthly engagements to fix:", len(monthly_engagements_to_fix))
     for eng in monthly_engagements_to_fix:
         if not dry_run:
             update_engagement_type(
-                gql_client, eng.eng_uuid, hourly_eng_type_uuid, eng.from_date)
-        print(f"Updated engagement {eng.eng_uuid} from monthly to hourly from {format_date(eng.from_date)}")
+                gql_client, eng.eng_uuid, hourly_eng_type_uuid, eng.from_date
+            )
+        print(
+            f"Updated engagement {eng.eng_uuid} from monthly to hourly from {format_date(eng.from_date)}"
+        )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
-import unittest
-from ..spsftp import SpSftp, MetadataError
 import io
+import unittest
+
+from ..spsftp import MetadataError
+from ..spsftp import SpSftp
 
 xmlfile = """<ns2:Trigger
 xmlns:ns2="http://serviceplatformen.dk/xml/wsdl/soap11/SFTP/1/types">

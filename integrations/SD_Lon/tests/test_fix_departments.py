@@ -11,10 +11,10 @@ from uuid import uuid4
 
 import pytest
 from os2mo_helpers.mora_helpers import MoraHelper
-
-from .test_config import DEFAULT_CHANGED_AT_SETTINGS
 from sdlon.config import ChangedAtSettings
 from sdlon.fix_departments import FixDepartments
+
+from .test_config import DEFAULT_CHANGED_AT_SETTINGS
 
 
 def mock_sd_lookup(service_name, expected_params, response):

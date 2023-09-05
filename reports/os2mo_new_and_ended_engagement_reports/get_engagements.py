@@ -1,22 +1,21 @@
-from uuid import UUID
-from datetime import datetime, date
-from typing import List
-
 import csv
 import json
-from dateutil import utils
-from more_itertools import one
-from fastapi.encoders import jsonable_encoder
-
-from gql import gql
-from gql.client import SyncClientSession
+from datetime import date
+from datetime import datetime
+from typing import List
+from uuid import UUID
 
 import pandas as pd
+from dateutil import utils
+from fastapi.encoders import jsonable_encoder
+from gql import gql
+from gql.client import SyncClientSession
+from more_itertools import one
 
-from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 from reports.os2mo_new_and_ended_engagement_reports.config import (
     get_engagement_settings,
 )
+from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 
 
 def read_report_as_json(path_to_file: str) -> List[dict[str, str]]:

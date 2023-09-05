@@ -1,6 +1,8 @@
-from typing import OrderedDict, Any
+from typing import Any
+from typing import OrderedDict
 
-from sdlon.models import EmploymentWithTelephoneNumberIdentifier, SDBasePerson
+from sdlon.models import EmploymentWithTelephoneNumberIdentifier
+from sdlon.models import SDBasePerson
 from sdlon.sd_common import ensure_list
 
 

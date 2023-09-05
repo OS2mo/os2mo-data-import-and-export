@@ -1,18 +1,17 @@
 from datetime import date
 from datetime import datetime
+from unittest import mock
 from uuid import uuid4
 
 import los_files
 import los_leder
-from .helpers import mock_config
-from unittest import mock
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
 from los_files import FileSet
 
-
 from .helpers import HelperMixin
+from .helpers import mock_config
 from .strategies import csv_buf_from_model
 
 

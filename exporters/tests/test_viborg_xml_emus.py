@@ -5,7 +5,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-
 """
 in order to run the os2mo tests Your python-environment must
 have all os2mo-requirements and os2mo it self installed.
@@ -15,15 +14,15 @@ Furthermore You must define the path to the os2mo source directory
 in order to record a test result use this temporarily in a test,
 adapted to Your test: self.cache_new_result("file contents")
 """
-
-import sys
+import io
 import os
 import pathlib
-import requests
-from os2mo_helpers.mora_helpers import MoraHelper
+import sys
+
 import mock
+import requests
 from freezegun import freeze_time
-import io
+from os2mo_helpers.mora_helpers import MoraHelper
 
 # emus report setup - import time dependencies
 os.environ["MORA_ROOT_ORG_UNIT_NAME"] = "Hjørring Kommune"
@@ -34,8 +33,8 @@ from viborg_xml_emus import main as generate_file  # noqa
 
 sys.path[0:0] = [
     os.environ["OS2MO_SRC_DIR"] + "/backend/tests",
-    pathlib.Path(__file__).parent / ".."
-    ]
+    pathlib.Path(__file__).parent / "..",
+]
 import util  # noqa
 
 
@@ -76,12 +75,8 @@ class Tests(util.LoRATestCase):
             requests._orgget = requests.get
             requests.get = self.get
         self._test_data_result = str(
-            testdata / (
-                pathlib.Path(__file__).stem +
-                "_" +
-                self._testMethodName +
-                "_result.xml"
-            )
+            testdata
+            / (pathlib.Path(__file__).stem + "_" + self._testMethodName + "_result.xml")
         )
 
     def tearDown(self):
@@ -91,10 +86,7 @@ class Tests(util.LoRATestCase):
 
     def run_the_program(self):
         generated_file = io.StringIO()
-        generate_file(
-            emus_xml_file=generated_file,
-            mh=self.mh
-        )
+        generate_file(emus_xml_file=generated_file, mh=self.mh)
         return generated_file
 
     def test_with_new_mikkel(self):
@@ -102,40 +94,58 @@ class Tests(util.LoRATestCase):
         self.load_sql_fixture("normal.sql")
 
         # mikke must be in the report
-        self.assertRequest("service/e/create", json={
-            "name": "Mikkel Petersen",
-            "cpr_no": "1001031333",
-            "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
-            "details": [{
-                "type": "engagement",
-                "primary": True,
-                "org_unit": {"uuid": "23a2ace2-52ca-458d-bead-d1a42080579f"},
-                "job_function": {"uuid": "45c19d33-b65c-4e1e-a890-51bd3bf26e2b"},
-                "engagement_type": {"uuid": "60315fce-995c-4874-ad7b-48b27aaafb25"},
-                "validity": {"from": "2019-08-01", "to": None}
-            }],
-            "force": True
-        })
+        self.assertRequest(
+            "service/e/create",
+            json={
+                "name": "Mikkel Petersen",
+                "cpr_no": "1001031333",
+                "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
+                "details": [
+                    {
+                        "type": "engagement",
+                        "primary": True,
+                        "org_unit": {"uuid": "23a2ace2-52ca-458d-bead-d1a42080579f"},
+                        "job_function": {
+                            "uuid": "45c19d33-b65c-4e1e-a890-51bd3bf26e2b"
+                        },
+                        "engagement_type": {
+                            "uuid": "60315fce-995c-4874-ad7b-48b27aaafb25"
+                        },
+                        "validity": {"from": "2019-08-01", "to": None},
+                    }
+                ],
+                "force": True,
+            },
+        )
         generated_file = self.run_the_program()
-        self.assertIn('<cpr>1001031333</cpr>', generated_file.getvalue())
+        self.assertIn("<cpr>1001031333</cpr>", generated_file.getvalue())
 
     def test_without_future_mikkel(self):
         self.load_sql_fixture("normal.sql")
 
         # mikkel must not be in the report
-        self.assertRequest("service/e/create", json={
-            "name": "Mikkel Petersen",
-            "cpr_no": "1001031333",
-            "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
-            "details": [{
-                "type": "engagement",
-                "primary": True,
-                "org_unit": {"uuid": "23a2ace2-52ca-458d-bead-d1a42080579f"},
-                "job_function": {"uuid": "45c19d33-b65c-4e1e-a890-51bd3bf26e2b"},
-                "engagement_type": {"uuid": "60315fce-995c-4874-ad7b-48b27aaafb25"},
-                "validity": {"from": "2019-10-01", "to": None}
-            }],
-            "force": True
-        })
+        self.assertRequest(
+            "service/e/create",
+            json={
+                "name": "Mikkel Petersen",
+                "cpr_no": "1001031333",
+                "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
+                "details": [
+                    {
+                        "type": "engagement",
+                        "primary": True,
+                        "org_unit": {"uuid": "23a2ace2-52ca-458d-bead-d1a42080579f"},
+                        "job_function": {
+                            "uuid": "45c19d33-b65c-4e1e-a890-51bd3bf26e2b"
+                        },
+                        "engagement_type": {
+                            "uuid": "60315fce-995c-4874-ad7b-48b27aaafb25"
+                        },
+                        "validity": {"from": "2019-10-01", "to": None},
+                    }
+                ],
+                "force": True,
+            },
+        )
         generated_file = self.run_the_program()
-        self.assertNotIn('<cpr>1001031333</cpr>', generated_file.getvalue())
+        self.assertNotIn("<cpr>1001031333</cpr>", generated_file.getvalue())

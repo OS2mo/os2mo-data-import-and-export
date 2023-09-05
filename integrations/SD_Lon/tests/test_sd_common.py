@@ -1,5 +1,5 @@
-from datetime import date
 from collections import OrderedDict
+from datetime import date
 from unittest.mock import patch
 
 from sdlon.config import CommonSettings

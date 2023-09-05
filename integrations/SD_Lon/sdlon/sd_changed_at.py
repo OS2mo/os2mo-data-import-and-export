@@ -23,35 +23,30 @@ import click
 import requests
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
-from integrations import cpr_mapper
-from integrations.ad_integration import ad_reader
-from integrations.calculate_primary.common import NoPrimaryFound
-from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
-from integrations.rundb.db_overview import DBOverview
 from more_itertools import last
 from more_itertools import one
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
-from tqdm import tqdm
-
 from sdlon.employees import get_employee
 from sdlon.graphql import get_mo_client
-from sdlon.it_systems import (
-    get_sd_to_ad_it_system_uuid,
-    get_employee_it_systems,
-    add_it_system_to_employee,
-)
+from sdlon.it_systems import add_it_system_to_employee
+from sdlon.it_systems import get_employee_it_systems
+from sdlon.it_systems import get_sd_to_ad_it_system_uuid
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
+from tqdm import tqdm
+
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
-from .date_utils import date_to_datetime, parse_datetime
+from .date_utils import date_to_datetime
 from .date_utils import gen_date_intervals
+from .date_utils import parse_datetime
 from .date_utils import sd_to_mo_termination_date
-from .engagement import create_engagement, filtered_professions
+from .engagement import create_engagement
 from .engagement import engagement_components
+from .engagement import filtered_professions
 from .engagement import (
     is_employment_id_and_no_salary_minimum_consistent,
 )
@@ -67,9 +62,15 @@ from .sd_common import mora_assert
 from .sd_common import primary_types
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .skip import skip_fictional_users, skip_job_position_id
 from .skip import cpr_env_filter
+from .skip import skip_fictional_users
+from .skip import skip_job_position_id
 from .sync_job_id import JobIdSync
+from integrations import cpr_mapper
+from integrations.ad_integration import ad_reader
+from integrations.calculate_primary.common import NoPrimaryFound
+from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
+from integrations.rundb.db_overview import DBOverview
 
 
 DUMMY_CPR = "0000000000"

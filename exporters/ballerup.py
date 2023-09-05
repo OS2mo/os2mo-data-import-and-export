@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import common_queries as cq
 from anytree import PreOrderIter
 from gql import gql
 from gql.client import SyncClientSession
@@ -23,8 +24,6 @@ from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
-
-import common_queries as cq
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 

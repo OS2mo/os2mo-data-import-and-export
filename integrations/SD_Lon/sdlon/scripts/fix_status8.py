@@ -5,7 +5,6 @@
 #
 # 1) Get all status 8 employments from SD
 # 2) Iterate over these and terminate the corresponding active engagements in MO
-
 import pathlib
 import pickle
 from datetime import datetime
@@ -14,15 +13,16 @@ from uuid import UUID
 
 import click
 from gql import gql
-from more_itertools import one, exactly_n
+from more_itertools import exactly_n
+from more_itertools import one
 from raclients.graph.client import GraphQLClient
-
-from sdlon.graphql import get_mo_client
+from ramodels.mo.employee import Employee
 from sdclient.client import SDClient
 from sdclient.requests import GetEmploymentRequest
 from sdclient.responses import GetEmploymentResponse
 from sdclient.responses import Person
-from ramodels.mo.employee import Employee
+from sdlon.graphql import get_mo_client
+
 
 def get_sd_employments(
     username: str, password: str, institution_identifier: str
@@ -64,7 +64,8 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
         List of CPR numbers
     """
 
-    query = gql("""
+    query = gql(
+        """
     query GetEmployees {
         employees {
             objects {
@@ -73,7 +74,8 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
             uuid
         }
     }
-    """)
+    """
+    )
     r = gql_client.execute(query)
 
     employees = []
@@ -81,8 +83,7 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
         try:
             employees.append(
                 Employee(
-                    cpr_no=one(employee["objects"])["cpr_no"],
-                    uuid=employee["uuid"]
+                    cpr_no=one(employee["objects"])["cpr_no"], uuid=employee["uuid"]
                 )
             )
         except ValueError:
@@ -93,9 +94,7 @@ def get_mo_employees(gql_client: GraphQLClient) -> List[Employee]:
 
 
 def terminate_engagement(
-        gql_client: GraphQLClient,
-        engagement_uuid: str,
-        termination_date: str
+    gql_client: GraphQLClient, engagement_uuid: str, termination_date: str
 ) -> None:
     """
     Terminate a MO engagement.
@@ -115,12 +114,12 @@ def terminate_engagement(
         """
     )
 
-    gql_client.execute(graphql_terminate_engagement, variable_values={
-        "input": {
-            "uuid": str(engagement_uuid),
-            "to": termination_date
-        }
-    })
+    gql_client.execute(
+        graphql_terminate_engagement,
+        variable_values={
+            "input": {"uuid": str(engagement_uuid), "to": termination_date}
+        },
+    )
 
 
 def get_mo_engagements(
@@ -138,7 +137,8 @@ def get_mo_engagements(
         UUID of the engagements
     """
 
-    query = gql("""
+    query = gql(
+        """
         query GetEngagements($uuid: [UUID!]!) {
             engagements(employees: $uuid) {
                 objects {
@@ -150,7 +150,8 @@ def get_mo_engagements(
                 uuid
             }
         }
-    """)
+    """
+    )
 
     r = gql_client.execute(query, variable_values={"uuid": str(employee_uuid)})
     engagements = [
@@ -159,7 +160,7 @@ def get_mo_engagements(
             "user_key": one(engagement["objects"])["user_key"],
             # Convert back and forth between datetime objects and strings?
             # Nah - it is much easier to just use [:10] for this use case
-            "from": one(engagement["objects"])["validity"]["from"][:10]
+            "from": one(engagement["objects"])["validity"]["from"][:10],
         }
         for engagement in r["engagements"]
     ]
@@ -182,9 +183,14 @@ def has_sd_status8(
         True if the combination of CPR and employment identifier has status 8
         in SD and False otherwise
     """
+
     def has_cpr_and_employment_identifier(person: Person) -> bool:
         cpr_match = cpr == person.PersonCivilRegistrationIdentifier
-        employment_identifier_match = exactly_n(person.Employment, 1, lambda emp: emp.EmploymentIdentifier == employment_identifier)
+        employment_identifier_match = exactly_n(
+            person.Employment,
+            1,
+            lambda emp: emp.EmploymentIdentifier == employment_identifier,
+        )
         return cpr_match and employment_identifier_match
 
     return exactly_n(sd_employments.Person, 1, has_cpr_and_employment_identifier)
@@ -197,7 +203,7 @@ def has_sd_status8(
     type=click.STRING,
     envvar="SD_USER",
     required=True,
-    help="SD username"
+    help="SD username",
 )
 @click.option(
     "--password",
@@ -205,7 +211,7 @@ def has_sd_status8(
     type=click.STRING,
     envvar="SD_PASSWORD",
     required=True,
-    help="SD password"
+    help="SD password",
 )
 @click.option(
     "--institution-identifier",
@@ -213,49 +219,46 @@ def has_sd_status8(
     type=click.STRING,
     envvar="SD_INSTITUTION_IDENTIFIER",
     required=True,
-    help="SD institution identifier"
+    help="SD institution identifier",
 )
 @click.option(
     "--auth-server",
     "auth_server",
     type=click.STRING,
     default="http://localhost:8090/auth",
-    help="Keycloak auth server URL"
+    help="Keycloak auth server URL",
 )
 @click.option(
     "--client-id",
     "client_id",
     type=click.STRING,
     default="dipex",
-    help="Keycloak client id"
+    help="Keycloak client id",
 )
 @click.option(
     "--client-secret",
     "client_secret",
     type=click.STRING,
     required=True,
-    help="Keycloak client secret for the DIPEX client"
+    help="Keycloak client secret for the DIPEX client",
 )
 @click.option(
     "--mo-base-url",
     "mo_base_url",
     type=click.STRING,
     default="http://localhost:5000",
-    help="Base URL for calling MO"
+    help="Base URL for calling MO",
 )
 @click.option(
     "--use-pickle",
     "use_pickle",
     is_flag=True,
     help="Store SD response locally with pickle and use pickled response "
-         "in later runs (useful to avoid unnecessary load on SD during "
-         "development)"
+    "in later runs (useful to avoid unnecessary load on SD during "
+    "development)",
 )
 @click.option(
-    "--dry-run",
-    "dry_run",
-    is_flag=True,
-    help="Do not perform any changes in MO"
+    "--dry-run", "dry_run", is_flag=True, help="Do not perform any changes in MO"
 )
 def main(
     username: str,
@@ -280,15 +283,11 @@ def main(
         with open(pickle_file, "br") as fp:
             sd_employments = pickle.load(fp)
     else:
-        sd_employments = get_sd_employments(
-            username, password, institution_identifier
-        )
+        sd_employments = get_sd_employments(username, password, institution_identifier)
 
     print("Number of SD employments:", len(sd_employments.Person))
 
-    gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url, 3
-    )
+    gql_client = get_mo_client(auth_server, client_id, client_secret, mo_base_url, 3)
     employees = get_mo_employees(gql_client)
 
     print("Terminate engagements")

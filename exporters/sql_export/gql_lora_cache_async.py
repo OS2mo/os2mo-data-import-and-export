@@ -4,9 +4,11 @@ import logging
 import os
 import pickle
 import typing
-import flatdict
 from pathlib import Path
+from pprint import pprint
+from uuid import UUID
 
+import flatdict
 from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
@@ -17,7 +19,9 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
-RETRY_MAX_TIME = 60 * 5
+
+
+RETRY_MAX_TIME = 60 * 2
 logger = logging.getLogger(__name__)
 
 
@@ -27,11 +31,11 @@ class GqlLoraCacheSettings(JobSettings):
 
     use_new_cache: bool = False
     std_page_size: int = 500
-    primary_manager_responsibility: str | None = None
-    exporters_actual_state_manager_responsibility_class: str | None = None
+    primary_manager_responsibility: UUID | None = None
+    exporters_actual_state_manager_responsibility_class: UUID | None = None
     prometheus_pushgateway: str | None = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
-    persist_caches = True
+    persist_caches: bool = True
 
     def to_old_settings(self) -> dict[str, typing.Any]:
         """Convert our DatabaseSettings to a settings.json format.
@@ -51,7 +55,9 @@ class GqlLoraCacheSettings(JobSettings):
             "mox.base": self.mox_base,
             "exporters": {
                 "actual_state": {
-                    "manager_responsibility_class": self.primary_manager_responsibility
+                    "manager_responsibility_class": str(
+                        self.primary_manager_responsibility
+                    )
                 }
             },
             "use_new_cache": self.use_new_cache,
@@ -81,7 +87,14 @@ def convert_dict(
 ) -> dict:
     def replace(d: dict, dictionary: dict):
         for replace_from, replace_to in dictionary.items():
-            d[replace_to] = d.pop(replace_from)
+            if replace_from in d.keys():
+                d[replace_to] = d.pop(replace_from, None)
+            else:
+                index = replace_from.rfind(".")
+                if index == -1:
+                    d[replace_to] = None
+                else:
+                    replace(d, {replace_from[:index]: replace_to})
         return d
 
     def res_validity(d: dict):
@@ -99,7 +112,6 @@ def convert_dict(
         return d
 
     uuid = query_res.pop("uuid")
-
     obj_list = []
     if resolve_object:
         for obj in query_res["obj"]:
@@ -172,19 +184,7 @@ class GQLLoraCache:
             limit = self.settings.std_page_size
         return {"limit": limit, "cursor": cursor}
 
-    def get_historic_query(self) -> dict:
-        params: typing.Dict[str, typing.Optional[str]] = {
-            "to_date": str(datetime.datetime.now()),
-            "from_date": str((datetime.datetime.now() - datetime.timedelta(minutes=1))),
-        }
-        if self.full_history:
-            params["to_date"] = None
-            params["from_date"] = None
-        if self.skip_past:
-            params["from_date"] = str(
-                (datetime.datetime.now() - datetime.timedelta(minutes=1))
-            )
-        return params
+
 
     async def construct_query(
         self,
@@ -200,22 +200,18 @@ class GQLLoraCache:
 
         if not self.full_history:
             query_header = (
-                "query ($cursor: Cursor, "
-                "$limit: int) { page: " + query_type + " (cursor: $cursor, "
-                "limit: $limit){ "
-                "page_info { next_cursor } objects { uuid obj: current { "
+                "query ($uuids: [UUID!]) { item: " + query_type + " (uuids: $uuids){ "
+                "objects { uuid obj: current { "
             )
 
         if self.full_history:
             query_header = (
                 "query ($to_date: DateTime,"
                 "$from_date: DateTime,"
-                " $cursor: Cursor,"
-                " $limit: int) { page: " + query_type + " (from_date: $from_date, "
+                " $uuids: [UUID!]) { item: " + query_type + " (from_date: $from_date, "
                 "to_date: $to_date,"
-                "cursor: $cursor,"
-                "limit: $limit)"
-                "{ page_info { next_cursor } objects { uuid obj: objects {"
+                "uuids: $uuids)"
+                "{ objects { uuid obj: objects {"
             )
 
             variable_values.update(self.get_historic_query())
@@ -257,6 +253,12 @@ class GQLLoraCache:
             item["obj"] = [item["obj"]]
             return item
 
+        def flatten_list_of_dicts(nested):
+            return [flatdict.FlatterDict(res_dict, delimiter=".") for res_dict in nested]
+
+        def unflatten_list_of_dicts(flat):
+            return [flat_d.as_dict() for flat_d in flat]
+
         cursor = None
         while True:
             objects, cursor = await self._execute_query(
@@ -272,14 +274,18 @@ class GQLLoraCache:
                 if not self.full_history:
                     obj = align_current(obj)
 
+                obj['obj'] = flatten_list_of_dicts(obj['obj'])
+                # if query_type == 'engagements':
+                #     pprint(obj)
+
                 if query_type == "addresses":
                     # Skip if both of the below are None, should really be an invariant in MO
-                    # employee_uuid
+                    # person_uuid
                     # org_unit_uuid
                     if any(
                         map(
                             lambda o: o is not None
-                            and o["employee_uuid"] is None
+                            and o["person_uuid"] is None
                             and o["org_unit_uuid"] is None,
                             obj["obj"],
                         )
@@ -296,8 +302,9 @@ class GQLLoraCache:
                         resolve_object=True,
                         resolve_validity=False,
                     )
-                    value = obj["obj"][0]
-                    cache_type.update({value.pop("uuid"): value})
+
+                    for value in unflatten_list_of_dicts(obj["obj"]):
+                        cache_type.update({value.pop("uuid"): value})
 
                 else:
                     obj = convert_dict(
@@ -306,6 +313,7 @@ class GQLLoraCache:
                         resolve_object=True,
                         resolve_validity=True,
                     )
+                    obj['obj'] = unflatten_list_of_dicts(obj['obj'])
                     insert_obj(obj, cache_type)
 
     # Used to set a value in the __init__, if this was async, init would have to be
@@ -348,11 +356,6 @@ class GQLLoraCache:
         )
 
     async def _cache_lora_classes(self) -> None:
-        async def fix_facet(obj):
-            for o in obj["obj"]:
-                o["facet"] = o["facet"]["uuid"]
-            return obj
-
         query = """
                     uuid
                     user_key
@@ -361,14 +364,13 @@ class GQLLoraCache:
                     facet{uuid}
             """
 
-        dictionary = {"name": "title"}
+        dictionary = {"name": "title", "facet.uuid": "facet"}
 
         await self.cache(
             query=query,
             query_type="classes",
             replace_dictionary=dictionary,
             cache_type=self.classes,
-            special_handling=fix_facet,
         )
 
     async def _cache_lora_itsystems(self) -> None:
@@ -388,13 +390,13 @@ class GQLLoraCache:
     async def _cache_lora_users(self) -> None:
         query = """
                         uuid
-                        cpr_no
+                        cpr_number
                         user_key
                         name
-                        givenname
+                        given_name
                         surname
                         nickname
-                        nickname_givenname
+                        nickname_given_name
                         nickname_surname
                         validity {
                             from
@@ -403,12 +405,12 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "cpr_no": "cpr",
-            "givenname": "fornavn",
+            "cpr_number": "cpr",
+            "given_name": "fornavn",
             "surname": "efternavn",
             "name": "navn",
             "nickname": "kaldenavn",
-            "nickname_givenname": "kaldenavn_fornavn",
+            "nickname_given_name": "kaldenavn_fornavn",
             "nickname_surname": "kaldenavn_efternavn",
         }
 
@@ -421,33 +423,39 @@ class GQLLoraCache:
 
     async def _cache_lora_units(self) -> None:
         async def format_managers_and_location(qr: dict):
-            def find_manager(managers: typing.List[dict]) -> str | None:
+            def find_manager(managers) -> str | None:
                 if not managers:
                     return None
-                if (
+
+                if prim_responsibility is None:
+                    return managers["0.uuid"]
+
+                for manager in managers:
+                    for responsibility in manager["responsibilities"]:
+                        if prim_responsibility == responsibility["uuid"]:
+                            return manager["uuid"]
+                return None
+
+            prim_responsibility = None
+            if self.settings.primary_manager_responsibility is not None:
+                prim_responsibility = str(self.settings.primary_manager_responsibility)
+            elif (
+                self.settings.exporters_actual_state_manager_responsibility_class
+                is not None
+            ):
+                prim_responsibility = str(
                     self.settings.exporters_actual_state_manager_responsibility_class
-                    is None
-                ):
-                    return first(managers)["uuid"]
-                return first(
-                    map(
-                        lambda m: m["uuid"],
-                        filter(
-                            lambda ma: (
-                                self.settings.exporters_actual_state_manager_responsibility_class
-                                in ma["responsibility_uuids"]
-                            ),
-                            managers,
-                        ),
-                    ),
-                    None,
                 )
 
             for o in qr["obj"]:
                 if o is None:
                     continue
-                if o["parent_uuid"] == self.org_uuid:
-                    o["parent_uuid"] = None
+                if (
+                    o["parent"] is not None
+                    and "uuid" in o["parent"]
+                    and o["parent"]["uuid"] == self.org_uuid
+                ):
+                    o["parent"]["uuid"] = None
 
             for man in qr["obj"]:
                 if man is None:
@@ -459,16 +467,14 @@ class GQLLoraCache:
                         man["manager_uuid"] = None
 
                     if man["acting_manager_uuid"]:
-                        man["acting_manager_uuid"] = find_manager(
-                            man["acting_manager_uuid"]
-                        )
+                        man["acting_manager_uuid"] = find_manager(man["acting_manager_uuid"])
                     else:
                         man["acting_manager_uuid"] = None
 
                     ancestors = man.pop("ancestors")
                     location = man["name"]
-                    for ancestor in ancestors:
-                        location = ancestor["name"] + "\\" + location
+                    for i in range(len(ancestors)):
+                        location = ancestors[f"{i}.name"] + "\\" + location
 
                     man["location"] = location
             return qr
@@ -478,10 +484,10 @@ class GQLLoraCache:
                             uuid
                             user_key
                             name
-                            unit_type_uuid
-                            org_unit_level_uuid
-                            parent_uuid
-                            org_unit_hierarchy_uuid: org_unit_hierarchy
+                            unit_type { uuid }
+                            org_unit_level {uuid}
+                            parent {uuid}
+                            org_unit_hierarchy_model {uuid}
                             validity {
                                 from
                                 to
@@ -490,38 +496,35 @@ class GQLLoraCache:
         else:
 
             query = """
-                            uuid
-                            user_key
-                            name
-                            unit_type_uuid
-                            org_unit_level_uuid
-                            parent_uuid
-                            org_unit_hierarchy_uuid: org_unit_hierarchy
-                            manager_uuid: managers(inherit: false) {
-                                org_unit_uuid
-                                responsibility_uuids
-                                uuid
-                            }
-                            acting_manager_uuid: managers(inherit: true) {
-                                org_unit_uuid
-                                responsibility_uuids
-                                uuid
-                            }
-                            ancestors {
-                                name
-                                uuid
-                            }
-                            validity {
-                                from
-                                to
-                            }
+                uuid
+                user_key
+                name
+                unit_type {uuid}
+                org_unit_level {uuid}
+                parent {uuid}
+                org_unit_hierarchy_model {uuid}
+                manager_uuid: managers(inherit: false) {
+                    uuid
+                    responsibilities {uuid}
+                }
+                acting_manager_uuid: managers(inherit: true) {
+                    uuid
+                    responsibilities {uuid}
+                }
+                ancestors {
+                    name
+                }
+                validity {
+                    from
+                    to
+                }
                 """
 
         dictionary = {
-            "org_unit_level_uuid": "level",
-            "org_unit_hierarchy_uuid": "org_unit_hierarchy",
-            "parent_uuid": "parent",
-            "unit_type_uuid": "unit_type",
+            "org_unit_level.uuid": "level",
+            "org_unit_hierarchy_model.uuid": "org_unit_hierarchy",
+            "parent.uuid": "parent",
+            "unit_type.uuid": "unit_type",
         }
 
         await self.cache(
@@ -549,10 +552,12 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj.pop("primary")
+                prim = res_obj.get("primary.scope")
                 res_obj["primary_boolean"] = False
-                if prim and "scope" in prim:
-                    res_obj["primary_boolean"] = int(prim.get("scope")) > 0
+                if prim is not None:
+                    res_obj["primary_boolean"] = int(prim) > 0
+                    res_obj.pop('primary.scope')
+                    res_obj.pop('primary.user_key')
             return res
 
         async def process(obj: dict) -> dict:
@@ -561,17 +566,17 @@ class GQLLoraCache:
 
         query = """
                         uuid
-                        employee_uuid
-                        org_unit_uuid
+                        person {uuid}
+                        org_unit {uuid}
                         fraction
                         user_key
-                        engagement_type_uuid
-                        primary_uuid
+                        engagement_type {uuid}
                         primary {
                             user_key
                             scope
+                            uuid
                         }
-                        job_function_uuid
+                        job_function {uuid}
                         extension_1
                         extension_2
                         extension_3
@@ -589,11 +594,11 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
-            "engagement_type_uuid": "engagement_type",
-            "job_function_uuid": "job_function",
-            "org_unit_uuid": "unit",
-            "primary_uuid": "primary_type",
+            "person.0.uuid": "user",
+            "engagement_type.uuid": "engagement_type",
+            "job_function.uuid": "job_function",
+            "org_unit.0.uuid": "unit",
+            "primary.uuid": "primary_type",
         }
 
         await self.cache(
@@ -607,9 +612,9 @@ class GQLLoraCache:
     async def _cache_lora_roles(self) -> None:
         query = """
                         uuid
-                        employee_uuid
-                        org_unit_uuid
-                        role_type_uuid
+                        person {uuid}
+                        org_unit {uuid}
+                        role_type {uuid}
                         validity {
                             from
                             to
@@ -617,9 +622,9 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
-            "org_unit_uuid": "unit",
-            "role_type_uuid": "role_type",
+            "person.0.uuid": "user",
+            "org_unit.0.uuid": "unit",
+            "role_type.uuid": "role_type",
         }
 
         await self.cache(
@@ -632,10 +637,10 @@ class GQLLoraCache:
     async def _cache_lora_leaves(self) -> None:
         query = """
                         uuid
-                        employee_uuid
+                        person {uuid}
                         user_key
-                        leave_type_uuid
-                        engagement_uuid
+                        leave_type {uuid}
+                        engagement {uuid}
                         validity  {
                             from
                             to
@@ -643,9 +648,9 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
-            "leave_type_uuid": "leave_type",
-            "engagement_uuid": "engagement",
+            "person.0.uuid": "user",
+            "leave_type.uuid": "leave_type",
+            "engagement.uuid": "engagement",
         }
 
         await self.cache(
@@ -660,30 +665,29 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj.pop("primary_uuid")
-                if prim:
-                    res_obj["primary_boolean"] = True
-                else:
-                    res_obj["primary_boolean"] = None
-
+                prim = res_obj.pop("primary")
+                res_obj["primary_boolean"] = None
+                if prim is not None:
+                    if len(prim['uuid']) > 0:
+                        res_obj["primary_boolean"] = True
             return res
 
         query = """
                         uuid
-                        employee_uuid
-                        org_unit_uuid
+                        person {uuid}
+                        org_unit {uuid}
                         user_key
-                        itsystem_uuid
+                        itsystem {uuid}
                         validity {
                             from
                             to
                         }
-                        primary_uuid
+                        primary {uuid}
             """
         dictionary = {
-            "employee_uuid": "user",
-            "itsystem_uuid": "itsystem",
-            "org_unit_uuid": "unit",
+            "person.0.uuid": "user",
+            "itsystem.uuid": "itsystem",
+            "org_unit.uuid": "unit",
             "user_key": "username",
         }
 
@@ -702,10 +706,10 @@ class GQLLoraCache:
                 if kle_obj is None:
                     continue
                 asp_list = []
-                asps = kle_obj.pop("kle_aspect_uuids")
-                for a_uuid in asps:
+                asps = kle_obj.pop("kle_aspects")
+                for i in range(len(asps)):
                     aspect = kle_obj.copy()
-                    aspect["kle_aspect_uuid"] = a_uuid
+                    aspect["kle_aspect_uuid"] = asps[f"{i}.uuid"]
                     asp_list.append(aspect)
                 new_obj_list.extend(asp_list)
             d["obj"] = new_obj_list
@@ -714,9 +718,9 @@ class GQLLoraCache:
 
         query = """
                         uuid
-                        org_unit_uuid
-                        kle_number_uuid
-                        kle_aspect_uuids
+                        org_unit {uuid}
+                        kle_number {uuid}
+                        kle_aspects {uuid}
                         user_key
                         validity {
                             from
@@ -725,9 +729,10 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "kle_aspect_uuid": "kle_aspect",
-            "kle_number_uuid": "kle_number",
-            "org_unit_uuid": "unit",
+            "kle_aspects.uuid": "kle_aspect",
+            "kle_number.uuid": "kle_number",
+            "org_unit.0.uuid": "unit", #might need handling, like for each uuid in org_unit
+            #format aspects
         }
 
         await self.cache(
@@ -743,15 +748,15 @@ class GQLLoraCache:
             for rel_obj in d["obj"]:
                 if rel_obj is None:
                     continue
-                rel_uuids_list = rel_obj.pop("org_unit_uuids")
-                for i in range(1, (len(rel_uuids_list) + 1)):
-                    rel_obj[f"unit{i}_uuid"] = rel_uuids_list[i - 1]
+                rel_uuids_list = rel_obj.pop("org_units")
+                for i in range(len(rel_uuids_list)):
+                    rel_obj[f"unit{i+1}_uuid"] = rel_uuids_list[f"{i}.uuid"]
 
             return d
 
         query = """
                         uuid
-                        org_unit_uuids
+                        org_units {uuid}
                         validity {
                             from
                             to
@@ -769,11 +774,11 @@ class GQLLoraCache:
     async def _cache_lora_managers(self) -> None:
         query = """
                         uuid
-                        employee_uuid
-                        org_unit_uuid
-                        manager_type_uuid
-                        manager_level_uuid
-                        responsibility_uuids
+                        person {uuid}
+                        org_unit {uuid}
+                        manager_type {uuid}
+                        manager_level {uuid}
+                        responsibilities {uuid}
                         validity {
                             from
                             to
@@ -781,11 +786,11 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
-            "manager_level_uuid": "manager_level",
-            "manager_type_uuid": "manager_type",
-            "responsibility_uuids": "manager_responsibility",
-            "org_unit_uuid": "unit",
+            "person.uuid": "user",
+            "manager_level.uuid": "manager_level",
+            "manager_type.uuid": "manager_type",
+            "responsibilities ": "manager_responsibility",
+            "org_unit.uuid": "unit",
         }
 
         await self.cache(
@@ -818,7 +823,7 @@ class GQLLoraCache:
         #  ask Mads why?! #48316 !764 5dc0d245 . Mads is always busy
         query = """
                         uuid
-                        employee_uuid
+                        person_uuid
                         org_unit_uuid
                         user_key
                         association_type_uuid
@@ -834,7 +839,7 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
+            "person_uuid": "user",
             "association_type_uuid": "association_type",
             "it_user_uuid": "it_user",
             "job_function_uuid": "job_function",
@@ -889,7 +894,7 @@ class GQLLoraCache:
 
         query = """
                         address_type_uuid
-                        employee_uuid
+                        person_uuid
                         org_unit_uuid
                         visibility_uuid
                         name
@@ -905,7 +910,7 @@ class GQLLoraCache:
             """
 
         dictionary = {
-            "employee_uuid": "user",
+            "person_uuid": "user",
             "org_unit_uuid": "unit",
             "address_type_uuid": "adresse_type",
             "visibility_uuid": "visibility",
@@ -1016,15 +1021,15 @@ class GQLLoraCache:
             self.gql_client = gql_client
             time1 = datetime.datetime.now()
             async with asyncio.TaskGroup() as tg:
-                tg.create_task(self._cache_lora_address())
+                # tg.create_task(self._cache_lora_address())
                 tg.create_task(self._cache_lora_units())
                 tg.create_task(self._cache_lora_engagements())
                 tg.create_task(self._cache_lora_facets())
                 tg.create_task(self._cache_lora_classes())
                 tg.create_task(self._cache_lora_users())
                 tg.create_task(self._cache_lora_managers())
-                if not skip_associations:
-                    tg.create_task(self._cache_lora_associations())
+                # if not skip_associations:
+                #     tg.create_task(self._cache_lora_associations())
                 tg.create_task(self._cache_lora_leaves())
                 tg.create_task(self._cache_lora_roles())
                 tg.create_task(self._cache_lora_itsystems())

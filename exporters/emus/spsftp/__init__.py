@@ -1,1 +1,2 @@
-from .spsftp import SpSftp, MetadataError
+from .spsftp import MetadataError
+from .spsftp import SpSftp

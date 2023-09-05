@@ -1,5 +1,4 @@
 # Constants to be used in different parts of os2mo-data-import-and-export
-
 # Names of IT systems:
 AD_it_system = "Active Directory"
 Opus_it_system = "Opus"
@@ -18,4 +17,3 @@ addresses_unit_ean = "EAN"
 addresses_unit_pnr = "Pnummer"
 addresses_unit_phoneNumber = "Telefon"
 addresses_unit_dar = "Adresse"
-

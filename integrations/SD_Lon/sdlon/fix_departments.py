@@ -5,24 +5,22 @@ import sys
 from functools import partial
 from itertools import chain
 from typing import Any
-from typing import Optional
 from typing import List
+from typing import Optional
 from typing import OrderedDict
 
 import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from .date_utils import (
-    datetime_to_sd_date,
-    parse_datetime,
-    SD_INFINITY,
-    MO_INFINITY,
-    format_date,
-)
 from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
+from .date_utils import datetime_to_sd_date
+from .date_utils import format_date
+from .date_utils import MO_INFINITY
+from .date_utils import parse_datetime
+from .date_utils import SD_INFINITY
 from .exceptions import NoCurrentValdityException
 from .sd_common import mora_assert
 from .sd_common import sd_lookup

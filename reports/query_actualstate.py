@@ -7,12 +7,12 @@
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
 import csv
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import jmespath
 import numpy as np
 import pandas as pd
-import xlsxwriter
 import xlsxwriter.worksheet
 from gql import gql
 from more_itertools import prepend
@@ -22,13 +22,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
 
 
 class XLSXExporter:

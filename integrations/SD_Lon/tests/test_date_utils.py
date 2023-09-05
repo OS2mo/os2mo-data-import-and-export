@@ -7,11 +7,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import pairwise
-
 from sdlon.date_utils import _get_employment_from_date
 from sdlon.date_utils import date_to_datetime
-from sdlon.date_utils import format_date
 from sdlon.date_utils import datetime_to_sd_date
+from sdlon.date_utils import format_date
 from sdlon.date_utils import gen_cut_dates
 from sdlon.date_utils import gen_date_intervals
 from sdlon.date_utils import get_employment_datetimes

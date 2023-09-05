@@ -4,9 +4,7 @@ from uuid import UUID
 
 from gql import gql
 from more_itertools import one
-
 from raclients.graph.client import GraphQLClient
-
 from sdlon.date_utils import format_date
 from sdlon.models import ITUserSystem
 

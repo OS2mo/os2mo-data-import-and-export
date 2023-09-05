@@ -1,25 +1,26 @@
-from uuid import UUID
 from typing import List
+from uuid import UUID
+
 import freezegun
 import pytest
 
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    gql_query_validity_field,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    gql_query_persons_details_to_display,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    get_filtered_engagements_for_started_today,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    get_filtered_engagements_for_ended_today,
+    convert_person_and_engagement_data_to_csv,
 )
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
     get_email_address_type_uuid_from_gql,
 )
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    convert_person_and_engagement_data_to_csv,
+    get_filtered_engagements_for_ended_today,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    get_filtered_engagements_for_started_today,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    gql_query_persons_details_to_display,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    gql_query_validity_field,
 )
 
 
@@ -1017,7 +1018,7 @@ def test_filtering_email_address_type_uuids_from_payload(
             (
                 '"Personens navn";"Personens '
                 'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Shortname"\n'
-                ''
+                ""
                 '"Malou Johansen";"8b227cf7-cb67-4023-8efc-b01c2a3632d1";'
                 '"Budget og Planlægning";"2023-01-11T00:00:00+01:00";"lolol@kekek.dk";'
                 '""\n'
@@ -1071,7 +1072,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                 ]
             },
             (
-                 '"Personens navn";"Personens '
+                '"Personens navn";"Personens '
                 'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";"Shortname"\n'
                 '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";"Kolding '
                 'Kommune";"2023-01-11T00:00:00+01:00";"";"";""\n'

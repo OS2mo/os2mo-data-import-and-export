@@ -1,4 +1,5 @@
-from sdlon.models import SDBasePerson, EmploymentWithTelephoneNumberIdentifier
+from sdlon.models import EmploymentWithTelephoneNumberIdentifier
+from sdlon.models import SDBasePerson
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
 
 

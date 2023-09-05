@@ -7,7 +7,6 @@ from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
-
 from ra_utils.attrdict import AttrDict
 from ra_utils.attrdict import attrdict
 

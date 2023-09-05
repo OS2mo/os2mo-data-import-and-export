@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 

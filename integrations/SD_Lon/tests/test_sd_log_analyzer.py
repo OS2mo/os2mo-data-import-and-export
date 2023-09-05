@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from lxml import etree
 from parameterized import parameterized
-
 from sdlon.sd_log_analyzer import extract_log_file_lines
 from sdlon.sd_log_analyzer import get_all_sd_person_changes
 from sdlon.sd_log_analyzer import get_sd_person_changed

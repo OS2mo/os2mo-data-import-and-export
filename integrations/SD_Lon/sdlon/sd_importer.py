@@ -9,20 +9,20 @@ import logging
 import sys
 import uuid
 from operator import itemgetter
-from typing import Any, OrderedDict
+from typing import Any
 from typing import Dict
 from typing import Optional
+from typing import OrderedDict
 
 import click
 from anytree import Node
-from integrations import dawa_helper
-from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from .config import get_importer_settings
 from .config import ImporterSettings
-from .date_utils import format_date, date_to_datetime
+from .date_utils import date_to_datetime
+from .date_utils import format_date
 from .date_utils import get_employment_datetimes
 from .date_utils import parse_datetime
 from .models import JobFunction
@@ -33,6 +33,8 @@ from .sd_common import generate_uuid
 from .sd_common import read_employment_at
 from .sd_common import sd_lookup
 from .skip import skip_fictional_users
+from integrations import dawa_helper
+from integrations.ad_integration import ad_reader
 
 
 LOG_LEVEL = logging.DEBUG

@@ -10,11 +10,11 @@ import time
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
 from ra_utils.deprecation import deprecated
+from ra_utils.load_settings import load_settings
 
-from exporters.sql_export.lora_cache import get_cache as LoraCache
 import exporters.sql_export.lora_cache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
 
 
@@ -268,6 +268,7 @@ def main(speedup, dry_run=None):
 def cli(**args):
     logger.info("Starting with args: %r", args)
     main(speedup=True, dry_run=args["read_from_cache"])
+
 
 if __name__ == "__main__":
     cli()
