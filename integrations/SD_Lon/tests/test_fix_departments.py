@@ -1,6 +1,8 @@
+from collections import OrderedDict
 from copy import deepcopy
 from datetime import date
 from datetime import datetime
+from requests import Response
 from typing import Dict
 from typing import Optional
 from unittest import mock
@@ -408,3 +410,113 @@ class TestFixDepartment(TestCase):
             call("11111111-1111-1111-1111-111111111111", date(2020, 1, 1)),
             call("22222222-2222-2222-2222-222222222222", date(2020, 1, 1)),
         ]
+
+    def test_fix_ny_logic_elevates_engagement_from_too_deep_levels(self) -> None:
+        """
+        Test that an engagement is elevated from the "too deep" OU levels to
+        the appropriate NY-levels above (happens when the SDTool button is
+        pressed). Note: this was the first test of the "apply_NY_logic" function -
+        we just test that (parts of it) is works "as is". We really should
+        1) Find out what the function should actually do
+        2) Test that the engagements dates are set correctly!
+        """
+
+        # Arrange
+        unit_uuid = str(uuid4())
+        parent_unit_uuid = str(uuid4())
+        eng_uuid = str(uuid4())
+        validity_date = date(2023, 8, 1)
+        cpr = "0101901111"
+
+        instance = _TestableFixDepartments.get_instance(
+            {"sd_import_too_deep": ["Afdelings-niveau"]}
+        )
+
+        instance.helper.read_ou = MagicMock(
+            return_value={
+                "uuid": unit_uuid,
+                "org_unit_level": {
+                    "user_key": "Afdelings-niveau",
+                },
+                "parent": {
+                    "uuid": parent_unit_uuid,
+                    "org_unit_level": {
+                        "user_key": "NY1-niveau",
+                    },
+                },
+            }
+        )
+        instance._read_department_engagements = MagicMock(
+            return_value={
+                cpr: OrderedDict(
+                    {
+                        "PersonCivilRegistrationIdentifier": cpr,
+                        "Employment": {
+                            "EmploymentIdentifier": "12345",
+                            "EmploymentDate": "2020-11-10",
+                            "AnniversaryDate": "2004-08-15",
+                            "EmploymentDepartment": {
+                                "ActivationDate": "2020-11-10",
+                                "DeactivationDate": "9999-12-31",
+                                "DepartmentIdentifier": "department_id",
+                                "DepartmentUUIDIdentifier": unit_uuid,
+                            },
+                            "Profession": {
+                                "ActivationDate": "2020-11-10",
+                                "DeactivationDate": "9999-12-31",
+                                "JobPositionIdentifier": "2",
+                                "EmploymentName": "Title",
+                                "AppointmentCode": "0",
+                            },
+                            "EmploymentStatus": {
+                                "ActivationDate": "2020-11-10",
+                                "DeactivationDate": "9999-12-31",
+                                "EmploymentStatusCode": "1",
+                            },
+                        },
+                    }
+                )
+            }
+        )
+        instance.helper.read_user = MagicMock(
+            return_value={
+                "uuid": str(uuid4()),
+            }
+        )
+        instance.helper.read_user_engagement = MagicMock(
+            return_value=[
+                {
+                    "uuid": eng_uuid,
+                    "org_unit": {"uuid": str(uuid4())},
+                    "user_key": "12345",
+                    "validity": {
+                        "from": "2023-01-01",
+                        "to": None,
+                    },
+                }
+            ]
+        )
+
+        r = Response()
+        r.status_code = 200
+
+        instance.helper._mo_post.return_value = r
+
+        # Act
+        instance.fix_NY_logic(unit_uuid, validity_date)
+
+        # Assert
+        instance.helper._mo_post.assert_called_once_with(
+            "details/edit",
+            {
+                "type": "engagement",
+                "uuid": eng_uuid,
+                "data": {
+                    "org_unit": {"uuid": parent_unit_uuid},
+                    "validity": {
+                        "from": validity_date.strftime("%Y-%m-%d"),
+                        "to": None,
+                    },
+                },
+            },
+        )

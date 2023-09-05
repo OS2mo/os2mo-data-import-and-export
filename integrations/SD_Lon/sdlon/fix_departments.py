@@ -451,9 +451,9 @@ class FixDepartments:
                         # This engagement is already in the correct unit
                         continue
 
-                    from_date = datetime.datetime.strptime(
+                    from_date: datetime.date = datetime.datetime.strptime(
                         eng["validity"]["from"], "%Y-%m-%d"
-                    )
+                    ).date()
                     if from_date < validity_date:
                         eng["validity"]["from"] = validity_date.strftime("%Y-%m-%d")
 
