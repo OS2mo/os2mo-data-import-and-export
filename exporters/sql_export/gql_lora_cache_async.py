@@ -104,7 +104,7 @@ def convert_dict(
             if validity["to"]:
                 d["to_date"] = str(parse_date(validity["to"]).date())
             else:
-                d["to_date"] = None
+                d["to_date"] = "9999-12-31"
         return d
 
     uuid = query_res.pop("uuid")
