@@ -11,53 +11,15 @@ from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
 from ra_utils.async_to_sync import async_to_sync
-from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 from raclients.graph.util import execute_paged
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
+from .config import GqlLoraCacheSettings
+
 RETRY_MAX_TIME = 60 * 5
-
-
-class GqlLoraCacheSettings(JobSettings):
-    class Config:
-        frozen = True
-
-    use_new_cache: bool = False
-    primary_manager_responsibility: str | None = None
-    exporters_actual_state_manager_responsibility_class: str | None = None
-    prometheus_pushgateway: str | None = "pushgateway"
-    mox_base: str = "http://mo:5000/lora"
-    std_page_size: int = 400
-
-    def to_old_settings(self) -> dict[str, typing.Any]:
-        """Convert our DatabaseSettings to a settings.json format.
-
-        This serves to implement the adapter pattern, adapting from pydantic and its
-        corresponding 12-factor configuration paradigm with environment variables, to
-        the current functionality of the program, based on the settings format from
-        settings.json.
-
-        Eventually the entire settings-processing within the program should be
-        rewritten with a process similar to what has been done for the SD integration,
-        but it was out of scope for the change when this code was introduced.
-        """
-
-        settings = {
-            "mora.base": self.mora_base,
-            "mox.base": self.mox_base,
-            "exporters": {
-                "actual_state": {
-                    "manager_responsibility_class": self.primary_manager_responsibility
-                }
-            },
-            "use_new_cache": self.use_new_cache,
-        }
-
-        return settings
-
 
 logger = logging.getLogger(__name__)
 

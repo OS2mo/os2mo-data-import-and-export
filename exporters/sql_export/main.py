@@ -9,8 +9,8 @@ from fastapi import APIRouter
 from fastapi import FastAPI
 from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.main import FastRAMQPI
-from ra_utils.job_settings import JobSettings
 
+from .config import GqlLoraCacheSettings
 from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 fastapi_router = APIRouter()
 
 
-class Settings(JobSettings):
+class Settings(GqlLoraCacheSettings):
     fastramqpi: FastRAMQPISettings
 
     class Config:

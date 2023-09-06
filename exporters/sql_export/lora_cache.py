@@ -7,8 +7,8 @@ import click
 import sentry_sdk
 from dateutil import tz
 
+from .config import GqlLoraCacheSettings
 from .gql_lora_cache_async import GQLLoraCache
-from .gql_lora_cache_async import GqlLoraCacheSettings
 from .old_lora_cache import OldLoraCache
 
 logger = logging.getLogger(__name__)
