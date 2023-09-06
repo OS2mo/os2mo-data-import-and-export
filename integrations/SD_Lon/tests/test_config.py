@@ -60,7 +60,7 @@ DEFAULT_EXPECTED_SETTINGS: Dict[str, Any] = {
         "client_id": "dipex",
         "client_secret": None,
         "log_format": "%(levelname)s %(asctime)s %(filename)s:%(lineno)d:%(name)s: %(message)s",
-        "log_level": "ERROR",
+        "log_level": "DEBUG",
         "mora_base": "http://mo:5000",
         "sentry_dsn": None,
     },

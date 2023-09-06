@@ -1,8 +1,9 @@
+from pydantic.networks import AnyHttpUrl
 from raclients.graph.client import GraphQLClient
 
 
 def get_mo_client(
-    auth_server: str,
+    auth_server: AnyHttpUrl,
     client_id: str,
     client_secret: str,
     mo_base_url: str,
