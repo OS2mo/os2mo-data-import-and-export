@@ -2,12 +2,13 @@ import pathlib
 import pickle
 from datetime import datetime
 from pprint import pprint
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import click
 from gql import gql
 from more_itertools import one
+from pydantic.networks import AnyHttpUrl
 from raclients.graph.client import GraphQLClient
 from ramodels.mo.employee import Employee
 
@@ -109,7 +110,7 @@ def get_mo_engagements(
         employee_uuid: UUID of the employee to get the engagements from
 
     Returns:
-        List of dicts
+        Dict of the form { eng_user_key: { "eng_data" }}
     """
 
     if employee_uuid is None:
@@ -248,6 +249,12 @@ def engagement_match(
          "development)"
 )
 @click.option(
+    "--too-deep",
+    "too_deep",
+    multiple=True,
+    default=("Afdelings-niveau",)
+)
+@click.option(
     "--dry-run",
     "dry_run",
     is_flag=True,
@@ -262,6 +269,7 @@ def main(
     client_secret: str,
     mo_base_url: str,
     use_pickle: bool,
+    too_deep: tuple[str],
     dry_run: bool,
 ):
     # To make as few heavy SD as possible during development
@@ -294,12 +302,12 @@ def main(
     # TODO: verify that SD persons have unique cprs
 
     gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url
+        cast(AnyHttpUrl, auth_server), client_id, client_secret, mo_base_url, 13
     )
 
     mo_employees = get_mo_employees(gql_client)
     mo_cpr_to_uuid_map = get_mo_cpr_to_uuid_map(mo_employees)
-    sd_dep_map = get_NY_level_department_map(sd_org, ["Afdelings-niveau", "NY1-niveau"])
+    sd_dep_map = get_NY_level_department_map(sd_org, list(too_deep))
 
     diffs = {}
     for sd_person in sd_employments.Person:
