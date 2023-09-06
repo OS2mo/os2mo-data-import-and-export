@@ -543,40 +543,61 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj.pop("primary")
-                res_obj["primary_boolean"] = False
-                if prim and "scope" in prim:
-                    res_obj["primary_boolean"] = int(prim.get("scope")) > 0
+                prim_list = res_obj.pop("primary_list")
+                prim_eng_uuid = None
+                prim_eng_scope: int = -1
+                for prim in prim_list:
+                    engagement_list = prim["engagements"]
+                    for eng in engagement_list:
+                        uuid = eng.get("uuid")
+                        prim = eng.get("primary")
+                        if prim is None:
+                            continue
+                        scope = prim.get("scope")
+                        if scope is None:
+                            continue
+                        scope_val = int(scope)
+                        if scope_val > prim_eng_scope:
+                            prim_eng_uuid = uuid
+                            prim_eng_scope = scope_val
+
+                res_obj.update(
+                    {"primary_boolean": prim_eng_uuid == res_obj.get("uuid")}
+                )
+
             return res
 
         query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        fraction
-                        user_key
-                        engagement_type_uuid
-                        primary_uuid
-                        primary {
-                            user_key
-                            scope
-                        }
-                        job_function_uuid
-                        extension_1
-                        extension_2
-                        extension_3
-                        extension_4
-                        extension_5
-                        extension_6
-                        extension_7
-                        extension_8
-                        extension_9
-                        extension_10
-                        validity {
-                            from
-                            to
-                        }
-            """
+                uuid
+                employee_uuid
+                org_unit_uuid
+                fraction
+                user_key
+                engagement_type_uuid
+                primary_uuid
+                primary_list: person {
+                                engagements {
+                                  primary {
+                                    scope
+                                  }
+                                }
+                              }
+                job_function_uuid
+                extension_1
+                extension_2
+                extension_3
+                extension_4
+                extension_5
+                extension_6
+                extension_7
+                extension_8
+                extension_9
+                extension_10
+                validity {
+                    from
+                    to
+                }
+                    """
 
         dictionary = {
             "employee_uuid": "user",
