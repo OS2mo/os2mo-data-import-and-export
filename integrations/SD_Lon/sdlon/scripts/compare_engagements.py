@@ -18,6 +18,7 @@ from sdclient.responses import GetEmploymentResponse, GetOrganizationResponse, \
     Employment
 from sdclient.responses import Person
 
+from sdlon.date_utils import parse_datetime
 from sdlon.graphql import get_mo_client
 from sdlon.scripts.fix_status8 import get_mo_employees
 
@@ -184,6 +185,12 @@ def engagement_match(
     if not sd_emp.Profession.EmploymentName == mo_eng["job_function"]:
         mismatches.append("Job function")
         match = False
+
+    mo_eng_enddate = parse_datetime(mo_eng["validity"]["to"][:10]).date()
+    if not sd_emp.EmploymentStatus.DeactivationDate == mo_eng_enddate:
+        mismatches.append("End date")
+        match = False
+
     return match, mismatches
 
 
@@ -252,13 +259,19 @@ def engagement_match(
     "--too-deep",
     "too_deep",
     multiple=True,
-    default=("Afdelings-niveau",)
+    default=("Afdelings-niveau",),
+    help="The NY-logic too deep levels",
 )
 @click.option(
     "--dry-run",
     "dry_run",
     is_flag=True,
     help="Do not perform any changes in MO"
+)
+@click.option(
+    "--cpr",
+    "cpr",
+    help="Only make the comparison for this CPR"
 )
 def main(
     username: str,
@@ -271,6 +284,7 @@ def main(
     use_pickle: bool,
     too_deep: tuple[str],
     dry_run: bool,
+    cpr: str,
 ):
     # To make as few heavy SD as possible during development
     if use_pickle:
@@ -305,12 +319,20 @@ def main(
         cast(AnyHttpUrl, auth_server), client_id, client_secret, mo_base_url, 13
     )
 
+    # TODO: move get_mo_employees to separate function
     mo_employees = get_mo_employees(gql_client)
     mo_cpr_to_uuid_map = get_mo_cpr_to_uuid_map(mo_employees)
     sd_dep_map = get_NY_level_department_map(sd_org, list(too_deep))
 
+    sd_persons = sd_employments.Person
+    if cpr is not None:
+        sd_persons = [
+            person for person in sd_employments.Person
+            if person.PersonCivilRegistrationIdentifier == cpr
+        ]
+
     diffs = {}
-    for sd_person in sd_employments.Person:
+    for sd_person in sd_persons:
         cpr = sd_person.PersonCivilRegistrationIdentifier
         sd_employments = sd_person.Employment
         mo_engagements = get_mo_engagements(
