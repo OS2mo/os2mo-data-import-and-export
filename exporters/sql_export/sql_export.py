@@ -60,7 +60,7 @@ class SqlExport:
         self.settings = settings
         self.engine = self._get_engine()
         self.export_cpr = self._get_export_cpr_setting()
-        self.chunk_size = 1000
+        self.chunk_size = 5000
 
     def _get_engine(self) -> Engine:
         database_function = DatabaseFunction.ACTUAL_STATE
