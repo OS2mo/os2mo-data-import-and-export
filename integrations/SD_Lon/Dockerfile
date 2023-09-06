@@ -7,12 +7,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
 # These need to be installed manually ALL THE TIME for debugging, so let's
 # include them here for now until we have a more stable application
-RUN apt -y install vim sqlite3 screen
-
-# These have to be installed manually for debugging everytime a Kubernetes pod
-# is recreated which is very annoying. Let's include them for now until the
-# SD code becomes more stable
-RUN apt-get install -y sqlite3 screen
+RUN apt-get install -y vim sqlite3 screen
 
 WORKDIR /app
 
