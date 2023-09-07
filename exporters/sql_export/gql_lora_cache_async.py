@@ -127,7 +127,7 @@ class GQLLoraCache:
 
         self.gql_client_session: GraphQLClient
 
-        self.org_uuid = self._get_org_uuid()
+        self.org_uuid = None
 
     def _setup_gql_client(self) -> GraphQLClient:
         return GraphQLClient(
@@ -255,10 +255,10 @@ class GQLLoraCache:
             logger.error(gql_variable_values)
             raise e
 
-    # Used to set a value in the __init__, if this was async, init would have to be
-    # as well, which would mean that the new cache could only be initiated from
-    # async functions
-    def _get_org_uuid(self):
+    async def _get_org_uuid(self):
+        if self.org_uuid:
+            return self.org_uuid
+
         query = gql(
             """
             query {
@@ -268,18 +268,11 @@ class GQLLoraCache:
             }
             """
         )
-        with GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
-            client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
-            auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
-            sync=True,
-            httpx_client_kwargs={"timeout": None},
-            execute_timeout=None,
-        ) as session:
-            org = session.execute(query)["org"]["uuid"]
-        return org
+
+        org = await self.gql_client_session.execute(query)
+        self.org_uuid = org["org"]["uuid"]
+
+        return self.org_uuid
 
     async def _cache_lora_facets(self) -> None:
         query = """
@@ -480,7 +473,7 @@ class GQLLoraCache:
             for item in obj["obj"]:
                 if item is None:
                     continue
-                if item["parent_uuid"] == self.org_uuid:
+                if item["parent_uuid"] == await self._get_org_uuid():
                     item["parent_uuid"] = None
 
             obj = await format_managers_and_location(obj)
