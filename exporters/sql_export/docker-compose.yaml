@@ -8,19 +8,22 @@ services:
       AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-
+      MO_URL: "http://mo:5000"
       MORA_BASE: "http://mo:5000"
       MOX_BASE: "http://mo:5000/lora"
 
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
 
-      ACTUAL_STATE__TYPE: Postgres
-      ACTUAL_STATE__HOST: export-db
       ACTUAL_STATE__DB_NAME: actualstate
-      ACTUAL_STATE__USER: postgres
+      ACTUAL_STATE__HOST: export-db
       ACTUAL_STATE__PASSWORD: mysecretpassword
+      ACTUAL_STATE__TYPE: Postgres
+      ACTUAL_STATE__USER: postgres
       ENABLE_METRICS: "false"
+      EVENTDRIVEN: "true"
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
+      FASTRAMQPI__MO_GRAPHQL_VERSION: "3"
+      USE_NEW_CACHE: "true"
     ports:
       - 8000:8000/tcp
     volumes:

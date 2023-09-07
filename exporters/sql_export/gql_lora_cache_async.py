@@ -6,10 +6,12 @@ import pickle
 import time
 import typing
 from pathlib import Path
+from uuid import UUID
 
 from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
+from more_itertools import one
 from ra_utils.async_to_sync import async_to_sync
 from raclients.graph.client import GraphQLClient
 from raclients.graph.util import execute_paged
@@ -162,6 +164,7 @@ class GQLLoraCache:
         variable_values: dict | None,
         page_size: int | None,
         offset: int,
+        uuid: UUID | None = None,
     ):
         if variable_values is None:
             variable_values = {}
@@ -170,15 +173,16 @@ class GQLLoraCache:
                                 }
                             }
                         }"""
-        query_header = ""
-
+        query_header = """query ("""
+        if uuid:
+            query_header += "$uuids: [UUID!], "
+            variable_values["uuids"] = str(uuid)
         if simple_query:
-            query_header = (
-                """
-                                query ($limit: int, $offset: int) {
+            query_header += (
+                """$limit: int, $offset: int) {
                                     page: """
                 + query_type
-                + """ (limit: $limit, offset: $offset){
+                + """ (uuids: $uuids, limit: $limit, offset: $offset){
                     """
             )
             query_footer = """
@@ -187,26 +191,24 @@ class GQLLoraCache:
 
         else:
             if not self.full_history:
-                query_header = (
-                    """
-                                query ($limit: int, $offset: int) {
+                query_header += (
+                    """$limit: int, $offset: int) {
                                     page: """
                     + query_type
-                    + """ (limit: $limit, offset: $offset){
+                    + """ (uuids: $uuids, limit: $limit, offset: $offset){
                         uuid
                         obj: current {"""
                 )
 
-            if self.full_history:
-                query_header = (
-                    """
-                                query ($to_date: DateTime,
+            else:
+                query_header += (
+                    """$to_date: DateTime,
                                        $from_date: DateTime,
                                        $limit: int,
                                        $offset: int) {
                                     page: """
                     + query_type
-                    + """ (from_date: $from_date,
+                    + """ (uuids: $uuids, from_date: $from_date,
                                                      to_date: $to_date,
                                                      limit: $limit,
                                                      offset: $offset) {
@@ -231,6 +233,7 @@ class GQLLoraCache:
         simple_query: bool = False,
         page_size: typing.Optional[int] = None,
         offset: int = 0,
+        uuid: UUID | None = None,
     ):
         gql_query, gql_variable_values = await self.construct_query(
             query=query,
@@ -239,8 +242,14 @@ class GQLLoraCache:
             page_size=page_size,
             offset=offset,
             simple_query=simple_query,
+            uuid=uuid,
         )
-        try:
+        if uuid:
+            res = await self.gql_client_session.execute(
+                gql_query, variable_values=gql_variable_values
+            )
+            yield one(res["page"])
+        else:
             async for obj in execute_paged(
                 gql_session=self.gql_client_session,
                 document=gql_query,
@@ -248,12 +257,6 @@ class GQLLoraCache:
                 per_page=(page_size or self.std_page_size),
             ):
                 yield obj
-        except Exception as e:
-            logger.error(e)
-            logger.error(offset)
-            logger.error(gql_query)
-            logger.error(gql_variable_values)
-            raise e
 
     async def _get_org_uuid(self):
         if self.org_uuid:
@@ -481,7 +484,7 @@ class GQLLoraCache:
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.units)
 
-    async def _cache_lora_engagements(self) -> None:
+    async def _cache_lora_engagements(self, uuid: UUID | None = None) -> dict | None:
         def collect_extensions(d: dict):
             for ext_obj in d["obj"]:
                 if ext_obj is None:
@@ -542,8 +545,7 @@ class GQLLoraCache:
         }
 
         async for obj in self._execute_query(
-            query=query,
-            query_type="engagements",
+            query=query, query_type="engagements", uuid=uuid
         ):
             if not self.full_history:
                 obj = align_current(obj)
@@ -552,6 +554,8 @@ class GQLLoraCache:
             obj = await set_primary_boolean(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.engagements)
+
+        return obj
 
     async def _cache_lora_roles(self) -> None:
         query = """
