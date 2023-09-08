@@ -289,6 +289,36 @@ class SqlExport:
             for result in self.engine.execute("select * from enheder limit 5"):
                 print(result)
 
+    def _generate_sql_engagement(self, uuid, engagement_info) -> Engagement:
+        if engagement_info["primary_type"] is not None:
+            primærtype_titel = self.lc.classes[engagement_info["primary_type"]]["title"]
+        else:
+            primærtype_titel = ""
+            engagement_type_uuid = engagement_info["engagement_type"]
+            job_function_uuid, job_function_class = self._get_lora_class(
+                engagement_info["job_function"]
+            )
+
+        return Engagement(
+            uuid=uuid,
+            enhed_uuid=engagement_info["unit"],
+            bruger_uuid=engagement_info["user"],
+            bvn=engagement_info["user_key"],
+            engagementstype_uuid=engagement_info["engagement_type"],
+            primær_boolean=engagement_info.get("primary_boolean"),
+            arbejdstidsfraktion=engagement_info["fraction"],
+            engagementstype_titel=self.lc.classes.get(
+                engagement_type_uuid, {"title": engagement_type_uuid}
+            )["title"],
+            primærtype_titel=primærtype_titel,
+            stillingsbetegnelse_uuid=job_function_uuid,
+            stillingsbetegnelse_titel=job_function_class["title"],
+            primærtype_uuid=engagement_info["primary_type"],
+            startdato=engagement_info["from_date"],
+            slutdato=engagement_info["to_date"],
+            **engagement_info["extensions"],
+        )
+
     def _add_engagements(self, output=False):
         logger.info("Add engagements")
         engagements = tqdm(
@@ -297,38 +327,11 @@ class SqlExport:
         for chunk in ichunked(engagements, self.chunk_size):
             for engagement, engagement_validity in chunk:
                 for engagement_info in engagement_validity:
-                    if engagement_info["primary_type"] is not None:
-                        primærtype_titel = self.lc.classes[
-                            engagement_info["primary_type"]
-                        ]["title"]
-                    else:
-                        primærtype_titel = ""
-
-                    engagement_type_uuid = engagement_info["engagement_type"]
-                    job_function_uuid, job_function_class = self._get_lora_class(
-                        engagement_info["job_function"]
+                    self.session.add(
+                        self._generate_sql_engagement(
+                            uuid=engagement, engagement_info=engagement_info
+                        )
                     )
-
-                    sql_engagement = Engagement(
-                        uuid=engagement,
-                        enhed_uuid=engagement_info["unit"],
-                        bruger_uuid=engagement_info["user"],
-                        bvn=engagement_info["user_key"],
-                        engagementstype_uuid=engagement_info["engagement_type"],
-                        primær_boolean=engagement_info.get("primary_boolean"),
-                        arbejdstidsfraktion=engagement_info["fraction"],
-                        engagementstype_titel=self.lc.classes.get(
-                            engagement_type_uuid, {"title": engagement_type_uuid}
-                        )["title"],
-                        primærtype_titel=primærtype_titel,
-                        stillingsbetegnelse_uuid=job_function_uuid,
-                        stillingsbetegnelse_titel=job_function_class["title"],
-                        primærtype_uuid=engagement_info["primary_type"],
-                        startdato=engagement_info["from_date"],
-                        slutdato=engagement_info["to_date"],
-                        **engagement_info["extensions"],
-                    )
-                    self.session.add(sql_engagement)
             self.session.commit()
 
         if output:
