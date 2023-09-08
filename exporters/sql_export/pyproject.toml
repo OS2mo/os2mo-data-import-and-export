@@ -36,6 +36,7 @@ pyodbc = "^4.0.39"
 fastramqpi = "^1.4.3"
 pymssql = "^2.2.8"
 more-itertools = "^9"
+deepdiff = "^5.8.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.3.1"

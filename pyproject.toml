@@ -67,7 +67,7 @@ pika = "^1.2.0"
 requests-kerberos = "^0.14.0"
 pywinrm = {extras = ["kerberos"], version = "^0.4.2"}
 xlrd = "^2.0.1"
-deepdiff = "^5.7.0"
+deepdiff = "^5.8.1"
 click-option-group = "^0.5.3"
 google-cloud-storage = "^2.1.0"
 "fs.smbfs" = "^1.0.3"
