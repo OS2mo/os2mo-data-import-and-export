@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import logging
 import typing
@@ -134,7 +135,7 @@ class SqlExport:
             self._add_related,
         ]
         for task in tqdm(tasks, desc="SQLExport", unit="task"):
-            task()
+            asyncio.run(task())
 
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
@@ -191,7 +192,7 @@ class SqlExport:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
-    def _add_classification(self, output=False):
+    async def _add_classification(self, output=False):
         logger.info("Add classification")
         facets = tqdm(self.lc.facets.items(), desc="Export facet", unit="facet")
         for chunk in ichunked(facets, self.chunk_size):
@@ -222,7 +223,7 @@ class SqlExport:
             for result in self.engine.execute("select * from klasser limit 4"):
                 print(result.items())
 
-    def _add_users_and_units(self, output=False):
+    async def _add_users_and_units(self, output=False):
         logger.info("Add users and units")
         users = tqdm(self.lc.users.items(), desc="Export user", unit="user")
         for chunk in ichunked(users, self.chunk_size):
@@ -289,15 +290,22 @@ class SqlExport:
             for result in self.engine.execute("select * from enheder limit 5"):
                 print(result)
 
-    def _generate_sql_engagement(self, uuid, engagement_info) -> Engagement:
+    async def _generate_sql_engagement(self, uuid, engagement_info) -> Engagement:
+        if self.settings.get("use_new_cache") and (
+            self.lc.classes.get(engagement_info["primary_type"]) is None
+            or self.lc.classes.get(engagement_info["job_function"]) is None
+            or self.lc.classes.get(engagement_info["engagement_type"]) is None
+        ):
+            # Might need to cache lora_classes when running event-driven
+            await self.lc._cache_lora_classes()
         if engagement_info["primary_type"] is not None:
             primærtype_titel = self.lc.classes[engagement_info["primary_type"]]["title"]
         else:
             primærtype_titel = ""
-            engagement_type_uuid = engagement_info["engagement_type"]
-            job_function_uuid, job_function_class = self._get_lora_class(
-                engagement_info["job_function"]
-            )
+        engagement_type_uuid = engagement_info["engagement_type"]
+        job_function_uuid, job_function_class = self._get_lora_class(
+            engagement_info["job_function"]
+        )
 
         return Engagement(
             uuid=uuid,
@@ -319,7 +327,7 @@ class SqlExport:
             **engagement_info["extensions"],
         )
 
-    def _add_engagements(self, output=False):
+    async def _add_engagements(self, output=False):
         logger.info("Add engagements")
         engagements = tqdm(
             self.lc.engagements.items(), desc="Export engagement", unit="engagement"
@@ -328,7 +336,7 @@ class SqlExport:
             for engagement, engagement_validity in chunk:
                 for engagement_info in engagement_validity:
                     self.session.add(
-                        self._generate_sql_engagement(
+                        await self._generate_sql_engagement(
                             uuid=engagement, engagement_info=engagement_info
                         )
                     )
@@ -338,7 +346,7 @@ class SqlExport:
             for result in self.engine.execute("select * from engagementer limit 5"):
                 print(result.items())
 
-    def _add_addresses(self, output=False):
+    async def _add_addresses(self, output=False):
         logger.info("Add addresses")
         addresses = tqdm(
             self.lc.addresses.items(), desc="Export address", unit="address"
@@ -383,7 +391,7 @@ class SqlExport:
             for result in self.engine.execute("select * from adresser limit 10"):
                 print(result.items())
 
-    def _add_dar_addresses(self, output=False):
+    async def _add_dar_addresses(self, output=False):
         logger.info("Add DAR addresses")
         dar = tqdm(self.lc.dar_cache.items(), desc="Export DAR", unit="DAR")
         for chunk in ichunked(dar, self.chunk_size):
@@ -403,7 +411,7 @@ class SqlExport:
             for result in self.engine.execute("select * from dar_adresser limit 10"):
                 print(result.items())
 
-    def _add_associations(self, output=False):
+    async def _add_associations(self, output=False):
         logger.info("Add associations")
         associations = tqdm(
             self.lc.associations.items(), desc="Export association", unit="association"
@@ -480,7 +488,7 @@ class SqlExport:
             for result in self.engine.execute("select * from roller limit 4"):
                 print(result.items())
 
-    def _add_it_systems(self, output=False):
+    async def _add_it_systems(self, output=False):
         logger.info("Add IT systems")
         itsystems = tqdm(
             self.lc.itsystems.items(), desc="Export itsystem", unit="itsystem"
@@ -519,7 +527,7 @@ class SqlExport:
             for result in self.engine.execute("select * from it_forbindelser limit 2"):
                 print(result.items())
 
-    def _add_kles(self, output=False):
+    async def _add_kles(self, output=False):
         logger.info("Add KLES")
         kles = tqdm(self.lc.kles.items(), desc="Export KLE", unit="KLE")
         for chunk in ichunked(kles, self.chunk_size):
@@ -571,7 +579,7 @@ class SqlExport:
             for result in self.engine.execute("select * from kvittering limit 10"):
                 print(result.items())
 
-    def _add_related(self, output=False):
+    async def _add_related(self, output=False):
         logger.info("Add Enhedssammenkobling")
         relateds = tqdm(self.lc.related.items(), desc="Export related", unit="related")
         for chunk in ichunked(relateds, self.chunk_size):
@@ -593,7 +601,7 @@ class SqlExport:
             ):
                 print(result.items())
 
-    def _add_managers(self, output=False):
+    async def _add_managers(self, output=False):
         logger.info("Add managers")
         managers = tqdm(self.lc.managers.items(), desc="Export manager", unit="manager")
         for chunk in ichunked(managers, self.chunk_size):
