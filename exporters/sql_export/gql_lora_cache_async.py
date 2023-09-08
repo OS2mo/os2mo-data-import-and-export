@@ -160,65 +160,55 @@ class GQLLoraCache:
         self,
         query_type: str,
         simple_query: bool,
-        query: str,
+        query_fields: str,
         variable_values: dict | None,
         page_size: int | None,
         offset: int,
         uuid: UUID | None = None,
     ):
+        """Builds graphql queries and returns the gql object and variable values dict.
+
+        Sets query parameters to match either pagination or single uuid queries,
+        either actual-state or historic, either 'simple' or not (including a 'current' object)
+        """
         if variable_values is None:
             variable_values = {}
 
-        query_footer = """
-                                }
-                            }
-                        }"""
-        query_header = """query ("""
+        query_filters = ["$uuids: [UUID!]"] if uuid else ["$limit: int", "$offset: int"]
+        query_variables = (
+            ["uuids: $uuids"] if uuid else ["limit: $limit", "offset: $offset"]
+        )
+        if self.full_history:
+            query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
+            query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
+        variable_values["uuids"] = []
         if uuid:
-            query_header += "$uuids: [UUID!], "
             variable_values["uuids"] = str(uuid)
-        if simple_query:
-            query_header += (
-                """$limit: int, $offset: int) {
-                                    page: """
-                + query_type
-                + """ (uuids: $uuids, limit: $limit, offset: $offset){
-                    """
-            )
-            query_footer = """
-                                        }
-                                    }"""
 
-        else:
-            if not self.full_history:
-                query_header += (
-                    """$limit: int, $offset: int) {
-                                    page: """
-                    + query_type
-                    + """ (uuids: $uuids, limit: $limit, offset: $offset){
-                        uuid
-                        obj: current {"""
-                )
+        query_filters_string = ", ".join(query_filters)
+        query_variables_string = ", ".join(query_variables)
 
-            else:
-                query_header += (
-                    """$to_date: DateTime,
-                                       $from_date: DateTime,
-                                       $limit: int,
-                                       $offset: int) {
-                                    page: """
-                    + query_type
-                    + """ (uuids: $uuids, from_date: $from_date,
-                                                     to_date: $to_date,
-                                                     limit: $limit,
-                                                     offset: $offset) {
-                        uuid
-                        obj: objects {
-                             """
-                )
-                variable_values.update(self.get_historic_query())
+        # account for simple_query differences
+        query_contents = (
+            f"""
+                uuid
+                obj: current {{
+                {query_fields}
+                }}
+            """
+            if not simple_query
+            else f"{query_fields}"
+        )
+        full_query = f"""
+            query ({query_filters_string}) {{
+                page: {query_type}({query_variables_string}){{
+                {query_contents}
+                }}
+            }}
 
-        return gql(query_header + query + query_footer), variable_values
+            """
+
+        return gql(full_query), variable_values
 
     @retry(
         reraise=True,
@@ -236,7 +226,7 @@ class GQLLoraCache:
         uuid: UUID | None = None,
     ):
         gql_query, gql_variable_values = await self.construct_query(
-            query=query,
+            query_fields=query,
             query_type=query_type,
             variable_values=variable_values,
             page_size=page_size,
