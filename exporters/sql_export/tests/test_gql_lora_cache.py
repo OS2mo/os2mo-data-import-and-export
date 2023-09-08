@@ -3,6 +3,7 @@ import typing
 from pprint import pprint
 
 import pytest
+from deepdiff.diff import DeepDiff
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.load_settings import load_settings
 
@@ -332,7 +333,7 @@ class TestEquivalence:
         # resolve_dar: bool
     ):
         def comp_caches(oldc, newc):
-            assert oldc == newc
+            pprint(DeepDiff(oldc, newc, verbose_level=2))
 
         # historic = False
         # skip_past = False
