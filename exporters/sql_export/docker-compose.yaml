@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: MPL-2.0
 services:
   sql_export:
+    tty: true
+    stdin_open: true
     build: .
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
@@ -31,6 +33,9 @@ services:
     networks:
       - os2mo_default
       - sql_export
+    depends_on:
+      alembic:
+        condition: service_completed_successfully
 
   export-db:
     image: postgres:13
@@ -42,6 +47,16 @@ services:
     restart: unless-stopped
     networks:
       - sql_export
+  
+  alembic:
+    build: .
+    working_dir: /opt/sql_export
+    command: ["alembic", "upgrade", "head"]
+    networks:
+      - sql_export
+    depends_on:
+      export-db:
+        condition: service_started
 
 networks:
   os2mo_default:
