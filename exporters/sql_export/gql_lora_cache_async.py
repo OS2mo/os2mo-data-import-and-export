@@ -474,7 +474,7 @@ class GQLLoraCache:
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.units)
 
-    async def _cache_lora_engagements(self, uuid: UUID | None = None) -> dict | None:
+    async def _cache_lora_engagements(self, uuid: UUID | None = None) -> list[dict]:
         def collect_extensions(d: dict):
             for ext_obj in d["obj"]:
                 if ext_obj is None:
@@ -545,7 +545,7 @@ class GQLLoraCache:
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.engagements)
 
-        return obj
+        return obj["obj"]
 
     async def _cache_lora_roles(self) -> None:
         query = """
