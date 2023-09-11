@@ -1049,22 +1049,27 @@ class GQLLoraCache:
         msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
         async with self._setup_gql_client() as session:
             self.gql_client_session = session
+            # `tasks` is used to keep strong references. Otherwise, it can be
+            # cleared by the garbage collector mid-execution as the event loop
+            # only keeps weak references.
+            tasks = []
             async with asyncio.TaskGroup() as tg:
-                tg.create_task(self._cache_lora_address())
-                tg.create_task(self._cache_lora_units())
-                tg.create_task(self._cache_lora_engagements())
-                tg.create_task(self._cache_lora_facets())
-                tg.create_task(self._cache_lora_classes())
-                tg.create_task(self._cache_lora_users())
-                tg.create_task(self._cache_lora_managers())
+                tasks.append(tg.create_task(self._cache_lora_address()))
+                tasks.append(tg.create_task(self._cache_lora_units()))
+                tasks.append(tg.create_task(self._cache_lora_engagements()))
+                tasks.append(tg.create_task(self._cache_lora_facets()))
+                tasks.append(tg.create_task(self._cache_lora_classes()))
+                tasks.append(tg.create_task(self._cache_lora_users()))
+                tasks.append(tg.create_task(self._cache_lora_managers()))
                 if not skip_associations:
-                    tg.create_task(self._cache_lora_associations())
-                tg.create_task(self._cache_lora_leaves())
-                tg.create_task(self._cache_lora_roles())
-                tg.create_task(self._cache_lora_itsystems())
-                tg.create_task(self._cache_lora_it_connections())
-                tg.create_task(self._cache_lora_kles())
-                tg.create_task(self._cache_lora_related())
+                    tasks.append(tg.create_task(self._cache_lora_associations()))
+                tasks.append(tg.create_task(self._cache_lora_leaves()))
+                tasks.append(tg.create_task(self._cache_lora_roles()))
+                tasks.append(tg.create_task(self._cache_lora_itsystems()))
+                tasks.append(tg.create_task(self._cache_lora_it_connections()))
+                tasks.append(tg.create_task(self._cache_lora_kles()))
+                tasks.append(tg.create_task(self._cache_lora_related()))
+            del tasks
 
         def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")
