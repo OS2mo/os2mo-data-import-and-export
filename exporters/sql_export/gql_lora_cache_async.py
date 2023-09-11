@@ -245,8 +245,7 @@ class GQLLoraCache:
             }}
 
             """
-
-        return gql(full_query), variable_values
+        return full_query, variable_values
 
     @retry(
         reraise=True,
@@ -271,7 +270,7 @@ class GQLLoraCache:
         try:
             async for obj in execute_paged(
                 gql_session=self.gql_client_session,
-                document=gql_query,
+                document=gql(gql_query),
                 variable_values=gql_variable_values,
                 per_page=(page_size or self.std_page_size),
             ):
