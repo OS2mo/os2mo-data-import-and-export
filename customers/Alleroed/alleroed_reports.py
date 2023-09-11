@@ -29,7 +29,7 @@ from sqlalchemy import or_
 
 from exporters import common_queries as cq
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
-from reports.query_actualstate import list_employees, run_report, set_of_org_units
+from reports.query_actualstate import expand_org_path, run_report, set_of_org_units
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 
@@ -414,6 +414,81 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     return parsed_data
 
 
+def list_alleroed_employees(session, org_name: str) -> list:
+    """Lists all employees in organisation.
+
+    Returns a list of tuples with titles as first element
+    and data on employees in subsequent tuples. Example:
+    [
+        (Navn", "CPR", "Email", "Telefon", "Enhed", "Stilling"),
+        ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678",
+            "Enhedsnavn", "Stillingsbetegnelse")
+    ]
+    """
+    alle_enheder = set_of_org_units(session, org_name)
+
+    Emails = (
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
+        .filter(
+            Adresse.adressetype_bvn == "EmailEmployee",
+            or_(
+                Adresse.synlighed_titel.is_(None),
+                Adresse.synlighed_titel != "Hemmelig",
+            ),
+        )
+        .subquery()
+    )
+    Phonenr = (
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
+        .filter(
+            Adresse.adressetype_scope == "Telefon",
+            or_(
+                Adresse.synlighed_titel.is_(None),
+                Adresse.synlighed_titel != "Hemmelig",
+            ),
+        )
+        .subquery()
+    )
+    query = (
+        session.query(
+            Bruger.uuid,
+            Bruger.fornavn + " " + Bruger.efternavn,
+            Bruger.cpr,
+            Emails.c.værdi,
+            Phonenr.c.værdi,
+            Enhed.navn,
+            Enhed.organisatorisk_sti,
+            Engagement.stillingsbetegnelse_titel,
+        )
+        .filter(
+            Enhed.uuid == Engagement.enhed_uuid,
+            Engagement.enhed_uuid.in_(alle_enheder),
+            Engagement.bruger_uuid == Bruger.uuid,
+        )
+        .join(Emails, Emails.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .order_by(Bruger.efternavn)
+    )
+    data = query.all()
+    data_df = pd.DataFrame(
+        data,
+        columns=[
+            "UUID",
+            "Navn",
+            "CPR",
+            "AD-Email",
+            "AD-Telefonnummer",
+            "Enhed",
+            "Sti",
+            "Stilling",
+        ],
+    )
+    data_df = expand_org_path(data_df, "Sti")
+    # Return data as a list of tuples with columns as the first element
+    parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
+    return parsed_data
+
+
 if __name__ == "__main__":
     settings = CommonQueryExportSettingsAlleroed()
     settings.start_logging_based_on_settings()
@@ -427,7 +502,7 @@ if __name__ == "__main__":
     )
 
     run_report(
-        list_employees,
+        list_alleroed_employees,
         "Ansatte",
         "Allerød",
         "/opt/docker/os2mo/queries/Ansatte.xlsx",
