@@ -330,6 +330,11 @@ exports_queries_ballerup(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py
 }
 
+exports_queries_alleroed(){
+    echo "Running reports for Alleroed"
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Alleroed/alleroed_reports.py
+}
+
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
@@ -574,6 +579,10 @@ exports(){
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         run-job exports_queries_ballerup &
+    fi
+
+    if [ "${RUN_QUERIES_ALLEROED}" == "true" ]; then
+        run-job exports_queries_alleroed &
     fi
 
     if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
