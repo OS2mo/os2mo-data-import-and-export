@@ -1,5 +1,6 @@
 import pathlib
 import pickle
+from copy import deepcopy
 from datetime import datetime
 from pprint import pprint
 from typing import Any, cast
@@ -11,6 +12,7 @@ from more_itertools import one
 from pydantic.networks import AnyHttpUrl
 from raclients.graph.client import GraphQLClient
 from ramodels.mo.employee import Employee
+import structlog
 
 from sdclient.client import SDClient
 from sdclient.requests import GetEmploymentRequest, GetOrganizationRequest
@@ -18,9 +20,12 @@ from sdclient.responses import GetEmploymentResponse, GetOrganizationResponse, \
     Employment
 from sdclient.responses import Person
 
-from sdlon.date_utils import parse_datetime
+from sdlon.date_utils import parse_datetime, are_sd_and_mo_dates_equal, format_date
 from sdlon.graphql import get_mo_client
 from sdlon.scripts.fix_status8 import get_mo_employees
+
+
+logger = structlog.get_logger(__name__)
 
 
 def get_sd_employments(
@@ -89,13 +94,16 @@ def get_NY_level_department_map(
     ]
     afd_to_ny_map = {}
     for dep_ref in afd_dep_refs:
-        parent_dep_ref = one(dep_ref.DepartmentReference)
-        while parent_dep_ref.DepartmentLevelIdentifier in too_deep:
-            parent_dep_ref = one(parent_dep_ref.DepartmentReference)
+        try:
+            parent_dep_ref = one(dep_ref.DepartmentReference)
+            while parent_dep_ref.DepartmentLevelIdentifier in too_deep:
+                parent_dep_ref = one(parent_dep_ref.DepartmentReference)
 
-        assert parent_dep_ref.DepartmentLevelIdentifier not in too_deep
+            assert parent_dep_ref.DepartmentLevelIdentifier not in too_deep
 
-        afd_to_ny_map[dep_ref.DepartmentUUIDIdentifier] = parent_dep_ref.DepartmentUUIDIdentifier
+            afd_to_ny_map[dep_ref.DepartmentUUIDIdentifier] = parent_dep_ref.DepartmentUUIDIdentifier
+        except ValueError:
+            logger.warn("Found Afdelings-niveau with no parent", dep_ref=dep_ref)
 
     return afd_to_ny_map
 
@@ -122,6 +130,7 @@ def get_mo_engagements(
             engagements(employees: $uuid) {
                 objects {
                     current {
+                        uuid
                         user_key
                         validity {
                             from
@@ -150,6 +159,7 @@ def get_mo_engagements(
 
     engagements = {
         engagement["current"]["user_key"]: {
+            "uuid": engagement["current"]["uuid"],
             "user_key": engagement["current"]["user_key"],
             "validity": {
                 "from": engagement["current"]["validity"]["from"],
@@ -186,8 +196,8 @@ def engagement_match(
         mismatches.append("Job function")
         match = False
 
-    mo_eng_enddate = parse_datetime(mo_eng["validity"]["to"][:10]).date()
-    if not sd_emp.EmploymentStatus.DeactivationDate == mo_eng_enddate:
+    sd_eng_end_date_str = format_date(sd_emp.EmploymentStatus.DeactivationDate)
+    if not are_sd_and_mo_dates_equal(sd_eng_end_date_str, mo_eng["validity"]["to"]):
         mismatches.append("End date")
         match = False
 
@@ -198,7 +208,6 @@ def engagement_match(
 @click.option(
     "--username",
     "username",
-    type=click.STRING,
     envvar="SD_USER",
     required=True,
     help="SD username"
@@ -206,7 +215,6 @@ def engagement_match(
 @click.option(
     "--password",
     "password",
-    type=click.STRING,
     envvar="SD_PASSWORD",
     required=True,
     help="SD password"
@@ -214,7 +222,6 @@ def engagement_match(
 @click.option(
     "--institution-identifier",
     "institution_identifier",
-    type=click.STRING,
     envvar="SD_INSTITUTION_IDENTIFIER",
     required=True,
     help="SD institution identifier"
@@ -222,29 +229,27 @@ def engagement_match(
 @click.option(
     "--auth-server",
     "auth_server",
-    type=click.STRING,
-    default="http://localhost:8090/auth",
+    default="http://keycloak:8080/auth",
     help="Keycloak auth server URL"
 )
 @click.option(
     "--client-id",
     "client_id",
-    type=click.STRING,
-    default="dipex",
+    default="sdlon",
     help="Keycloak client id"
 )
 @click.option(
     "--client-secret",
     "client_secret",
-    type=click.STRING,
-#    required=True,
+    envvar="CLIENT_SECRET",
+    required=True,
     help="Keycloak client secret for the DIPEX client"
 )
 @click.option(
     "--mo-base-url",
     "mo_base_url",
     type=click.STRING,
-    default="http://localhost:5000",
+    default="http://mo:5000",
     help="Base URL for calling MO"
 )
 @click.option(
@@ -286,6 +291,8 @@ def main(
     dry_run: bool,
     cpr: str,
 ):
+    logger.info("Starting script")
+
     # To make as few heavy SD as possible during development
     if use_pickle:
         pickle_file_employments = "/tmp/sd_employments.bin"
@@ -320,6 +327,7 @@ def main(
     )
 
     # TODO: move get_mo_employees to separate function
+    logger.debug("Getting employees from MO...")
     mo_employees = get_mo_employees(gql_client)
     mo_cpr_to_uuid_map = get_mo_cpr_to_uuid_map(mo_employees)
     sd_dep_map = get_NY_level_department_map(sd_org, list(too_deep))
@@ -331,6 +339,8 @@ def main(
             if person.PersonCivilRegistrationIdentifier == cpr
         ]
 
+    logger.info("Starting engagement comparisons...")
+
     diffs = {}
     for sd_person in sd_persons:
         cpr = sd_person.PersonCivilRegistrationIdentifier
@@ -341,34 +351,51 @@ def main(
         )
         for sd_employment in sd_employments:
             emp_id = sd_employment.EmploymentIdentifier
+            logger.info("Checking SD person", cpr=f"{cpr[:6]}-xxxx", emp_id=emp_id)
+
+            key = (cpr, emp_id)
+            sd_ny_dep = sd_dep_map[sd_employment.EmploymentDepartment.DepartmentUUIDIdentifier]
+
+            sd_employment_with_ny_ou = deepcopy(sd_employment)
+            sd_employment_with_ny_ou.EmploymentDepartment.DepartmentUUIDIdentifier = sd_ny_dep
+
             mo_engagement = mo_engagements.pop(emp_id, None)
             if mo_engagement is None:
-                diffs[cpr] = {
-                    "sd": sd_employment,
+                diffs[key] = {
+                    "sd": sd_employment_with_ny_ou,
                     "mo": None,
-                    "mismatches": ["MO eng not found"]
+                    "mismatches": ["Unit", "Job function", "End date"]
                 }
                 continue
-            sd_ny_dep = sd_dep_map[sd_employment.EmploymentDepartment.DepartmentUUIDIdentifier]
 
             match, mismatches = engagement_match(sd_employment, sd_ny_dep, mo_engagement)
             if not match:
-                diffs[cpr] = {
-                    "sd": sd_employment,
+                diffs[key] = {
+                    "sd": sd_employment_with_ny_ou,
                     "mo": mo_engagement,
                     "mismatches": mismatches
                 }
+            # Remaining MO engagements for the user which does not have a
+            # corresponding SD employment
             if mo_engagements:
-                diffs[cpr] = {
-                    "sd": None,
-                    "mo": mo_engagements,
-                    "mismatches": mismatches
-                }
-    for key in diffs.keys():
-        mismatches = diffs[key]["mismatches"]
-        print(mismatches)
-        if not mismatches == ['MO eng not found']:
-            print(diffs[key])
+                for user_key, mo_eng in mo_engagements.items():
+                    diffs[(cpr, user_key)] = {
+                        "sd": None,
+                        "mo": mo_eng,
+                        "mismatches": ["Unit", "Job function", "End date"]
+                    }
+
+    logger.info("Writing diffs to file")
+    with open("/tmp/diffs.bin", "bw") as fp:
+        pickle.dump(diffs, fp)
+
+    # for key in diffs.keys():
+    #     mismatches = diffs[key]["mismatches"]
+    #     print(mismatches)
+    #     if not mismatches == ['MO eng not found']:
+    #         print(diffs[key])
+
+    logger.info("Script finished")
 
 
 if __name__ == "__main__":

@@ -43,6 +43,20 @@ def datetime_to_sd_date(date_time: Union[datetime, date]) -> str:
     return date_time.strftime("%d.%m.%Y")
 
 
+def are_sd_and_mo_dates_equal(sd_date_str: str, mo_date_str: str | None) -> bool:
+    # Handle infinity cases first
+    if sd_date_str == SD_INFINITY:
+        sd_date_str = None
+    if sd_date_str is None or mo_date_str is None:
+        return sd_date_str == mo_date_str
+
+    # Dates are not infinity in the following
+    sd_date = parse_datetime(sd_date_str).date()
+    mo_date = datetime.fromisoformat(mo_date_str).date()
+
+    return sd_date == mo_date
+
+
 def _get_employment_from_date(employment: OrderedDict) -> datetime:
     """
     Get the latest date of all the dates in the payload from the SD

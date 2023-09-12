@@ -10,7 +10,7 @@ keywords = ["os2mo", "dipex", "sdloen"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-another-sd-client = "^1.6.2"
+another-sd-client = "^1.7.0"
 more-itertools = ">=9.1.0"
 requests = "^2.27.1"
 xmltodict = ">=0.12.0"

@@ -8,7 +8,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import pairwise
 
-from sdlon.date_utils import _get_employment_from_date
+from sdlon.date_utils import _get_employment_from_date, are_sd_and_mo_dates_equal
 from sdlon.date_utils import date_to_datetime
 from sdlon.date_utils import format_date
 from sdlon.date_utils import datetime_to_sd_date
@@ -372,3 +372,17 @@ def test_format_date_zero_fill(date_time: datetime, expected: str):
 )
 def test_datetime_to_sd_date(date_time: datetime, expected: str):
     assert datetime_to_sd_date(date_time) == expected
+
+
+@pytest.mark.parametrize(
+    "sd_date_str,mo_date_str,expected",
+    [
+        ("9999-12-31", None, True),
+        ("9999-12-31", "1979-10-18T00:00:00+01:00", False),
+        ("2000-01-01", None, False),
+        ("1979-10-18", "1979-10-18T00:00:00+01:00", True),
+        ("1978-10-18", "1979-10-18T00:00:00+01:00", False),
+    ]
+)
+def test_are_sd_and_mo_dates_equal(sd_date_str: str, mo_date_str: str | None, expected: bool) -> None:
+    assert are_sd_and_mo_dates_equal(sd_date_str, mo_date_str) == expected
