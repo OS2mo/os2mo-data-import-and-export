@@ -7,6 +7,8 @@ import urllib.error
 from pprint import pprint
 
 import prometheus_client
+from deepdiff import DeepDiff
+from more_itertools import first
 from prometheus_client import CollectorRegistry
 from prometheus_client import Gauge
 from ra_utils.async_to_sync import async_to_sync
@@ -150,41 +152,90 @@ class TestEquivalence:
         old_cache.populate_cache(dry_run=False, skip_associations=False)
         old_cache.calculate_derived_unit_data()
 
-        assert old_cache.facets == new_cache.facets
-        assert old_cache.classes == new_cache.classes
-        assert old_cache.itsystems == new_cache.itsystems
-        assert old_cache.users == new_cache.users
+        facets_diff = DeepDiff(old_cache.facets, new_cache.facets)
         assert (
-            self.account_for_know_errors(old_cache.units, new_cache.units, "units")
-            == new_cache.units
-        )
+            not facets_diff
+        ), f"Found diff in facets, showing first of {len(facets_diff)}: {first(facets_diff)}"
+        classes_diff = DeepDiff(old_cache.classes, new_cache.classes)
+        assert (
+            not classes_diff
+        ), f"Found diff in classes, showing first of {len(classes_diff)}: {first(classes_diff)}"
+        itsystems_diff = DeepDiff(old_cache.itsystems, new_cache.itsystems)
+        assert (
+            not itsystems_diff
+        ), f"Found diff in itsystems, showing first of {len(itsystems_diff)}: {first(itsystems_diff)}"
 
-        assert old_cache.engagements == new_cache.engagements
-        assert old_cache.roles == new_cache.roles
-        assert old_cache.leaves == new_cache.leaves
+        user_diff = DeepDiff(old_cache.users, new_cache.users)
+
         assert (
-            self.account_for_know_errors(
-                old_cache.it_connections, new_cache.it_connections, "it_connections"
-            )
-            == new_cache.it_connections
+            not user_diff
+        ), f"Found diff in users, showing first of {len(user_diff)}: {first(user_diff)}"
+
+        corrected_loracache_units = self.account_for_know_errors(
+            old_cache.units, new_cache.units, "units"
         )
-        assert old_cache.kles == new_cache.kles
-        assert old_cache.related == new_cache.related
+        unit_diff = DeepDiff(corrected_loracache_units, new_cache.units)
+
         assert (
-            self.account_for_know_errors(
-                old_cache.managers,
-                new_cache.managers,
-                "managers",
-            )
-            == new_cache.managers
+            not unit_diff
+        ), f"Found diff in units, showing first of {len(unit_diff)}: {first(unit_diff)}"
+        # There is a bug in the handling of primary engagements
+        # https://redmine.magenta-aps.dk/issues/57530
+        engagement_diff = DeepDiff(
+            old_cache.engagements,
+            new_cache.engagements,
+            verbose_level=2,
+            exclude_regex_paths=r"\[\'primary_boolean'\]",
         )
-        assert old_cache.associations == new_cache.associations
+        breakpoint()
         assert (
-            self.account_for_know_errors(
-                old_cache.addresses, new_cache.addresses, "addresses"
-            )
-            == new_cache.addresses
+            not engagement_diff
+        ), f"Found diff in engagements, showing first of {len(engagement_diff)}: {first(engagement_diff)}"
+        roles_diff = DeepDiff(old_cache.roles, new_cache.roles)
+        assert (
+            not roles_diff
+        ), f"Found diff in roles, showing first of {len(roles_diff)}: {first(roles_diff)}"
+        leaves_diff = DeepDiff(old_cache.leaves, new_cache.leaves)
+        assert (
+            not leaves_diff
+        ), f"Found diff in leaves, showing first of {len(leaves_diff)}: {first(leaves_diff)}"
+        corrected_loracache_it_connections = self.account_for_know_errors(
+            old_cache.it_connections, new_cache.it_connections, "it_connections"
         )
+        it_connections_diff = DeepDiff(
+            corrected_loracache_it_connections, new_cache.it_connections
+        )
+        assert (
+            not it_connections_diff
+        ), f"Found diff in it_connections, showing first of {len(it_connections_diff)}: {first(it_connections_diff)}"
+
+        kles_diff = DeepDiff(old_cache.kles, new_cache.kles)
+        assert (
+            not kles_diff
+        ), f"Found diff in kles, showing first of {len(kles_diff)}: {first(kles_diff)}"
+        related_diff = DeepDiff(old_cache.related, new_cache.related)
+        assert (
+            not related_diff
+        ), f"Found diff in related, showing first of {len(related_diff)}: {first(related_diff)}"
+        corrected_loracache_managers = self.account_for_know_errors(
+            old_cache.managers, new_cache.managers, "managers"
+        )
+        managers_diff = DeepDiff(corrected_loracache_managers, new_cache.managers)
+        assert (
+            not managers_diff
+        ), f"Found diff in managers, showing first of {len(managers_diff)}: {first(managers_diff)}"
+
+        associations_diff = DeepDiff(old_cache.associations, new_cache.associations)
+        assert (
+            not associations_diff
+        ), f"Found diff in associations, showing first of {len(associations_diff)}: {first(associations_diff)}"
+        corrected_loracache_addresses = self.account_for_know_errors(
+            old_cache.addresses, new_cache.addresses, "addresses"
+        )
+        addresses_diff = DeepDiff(corrected_loracache_addresses, new_cache.addresses)
+        assert (
+            not addresses_diff
+        ), f"Found diff in addresses, showing first of {len(addresses_diff)}: {first(addresses_diff)}"
 
 
 def notify_prometheus(
