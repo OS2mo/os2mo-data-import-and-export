@@ -136,8 +136,9 @@ class GQLLoraCache:
         skip_past: bool = False,
         settings=None,
     ):
-        msg = "Start LoRa cache, resolve dar: {}, full_history: {}"
-        logger.info(msg.format(resolve_dar, full_history))
+        logger.info(
+            f"Initialising LoRa cache, {resolve_dar=}, {full_history=}, {skip_past=}"
+        )
         if isinstance(settings, dict):
             settings = None
         self.resolve_dar = resolve_dar
@@ -320,6 +321,7 @@ class GQLLoraCache:
         return org
 
     async def _cache_lora_facets(self) -> None:
+        logger.info("Caching facets")
         query = """
                 uuid
                 user_key
@@ -334,6 +336,7 @@ class GQLLoraCache:
             self.facets.update(obj)
 
     async def _cache_lora_classes(self) -> None:
+        logger.info("Caching classes")
         query = """
                     uuid
                     user_key
@@ -358,6 +361,7 @@ class GQLLoraCache:
             self.classes.update(obj)
 
     async def _cache_lora_itsystems(self) -> None:
+        logger.info("Caching it systems")
         query = """
                     uuid
                     user_key
@@ -373,6 +377,7 @@ class GQLLoraCache:
             self.itsystems.update(obj)
 
     async def _cache_lora_users(self) -> None:
+        logger.info("Caching users")
         query = """
                         uuid
                         cpr_no
@@ -410,6 +415,8 @@ class GQLLoraCache:
             insert_obj(obj, self.users)
 
     async def _cache_lora_units(self) -> None:
+        logger.info("Caching org units")
+
         async def format_managers_and_location(qr: dict):
             def find_manager(managers: typing.List[dict]) -> str | None:
                 if not managers:
@@ -527,6 +534,8 @@ class GQLLoraCache:
             insert_obj(obj, self.units)
 
     async def _cache_lora_engagements(self) -> None:
+        logger.info("Caching engagements")
+
         def collect_extensions(d: dict):
             for ext_obj in d["obj"]:
                 if ext_obj is None:
@@ -599,6 +608,7 @@ class GQLLoraCache:
             insert_obj(obj, self.engagements)
 
     async def _cache_lora_roles(self) -> None:
+        logger.info("Caching roles")
         query = """
                         uuid
                         employee_uuid
@@ -627,6 +637,7 @@ class GQLLoraCache:
             insert_obj(obj, self.roles)
 
     async def _cache_lora_leaves(self) -> None:
+        logger.info("Caching leaves")
         query = """
                         uuid
                         employee_uuid
@@ -656,6 +667,8 @@ class GQLLoraCache:
             insert_obj(obj, self.leaves)
 
     async def _cache_lora_it_connections(self) -> None:
+        logger.info("Caching it users")
+
         async def set_primary_boolean(res: dict) -> dict:
             for res_obj in res["obj"]:
                 if res_obj is None:
@@ -699,6 +712,8 @@ class GQLLoraCache:
             insert_obj(obj, self.it_connections)
 
     async def _cache_lora_kles(self) -> None:
+        logger.info("Caching KLEs")
+
         async def format_aspects(d: dict) -> dict:
             new_obj_list = []
             for kle_obj in d["obj"]:
@@ -745,6 +760,8 @@ class GQLLoraCache:
             insert_obj(obj, self.kles)
 
     async def _cache_lora_related(self) -> None:
+        logger.info("Caching related")
+
         def format_related(d: dict):
             for rel_obj in d["obj"]:
                 if rel_obj is None:
@@ -778,6 +795,7 @@ class GQLLoraCache:
             insert_obj(obj, self.related)
 
     async def _cache_lora_managers(self) -> None:
+        logger.info("Caching managers")
         query = """
                         uuid
                         employee_uuid
@@ -810,6 +828,8 @@ class GQLLoraCache:
             insert_obj(obj, self.managers)
 
     async def _cache_lora_associations(self) -> None:
+        logger.info("Caching associations")
+
         async def process_associations_helper(res: dict) -> dict:
             for res_obj in res["obj"]:
                 if res_obj is None:
@@ -867,6 +887,8 @@ class GQLLoraCache:
             insert_obj(obj, self.associations)
 
     async def _cache_lora_address(self):
+        logger.info("Caching addresses")
+
         async def prep_address(d: dict) -> dict:
             for add_obj in d["obj"]:
                 if add_obj is None:
@@ -1097,6 +1119,7 @@ class GQLLoraCache:
 
     @async_to_sync
     async def populate_cache(self, dry_run=None, skip_associations=False):
+        logger.info(f"Populating cache {dry_run=} {skip_associations=}")
         await self.populate_cache_async(
             dry_run=dry_run, skip_associations=skip_associations
         )
