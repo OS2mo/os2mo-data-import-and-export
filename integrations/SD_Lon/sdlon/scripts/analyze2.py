@@ -10,6 +10,7 @@ with open("/tmp/diffs.bin", "rb") as fp:
 csv_fields = (
     "cpr",
     "EmploymentIdentifier",
+    "SD status code",
     "SD unit",
     "MO unit",
     # "SD job function",
@@ -26,7 +27,11 @@ for k, v in diffs.items():
     mo_eng = v["mo"]
     mismatches = v["mismatches"]
 
-    csv_line = [cpr, emp_id]
+    csv_line = [
+        cpr,
+        emp_id,
+        sd.EmploymentStatus.EmploymentStatusCode if sd is not None else "null"
+    ]
 
     if "Unit" in mismatches:
         csv_line.append(
@@ -50,7 +55,7 @@ for k, v in diffs.items():
     else:
         csv_line.extend(2 * [""])
 
-    if not csv_line[2:] == 4 * [""]:
+    if not csv_line[3:] == 4 * [""]:
         csv_lines.append(",".join(csv_line) + "\n")
         print(csv_line)
 

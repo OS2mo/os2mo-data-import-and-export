@@ -1,3 +1,7 @@
+# DEPRECATED!!
+#
+# Use compare_engagements.py followed by fix_engagement_end_dates.py instead
+#
 # At the time of writing, the SD importer creates engagements in MO
 # even though the corresponding EmploymentStatusCode is 8 ("ophørt")
 # in the XML payload from SD. This script fixes this, i.e. the script
@@ -8,7 +12,7 @@
 
 import pathlib
 import pickle
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import List
 from uuid import UUID
 
@@ -16,13 +20,18 @@ import click
 from gql import gql
 from more_itertools import one, exactly_n
 from raclients.graph.client import GraphQLClient
+import structlog
 
+from sdlon.date_utils import format_date
 from sdlon.graphql import get_mo_client
 from sdclient.client import SDClient
 from sdclient.requests import GetEmploymentRequest
 from sdclient.responses import GetEmploymentResponse
 from sdclient.responses import Person
 from ramodels.mo.employee import Employee
+
+logger = structlog.get_logger(__name__)
+
 
 def get_sd_employments(
     username: str, password: str, institution_identifier: str
@@ -144,12 +153,14 @@ def get_mo_engagements(
         query GetEngagements($uuid: [UUID!]!) {
             engagements(employees: $uuid) {
                 objects {
-                    user_key
-                    validity {
-                        from
+                    current {
+                        user_key
+                        validity {
+                            from
+                        }
                     }
+                    uuid
                 }
-                uuid
             }
         }
     """)
@@ -158,12 +169,12 @@ def get_mo_engagements(
     engagements = [
         {
             "uuid": engagement["uuid"],
-            "user_key": one(engagement["objects"])["user_key"],
+            "user_key": engagement["current"]["user_key"],
             # Convert back and forth between datetime objects and strings?
             # Nah - it is much easier to just use [:10] for this use case
-            "from": one(engagement["objects"])["validity"]["from"][:10]
+            "from": engagement["current"]["validity"]["from"][:10]
         }
-        for engagement in r["engagements"]
+        for engagement in r["engagements"]["objects"]
     ]
     return engagements
 
@@ -190,6 +201,27 @@ def has_sd_status8(
         return cpr_match and employment_identifier_match
 
     return exactly_n(sd_employments.Person, 1, has_cpr_and_employment_identifier)
+
+
+def get_sd_employment_start_date(
+        sd_employments: GetEmploymentResponse,
+        cpr: str,
+        emp_id: str,
+) -> date:
+    sd_person = one(
+        [
+            person for person in sd_employments.Person
+            if person.PersonCivilRegistrationIdentifier == cpr
+        ]
+    )
+    sd_emp = one(
+        [
+            emp for emp in sd_person.Employment
+            if emp.EmploymentIdentifier == emp_id
+        ]
+    )
+
+    return sd_emp.EmploymentStatus.ActivationDate
 
 
 @click.command()
@@ -221,20 +253,21 @@ def has_sd_status8(
     "--auth-server",
     "auth_server",
     type=click.STRING,
-    default="http://localhost:8090/auth",
+    default="http://keycloak:8080/auth",
     help="Keycloak auth server URL"
 )
 @click.option(
     "--client-id",
     "client_id",
     type=click.STRING,
-    default="dipex",
+    default="sdlon",
     help="Keycloak client id"
 )
 @click.option(
     "--client-secret",
     "client_secret",
     type=click.STRING,
+    envvar="CLIENT_SECRET",
     required=True,
     help="Keycloak client secret for the DIPEX client"
 )
@@ -242,7 +275,7 @@ def has_sd_status8(
     "--mo-base-url",
     "mo_base_url",
     type=click.STRING,
-    default="http://localhost:5000",
+    default="http://mo:5000",
     help="Base URL for calling MO"
 )
 @click.option(
@@ -272,7 +305,7 @@ def main(
 ):
     # Get the SD status employments
     if use_pickle:
-        pickle_file = "/tmp/sd_employments.bin"
+        pickle_file = "/tmp/sd_employments_status8.bin"
         if not pathlib.Path(pickle_file).is_file():
             sd_employments = get_sd_employments(
                 username, password, institution_identifier
@@ -286,22 +319,39 @@ def main(
             username, password, institution_identifier
         )
 
-    print("Number of SD employments:", len(sd_employments.Person))
+    logger.info("Number of SD employments", n=len(sd_employments.Person))
 
     gql_client = get_mo_client(
-        auth_server, client_id, client_secret, mo_base_url, 3
+        auth_server, client_id, client_secret, mo_base_url, 5
     )
     employees = get_mo_employees(gql_client)
 
-    print("Terminate engagements")
+    csv_lines = []
+    logger.info("Terminate engagements")
     for employee in employees:
         engagements = get_mo_engagements(gql_client, employee.uuid)
         for eng in engagements:
             terminate = has_sd_status8(sd_employments, employee.cpr_no, eng["user_key"])
             if terminate:
-                print(employee.cpr_no, eng["user_key"], terminate)
+                termination_date = get_sd_employment_start_date(
+                    sd_employments,
+                    employee.cpr_no,
+                    eng["user_key"]
+                )
+                termination_date -= timedelta(days=1)
+                termination_date_str = format_date(termination_date)
+                logger.info(
+                    "Terminate engagement",
+                    cpr=employee.cpr_no,
+                    user_key=eng["user_key"],
+                    to=termination_date_str,
+                )
+                csv_lines.append(f"{employee.cpr_no},{eng['user_key']},{termination_date_str}\n")
                 if not dry_run:
-                    terminate_engagement(gql_client, eng["uuid"], eng["from"])
+                    terminate_engagement(gql_client, eng["uuid"], termination_date_str)
+
+    with open("/tmp/terminate.csv", "w") as fp:
+        fp.writelines(csv_lines)
 
 
 if __name__ == "__main__":

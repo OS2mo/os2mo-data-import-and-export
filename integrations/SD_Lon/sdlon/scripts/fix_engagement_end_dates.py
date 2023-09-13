@@ -15,34 +15,55 @@ from sdlon.scripts.fix_status8 import terminate_engagement
 logger = structlog.get_logger(__name__)
 
 
-def update_engagement_end_date(
-    gql_client: GraphQLClient, eng_uuid: str, eng_from: str, eng_to: str | None
-) -> None:
-    mutation = gql(
-        """
-            mutation UpdateEngagement($input: EngagementUpdateInput!) {
-                engagement_update(input: $input) {
-                    uuid
-                }
-            }
-        """
-    )
-
-    gql_client.execute(
-        mutation,
-        variable_values={
-            "input": {
-                "uuid": eng_uuid,
-                "validity": {
-                    "from": eng_from,
-                    "to": eng_to,
-                },
-            }
-        },
-    )
+# def update_engagement_end_date(
+#     gql_client: GraphQLClient, eng_uuid: str, eng_from: str, eng_to: str | None
+# ) -> None:
+#     mutation = gql(
+#         """
+#             mutation UpdateEngagement($input: EngagementUpdateInput!) {
+#                 engagement_update(input: $input) {
+#                     uuid
+#                 }
+#             }
+#         """
+#     )
+#
+#     gql_client.execute(
+#         mutation,
+#         variable_values={
+#             "input": {
+#                 "uuid": eng_uuid,
+#                 "validity": {
+#                     "from": eng_from,
+#                     "to": eng_to,
+#                 },
+#             }
+#         },
+#     )
 
 
 @click.command()
+@click.option(
+    "--username",
+    "username",
+    envvar="SD_USER",
+    required=True,
+    help="SD username"
+)
+@click.option(
+    "--password",
+    "password",
+    envvar="SD_PASSWORD",
+    required=True,
+    help="SD password"
+)
+@click.option(
+    "--institution-identifier",
+    "institution_identifier",
+    envvar="SD_INSTITUTION_IDENTIFIER",
+    required=True,
+    help="SD institution identifier"
+)
 @click.option(
     "--auth-server",
     "auth_server",
@@ -69,6 +90,9 @@ def update_engagement_end_date(
 )
 @click.option("--cpr", "cpr", help="Only make the comparison for this CPR")
 def main(
+    username: str,
+    password: str,
+    institution_identifier: str,
     auth_server: str,
     client_id: str,
     client_secret: str,
@@ -93,21 +117,25 @@ def main(
             mismatches = v["mismatches"]
 
             eng_uuid = mo_eng["uuid"]
-            sd_from_date = format_date(sd.EmploymentStatus.ActivationDate)
-            sd_end_date = format_date(sd.EmploymentStatus.DeactivationDate)
+            sd_from_date = format_date(sd.EmploymentStatus.ActivationDate) if sd is not None else None
+            sd_end_date = format_date(sd.EmploymentStatus.DeactivationDate) if sd is not None else None
             if sd_end_date == SD_INFINITY:
                 continue
 
-            if "End date" in mismatches:
+            if "End date" in mismatches or sd is None:
                 logger.info(
-                    "Update engagement",
+                    "Terminate engagement",
                     uuid=eng_uuid,
                     user_key=mo_eng["user_key"],
                     from_date=sd_from_date,
                     to_date=sd_end_date,
                 )
                 if not dry_run:
-                    terminate_engagement(gql_client, eng_uuid, sd_end_date)
+                    terminate_engagement(
+                        gql_client,
+                        eng_uuid,
+                        sd_end_date is sd_end_date is not None else
+                    )
                     # update_engagement_end_date(
                     #     gql_client, eng_uuid, sd_from_date, sd_end_date
                     # )
