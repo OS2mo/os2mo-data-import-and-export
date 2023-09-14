@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import pickle
 from copy import deepcopy
@@ -26,6 +27,16 @@ from sdlon.scripts.fix_status8 import get_mo_employees
 
 
 logger = structlog.get_logger(__name__)
+
+
+def setup_logging(
+        log_level_name: str,
+) -> None:
+    _log_level_value = logging.getLevelName(log_level_name)
+
+    structlog.configure(
+        wrapper_class=structlog.make_filtering_bound_logger(_log_level_value),
+    )
 
 
 def get_sd_employments(
@@ -268,15 +279,14 @@ def engagement_match(
     help="The NY-logic too deep levels",
 )
 @click.option(
-    "--dry-run",
-    "dry_run",
-    is_flag=True,
-    help="Do not perform any changes in MO"
-)
-@click.option(
     "--cpr",
     "cpr",
     help="Only make the comparison for this CPR"
+)
+@click.option(
+    "--log-level",
+    "log_level",
+    default="INFO"
 )
 def main(
     username: str,
@@ -288,9 +298,10 @@ def main(
     mo_base_url: str,
     use_pickle: bool,
     too_deep: tuple[str],
-    dry_run: bool,
     cpr: str,
+    log_level: str,
 ):
+    setup_logging(log_level)
     logger.info("Starting script")
 
     # To make as few heavy SD as possible during development
@@ -327,7 +338,7 @@ def main(
     )
 
     # TODO: move get_mo_employees to separate function
-    logger.debug("Getting employees from MO...")
+    logger.info("Getting employees from MO...")
     mo_employees = get_mo_employees(gql_client)
     mo_cpr_to_uuid_map = get_mo_cpr_to_uuid_map(mo_employees)
     sd_dep_map = get_NY_level_department_map(sd_org, list(too_deep))
@@ -344,11 +355,16 @@ def main(
     diffs = {}
     for sd_person in sd_persons:
         cpr = sd_person.PersonCivilRegistrationIdentifier
+
         sd_employments = sd_person.Employment
+        logger.debug("SD employments for person", sd_employments=sd_employments)
+
         mo_engagements = get_mo_engagements(
             gql_client,
             mo_cpr_to_uuid_map.get(cpr, None)
         )
+        logger.debug("MO engagements for person", engagements=mo_engagements)
+
         for sd_employment in sd_employments:
             emp_id = sd_employment.EmploymentIdentifier
             logger.info("Checking SD person", cpr=f"{cpr[:6]}-xxxx", emp_id=emp_id)
@@ -375,25 +391,21 @@ def main(
                     "mo": mo_engagement,
                     "mismatches": mismatches
                 }
-            # Remaining MO engagements for the user which does not have a
-            # corresponding SD employment
-            if mo_engagements:
-                for user_key, mo_eng in mo_engagements.items():
-                    diffs[(cpr, user_key)] = {
-                        "sd": None,
-                        "mo": mo_eng,
-                        "mismatches": ["Unit", "Job function", "End date"]
-                    }
+
+        # Remaining MO engagements for the user which does not have a
+        # corresponding SD employment
+        logger.debug("Remaining MO engagements for person", engagements=mo_engagements)
+        if mo_engagements:
+            for user_key, mo_eng in mo_engagements.items():
+                diffs[(cpr, user_key)] = {
+                    "sd": None,
+                    "mo": mo_eng,
+                    "mismatches": ["Unit", "Job function", "End date"]
+                }
 
     logger.info("Writing diffs to file")
     with open("/tmp/diffs.bin", "bw") as fp:
         pickle.dump(diffs, fp)
-
-    # for key in diffs.keys():
-    #     mismatches = diffs[key]["mismatches"]
-    #     print(mismatches)
-    #     if not mismatches == ['MO eng not found']:
-    #         print(diffs[key])
 
     logger.info("Script finished")
 
