@@ -305,7 +305,7 @@ def main(
 ):
     # Get the SD status employments
     if use_pickle:
-        pickle_file = "/tmp/sd_employments_status8.bin"
+        pickle_file = "/tmp/sdlon/sd_employments_status8.bin"
         if not pathlib.Path(pickle_file).is_file():
             sd_employments = get_sd_employments(
                 username, password, institution_identifier
@@ -350,7 +350,7 @@ def main(
                 if not dry_run:
                     terminate_engagement(gql_client, eng["uuid"], termination_date_str)
 
-    with open("/tmp/terminate.csv", "w") as fp:
+    with open("/tmp/sdlon/terminate.csv", "w") as fp:
         fp.writelines(csv_lines)
 
 

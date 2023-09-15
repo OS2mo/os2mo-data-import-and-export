@@ -4,7 +4,7 @@ from sdclient.responses import Employment
 
 from sdlon.date_utils import format_date
 
-with open("/tmp/diffs.bin", "rb") as fp:
+with open("/tmp/sdlon/diffs.bin", "rb") as fp:
     diffs = pickle.load(fp)
 
 csv_fields = (
@@ -69,7 +69,7 @@ for k, v in diffs.items():
         csv_lines.append(",".join(csv_line) + "\n")
         print(csv_line)
 
-with open("/tmp/diffs.csv", "w") as fp:
+with open("/tmp/sdlon/diffs.csv", "w") as fp:
     fp.writelines(csv_lines)
 
 # end_date_diffs = {

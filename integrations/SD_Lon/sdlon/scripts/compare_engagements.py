@@ -20,23 +20,13 @@ from sdclient.requests import GetEmploymentRequest, GetOrganizationRequest
 from sdclient.responses import GetEmploymentResponse, GetOrganizationResponse, \
     Employment
 from sdclient.responses import Person
-
+from sdlon.scripts.log import setup_logging
 from sdlon.date_utils import parse_datetime, are_sd_and_mo_dates_equal, format_date
 from sdlon.graphql import get_mo_client
 from sdlon.scripts.fix_status8 import get_mo_employees
 
 
 logger = structlog.get_logger(__name__)
-
-
-def setup_logging(
-        log_level_name: str,
-) -> None:
-    _log_level_value = logging.getLevelName(log_level_name)
-
-    structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(_log_level_value),
-    )
 
 
 def get_sd_employments(
@@ -306,8 +296,8 @@ def main(
 
     # To make as few heavy SD as possible during development
     if use_pickle:
-        pickle_file_employments = "/tmp/sd_employments.bin"
-        pickle_file_org = "/tmp/sd_org.bin"
+        pickle_file_employments = "/tmp/sdlon/sd_employments.bin"
+        pickle_file_org = "/tmp/sdlon/sd_org.bin"
         if not pathlib.Path(pickle_file_employments).is_file():
             sd_employments = get_sd_employments(
                 username, password, institution_identifier
@@ -404,7 +394,7 @@ def main(
                 }
 
     logger.info("Writing diffs to file")
-    with open("/tmp/diffs.bin", "bw") as fp:
+    with open("/tmp/sdlon/diffs.bin", "bw") as fp:
         pickle.dump(diffs, fp)
 
     logger.info("Script finished")
