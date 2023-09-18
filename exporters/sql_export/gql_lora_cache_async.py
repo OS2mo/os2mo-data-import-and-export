@@ -548,16 +548,6 @@ class GQLLoraCache:
 
             return d
 
-        async def set_primary_boolean(res: dict) -> dict:
-            for res_obj in res["obj"]:
-                if res_obj is None:
-                    continue
-                prim = res_obj.pop("primary")
-                res_obj["primary_boolean"] = False
-                if prim and "scope" in prim:
-                    res_obj["primary_boolean"] = int(prim.get("scope")) > 0
-            return res
-
         query = """
                         uuid
                         employee_uuid
@@ -566,10 +556,7 @@ class GQLLoraCache:
                         user_key
                         engagement_type_uuid
                         primary_uuid
-                        primary {
-                            user_key
-                            scope
-                        }
+                        is_primary
                         job_function_uuid
                         extension_1
                         extension_2
@@ -593,6 +580,7 @@ class GQLLoraCache:
             "job_function_uuid": "job_function",
             "org_unit_uuid": "unit",
             "primary_uuid": "primary_type",
+            "is_primary": "primary_boolean",
         }
 
         async for obj in self._execute_query(
@@ -603,7 +591,6 @@ class GQLLoraCache:
                 obj = align_current(obj)
 
             obj = collect_extensions(obj)
-            obj = await set_primary_boolean(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
             insert_obj(obj, self.engagements)
 
