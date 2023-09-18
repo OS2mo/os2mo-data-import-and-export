@@ -122,7 +122,7 @@ def create_app(**kwargs) -> FastAPI:
             fix_departments.fix_NY_logic(str(ou), today)
             return {"msg": "success"}
         except Exception as err:
-            logger.error("Error calling fix_department or fix_NY_logic", err=err)
+            logger.exception("Error calling fix_department or fix_NY_logic", err=err)
             response.status_code = HTTP_500_INTERNAL_SERVER_ERROR
             return {"msg": str(err)}
 
