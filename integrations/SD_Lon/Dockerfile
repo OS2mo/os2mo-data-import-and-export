@@ -28,4 +28,4 @@ RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root --no-dev
 
 COPY . ./
 
-CMD ["uvicorn", "sdlon.main:app", "--host", "0.0.0.0"]
+CMD ["uvicorn", "--factory", "sdlon.main:create_app", "--host", "0.0.0.0"]
