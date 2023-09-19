@@ -431,7 +431,11 @@ class _ParsedEngagement:
     org_unit: list[dict]
 
     def get_org_unit_path(self, sep: str = "\\") -> str:
-        assert len(self.org_unit) == 1
+        if len(self.org_unit) > 1:
+            logger.warning(
+                "more than one `org_unit` found in %r, taking first",
+                self.org_unit,
+            )
         path = self.org_unit[0]
         return sep.join(
             elem["name"] for elem in (path["ancestors_validity"][::-1] + [path])
