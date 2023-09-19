@@ -776,11 +776,11 @@ class ChangeListExecutor(AD):
 )
 @click.option(
     "--startdate-field-future",
-    default=load_setting("integrations.ad_writer.fixup_startdate_field_future", None),
+    default=load_setting("integrations.ad_writer.fixup_future_startdate_field", None),
 )
 @click.option(
     "--orgunitpath-field-future",
-    default=load_setting("integrations.ad_writer.fixup_orgunitpath_field_future", None),
+    default=load_setting("integrations.ad_writer.fixup_future_orgunitpath_field", None),
 )
 @click.option("--uuid-field", default=load_setting("integrations.ad.write.uuid_field"))
 @click.option(
