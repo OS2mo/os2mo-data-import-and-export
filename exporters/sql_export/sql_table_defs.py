@@ -140,6 +140,7 @@ class Tilknytning(Base):
     startdato = Column(String(10))
     slutdato = Column(String(10))
     primær_boolean = Column(Boolean, nullable=True)
+    faglig_organisation = Column(String(250), nullable=True)
 
 
 class Orlov(Base):

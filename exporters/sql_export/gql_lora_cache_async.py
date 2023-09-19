@@ -821,6 +821,7 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
+                # check primary
                 prim = res_obj.pop("primary")
                 if prim:
                     if prim["user_key"] == "primary":
@@ -832,6 +833,14 @@ class GQLLoraCache:
 
                 if not res_obj["it_user_uuid"]:
                     res_obj["job_function_uuid"] = None
+                # Resolve dynamic class - including parent class if relevant
+                dynamic_class = res_obj.pop("dynamic_class")
+                if dynamic_class:
+                    res_obj["dynamic_class"] = (
+                        f"{dynamic_class['parent']['name']} - {dynamic_class['name']}"
+                        if dynamic_class["parent"]
+                        else dynamic_class["name"]
+                    )
 
             return res
 
@@ -851,6 +860,12 @@ class GQLLoraCache:
                         }
                         primary {
                             user_key
+                        }
+                        dynamic_class {
+                            name
+                            parent {
+                              name
+                            }
                         }
             """
 
