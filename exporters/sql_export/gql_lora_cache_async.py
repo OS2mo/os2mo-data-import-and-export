@@ -989,6 +989,7 @@ class GQLLoraCache:
                 it_connections_file = "tmp/it_connections_historic_skip_past.p"
                 kles_file = "tmp/kles_historic_skip_past.p"
                 related_file = "tmp/related_historic_skip_past.p"
+                dar_file = "tmp/dar_historic_skip_past.p"
             else:
                 facets_file = "tmp/facets_historic.p"
                 classes_file = "tmp/classes_historic.p"
@@ -1004,6 +1005,7 @@ class GQLLoraCache:
                 it_connections_file = "tmp/it_connections_historic.p"
                 kles_file = "tmp/kles_historic.p"
                 related_file = "tmp/related_historic.p"
+                dar_file = "tmp/dar_historic.p"
         else:
             facets_file = "tmp/facets.p"
             classes_file = "tmp/classes.p"
@@ -1019,6 +1021,7 @@ class GQLLoraCache:
             it_connections_file = "tmp/it_connections.p"
             kles_file = "tmp/kles.p"
             related_file = "tmp/related.p"
+            dar_file = "tmp/dar.p"
 
         if dry_run:
             with open(facets_file, "rb") as f:
@@ -1052,6 +1055,8 @@ class GQLLoraCache:
                 self.kles = pickle.load(f)
             with open(related_file, "rb") as f:
                 self.related = pickle.load(f)
+            with open(dar_file, "rb") as f:
+                self.dar_cache = pickle.load(f)
             return
 
         t = time.time()  # noqa: F841
@@ -1095,6 +1100,7 @@ class GQLLoraCache:
         write_caches(self.managers, managers_file, "managers")
         write_caches(self.leaves, leaves_file, "leaves")
         write_caches(self.addresses, addresses_file, "addresses")
+        write_caches(self.dar_cache, dar_file, "dar_addresses")
         write_caches(self.roles, roles_file, "roles")
         write_caches(self.itsystems, itsystems_file, "itsystems")
         write_caches(self.it_connections, it_connections_file, "it_connections")
