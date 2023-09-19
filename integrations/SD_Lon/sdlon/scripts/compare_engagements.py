@@ -391,6 +391,7 @@ def main(
             for user_key, mo_eng in mo_engagements.items():
                 diffs[(cpr, user_key)] = {
                     "sd": None,
+                    "sd_raw": None,
                     "mo": mo_eng,
                     "mismatches": ["Unit", "Job function", "End date"]
                 }

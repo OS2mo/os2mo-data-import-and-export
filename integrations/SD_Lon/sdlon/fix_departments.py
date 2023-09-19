@@ -259,7 +259,7 @@ class FixDepartments:
 
     def get_department(
         self, validity, shortname=None, uuid=None
-    ) -> List[OrderedDict[str, Any]]:
+    ) -> List[dict[str, Any]]:
         """
         Read department information from SD.
         NOTICE: Shortnames are not universally unique in SD, and even a request
@@ -294,7 +294,7 @@ class FixDepartments:
         department = department_info.get("Department")
         if department is None:
             raise NoCurrentValdityException()
-        if isinstance(department, OrderedDict):
+        if isinstance(department, dict):
             department = [department]
         return department
 
