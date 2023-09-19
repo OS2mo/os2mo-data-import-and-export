@@ -369,6 +369,7 @@ def main(
             if mo_engagement is None:
                 diffs[key] = {
                     "sd": sd_employment_with_ny_ou,
+                    "sd_raw": sd_employment,
                     "mo": None,
                     "mismatches": ["Unit", "Job function", "End date"]
                 }
@@ -378,6 +379,7 @@ def main(
             if not match:
                 diffs[key] = {
                     "sd": sd_employment_with_ny_ou,
+                    "sd_raw": sd_employment,
                     "mo": mo_engagement,
                     "mismatches": mismatches
                 }
