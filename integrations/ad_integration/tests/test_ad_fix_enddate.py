@@ -153,7 +153,7 @@ def org_unit() -> dict:
         "org_unit": [
             {
                 "name": "Enhedsnavn",
-                "ancestors": [
+                "ancestors_validity": [
                     {"name": "Forældreenhed"},
                     {"name": "Topenhed"},
                 ],

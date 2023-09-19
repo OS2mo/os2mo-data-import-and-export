@@ -433,7 +433,9 @@ class _ParsedEngagement:
     def get_org_unit_path(self, sep: str = "\\") -> str:
         assert len(self.org_unit) == 1
         path = self.org_unit[0]
-        return sep.join(elem["name"] for elem in (path["ancestors"][::-1] + [path]))
+        return sep.join(
+            elem["name"] for elem in (path["ancestors_validity"][::-1] + [path])
+        )
 
 
 class MOEngagementSource:
@@ -479,7 +481,7 @@ class MOEngagementSource:
                         }
                         org_unit {
                             name
-                            ancestors {
+                            ancestors_validity {
                                 name
                             }
                         }
