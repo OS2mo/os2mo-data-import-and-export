@@ -1,20 +1,21 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 import pickle
 from typing import cast
 from uuid import UUID
 
 import click
+from more_itertools import only
 import structlog
 from gql import gql
 from pydantic.networks import AnyHttpUrl
 from raclients.graph.client import GraphQLClient
-from sdclient.responses import Employment
+from sdclient.responses import Employment, GetEmploymentResponse
 
 from sdlon.config import get_changed_at_settings
 from sdlon.date_utils import format_date, SD_INFINITY
 from sdlon.fix_departments import FixDepartments
 from sdlon.graphql import get_mo_client
-from sdlon.scripts.fix_status8 import terminate_engagement
+from sdlon.scripts.fix_status8 import terminate_engagement, get_inactive_sd_employments
 from sdlon.scripts.log import setup_logging
 
 logger = structlog.get_logger(__name__)
@@ -81,7 +82,57 @@ def fix_unit(fix_departments: FixDepartments, org_unit_uuid: UUID) -> None:
     fix_departments.fix_department(str(org_unit_uuid), today)
 
 
+def get_engagement_termination_date(
+        sd_employments: GetEmploymentResponse,
+        cpr: str,
+        employment_id: str,
+) -> date | None:
+    sd_person = only(
+        [
+            person for person in sd_employments.Person
+            if person.PersonCivilRegistrationIdentifier == cpr
+        ]
+    )
+    if sd_person is None:
+        return None
+
+    employment = only(
+        [
+            emp for emp in sd_person.Employment
+            if emp.EmploymentIdentifier == employment_id
+        ]
+    )
+    if employment is None:
+        return None
+
+    return employment.EmploymentStatus.ActivationDate - timedelta(days=1)
+
+
 @click.command()
+@click.option(
+    "--username",
+    "username",
+    type=click.STRING,
+    envvar="SD_USER",
+    required=True,
+    help="SD username"
+)
+@click.option(
+    "--password",
+    "password",
+    type=click.STRING,
+    envvar="SD_PASSWORD",
+    required=True,
+    help="SD password"
+)
+@click.option(
+    "--institution-identifier",
+    "institution_identifier",
+    type=click.STRING,
+    envvar="SD_INSTITUTION_IDENTIFIER",
+    required=True,
+    help="SD institution identifier"
+)
 @click.option(
     "--auth-server",
     "auth_server",
@@ -109,6 +160,9 @@ def fix_unit(fix_departments: FixDepartments, org_unit_uuid: UUID) -> None:
 @click.option("--cpr", "cpr", help="Only make the comparison for this CPR")
 @click.option("--log-level", "log_level", default="INFO")
 def main(
+    username: str,
+    password: str,
+    institution_identifier: str,
     auth_server: str,
     client_id: str,
     client_secret: str,
@@ -132,12 +186,15 @@ def main(
     if cpr:
         diffs = {k: v for k, v in diffs.items() if k[0] == cpr}
 
+    inactive_sd_employments = get_inactive_sd_employments(username, password, institution_identifier)
+
     failed_entities = {}
     processed_entities = {}
     non_processed_entities = {}
     units_ok = []
     for k, v in diffs.items():
         try:
+            cpr = k[0]
             sd: Employment = v["sd"]
             sd_raw: Employment = v["sd_raw"]
             mo_eng = v["mo"]
@@ -150,19 +207,21 @@ def main(
 
             if sd is None:
                 # We have to use this date since the engagement cannot be found in SD
-                to_date = format_date(datetime.now().date())
+                to_date = get_engagement_termination_date(inactive_sd_employments, cpr, mo_eng["user_key"])
+                to_date_str = format_date(to_date) if to_date is not None else format_date(datetime.now().date())
                 logger.info(
-                    "Terminate engagement",
+                    "Terminate engagement (most likely due to status 8)",
                     uuid=mo_eng["uuid"],
                     user_key=mo_eng["user_key"],
-                    to_date=to_date,
+                    to_date=to_date_str,
                 )
                 if not dry_run:
                     terminate_engagement(
                         gql_client,
                         mo_eng["uuid"],
-                        to_date,
+                        to_date_str,
                     )
+                processed_entities[k] = v
                 continue
 
             # Skip all SD status 3 (orlov) engagements
@@ -247,8 +306,9 @@ def main(
                         processed_entities[k] = v
                     continue
 
-            logger.warn("Entity not processed", key=k, value=v)
-            non_processed_entities[k] = v
+            if k not in processed_entities:
+                logger.warn("Entity not processed", key=k, value=v)
+                non_processed_entities[k] = v
 
         except Exception as err:
             logger.error("Entity failed", key=k, value=v, err=err)

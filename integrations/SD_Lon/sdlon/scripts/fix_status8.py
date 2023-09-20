@@ -33,7 +33,7 @@ from ramodels.mo.employee import Employee
 logger = structlog.get_logger(__name__)
 
 
-def get_sd_employments(
+def get_inactive_sd_employments(
     username: str, password: str, institution_identifier: str
 ) -> GetEmploymentResponse:
     """
@@ -307,7 +307,7 @@ def main(
     if use_pickle:
         pickle_file = "/tmp/sdlon/sd_employments_status8.bin"
         if not pathlib.Path(pickle_file).is_file():
-            sd_employments = get_sd_employments(
+            sd_employments = get_inactive_sd_employments(
                 username, password, institution_identifier
             )
             with open(pickle_file, "bw") as fp:
@@ -315,7 +315,7 @@ def main(
         with open(pickle_file, "br") as fp:
             sd_employments = pickle.load(fp)
     else:
-        sd_employments = get_sd_employments(
+        sd_employments = get_inactive_sd_employments(
             username, password, institution_identifier
         )
 
