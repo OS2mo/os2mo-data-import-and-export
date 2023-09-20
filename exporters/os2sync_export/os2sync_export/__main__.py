@@ -160,10 +160,14 @@ def main(settings: Settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
-    os2sync_client = os2sync.get_os2sync_session()
-    request_uuid = os2sync.trigger_hierarchy(
-        os2sync_client, os2sync_api_url=settings.os2sync_api_url
-    )
+
+    # TODO: [#57736] OS2Syncs /hierarchy endpoint fails because of an error in fk-org
+    # We drop all fk-org cleanup for now because it depends on that endpoint.
+
+    # os2sync_client = os2sync.get_os2sync_session()
+    # request_uuid = os2sync.trigger_hierarchy(
+    #     os2sync_client, os2sync_api_url=settings.os2sync_api_url
+    # )
     mo_org_units = read_all_org_units(settings)
 
     logger.info(f"Orgenheder som tjekkes i OS2Sync: {len(mo_org_units)}")
@@ -177,24 +181,24 @@ def main(settings: Settings):
 
     logger.info(f"Orgenheder som blev ændret i OS2Sync: {sum(changed)}")
 
-    existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
-        os2sync_client,
-        os2sync_api_url=settings.os2sync_api_url,
-        request_uuid=request_uuid,
-    )
+    # existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
+    #     os2sync_client,
+    #     os2sync_api_url=settings.os2sync_api_url,
+    #     request_uuid=request_uuid,
+    # )
 
-    if settings.os2sync_autowash:
-        # Delete any org_unit not in os2mo
-        assert (
-            mo_org_units
-        ), "No org_units were found in os2mo. Stopping os2sync_export to ensure we won't delete every org_unit from fk-org"
-        terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
-        logger.info(f"Orgenheder som slettes i OS2Sync: {len(terminated_org_units)}")
-        for uuid in terminated_org_units:
-            if str(uuid) == str(settings.os2sync_top_unit_uuid):
-                logger.error("Ensure we won't delete the root org_unit")
-                continue
-            os2sync.delete_orgunit(uuid)
+    # if settings.os2sync_autowash:
+    #     # Delete any org_unit not in os2mo
+    #     assert (
+    #         mo_org_units
+    #     ), "No org_units were found in os2mo. Stopping os2sync_export to ensure we won't delete every org_unit from fk-org"
+    #     terminated_org_units = existing_os2sync_org_units - set(mo_org_units)
+    #     logger.info(f"Orgenheder som slettes i OS2Sync: {len(terminated_org_units)}")
+    #     for uuid in terminated_org_units:
+    #         if str(uuid) == str(settings.os2sync_top_unit_uuid):
+    #             logger.error("Ensure we won't delete the root org_unit")
+    #             continue
+    #         os2sync.delete_orgunit(uuid)
 
     logger.info("sync_os2sync_orgunits done")
 
@@ -214,10 +218,10 @@ def main(settings: Settings):
         os2sync.upsert_user(user)
 
     # Delete any user not in os2mo
-    terminated_users = existing_os2sync_users - set(mo_users)
-    logger.info(f"Medarbejdere slettes i OS2Sync: {len(terminated_users)}")
-    for uuid in terminated_users:
-        os2sync.delete_user(str(uuid))
+    # terminated_users = existing_os2sync_users - set(mo_users)
+    # logger.info(f"Medarbejdere slettes i OS2Sync: {len(terminated_users)}")
+    # for uuid in terminated_users:
+    #     os2sync.delete_user(str(uuid))
 
     logger.info("sync users done")
     if hash_cache_file:
