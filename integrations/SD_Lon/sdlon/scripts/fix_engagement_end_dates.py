@@ -171,6 +171,7 @@ def main(
     cpr: str,
     log_level: str,
 ):
+    raise "Does not handle status 3!!"
     setup_logging(log_level)
 
     changed_at_settings = get_changed_at_settings()
