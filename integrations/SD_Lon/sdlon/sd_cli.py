@@ -19,7 +19,6 @@ def SDTool():
 SDTool.add_command(sd_importer, "sd_importer")
 SDTool.add_command(mo_against_sd, "test_mo_against_sd")
 SDTool.add_command(check_connectivity)
-SDTool.add_command(unit_fixer)
 SDTool.add_command(sync_jobid)
 SDTool.add_command(changed_at_cli)
 SDTool.add_command(changed_at_redo)
