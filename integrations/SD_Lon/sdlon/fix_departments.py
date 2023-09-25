@@ -550,5 +550,10 @@ def unit_fixer(ou_uuid: UUID):
 
     today = datetime.datetime.today().date()
 
+    logger.info(f"Calling fix_departments on {str(ou_uuid)}")
     unit_fixer.fix_department(str(ou_uuid), today)
+
+    logger.info(f"Calling fix_NY_logic on {str(ou_uuid)}")
     unit_fixer.fix_NY_logic(str(ou_uuid), today)
+
+    logger.info("unit_fixer done!")

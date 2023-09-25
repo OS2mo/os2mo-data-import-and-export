@@ -12,7 +12,7 @@ from os.path import exists
 from typing import Any, Dict, List
 from uuid import UUID
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI
 from fastapi.responses import RedirectResponse
 from os2mo_fastapi_utils.tracing import setup_instrumentation, setup_logging
 from os2mo_http_trigger_protocol import (
@@ -139,7 +139,9 @@ def triggers():
 )
 async def triggers_ou_refresh(payload: MOTriggerPayload, bg_tasks: BackgroundTasks):
     """Update the specified MO unit according to SD data"""
+    logger.info("SDTool called", payload=payload)
     bg_tasks.add_task(unit_fixer, UUID(payload.request["uuid"]))
+    logger.info("Background task started")
 
     start_time = datetime.datetime.now().strftime("%H:%M")
     return {
