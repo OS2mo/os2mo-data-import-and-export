@@ -1,4 +1,5 @@
 # SPDX-FileCopyrightText: Magenta ApS
+#
 # SPDX-License-Identifier: MPL-2.0
 
 FROM python:3.11
@@ -21,6 +22,15 @@ COPY pyproject.toml poetry.lock ./
 
 RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root --no-dev
 
-COPY . ./
+COPY sdlon ./sdlon
+COPY sdtool ./sdtool
 
-CMD ["uvicorn", "--factory", "sdlon.main:create_app", "--host", "0.0.0.0"]
+# These are not used but have to be there... don't worry about it - it's just DIPEX...
+ENV SD_GLOBAL_FROM_DATE=2000-01-01
+ENV SD_IMPORT_RUN_DB=/not/used
+ENV SD_JOB_FUNCTION=EmploymentName
+ENV SD_MONTHLY_HOURLY_DIVIDE=1
+
+ENV TZ="Europe/Copenhagen"
+
+CMD ["uvicorn", "sdtool.main:app", "--host", "0.0.0.0", "--port", "80"]

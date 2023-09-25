@@ -17,8 +17,10 @@ include:
 variables:
   SD_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sd-changed-at
   SD_INIT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sd-changed-at-init
+  SDTOOL_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-http-trigger-sdtool
   SD_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-sd-changed-at:${CI_COMMIT_SHA}
   SD_INIT_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-sd-changed-at-init:${CI_COMMIT_SHA}
+  SDTOOL_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-http-trigger-sdtool:${CI_COMMIT_SHA}
 
 
 # Lint
@@ -49,6 +51,13 @@ Build SD-init image:
     DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/Dockerfile
     CI_IMAGE: ${SD_INIT_IMAGE_SHA}
 
+Build SDTool image:
+  extends: .build-docker
+  variables:
+    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/
+    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile.sdtool
+    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+
 # Test
 ######
 Test SDLoen Integration:
@@ -61,7 +70,6 @@ Test SDLoen Integration:
   script:
     - cd /app/
     # Run CLIs
-    - python -m sdlon.fix_departments --help
     - python -m sdlon.sd_changed_at --help
     - python -m sdlon.sd_changed_at_redo --help
     - python -m sdlon.sd_cli --help
@@ -99,6 +107,18 @@ Release SD_INIT release image:
   variables:
     CI_IMAGE: ${SD_INIT_IMAGE_SHA}
     RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
+
+Release SDTool master image:
+  extends: .release-master
+  variables:
+    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
+
+Release SDTool release image:
+  extends: .release-version
+  variables:
+    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
 
 Release SDChangedAt to Flux dev:
   extends: .release-to-dev

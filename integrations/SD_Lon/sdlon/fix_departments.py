@@ -2,14 +2,12 @@ import datetime
 import json
 import logging
 import sys
-from functools import partial
-from itertools import chain
 from typing import Any
 from typing import Optional
 from typing import List
 from typing import OrderedDict
+from uuid import UUID
 
-import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -543,22 +541,7 @@ class FixDepartments:
         return department["DepartmentUUIDIdentifier"]
 
 
-@click.command()
-@click.option(
-    "--department-short-name",
-    "short_names",
-    multiple=True,
-    type=click.STRING,
-    help="Shortname of the department to update",
-)
-@click.option(
-    "--department-uuid",
-    "uuids",
-    multiple=True,
-    type=click.UUID,
-    help="UUID of the department to update",
-)
-def unit_fixer(short_names, uuids):
+def unit_fixer(ou_uuid: UUID):
     """Sync SD department information to MO."""
     setup_logging()
 
@@ -567,17 +550,10 @@ def unit_fixer(short_names, uuids):
 
     today = datetime.datetime.today().date()
 
-    # Translate short_names to uuids
-    short_name_uuids = map(
-        partial(unit_fixer.sd_uuid_from_short_code, today), short_names
-    )
-    # Convert UUIDs to strings
-    department_uuids = map(str, uuids)
+    logger.info(f"Calling fix_departments on {str(ou_uuid)}")
+    unit_fixer.fix_department(str(ou_uuid), today)
 
-    for department_uuid in chain(short_name_uuids, department_uuids):
-        unit_fixer.fix_department(department_uuid, today)
-        unit_fixer.fix_NY_logic(department_uuid, today)
+    logger.info(f"Calling fix_NY_logic on {str(ou_uuid)}")
+    unit_fixer.fix_NY_logic(str(ou_uuid), today)
 
-
-if __name__ == "__main__":
-    unit_fixer()
+    logger.info("unit_fixer done!")
