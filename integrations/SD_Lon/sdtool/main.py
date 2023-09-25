@@ -4,10 +4,10 @@
 import datetime
 import sys
 
+from sdlon.fix_departments import unit_fixer
+
 sys.path.insert(0, "/")
 import json
-import os
-import subprocess
 from os.path import exists
 from typing import Any, Dict, List
 from uuid import UUID
@@ -25,7 +25,6 @@ from structlog import get_logger
 from structlog.processors import KeyValueRenderer
 
 from sdtool.config import get_settings
-from sdtool.models import MOSDToolPayload
 
 logger = get_logger()
 
@@ -51,7 +50,6 @@ tags_metadata: List[Dict[str, Any]] = [
 app = FastAPI(
     title="SDTool",
     description="API to update MO according to SD.",
-    version="0.0.1",
     openapi_tags=tags_metadata,
 )
 
@@ -110,21 +108,6 @@ def ensure_settings_file():
     return True
 
 
-def fix_departments(uuid: UUID):
-    ensure_settings_file()
-
-    os.environ["SCRIPT_NAME"] = "/sdtool"
-    script = ["/app/update_unit.sh"]
-    script.append(str(uuid))
-
-    try:
-        logger.info("Running script", command=script)
-        subprocess.Popen(script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    except Exception as e:
-        logger.exception("Script error occurred", exc=e)
-        raise HTTPException(detail={"error": str(e)}, status_code=500)
-
-
 @app.get(
     "/triggers",
     tags=["Trigger API"],
@@ -156,24 +139,12 @@ def triggers():
 )
 async def triggers_ou_refresh(payload: MOTriggerPayload, bg_tasks: BackgroundTasks):
     """Update the specified MO unit according to SD data"""
-    bg_tasks.add_task(fix_departments, payload.request["uuid"])
+    bg_tasks.add_task(unit_fixer, UUID(payload.request["uuid"]))
 
     start_time = datetime.datetime.now().strftime("%H:%M")
     return {
         "msg": f"SD-Tool opdatering påbegyndt {start_time}. Genindlæs siden om nogle minutter."
     }
-
-
-@app.post(
-    "/sdtool",
-    tags=["SDTool API"],
-    summary="Update the specified MO unit according to SD data",
-    response_model=Dict[str, str],
-    response_description=("Successful Response" + "<br/>" + "Script output."),
-)
-def oldendpoint(payload: MOSDToolPayload):
-    """Update the specified MO unit according to SD data"""
-    return fix_departments(payload.uuid)
 
 
 app = setup_instrumentation(app)

@@ -4,6 +4,7 @@
 import datetime
 from unittest import TestCase
 from unittest.mock import patch
+from uuid import UUID
 
 from fastapi.testclient import TestClient
 
@@ -34,13 +35,13 @@ class AppTests(TestCase):
         self.assertEqual(trigger["role_type"], "org_unit")
 
     @patch("sdtool.main.datetime")
-    @patch("sdtool.main.fix_departments")
-    def test_ou_edit(self, fix_departments, mock_datatime):
+    @patch("sdtool.main.unit_fixer")
+    def test_ou_edit(self, unit_fixer, mock_datatime):
         mock_datatime.datetime.now.return_value = datetime.datetime(
             2000, 1, 1, 12, 13
         )
         expected = {"msg": f"SD-Tool opdatering påbegyndt 12:13. Genindlæs siden om nogle minutter."}
-        fix_departments.return_value = expected
+        unit_fixer.return_value = expected
 
         uuid = "fb2d158f-114e-5f67-8365-2c520cf10b58"
         response = self.client.post(
@@ -53,7 +54,7 @@ class AppTests(TestCase):
                 "uuid": uuid,
             },
         )
-        fix_departments.assert_called_with(uuid)
+        unit_fixer.assert_called_with(UUID(uuid))
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
