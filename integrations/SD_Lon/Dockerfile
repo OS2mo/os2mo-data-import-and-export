@@ -9,11 +9,6 @@ RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsod
 # include them here for now until we have a more stable application
 RUN apt -y install vim sqlite3 screen
 
-# These have to be installed manually for debugging everytime a Kubernetes pod
-# is recreated which is very annoying. Let's include them for now until the
-# SD code becomes more stable
-RUN apt-get install -y sqlite3 screen
-
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1 \
