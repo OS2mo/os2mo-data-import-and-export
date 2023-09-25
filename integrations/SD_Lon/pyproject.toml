@@ -32,6 +32,7 @@ prometheus-client = "^0.14.1"
 sentry-sdk = "^1.12.1"
 gql = "^3.4.0"
 os2mo-http-trigger-protocol = "0.0.3"
+os2mo-fastapi-utils = "0.0.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
