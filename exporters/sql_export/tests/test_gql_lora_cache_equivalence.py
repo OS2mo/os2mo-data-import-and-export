@@ -3,7 +3,11 @@ import typing
 
 from deepdiff.diff import DeepDiff
 
-from ..gql_lora_cache_async import GQLLoraCache, GqlLoraCacheSettings
+from ..gql_lora_cache_async import GQLLoraCache
+from ..gql_lora_cache_async import GqlLoraCacheSettings
+from ..log import get_logger
+from ..log import LogLevel
+from ..log import setup_logging
 from ..old_lora_cache import OldLoraCache as LoraCache
 
 """Integration endpoints."""
@@ -11,14 +15,13 @@ from ..old_lora_cache import OldLoraCache as LoraCache
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 
-import logging
 import urllib.error
 
 import prometheus_client
 from prometheus_client import CollectorRegistry
 from prometheus_client import Gauge
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 trigger_equiv_router = APIRouter()
 
 
@@ -55,6 +58,9 @@ def complicated_in_list(elem: dict, list_of_elements: list[dict]):
             return valid
 
 
+# The old cache has a problem where it-connections, managers, and org units never ends
+# This means that a closed it connection would still be part of the actual state export
+# though it shouldn't be.
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
     for key, list_of_old_values in old_cache.items():
         list_of_new_values: list[dict] | None = new_cache.get(key)
@@ -66,12 +72,29 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
             if complicated_in_list(
                 old_val, list_of_new_values
             ) and not complicated_in_list(old_val, fixed_list):
+
                 fixed_list.append(old_val)
 
         old_cache[key] = fixed_list
     return old_cache
 
 
+# Vi har lavet nogle ændringer i hvordan vi håndterer datoer når de kommer ud af graphql.
+# Før tjekkede vi om tiden på datoen var midnat, hvis ikke den var det - f.eks hvis den
+# var 3.4.2020 kl 23.59.59, så erstattede vi tidpunktet med kl 00.00.00. Hvilket vil
+# sige at den 3.4.2020 23.59.59 er, alt efter hvordan vi henter det ud, det samme
+# som den 3.4.2020 00.00.00. Det vil sige en from date kan afvige med op til ca 24
+# timer.
+#
+# Det næste vi gjorde var så at trække en hel dag fra to_date, det er endnu 24 timer.
+#
+# Det gamle lora api gør stadig sådan, men det gør graphql ikke, og derfor kan der
+# være en timediff på op til 47 timer, 59 min, 59 sek, og næsten et helt sekund
+# i milisekunder
+#
+# Jeg kan ikke lide det, det er noget lort, men så længe vi ikke har lavet den
+# opgave hvor vi grundlæggende ændrer på om vi bruger timezones så tror jeg at
+# det her er nødvendigt.
 def is_same_date(old_date: str | None, new_date: str | None) -> bool:
     def compare_to_none(date: str | None) -> bool:
         if date is None:
@@ -153,24 +176,30 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     return old_cache, new_cache
 
 
-def are_caches_equivalent(old_cache: dict, new_cache: dict):
+def are_caches_equivalent(
+    old_cache: dict, new_cache: dict, do_deepdiff: bool = True
+) -> object:
     if old_cache == new_cache:
         return True
 
-    diff = DeepDiff(old_cache, new_cache, verbose_level=2)
-    logger.debug(diff)
+    if do_deepdiff:
+        diff = DeepDiff(old_cache, new_cache, verbose_level=2)
+        logger.debug(diff)
     return False
 
 
 def remove_primary(engagements: dict):
     for key, value in engagements.items():
         for elem in value:
-            elem.pop("primary_boolean")
+            keep = elem.get("primary_boolean")
+            if not keep:
+                elem.pop("primary_boolean")
     return engagements
 
 
 def compare_for_equivalence(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     old_cache, new_cache = account_for_fixes(old_cache, new_cache)
+    do_deepdiff = new_cache.settings.log_level == LogLevel.DEBUG
 
     if state != "Actual State":
         new_cache.engagements = remove_primary(new_cache.engagements)
@@ -198,7 +227,9 @@ def compare_for_equivalence(old_cache: LoraCache, new_cache: GQLLoraCache, state
         cons_old, cons_new = consolidate_validities_in_single_cache(
             old_cache=old, new_cache=new
         )
-        is_equivalent = are_caches_equivalent(old_cache=cons_old, new_cache=cons_new)
+        is_equivalent = are_caches_equivalent(
+            old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff
+        )
         assert is_equivalent
 
         equivalence_bools.append((name, is_equivalent))
@@ -258,7 +289,7 @@ def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     start = datetime.datetime.now()
 
     logger.debug("Populating the new cache")
-    new_cache.populate_cache()
+    new_cache.populate_cache(dry_run=False)
     new_cache_time = datetime.datetime.now() - start
     logger.debug(f"Populated new cache in {new_cache_time}")
 
@@ -266,7 +297,7 @@ def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     logger.debug("Populating the old cache")
     start = datetime.datetime.now()
 
-    old_cache.populate_cache()
+    old_cache.populate_cache(dry_run=False)
     old_cache.calculate_primary_engagements()
     old_cache.calculate_derived_unit_data()
 
@@ -322,7 +353,10 @@ def notify_prometheus(
 
 def test_cache_equivalence():
     settings = GqlLoraCacheSettings()
-    settings.start_logging_based_on_settings()
+    # settings.start_logging_based_on_settings()
+    print(settings.log_level)
+    print(settings.log_level.value)
+    setup_logging(settings.log_level.value)
 
     cache_pairs = init_caches(settings)
     for new_cache, old_cache, state in cache_pairs:
