@@ -318,7 +318,7 @@ def get_sts_user_raw(
         "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
     ).json()
     if engagement_uuid:
-        engagements = filter(lambda e: e["uuid"] == engagement_uuid, engagements)
+        engagements = list(filter(lambda e: e["uuid"] == engagement_uuid, engagements))
     allowed_unitids = org_unit_uuids(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
