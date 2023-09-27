@@ -93,6 +93,9 @@ class Settings(JobSettings):
     os2sync_filter_hierarchy_names: Tuple = tuple()  # Title in MO
     os2sync_filter_users_by_it_system: bool = False
 
+    # To be used with the job-function-configurator integration.
+    os2sync_use_extension_field_as_job_function: bool = False
+
     class Config:
 
         env_file_encoding = "utf-8"

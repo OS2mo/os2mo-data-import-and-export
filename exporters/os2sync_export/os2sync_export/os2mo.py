@@ -179,15 +179,22 @@ def addresses_to_user(
         user["Email"] = email["name"]
 
 
-def engagements_to_user(user, engagements, allowed_unitids):
-    for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
-        if e["org_unit"]["uuid"] in allowed_unitids:
+def engagements_to_user(user, engagements, allowed_unitids, use_extension_field=None):
+    for e in engagements:
+        e["job_function"] = (
+            e.get("extension_3")
+            if use_extension_field and e.get("extension_3")
+            else e.get("job_function").get("name")
+        )
+
+    for e in sorted(engagements, key=lambda e: (e["job_function"] + e.get("uuid"))):
+        if e.get("org_unit").get("uuid") in allowed_unitids:
             user["Positions"].append(
                 {
-                    "OrgUnitUuid": e["org_unit"]["uuid"],
-                    "Name": e["job_function"]["name"],
+                    "OrgUnitUuid": e.get("org_unit").get("uuid"),
+                    "Name": e.get("job_function"),
                     # Only used to find primary engagements work-address
-                    "is_primary": e["is_primary"],
+                    "is_primary": e.get("is_primary"),
                 }
             )
 
@@ -316,7 +323,11 @@ def get_sts_user_raw(
         root=settings.os2sync_top_unit_uuid,
         hierarchy_uuids=get_org_unit_hierarchy(settings.os2sync_filter_hierarchy_names),
     )
-    engagements_to_user(sts_user, engagements, allowed_unitids)
+
+    # Featureflag in Settings. Set it to True, if wanting to use the extension field.
+    # Default is False.
+    use_extension_field = settings.os2sync_use_extension_field_as_job_function
+    engagements_to_user(sts_user, engagements, allowed_unitids, use_extension_field)
 
     if not sts_user["Positions"]:
         # return immediately because users with no engagements are not synced.
