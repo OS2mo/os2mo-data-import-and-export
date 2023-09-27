@@ -1504,7 +1504,6 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
     setup_logging(settings.log_level)
 
     logger.info("Program started")
-    logger.debug("Settings", settings=settings)
 
     run_db = settings.sd_import_run_db
 
