@@ -43,7 +43,7 @@ from sdlon.it_systems import (
     get_employee_it_systems,
     add_it_system_to_employee,
 )
-from sdlon.log import anonymize_cpr
+from sdlon.log import anonymize_cpr, setup_logging
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
 from . import sd_payloads
 from .config import ChangedAtSettings
@@ -1500,10 +1500,10 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
-    logger.info("Program started")
-
     settings = get_changed_at_settings()
-    settings.job_settings.start_logging_based_on_settings()
+    setup_logging(settings.log_level)
+
+    logger.info("Program started")
     logger.debug("Settings", settings=settings)
 
     run_db = settings.sd_import_run_db
@@ -1592,10 +1592,10 @@ def date_interval_run(
     cpr: str,
     dry_run: bool,
 ):
-    logger.info("Date interval run started")
-
     settings = get_changed_at_settings()
-    settings.job_settings.start_logging_based_on_settings()
+    setup_logging(settings.log_level)
+
+    logger.info("Date interval run started")
 
     sd_updater = ChangeAtSD(settings, from_date, to_date, dry_run)  # type: ignore
 
