@@ -23,28 +23,12 @@ from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
 from .exceptions import NoCurrentValdityException
+from .log import setup_logging
 from .sd_common import mora_assert
 from .sd_common import sd_lookup
 
 
-LOG_LEVEL = logging.DEBUG
-
 logger = structlog.get_logger(__name__)
-
-
-def setup_logging():
-    detail_logging = ("sdCommon", "fixDepartments")
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        stream=sys.stdout,
-    )
 
 
 class FixDepartments:
@@ -545,9 +529,9 @@ class FixDepartments:
 
 def unit_fixer(ou_uuid: UUID):
     """Sync SD department information to MO."""
-    setup_logging()
-
     settings = get_changed_at_settings()
+    setup_logging(settings.log_level)
+
     unit_fixer = FixDepartments(settings)
 
     today = datetime.datetime.today().date()
