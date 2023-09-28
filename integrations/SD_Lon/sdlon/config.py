@@ -24,7 +24,6 @@ from pydantic import UUID4
 from ra_utils.load_settings import load_settings
 from ra_utils.job_settings import JobSettings
 
-from .log import LogLevel
 from .models import JobFunction
 
 
@@ -63,8 +62,6 @@ class CommonSettings(BaseSettings):  # type: ignore
     cpr_uuid_map_path: str = (
         "/opt/dipex/os2mo-data-import-and-export/settings/cpr_uuid_map.csv"
     )
-
-    log_level: LogLevel = LogLevel.DEBUG
 
     job_settings: JobSettings = JobSettings()
 
