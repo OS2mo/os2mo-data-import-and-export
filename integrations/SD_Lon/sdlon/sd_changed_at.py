@@ -422,7 +422,10 @@ class ChangeAtSD:
             )
             payload = jsonable_encoder(model.dict(by_alias=True, exclude_none=True))
             if self.dry_run:
-                logger.debug("Dry-run: upsert_employee", payload=payload)
+                logger.debug(
+                    "Dry-run: upsert_employee",
+                    payload=model.dict(by_alias=True, exclude={"cpr_no"}),
+                )
                 return "invalid-uuid"
             response = self.helper._mo_post("e/create", payload)
             assert response.status_code == 201
