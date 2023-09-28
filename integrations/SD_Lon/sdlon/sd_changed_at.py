@@ -113,7 +113,7 @@ class ChangeAtSD:
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
-            logger.exception("Could not read MO organization", err=e)
+            logger.exception("Could not read MO organization", error=e)
             exit()
 
         self.updater = (
