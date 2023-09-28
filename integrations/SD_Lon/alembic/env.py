@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
 # Initial version generated using `poetry run alembic init alembic`
-import os
 from logging.config import fileConfig
 
 from alembic import context
+from payload_db.engine import get_db_url
+from payload_db.engine import get_engine
 from payload_db.models import Base
-from sqlalchemy import create_engine
 
 
 # this is the Alembic Config object, which provides
@@ -23,10 +23,6 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = Base.metadata
-
-
-def get_db_url() -> str:
-    return f"postgresql+psycopg2://{os.environ['APP_DBUSER']}:{os.environ['APP_DBPASSWORD']}@{os.environ['PGHOST']}/{os.environ['APP_DATABASE']}"
 
 
 def run_migrations_offline() -> None:
@@ -59,7 +55,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    connectable = create_engine(get_db_url())
+    connectable = get_engine()
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
