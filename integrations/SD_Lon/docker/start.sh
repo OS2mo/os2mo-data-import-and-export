@@ -25,6 +25,9 @@ else
     psql -XtAc "CREATE DATABASE $APP_DATABASE OWNER $APP_DBUSER"
 fi
 
+# Apply Alembic migrations
+alembic upgrade head
+
 # Run app
 uvicorn --factory sdlon.main:create_app --host 0.0.0.0
 
