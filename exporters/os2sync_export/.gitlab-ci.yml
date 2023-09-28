@@ -15,7 +15,7 @@ include:
 
 variables:
   OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-os2sync-export
-  OS2SYNC_EXPORT_IMAGE_SHA: ${CI_REGISTRY_IMAGE}/os2mo-os2sync-export:${CI_COMMIT_SHA}
+  OS2SYNC_EXPORT_IMAGE: ${CI_REGISTRY_IMAGE}/os2mo-os2sync-export:${CI_COMMIT_SHA}-batch
 
 
 Lint os2sync Exporter:
@@ -32,14 +32,14 @@ Build os2sync_export image:
   variables:
     CONTEXT: ${CI_PROJECT_DIR}/exporters/os2sync_export
     DOCKERFILE: ${CI_PROJECT_DIR}/exporters/os2sync_export/Dockerfile
-    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE}
 
 # Test
 ######
 Test OS2SYNC exporter:
   stage: test
   needs: ["Build os2sync_export image"]
-  image: ${OS2SYNC_EXPORT_IMAGE_SHA}
+  image: ${OS2SYNC_EXPORT_IMAGE}
   variables:
     GIT_STRATEGY: none # We do not need the source code
     HYPOTHESIS_PROFILE: ci
@@ -52,11 +52,11 @@ Test OS2SYNC exporter:
 Release OS2SYNC master image:
   extends: .release-master
   variables:
-    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}-batch
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
 
 Release OS2SYNC version image:
   extends: .release-version
   variables:
-    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE_SHA}
-    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}-batch
+    CI_IMAGE: ${OS2SYNC_EXPORT_IMAGE}
+    RELEASE_IMAGE: ${OS2SYNC_EXPORT_RELEASE_REGISTRY_IMAGE}
