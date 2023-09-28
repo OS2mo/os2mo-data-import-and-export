@@ -5,7 +5,9 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
+from payload_db.models import Base
 from sqlalchemy import create_engine
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -20,7 +22,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def get_db_url() -> str:
