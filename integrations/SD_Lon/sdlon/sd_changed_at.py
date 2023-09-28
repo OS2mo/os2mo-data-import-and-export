@@ -34,7 +34,7 @@ from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
-from tqdm import tqdm
+import structlog
 
 from sdlon.employees import get_employee
 from sdlon.graphql import get_mo_client
@@ -43,6 +43,7 @@ from sdlon.it_systems import (
     get_employee_it_systems,
     add_it_system_to_employee,
 )
+from sdlon.log import anonymize_cpr, setup_logging
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
 from . import sd_payloads
 from .config import ChangedAtSettings
@@ -65,16 +66,15 @@ from .sd_common import EmploymentStatus
 from .sd_common import ensure_list
 from .sd_common import mora_assert
 from .sd_common import primary_types
-from .sd_common import read_employment_at
 from .sd_common import sd_lookup
-from .skip import skip_fictional_users, skip_job_position_id
+from .skip import skip_fictional_users
 from .skip import cpr_env_filter
 from .sync_job_id import JobIdSync
 
 
 DUMMY_CPR = "0000000000"
 
-logger = logging.getLogger("sdChangedAt")
+logger = structlog.get_logger(__name__)
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
@@ -93,10 +93,8 @@ class ChangeAtSD:
 
         job_function_type = self.settings.sd_job_function
         if job_function_type == JobFunction.job_position_identifier:
-            logger.info("Read settings. JobPositionIdentifier for job_functions")
             self.use_jpi = True
         elif job_function_type == JobFunction.employment_name:
-            logger.info("Read settings. Do not update job_functions")
             self.use_jpi = False
 
         self.employee_forced_uuids = (
@@ -115,8 +113,7 @@ class ChangeAtSD:
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
+            logger.exception("Could not read MO organization", error=e)
             exit()
 
         self.updater = (
@@ -248,10 +245,10 @@ class ChangeAtSD:
 
         if self.dry_run:
             logger.debug(
-                f"Dry-run: add IT-system to employee: "
-                f"emp_uuid={str(employee_uuid)}, "
-                f"IT-system UUID={str(sd_to_ad_it_system_uuid)}, "
-                f"user_key={user_key}",
+                "Dry-run: add IT-system to employee",
+                emp_uuid=employee_uuid,
+                it_system_uuid=sd_to_ad_it_system_uuid,
+                user_key=user_key,
             )
             return
 
@@ -425,15 +422,19 @@ class ChangeAtSD:
             )
             payload = jsonable_encoder(model.dict(by_alias=True, exclude_none=True))
             if self.dry_run:
-                print("Dry-run: upsert_employee", payload)
+                logger.debug(
+                    "Dry-run: upsert_employee",
+                    payload=model.dict(by_alias=True, exclude={"cpr_no"}),
+                )
                 return "invalid-uuid"
             response = self.helper._mo_post("e/create", payload)
             assert response.status_code == 201
             return_uuid = response.json()
             logger.info(
-                "Created or updated employee {} {} with uuid {}".format(
-                    given_name, sur_name, return_uuid
-                )
+                "Created or updated employee",
+                given_name=given_name,
+                sur_name=sur_name,
+                return_uuid=return_uuid,
             )
             return return_uuid
 
@@ -441,25 +442,22 @@ class ChangeAtSD:
             payload = sd_payloads.connect_it_system_to_user(
                 sam_account_name, self._fetch_ad_it_system_uuid(), user_uuid
             )
+            logger.debug("Create IT-system connection", payload=payload)
             if self.dry_run:
-                print("Dry-run: create_itsystem_connection", payload)
                 return
-            logger.debug("Connect it-system: {}".format(payload))
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
-            logger.info("Added AD account info to {}".format(user_uuid))
+            logger.info("Added AD account info to user", user_uuid=user_uuid)
 
         # Fetch a list of persons to update
         if in_cpr is not None:
             all_sd_persons_changed = self.get_sd_person(in_cpr)
         else:
-            logger.info("Update all persons")
             all_sd_persons_changed = self.get_sd_persons_changed(
                 self.from_date, self.to_date, changed_at_run_cpr
             )
 
-        logger.info(f"Number of changed persons: {len(all_sd_persons_changed)}")
-        all_sd_persons_changed = tqdm(all_sd_persons_changed, desc="update persons")
+        logger.info("Number of changed persons", n=len(all_sd_persons_changed))
         real_sd_persons_changed = filter(skip_fictional_users, all_sd_persons_changed)
 
         # Filter employees based on the sd_cprs list
@@ -535,14 +533,14 @@ class ChangeAtSD:
 
             if forced_uuid:
                 uuid = forced_uuid
-                logger.info("Employee in force list: {}".format(uuid))
+                logger.info("Employee in force list", uuid=uuid)
             elif object_guid:
                 uuid = object_guid
-                logger.debug("Using ObjectGuid as MO UUID: {}".format(uuid))
+                logger.debug("Using ObjectGuid as MO UUID", uuid=uuid)
             else:
                 uuid = uuid4()
                 logger.debug(
-                    "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
+                    "User not in MO, UUID list or AD, assigning UUID", uuid=uuid
                 )
 
             return_uuid = upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
@@ -574,9 +572,11 @@ class ChangeAtSD:
         # compare = first + datetime.timedelta(days=expected_diff)
         compare = abs(delta.days) <= expected_diff
         logger.debug(
-            "Compare. First: {}, second: {}, expected: {}, compare: {}".format(
-                first, second, expected_diff, compare
-            )
+            "Compare dates",
+            first=first,
+            second=second,
+            expected_diff=expected_diff,
+            compare=compare,
         )
         return compare
 
@@ -636,11 +636,7 @@ class ChangeAtSD:
         except ValueError:  # We will end here, if int(job_id) fails
             user_key = job_id
 
-        logger.debug(
-            "Find engagement, from date: {}, user_key: {}".format(
-                self.from_date, user_key
-            )
-        )
+        logger.debug("Find engagement", from_date=self.from_date, user_key=user_key)
 
         mo_engagements = self._fetch_mo_engagements(person_uuid)
 
@@ -650,8 +646,11 @@ class ChangeAtSD:
         relevant_engagement = last(relevant_engagements, None)
 
         if relevant_engagement is None:
-            msg = "Fruitlessly searched for {} in {}".format(job_id, mo_engagements)
-            logger.info(msg)
+            logger.info(
+                "Fruitlessly searched for job_id in engagements",
+                job_id=job_id,
+                mo_engagements=mo_engagements,
+            )
         return relevant_engagement
 
     def _create_class(self, payload):
@@ -672,7 +671,8 @@ class ChangeAtSD:
     def _create_engagement_type(self, engagement_type_ref, job_position):
         # Could not fetch, attempt to create it
         logger.warning(
-            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
+            "Missing engagement_type (now creating)",
+            engagement_type_ref=engagement_type_ref,
         )
         payload = sd_payloads.engagement_type(
             engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
@@ -686,7 +686,7 @@ class ChangeAtSD:
 
     def _create_professions(self, job_function, job_position):
         # Could not fetch, attempt to create it
-        logger.warning("Missing profession: {} (now creating)".format(job_function))
+        logger.warning("Missing profession (now creating)", job_function=job_function)
         payload = sd_payloads.profession(
             job_function, self.org_uuid, self.job_function_facet
         )
@@ -734,7 +734,7 @@ class ChangeAtSD:
 
     def create_leave(self, status, job_id, person_uuid: str):
         """Create a leave for a user"""
-        logger.info("Create leave, job_id: {}, status: {}".format(job_id, status))
+        logger.info("Create leave", job_id=job_id, status=status)
         # TODO: This code potentially creates duplicated leaves.
 
         # Notice, the expected and desired behaviour for leaves is for the engagement
@@ -748,11 +748,10 @@ class ChangeAtSD:
             mo_eng, person_uuid, str(self.leave_uuid), job_id, self._validity(status)
         )
 
-        if self.dry_run:
-            print("Dry-run (details/create)", payload)
-            return
-        response = self.helper._mo_post("details/create", payload)
-        assert response.status_code == 201
+        logger.debug("Create leave (details/create)", payload=payload)
+        if not self.dry_run:
+            response = self.helper._mo_post("details/create", payload)
+            assert response.status_code == 201
 
     def create_association(self, department, person_uuid, job_id, validity):
         """Create a association for a user"""
@@ -760,7 +759,7 @@ class ChangeAtSD:
         associations = self.helper.read_user_association(
             person_uuid, read_all=True, only_primary=True
         )
-        logger.debug("Associations read from MO: {}".format(associations))
+        logger.debug("Associations read from MO", associations=associations)
         hit = False
         for association in associations:
             if (
@@ -773,17 +772,17 @@ class ChangeAtSD:
             payload = sd_payloads.create_association(
                 department, person_uuid, str(self.association_uuid), job_id, validity
             )
-            if self.dry_run:
-                print("Dry-run (details/create): ", payload)
-                return
-            response = self.helper._mo_post("details/create", payload)
-            assert response.status_code == 201
+            logger.debug("Create association (details/create)", payload=payload)
+            if not self.dry_run:
+                response = self.helper._mo_post("details/create", payload)
+                assert response.status_code == 201
         else:
             logger.info("No new Association is needed")
 
     def apply_NY_logic(self, org_unit, job_id, validity, person_uuid) -> str:
-        msg = "Apply NY logic for job: {}, unit: {}, validity: {}"
-        logger.debug(msg.format(job_id, org_unit, validity))
+        logger.debug(
+            "Apply NY logic", job_id=job_id, org_unit=org_unit, validity=validity
+        )
         too_deep = self.settings.sd_import_too_deep
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit, at=validity["from"], use_cache=False)
@@ -800,7 +799,7 @@ class ChangeAtSD:
 
         while ou_info["org_unit_level"]["user_key"] in too_deep:
             ou_info = ou_info["parent"]
-            logger.debug("Parent unit: {}".format(ou_info))
+            logger.debug("Parent unit", uuid=ou_info["uuid"])
         org_unit = ou_info["uuid"]
 
         return org_unit
@@ -827,11 +826,11 @@ class ChangeAtSD:
             or len(engagement_info["departments"]) > 1
         ):
             also_edit = True
-        logger.debug("Create new engagement: also_edit: {}".format(also_edit))
+        logger.debug("Create new engagement", also_edit=also_edit)
 
         try:
             org_unit = engagement_info["departments"][0]["DepartmentUUIDIdentifier"]
-            logger.info("Org unit for new engagement: {}".format(org_unit))
+            logger.info("Org unit for new engagement", org_unit=org_unit)
             org_unit = self.apply_NY_logic(org_unit, user_key, validity, person_uuid)
         except IndexError:
             msg = "No unit for engagement {}".format(user_key)
@@ -874,14 +873,13 @@ class ChangeAtSD:
             **extension,
         )
 
-        if self.dry_run:
-            print("Dry-run (details/create): ", payload)
-        else:
+        logger.debug("Create engagement (details/create)", payload=payload)
+        if not self.dry_run:
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
 
         self._refresh_mo_engagements(person_uuid)
-        logger.info("Engagement {} created".format(user_key))
+        logger.info("Engagement created", user_key=user_key)
 
         if also_edit:
             # This will take of the extra entries
@@ -912,10 +910,17 @@ class ChangeAtSD:
             `True` if the termination in MO was successful and `False`
             otherwise
         """
+        logger.info(
+            "Terminate engagement",
+            user_key=user_key,
+            person_uuid=person_uuid,
+            from_date=from_date,
+            to_date=to_date,
+        )
         mo_engagement = self._find_engagement(user_key, person_uuid)
 
         if not mo_engagement:
-            logger.warning(f"Terminating non-existing job: {user_key}!")
+            logger.warning("Terminating non-existing job!", user_key=user_key)
             return False
 
         validity = {"from": from_date, "to": to_date}
@@ -927,10 +932,8 @@ class ChangeAtSD:
             "validity": validity,
         }
 
-        logger.debug("Terminate payload: {}".format(payload))
-        if self.dry_run:
-            print("Dry-run (details/terminate): ", payload)
-        else:
+        logger.debug("Terminate payload (details/terminate)", payload=payload)
+        if not self.dry_run:
             response = self.helper._mo_post("details/terminate", payload)
             logger.debug("Terminate response: {}".format(response.text))
             mora_assert(response)
@@ -942,14 +945,14 @@ class ChangeAtSD:
     def edit_engagement_department(self, engagement, mo_eng, person_uuid):
         job_id, engagement_info = engagement_components(engagement)
         for department in engagement_info["departments"]:
-            logger.info("Change department of engagement {}:".format(job_id))
-            logger.debug("Department object: {}".format(department))
+            logger.info("Change department of engagement", job_id=job_id)
+            logger.debug("Department object", department=department)
 
             validity = self._validity(department, mo_eng["validity"]["to"], cut=True)
             if validity is None:
                 continue
 
-            logger.debug("Validity of this department change: {}".format(validity))
+            logger.debug("Validity of this department change", validity=validity)
             org_unit = department["DepartmentUUIDIdentifier"]
             if org_unit is None:
                 logger.warning(
@@ -966,14 +969,14 @@ class ChangeAtSD:
                     "DepartmentIdentifier": department["DepartmentIdentifier"],
                 }
                 response = sd_lookup(url, settings=self.settings, params=params)
-                logger.warning("GetDepartment returned: {}".format(response))
+                logger.warning("GetDepartment returned", response=response)
                 org_unit = response["Department"]["DepartmentUUIDIdentifier"]
                 if org_unit is None:
                     logger.fatal("DepartmentUUIDIdentifier was None inside failover.")
                     sys.exit(1)
 
             associations = self.helper.read_user_association(person_uuid, read_all=True)
-            logger.debug("User associations: {}".format(associations))
+            logger.debug("User associations", associations=associations)
             current_association = None
             # TODO: This is a filter + next (only?)
             for association in associations:
@@ -981,24 +984,21 @@ class ChangeAtSD:
                     current_association = association["uuid"]
 
             if current_association:
-                logger.debug("We need to move {}".format(current_association))
+                logger.debug("We need to move", current_association=current_association)
                 data = {"org_unit": {"uuid": org_unit}, "validity": validity}
                 payload = sd_payloads.association(data, current_association)
-                logger.debug("Association edit payload: {}".format(payload))
-                if self.dry_run:
-                    print("Dry-run (details/edit): ", payload)
-                else:
+                logger.debug("Association edit payload (details/edit)", payload=payload)
+                if not self.dry_run:
                     response = self.helper._mo_post("details/edit", payload)
                     mora_assert(response)
 
             org_unit = self.apply_NY_logic(org_unit, job_id, validity, person_uuid)
 
-            logger.debug("New org unit for edited engagement: {}".format(org_unit))
+            logger.debug("New org unit for edited engagement", org_unit=org_unit)
             data = {"org_unit": {"uuid": org_unit}, "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
-            if self.dry_run:
-                print("Dry-run (details/edit): ", payload)
-            else:
+            logger.debug("Edit engagement org unit (details/edit)", payload=payload)
+            if not self.dry_run:
                 response = self.helper._mo_post("details/edit", payload)
                 mora_assert(response)
 
@@ -1020,19 +1020,18 @@ class ChangeAtSD:
             self.no_salary_minimum is not None
             and int(job_position) < self.no_salary_minimum
         ):
-            message = "No salary employee, with too low job_position id"
-            logger.warning(message)
+            logger.warning("No salary employee, with too low job_position id")
             return None
 
         # We need a special engagement type for the engagement.
         # We will try to fetch and try to create it if we cannot find it.
-        logger.info("Non-nummeric id. Job pos id: {}".format(job_position))
+        logger.info("Non-numeric id. Job pos id", job_position_id=job_position)
         return self._fetch_engagement_type(job_position)
 
     def edit_engagement_type(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
-            logger.info("Change engagement type of engagement {}".format(job_id))
+            logger.info("Change engagement type of engagement", job_id=job_id)
             job_position = profession_info["JobPositionIdentifier"]
 
             validity = self._validity(
@@ -1046,17 +1045,17 @@ class ChangeAtSD:
                 continue
             data = {"engagement_type": {"uuid": engagement_type}, "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
-            logger.debug("Update engagement type payload: {}".format(payload))
-            if self.dry_run:
-                print("Dry-run (details/edit): ", payload)
-            else:
+            logger.debug(
+                "Update engagement type payload (details/edit)", payload=payload
+            )
+            if not self.dry_run:
                 response = self.helper._mo_post("details/edit", payload)
                 mora_assert(response)
 
     def edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
-            logger.info("Change profession of engagement {}".format(job_id))
+            logger.info("Change profession of engagement", job_id=job_id)
             job_position = profession_info["JobPositionIdentifier"]
 
             # The variability handling introduced in the following lines
@@ -1088,7 +1087,7 @@ class ChangeAtSD:
                 job_function = emp_name
                 if self.use_jpi:
                     job_function = job_position
-                logger.debug("Employment name: {}".format(job_function))
+                logger.debug("Employment name", job_function=job_function)
 
                 ext_field = self.settings.sd_employment_field
                 extention = {}
@@ -1103,18 +1102,18 @@ class ChangeAtSD:
                 }
                 data.update(extention)
                 payload = sd_payloads.engagement(data, mo_eng)
-                logger.debug("Update profession payload: {}".format(payload))
 
-                if self.dry_run:
-                    print("Dry-run (details/edit): ", payload)
-                else:
+                logger.debug(
+                    "Update profession payload (details/edit)", payload=payload
+                )
+                if not self.dry_run:
                     response = self.helper._mo_post("details/edit", payload)
                     mora_assert(response)
 
     def edit_engagement_worktime(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for worktime_info in engagement_info["working_time"]:
-            logger.info("Change working time of engagement {}".format(job_id))
+            logger.info("Change working time of engagement", job_id=job_id)
 
             validity = self._validity(worktime_info, mo_eng["validity"]["to"], cut=True)
             if validity is None:
@@ -1123,37 +1122,36 @@ class ChangeAtSD:
             working_time = float(worktime_info["OccupationRate"])
             data = {"fraction": int(working_time * 1000000), "validity": validity}
             payload = sd_payloads.engagement(data, mo_eng)
-            logger.debug("Change worktime, payload: {}".format(payload))
-            if self.dry_run:
-                print("Dry-run (details/edit): ", payload)
-            else:
+            logger.debug("Change worktime payload (details/edit)", payload=payload)
+            if not self.dry_run:
                 response = self.helper._mo_post("details/edit", payload)
                 mora_assert(response)
 
     def _set_non_primary(self, status, mo_eng):
-        logger.debug("Setting non-primary for: {}".format(mo_eng["uuid"]))
+        logger.debug("Setting non-primary for engagement", uuid=mo_eng["uuid"])
 
         validity = self._validity(status)
-        logger.debug("Validity for edit: {}".format(validity))
+        logger.debug("Validity for edit", validity=validity)
 
         data = {
             "primary": {"uuid": self.primary_types["non_primary"]},
             "validity": validity,
         }
         payload = sd_payloads.engagement(data, mo_eng)
-        logger.debug("Setting non-primary payload: {}".format(payload))
+        logger.debug("Setting non-primary payload (details/edit)", payload=payload)
 
-        if self.dry_run:
-            print("Dry-run (details/edit): ", payload)
-            return
-        response = self.helper._mo_post("details/edit", payload)
-        mora_assert(response)
+        if not self.dry_run:
+            response = self.helper._mo_post("details/edit", payload)
+            mora_assert(response)
 
     def edit_engagement(self, engagement, person_uuid):
         """
         Edit an engagement
         """
         employment_id, _ = engagement_components(engagement)
+        logger.debug(
+            "Edit engagement", employment_id=employment_id, person_uuid=person_uuid
+        )
         mo_eng = self._find_engagement(employment_id, person_uuid)
 
         employment_consistent = is_employment_id_and_no_salary_minimum_consistent(
@@ -1229,26 +1227,26 @@ class ChangeAtSD:
         # The EmploymentStatusCode can take a number of magical values.
         # that must be handled separately.
         employment_id, eng = engagement_components(sd_employment)
+
+        logger.info(
+            "Handle employment status changes",
+            emp_id=employment_id,
+            cpr=anonymize_cpr(cpr),
+        )
+
         for status in eng["status_list"]:
-            logger.info("Status is: {}".format(status))
+            logger.info("EmploymentStatus", emp_status=status)
             code = status["EmploymentStatusCode"]
             code = EmploymentStatus(code)
 
             if code == EmploymentStatus.AnsatUdenLoen:
-                logger.info(
-                    "Status 0. Cpr: {}, job: {}".format(
-                        f"{cpr[:6]}-xxxx", employment_id
-                    )
-                )
                 mo_eng = self._find_engagement(employment_id, person_uuid)
                 if mo_eng:
-                    logger.info("Status 0, edit eng {}".format(mo_eng["uuid"]))
-
+                    logger.info("Found MO engagement", eng_uuid=mo_eng["uuid"])
                     self._set_non_primary(status, mo_eng)
-
                     self.edit_engagement(sd_employment, person_uuid)
                 else:
-                    logger.info("Status 0, create new engagement")
+                    logger.info("MO engagement not found. Create new engagement")
                     if is_employment_id_and_no_salary_minimum_consistent(
                         sd_employment, self.no_salary_minimum
                     ):
@@ -1257,6 +1255,7 @@ class ChangeAtSD:
                         )
                 skip = True
             elif code == EmploymentStatus.AnsatMedLoen:
+                # TODO: condense this block with the one above as they are identical
                 logger.info("Setting {} to status 1".format(employment_id))
                 mo_eng = self._find_engagement(employment_id, person_uuid)
                 if mo_eng:
@@ -1286,14 +1285,11 @@ class ChangeAtSD:
                         self.create_new_engagement(
                             sd_employment, status, cpr, person_uuid
                         )
-                logger.info("Create a leave for {} ".format(cpr))
+                logger.info("Create a leave")
                 self.create_leave(status, employment_id, person_uuid)
             elif code in EmploymentStatus.let_go():
                 sd_from_date = status["ActivationDate"]
                 sd_to_date = status["DeactivationDate"]
-                logger.info(
-                    "Terminate {}, job_id {} ".format(f"{cpr[:6]}-xxxx", employment_id)
-                )
                 success = self._terminate_engagement(
                     user_key=employment_id,
                     person_uuid=person_uuid,
@@ -1301,7 +1297,9 @@ class ChangeAtSD:
                     to_date=sd_to_mo_termination_date(sd_to_date),
                 )
                 if not success:
-                    logger.error("Problem with job-id: {}".format(employment_id))
+                    logger.error(
+                        "Problem terminating employment", employment_id=employment_id
+                    )
                     skip = True
             elif code == EmploymentStatus.Slettet:
 
@@ -1324,7 +1322,6 @@ class ChangeAtSD:
                 for mo_eng in self._fetch_mo_engagements(person_uuid):
                     if mo_eng["user_key"] == employment_id:
                         sd_from_date = status["ActivationDate"]
-                        logger.info("Status S: Terminate {}".format(employment_id))
                         self._terminate_engagement(
                             user_key=employment_id,
                             person_uuid=person_uuid,
@@ -1338,8 +1335,12 @@ class ChangeAtSD:
     ) -> None:
         for sd_employment in sd_employments:
             job_id, eng = engagement_components(sd_employment)
-            logger.info("Update Job id: {}".format(job_id))
-            logger.debug("SD Engagement: {}".format(sd_employment))
+            logger.debug(
+                "Update SD employment",
+                cpr=anonymize_cpr(cpr),
+                employment_id=job_id,
+                employmentsd_employment=sd_employment,
+            )
             # If status is present, we have a potential creation
             if eng["status_list"] and self._handle_employment_status_changes(
                 cpr, sd_employment, person_uuid
@@ -1354,9 +1355,8 @@ class ChangeAtSD:
             logger.info("Update all employments")
             employments_changed = self.read_employment_changed()
 
-        logger.info("Update a total of {} employments".format(len(employments_changed)))
+        logger.info("Number of employments to update", n=len(employments_changed))
 
-        employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
 
         # Filter employees based on the sd_cprs list
@@ -1372,11 +1372,9 @@ class ChangeAtSD:
                 for employment in sd_employments
             ]
 
-            logger.info("---------------------")
-            logger.info("We are now updating {}".format(f"{cpr[:6]}-xxxx"))
-            logger.debug("From date: {}".format(self.from_date))
-            logger.debug("To date: {}".format(self.to_date))
-            logger.debug("Employment: {}".format(employment))
+            logger.info(30 * "#")
+            logger.info("Update employment", cpr=anonymize_cpr(cpr))
+            logger.info(30 * "#")
 
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
             # Person not in MO, but they should be
@@ -1388,7 +1386,7 @@ class ChangeAtSD:
                         user_cpr=cpr, org_uuid=self.org_uuid
                     )
                 except Exception as exp:
-                    logger.error("Unable to find person in MO, SD error: " + str(exp))
+                    logger.error("Unable to find person in MO", err=exp)
                     continue
 
             if not mo_person:
@@ -1407,14 +1405,14 @@ class ChangeAtSD:
 
         logger.info("Beginning recalculation of all users...")
         for user_uuid in recalculate_users:
-            if self.dry_run:
-                print("Dry-run: recalculate_user", user_uuid)
-                continue
-
-            try:
-                self.updater.recalculate_user(user_uuid)
-            except NoPrimaryFound:
-                logger.warning("Could not find primary for: {}".format(user_uuid))
+            logger.debug("Recalculate user", user_uuid=user_uuid)
+            if not self.dry_run:
+                try:
+                    self.updater.recalculate_user(user_uuid)
+                except NoPrimaryFound:
+                    logger.warning(
+                        "Could not find primary for user", user_uuid=user_uuid
+                    )
 
 
 def _local_db_insert(path_to_run_db, insert_tuple):
@@ -1506,15 +1504,15 @@ def changed_at_cli(init: bool, force: bool, from_date: datetime.datetime):
 def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] = None):
     """Tool to delta synchronize with MO with SD."""
     settings = get_changed_at_settings()
-    settings.job_settings.start_logging_based_on_settings()
+    setup_logging(settings.log_level)
+
+    logger.info("Program started")
 
     run_db = settings.sd_import_run_db
 
+    # TODO: Sentry not working... fix settings.job_settings.sentry_dsn below
     if settings.job_settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.job_settings.sentry_dsn)
-
-    logger.info("***************")
-    logger.info("Program started")
 
     if init:
         if not from_date:
@@ -1528,12 +1526,13 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
     to_date = datetime.datetime.now()
     dates = gen_date_intervals(from_date, to_date)
     for from_date, to_date in dates:
-        logger.info("Importing {} to {}".format(from_date, to_date))
         _local_db_insert(
             settings.sd_import_run_db, (from_date, to_date, "Running since {}")
         )
 
-        logger.info("Start ChangedAt module")
+        logger.info(
+            "Initialize ChangedAtSD class", from_date=from_date, to_date=to_date
+        )
         sd_updater = ChangeAtSD(settings, from_date, to_date)  # type: ignore
 
         logger.info("Update changed persons")
@@ -1546,7 +1545,7 @@ def changed_at(init: bool, force: bool, from_date: Optional[datetime.datetime] =
             settings.sd_import_run_db, (from_date, to_date, "Update finished: {}")
         )
 
-        logger.info("Program stopped.")
+        logger.info("Program finished")
 
 
 @cli.command()
@@ -1595,10 +1594,10 @@ def date_interval_run(
     cpr: str,
     dry_run: bool,
 ):
-    logger.info("Date interval run started")
-
     settings = get_changed_at_settings()
-    settings.job_settings.start_logging_based_on_settings()
+    setup_logging(settings.log_level)
+
+    logger.info("Date interval run started")
 
     sd_updater = ChangeAtSD(settings, from_date, to_date, dry_run)  # type: ignore
 
