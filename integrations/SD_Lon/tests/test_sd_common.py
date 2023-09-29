@@ -1,3 +1,4 @@
+import uuid
 from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import date
@@ -39,25 +40,36 @@ def test_sd_lookup_logs_payload_to_db(
     common_settings: CommonSettings,
 ) -> None:
     # Arrange
+    test_request_uuid = uuid.uuid4()
     test_url: str = "test_url"
     test_params: dict[str, Any] = {"params": "mocked"}
     test_response: str = f"""<{test_url}><Foo bar="baz"></Foo></{test_url}>"""
+    test_status_code = 200
 
     @dataclass
     class _MockResponse:
         text: str
+        status_code: int
 
     def mock_requests_get(url: str, **kwargs: Any):
-        return _MockResponse(text=test_response)
+        return _MockResponse(text=test_response, status_code=test_status_code)
 
-    def mock_log_payload(full_url: str, params: str, response: str):
+    def mock_log_payload(
+        request_uuid: uuid.UUID,
+        full_url: str,
+        params: str,
+        response: str,
+        status_code: int,
+    ):
         # Assert
+        assert request_uuid == test_request_uuid
         assert full_url.endswith(test_url)
         assert params == str(test_params)
         assert response == test_response
+        assert status_code == test_status_code
 
     monkeypatch.setattr("sdlon.sd_common.requests.get", mock_requests_get)
     monkeypatch.setattr("sdlon.sd_common.log_payload", mock_log_payload)
 
     # Act
-    sd_lookup(test_url, common_settings, test_params)
+    sd_lookup(test_url, common_settings, test_params, request_uuid=test_request_uuid)

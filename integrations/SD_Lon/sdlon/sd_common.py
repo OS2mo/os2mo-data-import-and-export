@@ -44,6 +44,7 @@ def sd_lookup(
     url: str,
     settings: Optional[CommonSettings] = None,
     params: Optional[Dict[str, Any]] = None,
+    request_uuid: Optional[uuid.UUID] = None,
 ) -> OrderedDict:
     """Fire a requests against SD."""
     logger.info("Retrieve: {}".format(url))
@@ -76,12 +77,14 @@ def sd_lookup(
         auth=auth,
     )
 
-    # This line logs CPR numbers - instead we will persist the SD payloads
-    # in a DB (see Redmine #57093)
-    # logger.debug("Response: {}".format(response.text))
-
     try:
-        log_payload(full_url=full_url, params=str(payload), response=response.text)
+        log_payload(
+            request_uuid=request_uuid,
+            full_url=full_url,
+            params=str(payload),
+            response=response.text,
+            status_code=response.status_code,
+        )
     except Exception:
         logger.exception("could not save SD response to payload database")
 
