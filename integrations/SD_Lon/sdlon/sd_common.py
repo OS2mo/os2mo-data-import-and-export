@@ -12,6 +12,7 @@ from typing import Union
 
 import requests
 import xmltodict
+from payload_db import log_payload
 from ra_utils.load_settings import load_settings
 
 from .config import CommonSettings
@@ -78,6 +79,11 @@ def sd_lookup(
     # This line logs CPR numbers - instead we will persist the SD payloads
     # in a DB (see Redmine #57093)
     # logger.debug("Response: {}".format(response.text))
+
+    try:
+        log_payload(full_url=full_url, params=str(payload), response=response.text)
+    except Exception:
+        logger.exception("could not save SD response to payload database")
 
     dict_response = xmltodict.parse(response.text)
 
