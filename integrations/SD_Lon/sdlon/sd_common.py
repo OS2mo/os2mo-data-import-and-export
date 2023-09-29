@@ -1,6 +1,5 @@
 import datetime
 import hashlib
-import logging
 import uuid
 from enum import Enum
 from functools import lru_cache
@@ -16,8 +15,9 @@ import xmltodict
 from ra_utils.load_settings import load_settings
 
 from .config import CommonSettings
+from .log import get_logger
 
-logger = logging.getLogger("sdCommon")
+logger = get_logger()
 
 
 @lru_cache(maxsize=None)

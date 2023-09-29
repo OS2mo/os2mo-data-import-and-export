@@ -2,11 +2,10 @@ import logging
 from typing import Any
 from typing import OrderedDict
 
-from more_itertools import one
-
 from .config import get_changed_at_settings
+from .log import get_logger
 
-logger = logging.getLogger("sdChangedAt")
+logger = get_logger()
 
 
 def cpr_env_filter(entity: OrderedDict[str, Any]) -> bool:

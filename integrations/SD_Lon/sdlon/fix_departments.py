@@ -1,7 +1,5 @@
 import datetime
 import json
-import logging
-import sys
 from typing import Any
 from typing import Optional
 from typing import List
@@ -22,28 +20,13 @@ from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
 from .exceptions import NoCurrentValdityException
+from .log import get_logger
+from .log import setup_logging
 from .sd_common import mora_assert
 from .sd_common import sd_lookup
 
 
-LOG_LEVEL = logging.DEBUG
-
-logger = logging.getLogger("fixDepartments")
-
-
-def setup_logging():
-    detail_logging = ("sdCommon", "fixDepartments")
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        stream=sys.stdout,
-    )
+logger = get_logger()
 
 
 class FixDepartments:
@@ -61,12 +44,10 @@ class FixDepartments:
             try:
                 self.org_uuid = self.helper.read_organisation()
             except requests.exceptions.RequestException as e:
-                logger.error(e)
-                print(e)
+                logger.error("Problem getting the MO organization", err=e)
                 exit()
             except json.decoder.JSONDecodeError as e:
-                logger.error(e)
-                print(e)
+                logger.error("Problem decoding response JSON", err=e)
                 exit()
 
         logger.info("Read org_unit types")
@@ -115,7 +96,7 @@ class FixDepartments:
             parent_uuid: The parent UUID of the department in SD
         """
         logger.info(
-            f"""Create department with SD UUID: {department["DepartmentUUIDIdentifier"]}"""
+            "Create department", sd_dep_uuid=department["DepartmentUUIDIdentifier"]
         )
 
         effective_parent_uuid = (
@@ -126,21 +107,18 @@ class FixDepartments:
             if unit_level["user_key"] == department["DepartmentLevelIdentifier"]:
                 unit_level_uuid = unit_level["uuid"]
 
-        logger.debug("SD department info to create from: {}".format(department))
+        logger.debug("SD department", department=department)
         payload = sd_payloads.create_single_org_unit(
             department=department,
             unit_type=self.unit_type["uuid"],
             unit_level=unit_level_uuid,
             parent=effective_parent_uuid,
         )
-        logger.debug("Create department MO payload: {}".format(payload))
-        if self.dry_run:
-            print("Dry-run (ou/create): ", payload)
-            return None
-        response = self.helper._mo_post("ou/create", payload)
-        response.raise_for_status()
-        logger.info("Created unit {}".format(department["DepartmentIdentifier"]))
-        logger.debug("Create response status: {}".format(response.status_code))
+        logger.debug("Create MO department (ou/create)", payload=payload)
+        if not self.dry_run:
+            response = self.helper._mo_post("ou/create", payload)
+            response.raise_for_status()
+            logger.info("Created unit")
 
     def _create_org_unit_if_missing_in_mo(
         self, department: OrderedDict, parent_uuid: Optional[str]
@@ -191,14 +169,15 @@ class FixDepartments:
             if unit_level["user_key"] == department_level_identifier:
                 unit_level_uuid = unit_level["uuid"]
         if unit_level_uuid is None:
-            msg = "Unknown department level {}!!"
-            logger.error(msg.format(department_level_identifier))
-            raise Exception(msg.format(department_level_identifier))
+            logger.exception(
+                "Unknown department level!!",
+                department_level_identifier=department_level_identifier,
+            )
+            raise Exception("Unknown department level!!")
 
         parent = parent_uuid if parent_uuid is not None else self.org_uuid
 
-        msg = "Unit parent at {} is {}"
-        logger.info(msg.format(from_date, parent))
+        logger.info("Unit parent at from_date", from_date=from_date, parent_uuid=parent)
 
         payload = sd_payloads.edit_org_unit(
             user_key=shortname,
@@ -210,16 +189,14 @@ class FixDepartments:
             from_date=from_date,
             to_date=to_date,
         )
-        logger.debug("Edit payload to fix unit: {}".format(payload))
-        if self.dry_run:
-            print("Dry-run (details/edit): ", payload)
-            return None
-        response = self.helper._mo_post("details/edit", payload)
-        logger.debug("Edit response status: {}".format(response.status_code))
-        if response.status_code == 400:
-            assert response.text.find("raise to a new registration") > 0
-        else:
-            response.raise_for_status()
+        logger.debug("Edit payload to fix unit (details/edit)", payload=payload)
+        if not self.dry_run:
+            response = self.helper._mo_post("details/edit", payload)
+            logger.debug("Edit response status: {}".format(response.status_code))
+            if response.status_code == 400:
+                assert response.text.find("raise to a new registration") > 0
+            else:
+                response.raise_for_status()
 
     def fix_department(self, unit_uuid: str, validity_date: datetime.date) -> None:
         """
@@ -228,8 +205,7 @@ class FixDepartments:
         :param validity_date: The validity date to read the department info from SD.
         """
 
-        msg = "Set department {} to state as of {}"
-        logger.info(msg.format(unit_uuid, validity_date))
+        logger.info("Fix department", unit_uuid=unit_uuid, validity_date=validity_date)
         validity = {
             "from_date": validity_date.strftime("%d.%m.%Y"),
             "to_date": datetime_to_sd_date(parse_datetime(SD_INFINITY)),
@@ -318,8 +294,11 @@ class FixDepartments:
                 relevant_engagement = mo_eng
 
         if relevant_engagement is None:
-            msg = "Fruitlessly searched for {} in {}".format(job_id, mo_engagements)
-            logger.info(msg)
+            logger.info(
+                "Fruitlessly searched for employment_id in MO engagements",
+                employment_id=job_id,
+                mo_engagements=mo_engagements,
+            )
         return relevant_engagement
 
     def _read_department_engagements(self, unit_uuid, validity_date):
@@ -341,8 +320,9 @@ class FixDepartments:
         }
         department = self.get_department(sd_validity, uuid=unit_uuid)[0]
         if not department["DepartmentLevelIdentifier"] in too_deep:
-            msg = "{} regnes ikke som et SD afdelingsniveau"
-            logger.info(msg.format(unit_uuid))
+            logger.info(
+                "Enhed regnes ikke som et SD afdelingsniveau", unit_uuid=unit_uuid
+            )
             return {}
 
         params = {
@@ -359,7 +339,7 @@ class FixDepartments:
         time_deltas = [0, 90, 365]
 
         all_people = {}
-        logger.debug("Perform GetEmployments, time_delas: {}".format(time_deltas))
+        logger.debug("Perform GetEmployments", time_deltas=time_deltas)
         for time_delta in time_deltas:
             effective_date = validity_date + datetime.timedelta(days=time_delta)
             params["EffectiveDate"] = (effective_date.strftime("%d.%m.%Y"),)
@@ -375,7 +355,7 @@ class FixDepartments:
                 cpr = person["PersonCivilRegistrationIdentifier"]
                 if cpr not in all_people:
                     all_people[cpr] = person
-        logger.debug("Department engagements: {}".format(all_people.keys()))
+        logger.debug("Department engagements", all_people=all_people.keys())
         return all_people
 
     def fix_NY_logic(self, unit_uuid, validity_date):
@@ -397,9 +377,9 @@ class FixDepartments:
         mo_unit = self.helper.read_ou(unit_uuid)
         while mo_unit["org_unit_level"]["user_key"] in too_deep:
             mo_unit = mo_unit["parent"]
-            logger.debug("Parent unit: {}".format(mo_unit["uuid"]))
+            logger.debug("Parent unit", parent_uuid=mo_unit["uuid"])
         destination_unit = mo_unit["uuid"]
-        logger.debug("Destination found: {}".format(destination_unit))
+        logger.debug("Destination found", destination_unit=destination_unit)
 
         all_people = self._read_department_engagements(unit_uuid, validity_date)
 
@@ -414,9 +394,7 @@ class FixDepartments:
 
             for employment in person["Employment"]:
                 job_id = employment["EmploymentIdentifier"]
-                msg = "Checking job-id: {}"
-                print(msg.format(job_id))
-                logger.info(msg.format(job_id))
+                logger.info("Checking job-id", employment_id=job_id)
                 sd_uuid = employment["EmploymentDepartment"]["DepartmentUUIDIdentifier"]
                 if not sd_uuid == unit_uuid:
                     # This employment is not from the current department,
@@ -426,8 +404,9 @@ class FixDepartments:
 
                 mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
                 if mo_person is None:
-                    msg = "MO person is None for job_id: {}"
-                    logger.warning(msg.format(job_id))
+                    logger.warning(
+                        "MO person is None for employment_id", employment_id=job_id
+                    )
                     continue
 
                 mo_engagements = self.helper.read_user_engagement(
@@ -438,8 +417,11 @@ class FixDepartments:
                 # future rows.
                 mo_engagement = self._find_engagement(mo_engagements, job_id)
                 if mo_engagement is None:
-                    msg = "MO engagement is None for job_id: {}, user_uuid: {}"
-                    logger.warning(msg.format(job_id, mo_person["uuid"]))
+                    logger.warning(
+                        "MO engagement is None",
+                        employment_id=job_id,
+                        mo_person_uuid=mo_person["uuid"],
+                    )
                     continue
                 for eng in mo_engagements:
                     if not eng["uuid"] == mo_engagement["uuid"]:
@@ -460,12 +442,12 @@ class FixDepartments:
                         "validity": eng["validity"],
                     }
                     payload = sd_payloads.engagement(data, mo_engagement)
-                    logger.debug("Move engagement payload: {}".format(payload))
-                    if self.dry_run:
-                        print("Dry-run (details/edit): ", payload)
-                        return
-                    response = self.helper._mo_post("details/edit", payload)
-                    mora_assert(response)
+                    logger.debug(
+                        "Move engagement payload (details/edit)", payload=payload
+                    )
+                    if not self.dry_run:
+                        response = self.helper._mo_post("details/edit", payload)
+                        mora_assert(response)
 
     def get_parent(self, unit_uuid, validity_date) -> Optional[str]:
         """
@@ -489,8 +471,11 @@ class FixDepartments:
             "GetDepartmentParent20190701", settings=self.settings, params=params
         )
         if "DepartmentParent" not in parent_response:
-            msg = "No parent for {} found at validity: {}"
-            logger.error(msg.format(unit_uuid, validity_date))
+            logger.error(
+                "No parent found at this date",
+                unit_uuid=unit_uuid,
+                validity_date=validity_date,
+            )
             raise NoCurrentValdityException()
         parent = parent_response["DepartmentParent"]["DepartmentUUIDIdentifier"]
         if parent == self.institution_uuid:
@@ -528,8 +513,7 @@ class FixDepartments:
             uuid = department["DepartmentUUIDIdentifier"]
             department_branch.append((shortname, uuid))
             current_uuid = self.get_parent(current_uuid, validity_date=validity_date)
-            msg = "Department: {}, uuid: {}, level: {}"
-            logger.debug(msg.format(shortname, uuid, level))
+            logger.debug("Department", shortname=shortname, uuid=uuid, level=level)
         return department_branch
 
     def sd_uuid_from_short_code(self, validity_date, shortname):
@@ -543,17 +527,17 @@ class FixDepartments:
 
 def unit_fixer(ou_uuid: UUID):
     """Sync SD department information to MO."""
-    setup_logging()
-
     settings = get_changed_at_settings()
+    setup_logging(settings.log_level)
+
     unit_fixer = FixDepartments(settings)
 
     today = datetime.datetime.today().date()
 
-    logger.info(f"Calling fix_departments on {str(ou_uuid)}")
+    logger.info("Calling fix_departments", ou_uuid=ou_uuid)
     unit_fixer.fix_department(str(ou_uuid), today)
 
-    logger.info(f"Calling fix_NY_logic on {str(ou_uuid)}")
+    logger.info("Calling fix_NY_logic", ou_uuid=ou_uuid)
     unit_fixer.fix_NY_logic(str(ou_uuid), today)
 
     logger.info("unit_fixer done!")
