@@ -74,7 +74,10 @@ def sd_lookup(
         params=payload,
         auth=auth,
     )
-    logger.debug("Response: {}".format(response.text))
+
+    # This line logs CPR numbers - instead we will persist the SD payloads
+    # in a DB (see Redmine #57093)
+    # logger.debug("Response: {}".format(response.text))
 
     dict_response = xmltodict.parse(response.text)
 

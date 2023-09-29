@@ -27,7 +27,8 @@ def anonymize_cpr(cpr: str) -> str:
 
 def log_filter(logger, method_name, event_dict):
     # Only log from our application log context
-    if event_dict.get("log_context") == APP_LOG_CONTEXT:
+    log_context = event_dict.pop("log_context", None)
+    if log_context == APP_LOG_CONTEXT:
         return event_dict
     raise structlog.DropEvent
 
