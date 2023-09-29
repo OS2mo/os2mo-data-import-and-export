@@ -10,6 +10,7 @@ Session = sessionmaker()
 
 
 def log_payload(full_url: str, params: str, response: str):
+    """Log a given SD payload to the payload database"""
     Session.configure(bind=get_engine())
     session = Session()
     payload = Payload(full_url=full_url, params=params, response=response)
