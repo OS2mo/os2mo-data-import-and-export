@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 from typing import Any
 from typing import Optional
 from typing import List
@@ -77,8 +78,13 @@ class FixDepartments:
         """
         inst_id = self.settings.sd_institution_identifier
         params = {"UUIDIndicator": "true", "InstitutionIdentifier": inst_id}
+        request_uuid = uuid.uuid4()
+        logger.info("get_institution", request_uuid=request_uuid)
         institution_info = sd_lookup(
-            "GetInstitution20111201", settings=self.settings, params=params
+            "GetInstitution20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         institution = institution_info["Region"]["Institution"]
         institution_uuid = institution["InstitutionUUIDIdentifier"]
