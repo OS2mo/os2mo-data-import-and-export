@@ -6,7 +6,6 @@
 #
 import datetime
 import logging
-import sys
 import uuid
 from operator import itemgetter
 from typing import Any, OrderedDict
@@ -20,6 +19,9 @@ from integrations.ad_integration import ad_reader
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from sdlon.log import get_logger
+from sdlon.log import LogLevel
+from sdlon.log import setup_logging
 from .config import get_importer_settings
 from .config import ImporterSettings
 from .date_utils import format_date, date_to_datetime
@@ -35,11 +37,9 @@ from .sd_common import sd_lookup
 from .skip import skip_fictional_users
 
 
-LOG_LEVEL = logging.DEBUG
-
 HISTORIC = "historic"
 
-logger = logging.getLogger("sdImport")
+logger = get_logger()
 
 
 class SdImport:
@@ -813,25 +813,7 @@ class SdImport:
 
 @click.group()
 def cli():
-    for name in logging.root.manager.loggerDict:
-        if name in (
-            "sdImport",
-            "sdCommon",
-            "AdReader",
-            "moImporterMoraTypes",
-            "moImporterMoxTypes",
-            "moImporterUtilities",
-            "moImporterHelpers",
-        ):
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        stream=sys.stdout,
-    )
+    setup_logging(LogLevel.DEBUG)
 
 
 @cli.command()

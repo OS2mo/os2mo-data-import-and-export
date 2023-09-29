@@ -1,8 +1,5 @@
 import datetime
 import json
-import logging
-import sys
-import structlog
 from typing import Any
 from typing import Optional
 from typing import List
@@ -23,12 +20,13 @@ from . import sd_payloads
 from .config import ChangedAtSettings
 from .config import get_changed_at_settings
 from .exceptions import NoCurrentValdityException
+from .log import get_logger
 from .log import setup_logging
 from .sd_common import mora_assert
 from .sd_common import sd_lookup
 
 
-logger = structlog.get_logger(__name__)
+logger = get_logger()
 
 
 class FixDepartments:

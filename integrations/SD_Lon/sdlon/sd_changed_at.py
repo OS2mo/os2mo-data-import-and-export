@@ -34,7 +34,6 @@ from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
-import structlog
 
 from sdlon.employees import get_employee
 from sdlon.graphql import get_mo_client
@@ -43,7 +42,9 @@ from sdlon.it_systems import (
     get_employee_it_systems,
     add_it_system_to_employee,
 )
-from sdlon.log import anonymize_cpr, setup_logging
+from sdlon.log import anonymize_cpr
+from sdlon.log import get_logger
+from sdlon.log import setup_logging
 from sdlon.sd_to_pydantic import convert_to_sd_base_person
 from . import sd_payloads
 from .config import ChangedAtSettings
@@ -74,7 +75,7 @@ from .sync_job_id import JobIdSync
 
 DUMMY_CPR = "0000000000"
 
-logger = structlog.get_logger(__name__)
+logger = get_logger()
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?

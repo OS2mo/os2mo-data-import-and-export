@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from functools import partial
 from uuid import UUID
 
-import structlog
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import Response
@@ -18,10 +17,11 @@ from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 
 from .config import get_changed_at_settings
 from .fix_departments import FixDepartments
+from .log import get_logger
 from .sd_changed_at import changed_at
 
 
-logger = structlog.get_logger(__name__)
+logger = get_logger()
 
 
 class State(enum.Enum):
