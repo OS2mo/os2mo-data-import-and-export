@@ -71,7 +71,7 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
 
 
 def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
-    mh = MoraHelper(hostname=mora_base, export_ansi=True)
+    mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
     employees: List[ExportUser] = create_mapping(mh, use_ad)
     employee_dicts: List[Dict] = list(map(methodcaller("dict"), employees))
