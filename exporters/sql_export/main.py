@@ -11,6 +11,7 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.main import FastRAMQPI
 from ra_utils.job_settings import JobSettings
 
+from .tests.test_gql_lora_cache_equivalence import trigger_equiv_router
 from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ def create_fastramqpi(**kwargs) -> FastRAMQPI:
 
     fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings.fastramqpi)
     fastramqpi.get_app().include_router(trigger_router)
+    fastramqpi.get_app().include_router(trigger_equiv_router)
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)

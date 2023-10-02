@@ -16,7 +16,6 @@ from pydantic import Field
 from pydantic import SecretStr
 from ra_utils.job_settings import JobSettings
 
-from .lora_gql_equivalence_tester import cache_equivalence
 from .sql_export import SqlExport
 
 logger = logging.getLogger(__name__)
@@ -126,14 +125,6 @@ def refresh_db(
     finally:
         # Another operation can start now
         lock.release()
-
-
-@trigger_router.post("/trigger_cache_equivalence")
-async def trigger_cache_equivalence(
-    background_tasks: BackgroundTasks,
-) -> dict[str, str]:
-    background_tasks.add_task(cache_equivalence)
-    return {"triggered": "OK"}
 
 
 @trigger_router.post("/trigger")

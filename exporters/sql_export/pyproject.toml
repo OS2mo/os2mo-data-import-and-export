@@ -34,8 +34,9 @@ psycopg2-binary = "^2.9.6"
 sentry-sdk = "^1.22.2"
 pyodbc = "^4.0.39"
 fastramqpi = "^1.4.3"
-pymssql = "^2.2.8"
+pymssql = "=2.2.8"
 more-itertools = "^9"
+deepdiff = "^6.5.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.3.1"

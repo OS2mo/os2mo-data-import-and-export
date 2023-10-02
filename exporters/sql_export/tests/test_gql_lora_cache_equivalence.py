@@ -1,409 +1,383 @@
-import time
+import datetime
 import typing
-from pprint import pprint
 
-import pytest
 from deepdiff.diff import DeepDiff
-from ra_utils.async_to_sync import async_to_sync
-from ra_utils.load_settings import load_settings
 
 from ..gql_lora_cache_async import GQLLoraCache
+from ..gql_lora_cache_async import GqlLoraCacheSettings
+from ..log import get_logger
+from ..log import LogLevel
+from ..log import setup_logging
 from ..old_lora_cache import OldLoraCache as LoraCache
 
+"""Integration endpoints."""
 
-# This is an equivalency test, an integration test, and is thus only designed to
-# be run manually
-class TestEquivalence:
-    # The old lora cache had some bugs, this accounts for them when comparing.
-    # History and end dates for units, it connections, and managers were bugged, and
-    # so was some of the addresses
-    def account_for_know_errors(
-        self, old_cache: dict, new_cache: dict, cache_type: str
-    ) -> dict:
+from fastapi import APIRouter
+from fastapi import BackgroundTasks
 
-        ref_cache = {}
+import urllib.error
 
-        lc_gql = GQLLoraCache(resolve_dar=True, full_history=True, skip_past=False)
+import prometheus_client
+from prometheus_client import CollectorRegistry
+from prometheus_client import Gauge
 
-        if cache_type != "addresses":
-            ref_cache = self.new_cache_helper(lc_gql, cache_type)
+logger = get_logger()
+trigger_equiv_router = APIRouter()
 
-        if cache_type == "addresses":
-            for k, ocl in old_cache.items():
-                ncl = new_cache[k]
-                for i in range(len(ocl)):
-                    if ocl[i]["scope"] == "DAR" and ocl[i]["value"] is None:
-                        ocl[i]["value"] = ncl[i]["value"]
 
-            return old_cache
+def fix_addresses(old_addresses: dict, new_addresses: dict):
+    for key, list_of_values in old_addresses.items():
+        new_list_of_values = new_addresses.get(key)
+        if new_list_of_values is None or len(new_list_of_values) == 0:
+            continue
 
-        modified_old_cache = {}
+        addresses = zip(list_of_values, new_list_of_values)
 
-        for k, old_list in old_cache.items():
-            #
-            if k not in new_cache:
+        for old_address, new_address in addresses:
+            old_scope = old_address.get("scope")
+            old_value = old_address.get("value")
+            new_value = new_address.get("value")
+
+            if old_scope != "DAR":
                 continue
+            if old_value is None:
+                old_address["value"] = new_value
 
-            new_list: typing.List[typing.Dict] = []
-            if k not in ref_cache:
-                pprint(ref_cache)
-            ref_list = ref_cache[k]
+    return old_addresses
 
-            new_cache_list = new_cache[k]
-            for old in old_list:
-                if old in new_cache_list:
-                    new_list.append(old)
-                    continue
-                for ref in ref_list:
-                    old["to_date"] = ref["to_date"]
-                    old["from_date"] = ref["from_date"]
-                    if old in new_cache_list and old not in new_list:
-                        new_list.append(old)
 
-            if not new_list:
+def complicated_in_list(elem: dict, list_of_elements: list[dict]):
+    for element in list_of_elements:
+        valid = True
+        for key, value in elem.items():
+            if key == "from_date" or key == "to_date":
                 continue
+            if element[key] != value:
+                valid = False
+        if valid:
+            return valid
 
-            modified_old_cache[k] = new_list
 
-        # for k, mod_list in modified_old_cache.items():
-        #     if k not in new_cache or len(mod_list) != len(new_cache[k]):
-        #         print("old")
-        #         pprint(mod_list)
-        #         if k in new_cache:
-        #             print("new")
-        #             pprint(new_cache[k])
+# The old cache has a problem where it-connections, managers, and org units never ends
+# This means that a closed it connection would still be part of the actual state export
+# though it shouldn't be.
+def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
+    for key, list_of_old_values in old_cache.items():
+        list_of_new_values: list[dict] | None = new_cache.get(key)
+        if list_of_new_values is None:
+            continue
 
-        return modified_old_cache
+        fixed_list: list[dict] = []
+        for old_val in list_of_old_values:
+            if complicated_in_list(
+                old_val, list_of_new_values
+            ) and not complicated_in_list(old_val, fixed_list):
 
-    # Used as an entry generate a single cache, and get it
-    @async_to_sync
-    async def new_cache_helper(self, lc, cache_name):
-        async with lc._setup_gql_client() as session:
-            lc.gql_client_session = session
-            match cache_name:
-                case "facets":
-                    await lc._cache_lora_facets()
-                    return lc.facets
-                case "classes":
-                    await lc._cache_lora_classes()
-                    return lc.classes
-                case "it_systems":
-                    await lc._cache_lora_itsystems()
-                    return lc.itsystems
-                case "users":
-                    await lc._cache_lora_users()
-                    return lc.users
-                case "units":
-                    await lc._cache_lora_units()
-                    return lc.units
-                case "engagements":
-                    await lc._cache_lora_engagements()
-                    return lc.facets
-                case "roles":
-                    await lc._cache_lora_roles()
-                    return lc.roles
-                case "leaves":
-                    await lc._cache_lora_leaves()
-                    return lc.leaves
-                case "it_connections":
-                    await lc._cache_lora_it_connections()
-                    return lc.it_connections
-                case "kles":
-                    await lc._cache_lora_kles()
-                    return lc.kles
-                case "related":
-                    await lc._cache_lora_related()
-                    return lc.related
-                case "managers":
-                    await lc._cache_lora_managers()
-                    return lc.managers
-                case "associations":
-                    await lc._cache_lora_associations()
-                    return lc.associations
-                case "addresses":
-                    await lc._cache_lora_address()
-                    return lc.addresses
+                fixed_list.append(old_val)
 
-    # Compare the caches one by one, run with
-    # poetry run pytest -s
-    # exporters/sql_export/tests/test_gql_lora_cache.py::TestEquivalence::test_equivalence
-    # to see timings as well, omit the '-s' for easier comparison
-    @pytest.mark.parametrize("historic", [True, False])
-    @pytest.mark.parametrize("skip_past", [True, False])
-    # @pytest.mark.parametrize("resolve_dar", [True, False])
-    @pytest.mark.parametrize(
-        "caches",
-        [
-            (LoraCache._cache_lora_facets, "facets"),
-            (
-                LoraCache._cache_lora_classes,
-                "classes",
-            ),
-            (
-                LoraCache._cache_lora_itsystems,
-                "it_systems",
-            ),
-            (LoraCache._cache_lora_users, "users"),
-            (LoraCache._cache_lora_units, "units"),
-            (
-                LoraCache._cache_lora_engagements,
-                "engagements",
-            ),
-            (LoraCache._cache_lora_roles, "roles"),
-            (LoraCache._cache_lora_leaves, "leaves"),
-            (
-                LoraCache._cache_lora_it_connections,
-                "it_connections",
-            ),
-            (LoraCache._cache_lora_kles, "kles"),
-            (
-                LoraCache._cache_lora_related,
-                "related",
-            ),
-            (
-                LoraCache._cache_lora_managers,
-                "managers",
-            ),
-            (
-                LoraCache._cache_lora_associations,
-                "associations",
-            ),
-            (
-                LoraCache._cache_lora_address,
-                "addresses",
-            ),
-        ],
+        old_cache[key] = fixed_list
+    return old_cache
+
+
+# Vi har lavet nogle ændringer i hvordan vi håndterer datoer når de kommer ud af graphql.
+# Før tjekkede vi om tiden på datoen var midnat, hvis ikke den var det - f.eks hvis den
+# var 3.4.2020 kl 23.59.59, så erstattede vi tidpunktet med kl 00.00.00. Hvilket vil
+# sige at den 3.4.2020 23.59.59 er, alt efter hvordan vi henter det ud, det samme
+# som den 3.4.2020 00.00.00. Det vil sige en from date kan afvige med op til ca 24
+# timer.
+#
+# Det næste vi gjorde var så at trække en hel dag fra to_date, det er endnu 24 timer.
+#
+# Det gamle lora api gør stadig sådan, men det gør graphql ikke, og derfor kan der
+# være en timediff på op til 47 timer, 59 min, 59 sek, og næsten et helt sekund
+# i milisekunder
+#
+# Jeg kan ikke lide det, det er noget lort, men så længe vi ikke har lavet den
+# opgave hvor vi grundlæggende ændrer på om vi bruger timezones så tror jeg at
+# det her er nødvendigt.
+def is_same_date(old_date: str | None, new_date: str | None) -> bool:
+    def compare_to_none(date: str | None) -> bool:
+        if date is None:
+            return True
+        date_date = datetime.datetime.fromisoformat(date)
+        if date_date.year == 9999 or date_date.year <= 1930:  # because railroad time
+            return True
+
+        return False
+
+    if old_date is None:
+        return compare_to_none(new_date)
+    if new_date is None:
+        return compare_to_none(old_date)
+
+    od = datetime.datetime.fromisoformat(old_date)
+    nd = datetime.datetime.fromisoformat(new_date)
+
+    diff = abs(od - nd)
+
+    return diff < datetime.timedelta(days=2)
+
+
+def compare_elem_date_to_list(
+    old_elem: dict, list_of_new_elems: list[dict]
+) -> typing.Tuple[dict, list[dict]]:
+    to_date = "to_date"
+    from_date = "from_date"
+
+    old_from_date = old_elem.get(from_date)
+    old_to_date = old_elem.get(to_date)
+
+    for new_elem in list_of_new_elems:
+        if to_date not in new_elem or from_date not in new_elem:
+            continue
+
+        new_from_date = new_elem.get(from_date)
+        new_to_date = new_elem.get(to_date)
+        if not is_same_date(old_from_date, new_from_date) and not is_same_date(
+            old_to_date, new_to_date
+        ):
+            continue
+
+        old_elem[from_date] = new_from_date
+        old_elem[to_date] = new_to_date
+
+    return old_elem, list_of_new_elems
+
+
+def cons_date_in_lists(list_of_old_values: list[dict], list_of_new_values: list[dict]):
+    work_list = list_of_new_values.copy()
+    for old_elem in list_of_old_values:
+        if "from_date" not in old_elem or "to_date" not in old_elem:
+            continue
+        old_elem, work_list = compare_elem_date_to_list(old_elem, work_list)
+
+    return list_of_old_values
+
+
+def consolidate_validities_in_single_cache(old_cache: dict, new_cache: dict):
+    work_dict: dict = new_cache.copy()
+    for key, list_of_old_values in old_cache.items():
+        list_of_new_values = work_dict.get(key)
+        if list_of_new_values is None:
+            continue
+
+        old_cache[key] = cons_date_in_lists(list_of_old_values, list_of_new_values)
+    return old_cache, new_cache
+
+
+def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
+    old_cache.addresses = fix_addresses(old_cache.addresses, new_cache.addresses)
+    old_cache.units = fix_never_ending(old_cache.units, new_cache.units)
+    old_cache.it_connections = fix_never_ending(
+        old_cache.it_connections, new_cache.it_connections
     )
-    def test_equivalence(
-        self,
-        caches: typing.Tuple[typing.Callable, str],
-        historic: bool,
-        skip_past: bool,
-        # resolve_dar: bool
-    ) -> None:
+    old_cache.managers = fix_never_ending(old_cache.managers, new_cache.managers)
 
-        # historic = False
-        # skip_past = False
-        resolve_dar = True
-        old_cache, name = caches
+    return old_cache, new_cache
 
-        old_settings = load_settings()
 
-        lc_old = LoraCache(
-            full_history=historic,
-            skip_past=skip_past,
-            resolve_dar=resolve_dar,
-            settings=old_settings,
+def are_caches_equivalent(
+    old_cache: dict, new_cache: dict, do_deepdiff: bool = True
+) -> object:
+    if old_cache == new_cache:
+        return True
+
+    if do_deepdiff:
+        diff = DeepDiff(old_cache, new_cache, verbose_level=2)
+        logger.debug(diff)
+    return False
+
+
+def remove_primary(engagements: dict):
+    for key, value in engagements.items():
+        for elem in value:
+            keep = elem.get("primary_boolean")
+            if not keep:
+                elem.pop("primary_boolean")
+    return engagements
+
+
+def compare_for_equivalence(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
+    old_cache, new_cache = account_for_fixes(old_cache, new_cache)
+    do_deepdiff = new_cache.settings.log_level == LogLevel.DEBUG
+
+    if state != "Actual State":
+        new_cache.engagements = remove_primary(new_cache.engagements)
+
+    cache_pairs = [
+        (old_cache.facets, new_cache.facets, "facets"),
+        (old_cache.classes, new_cache.classes, "classes"),
+        (old_cache.users, new_cache.users, "users"),
+        (old_cache.units, new_cache.units, "units"),
+        (old_cache.addresses, new_cache.addresses, "addresses"),
+        (old_cache.engagements, new_cache.engagements, "engagements"),
+        (old_cache.managers, new_cache.managers, "managers"),
+        (old_cache.associations, new_cache.associations, "associations"),
+        (old_cache.leaves, new_cache.leaves, "leaves"),
+        (old_cache.roles, new_cache.roles, "roles"),
+        (old_cache.itsystems, new_cache.itsystems, "itsystems"),
+        (old_cache.it_connections, new_cache.it_connections, "it_connections"),
+        (old_cache.kles, new_cache.kles, "kles"),
+        (old_cache.related, new_cache.related, "related"),
+        # (old_cache.dar_cache, new_cache.dar_cache, "dar_cache"),
+    ]
+
+    equivalence_bools = []
+    for old, new, name in cache_pairs:
+        cons_old, cons_new = consolidate_validities_in_single_cache(
+            old_cache=old, new_cache=new
         )
-
-        lc_gql = GQLLoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
+        is_equivalent = are_caches_equivalent(
+            old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff
         )
+        assert is_equivalent
 
-        if name == "it_connections" or name == "associations":
-            lc_old.classes = lc_old._cache_lora_classes()
+        equivalence_bools.append((name, is_equivalent))
 
-        if name == "units":
-            lc_old.managers = lc_old._cache_lora_managers()
+    for name, equal in equivalence_bools:
+        if not equal:
+            logger.debug("+++++++++++++++++++++++++++++++++++++++++")
+            logger.debug(f"The first error is in {name}")
+            logger.debug("+++++++++++++++++++++++++++++++++++++++++")
 
-        timestamp0 = time.time()
+        assert equal
 
-        oc = old_cache(self=lc_old)
 
-        if name == "units":
-            lc_old.units = oc
-            lc_old.calculate_derived_unit_data()
+def init_caches(settings: GqlLoraCacheSettings):
 
-        if name == "addresses":
-            lc_old.addresses = oc
+    new_cache_full_history = GQLLoraCache(
+        resolve_dar=True, full_history=True, skip_past=False, settings=settings
+    )
+    new_cache_historic_no_past = GQLLoraCache(
+        resolve_dar=True, full_history=True, skip_past=True, settings=settings
+    )
+    new_cache_actual_state = GQLLoraCache(
+        resolve_dar=True, full_history=False, skip_past=False, settings=settings
+    )
 
-        timestamp1 = time.time()
+    old_cache_full_history = LoraCache(
+        resolve_dar=True,
+        full_history=True,
+        skip_past=False,
+        settings=settings.to_old_settings(),
+    )
+    old_cache_historic_no_past = LoraCache(
+        resolve_dar=True,
+        full_history=True,
+        skip_past=True,
+        settings=settings.to_old_settings(),
+    )
+    old_cache_actual_state = LoraCache(
+        resolve_dar=True,
+        full_history=False,
+        skip_past=False,
+        settings=settings.to_old_settings(),
+    )
 
-        nc = self.new_cache_helper(lc_gql, name)
+    return [
+        (new_cache_actual_state, old_cache_actual_state, "Actual_State"),
+        (new_cache_full_history, old_cache_full_history, "Full_History"),
+        (new_cache_historic_no_past, old_cache_historic_no_past, "Historic_No_Past"),
+    ]
 
-        timestamp2 = time.time()
 
-        # workaround since the new cache fixes a known problem where the old cache
-        # read the wrong end date
-        # https://redmine.magenta-aps.dk/issues/53620
-        # https://redmine.magenta-aps.dk/issues/53620#note-8
-        if name in ("units", "it_connections", "managers", "addresses"):
-            oc = self.account_for_know_errors(
-                old_cache=oc, new_cache=nc, cache_type=name
+def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
+    logger.debug(80 * "=")
+    logger.debug(f"Processing {state}")
+    logger.debug(80 * "=")
+
+    start = datetime.datetime.now()
+
+    logger.debug("Populating the new cache")
+    new_cache.populate_cache(dry_run=False)
+    new_cache_time = datetime.datetime.now() - start
+    logger.debug(f"Populated new cache in {new_cache_time}")
+
+    logger.debug(80 * "+")
+    logger.debug("Populating the old cache")
+    start = datetime.datetime.now()
+
+    old_cache.populate_cache(dry_run=False)
+    old_cache.calculate_primary_engagements()
+    old_cache.calculate_derived_unit_data()
+
+    old_cache_time = datetime.datetime.now() - start
+    logger.debug(f"Populated old cache in {old_cache_time}")
+    logger.debug(80 * "+")
+
+    logger.debug(f"Slowdown: {new_cache_time/old_cache_time}")
+
+    return old_cache, new_cache
+
+
+def notify_prometheus(
+    settings: GqlLoraCacheSettings,
+    job: str,
+    start: bool = False,
+    error: bool = False,
+) -> None:
+    """Used to send metrics to Prometheus
+
+    Args:
+    """
+    registry = CollectorRegistry()
+    name = "mo_end_time"
+    if start:
+        name = "mo_start_time"
+
+    g_time = Gauge(
+        name=name, documentation="Unixtime for job end time", registry=registry
+    )
+    g_time.set_to_current_time()
+
+    g_ret_code = Gauge(
+        name="mo_return_code",
+        documentation="Return code of job",
+        registry=registry,
+    )
+    if not error:
+        g_ret_code.set(0)
+    else:
+        g_ret_code.inc(1)
+
+    try:
+        prometheus_client.exposition.pushadd_to_gateway(
+            gateway=f"{settings.prometheus_pushgateway}:9091",
+            job=job,
+            registry=registry,
+        )
+    except urllib.error.URLError as ue:
+        logger.warning("Cannot connect to Prometheus")
+        logger.warning(ue)
+
+
+def test_cache_equivalence():
+    settings = GqlLoraCacheSettings()
+    # settings.start_logging_based_on_settings()
+    print(settings.log_level)
+    print(settings.log_level.value)
+    setup_logging(settings.log_level.value)
+
+    cache_pairs = init_caches(settings)
+    for new_cache, old_cache, state in cache_pairs:
+        notify_prometheus(settings=settings, job=state, start=True)
+        try:
+            old_cache, new_cache = populate_caches(
+                old_cache=old_cache, new_cache=new_cache, state=state
             )
+            compare_for_equivalence(
+                old_cache=old_cache, new_cache=new_cache, state=state
+            )
+        except Exception as e:
+            notify_prometheus(settings=settings, job=state, error=True)
+            raise e
+        else:
+            notify_prometheus(settings=settings, job=state)
 
-        print(
-            f"timings {name}: historic: {historic}, skip_past: {skip_past} "
-            f"new: {timestamp1 - timestamp0}, old: {timestamp2 - timestamp1} "
-            # f" new: {timestamp2 - timestamp1} "
-            f"slowdown: {(timestamp1 - timestamp0) / (timestamp2 - timestamp1)} "
-        )
 
-        assert oc == nc
-
-    # for debugging a single cache at a time
-    def test_equivalence_single(self) -> None:
-        historic: bool = True
-        skip_past: bool = False
-        resolve_dar = True
-        name = "single run"
-
-        old_settings = load_settings()
-
-        lc_old = LoraCache(
-            full_history=historic,
-            skip_past=skip_past,
-            resolve_dar=resolve_dar,
-            settings=old_settings,
-        )
-
-        lc_gql = GQLLoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
-        )
-
-        pprint(lc_gql._get_org_uuid())
-
-        timestamp0 = time.time()
-        # hvis det fejler fordi der ikke er cachet klasser, så indkommenter det her
-        # lc_old.cache_classes()
-
-        old_cache = lc_old._cache_lora_address()
-        # lc_old.addresses = old_cache
-        # dar = lc_old._cache_dar()
-        # pprint(lc_old.dar_map)
-        timestamp1 = time.time()
-
-        new_cache = self.new_cache_helper(lc_gql, "name")
-
-        timestamp2 = time.time()
-
-        old_cache = self.account_for_know_errors(old_cache, new_cache, "addresses")
-
-        # pprint(old_cache)
-        # pprint(new_cache)
-
-        print(
-            f"timings {name}: historic: {historic}, skip_past: {skip_past} "
-            f"old: {timestamp1 - timestamp0}, new: {timestamp2 - timestamp1} "
-            f"slowdown: {(timestamp2 - timestamp1) / (timestamp1 - timestamp0)} "
-        )
-
-        # problem = "38d1366a-407c-4768-af4d-ceee558fcd31"
-        # problem = "1ac9f6ba-0dcc-4c87-8ab1-5b88eae42d46"
-        # problem = "7c5d4722-9a89-4d45-93e1-522a84e6303a"
-        # problem = "1a3241f1-e230-4ccb-970c-b2b89b08cbe7"
-        # problem = "a54127f4-74f6-4931-ab2d-ce5a0ac4b610"
-        # print("old")
-        # pprint(old_cache[problem])
-        # print("new")
-        # pprint(new_cache[problem])
-        # pprint(dar["0a3f50bc-5bfb-32b8-e044-0003ba298018"])
-        # pprint(dar)
-        # Det her tager mere eller mindre højde for forkerte datoer. Der mangler lidt
-        # arbejde med at tage højde for gamle elementer
-        # old_cache = self.account_for_know_errors(old_cache, new_cache)
-
-        # pprint(old_cache[problem])
-        # pprint(new_cache[problem])
-
-        # for k, v in old_cache.items():
-        #     for v2 in v:
-        #         if v2['primary_boolean'] is not None:
-        #             pprint(v)
-
-        # for k, v in new_cache.items():
-        #     if v[0]['to_date'] is not None:
-        #         date = dateutil.parser.parse(v[0]['to_date']).date()
-        #         if date < datetime.datetime.now().date():
-        #             pprint(v)
-
-        assert old_cache == new_cache
-
-    # Test populate, making a complete task. Also used for performance testing
-    # poetry run pytest -s
-    # exporters/sql_export/tests/test_gql_lora_cache.py::TestEquivalence::test_equivalence
-    # omit the '-s' for only test results, keep it for timings
-    @pytest.mark.parametrize("historic", [True, False])
-    @pytest.mark.parametrize("skip_past", [True, False])
-    # @pytest.mark.parametrize("resolve_dar", [True, False])
-    def test_populate(
-        self,
-        historic: bool,
-        skip_past: bool,
-        # resolve_dar: bool
-    ):
-        def comp_caches(oldc, newc):
-            pprint(DeepDiff(oldc, newc, verbose_level=2))
-
-        # historic = False
-        # skip_past = False
-        resolve_dar = True
-
-        name = "populate test"
-
-        old_cache = LoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
-        )
-
-        new_cache = GQLLoraCache(
-            resolve_dar=resolve_dar, full_history=historic, skip_past=skip_past
-        )
-
-        new_cache.settings.start_logging_based_on_settings()
-
-        timestamp0 = time.time()
-
-        new_cache.populate_cache(dry_run=False, skip_associations=False)
-
-        timestamp1 = time.time()
-
-        print(f" new: {timestamp1 - timestamp0}", flush=True)
-
-        old_cache.populate_cache(dry_run=False, skip_associations=False)
-        old_cache.calculate_derived_unit_data()
-
-        timestamp2 = time.time()
-
-        print(
-            f"timings {name}: historic: {historic}, skip_past: {skip_past} "
-            f"new: {timestamp1 - timestamp0}, old: {timestamp2 - timestamp1} "
-            # f" new: {timestamp1 - timestamp0} "
-            f"slowdown: {(timestamp1 - timestamp0) / (timestamp2 - timestamp1)} "
-        )
-
-        comp_caches(old_cache.facets, new_cache.facets)
-        comp_caches(old_cache.classes, new_cache.classes)
-        comp_caches(old_cache.itsystems, new_cache.itsystems)
-        comp_caches(old_cache.users, new_cache.users)
-        comp_caches(
-            self.account_for_know_errors(old_cache.units, new_cache.units, "units"),
-            new_cache.units,
-        )
-        comp_caches(old_cache.engagements, new_cache.engagements)
-        comp_caches(old_cache.roles, new_cache.roles)
-        comp_caches(old_cache.leaves, new_cache.leaves)
-        comp_caches(
-            self.account_for_know_errors(
-                old_cache.it_connections,
-                new_cache.it_connections,
-                "it_connections",
-            ),
-            new_cache.it_connections,
-        )
-        comp_caches(old_cache.kles, new_cache.kles)
-        comp_caches(old_cache.related, new_cache.related)
-        comp_caches(
-            self.account_for_know_errors(
-                old_cache.managers,
-                new_cache.managers,
-                "managers",
-            ),
-            new_cache.managers,
-        )
-        comp_caches(old_cache.associations, new_cache.associations)
-        comp_caches(
-            self.account_for_know_errors(
-                old_cache.addresses, new_cache.addresses, "addresses"
-            ),
-            new_cache.addresses,
-        )
+@trigger_equiv_router.post("/trigger_cache_equivalence")
+async def trigger_cache_equivalence(
+    background_tasks: BackgroundTasks,
+) -> dict[str, str]:
+    background_tasks.add_task(test_cache_equivalence())
+    return {"triggered": "OK"}

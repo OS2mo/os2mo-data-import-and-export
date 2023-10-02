@@ -10,6 +10,7 @@ from pathlib import Path
 from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
+from pydantic import BaseSettings
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
@@ -18,10 +19,12 @@ from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
 
+from .log import LogLevel
+
 RETRY_MAX_TIME = 60 * 5
 
 
-class GqlLoraCacheSettings(JobSettings):
+class GqlLoraCacheSettings(BaseSettings):  # type: ignore
     class Config:
         frozen = True
 
@@ -30,7 +33,10 @@ class GqlLoraCacheSettings(JobSettings):
     exporters_actual_state_manager_responsibility_class: str | None = None
     prometheus_pushgateway: str | None = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
-    std_page_size: int = 400
+    std_page_size: int = 300
+    log_level: LogLevel = LogLevel.DEBUG
+
+    job_settings: JobSettings = JobSettings()
 
     def to_old_settings(self) -> dict[str, typing.Any]:
         """Convert our DatabaseSettings to a settings.json format.
@@ -46,8 +52,8 @@ class GqlLoraCacheSettings(JobSettings):
         """
 
         settings = {
-            "mora.base": self.mora_base,
-            "mox.base": self.mox_base,
+            "mora.base": self.job_settings.mora_base,
+            "mox.base": self.job_settings.mox_base,
             "exporters": {
                 "actual_state": {
                     "manager_responsibility_class": self.primary_manager_responsibility
@@ -170,11 +176,11 @@ class GQLLoraCache:
 
     def _setup_gql_client(self) -> GraphQLClient:
         return GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
-            client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
-            auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
+            url=f"{self.settings.job_settings.mora_base}/graphql/v3",
+            client_id=self.settings.job_settings.client_id,
+            client_secret=self.settings.job_settings.client_secret,
+            auth_realm=self.settings.job_settings.auth_realm,
+            auth_server=self.settings.job_settings.auth_server,
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
         )
@@ -308,11 +314,11 @@ class GQLLoraCache:
             """
         )
         with GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
-            client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
-            auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
+            url=f"{self.settings.job_settings.mora_base}/graphql/v3",
+            client_id=self.settings.job_settings.client_id,
+            client_secret=self.settings.job_settings.client_secret,
+            auth_realm=self.settings.job_settings.auth_realm,
+            auth_server=self.settings.job_settings.auth_server,
             sync=True,
             httpx_client_kwargs={"timeout": None},
             execute_timeout=None,
@@ -419,20 +425,20 @@ class GQLLoraCache:
 
         async def format_managers_and_location(qr: dict):
             def find_manager(managers: typing.List[dict]) -> str | None:
+                prim_manager_resp = (
+                    self.settings.primary_manager_responsibility
+                    or self.settings.exporters_actual_state_manager_responsibility_class
+                )
                 if not managers:
                     return None
-                if (
-                    self.settings.exporters_actual_state_manager_responsibility_class
-                    is None
-                ):
+                if prim_manager_resp is None:
                     return first(managers)["uuid"]
                 return first(
                     map(
                         lambda m: m["uuid"],
                         filter(
                             lambda ma: (
-                                self.settings.exporters_actual_state_manager_responsibility_class
-                                in ma["responsibility_uuids"]
+                                prim_manager_resp in ma["responsibility_uuids"]
                             ),
                             managers,
                         ),
