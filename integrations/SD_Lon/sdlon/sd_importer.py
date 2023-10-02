@@ -11,6 +11,7 @@ from operator import itemgetter
 from typing import Any, OrderedDict
 from typing import Dict
 from typing import Optional
+from uuid import uuid4
 
 import click
 from anytree import Node
@@ -207,8 +208,13 @@ class SdImport:
             "UUIDIndicator": "true",
             "EmploymentDepartmentIndicator": "false",
         }
+        request_uuid = uuid4()
+        logger.info("_read_department_info", request_uuid=request_uuid)
         departments = sd_lookup(
-            "GetDepartment20111201", settings=self.settings, params=params
+            "GetDepartment20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
 
         for department in departments["Department"]:
@@ -388,7 +394,14 @@ class SdImport:
             "InstitutionIdentifier": self.settings.sd_institution_identifier,
             "UUIDIndicator": "true",
         }
-        r = sd_lookup("GetInstitution20111201", settings=self.settings, params=params)
+        request_uuid = uuid4()
+        logger.info("_get_institution", request_uuid=request_uuid)
+        r = sd_lookup(
+            "GetInstitution20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
+        )
         return uuid.UUID(r["Region"]["Institution"]["InstitutionUUIDIdentifier"])
 
     def _create_org_tree_structure(self):
@@ -463,16 +476,26 @@ class SdImport:
             "PostalAddressIndicator": "false",
             "EffectiveDate": self.import_date,
         }
+        request_uuid = uuid4()
+        logger.info("add_people: active_people", request_uuid=request_uuid)
         active_people = sd_lookup(
-            "GetPerson20111201", settings=self.settings, params=params
+            "GetPerson20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         if not isinstance(active_people["Person"], list):
             active_people["Person"] = [active_people["Person"]]
 
         params["StatusActiveIndicator"] = False
         params["StatusPassiveIndicator"] = True
+        request_uuid = uuid4()
+        logger.info("add_people: passive_people", request_uuid=request_uuid)
         passive_people = sd_lookup(
-            "GetPerson20111201", settings=self.settings, params=params
+            "GetPerson20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         if not isinstance(passive_people["Person"], list):
             passive_people["Person"] = [passive_people["Person"]]
@@ -569,8 +592,13 @@ class SdImport:
             "DeactivationDate": self.import_date,
             "UUIDIndicator": "true",
         }
+        request_uuid = uuid4()
+        logger.info("create_ou_tree", request_uuid=request_uuid)
         organisation = sd_lookup(
-            "GetOrganization20111201", settings=self.settings, params=params
+            "GetOrganization20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         departments = organisation["Organization"]["DepartmentReference"]
 

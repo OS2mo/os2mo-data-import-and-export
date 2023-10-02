@@ -1,5 +1,6 @@
 import logging
 import sys
+import uuid
 
 import click
 import requests
@@ -99,8 +100,15 @@ class JobIdSync:
         params = {
             "JobPositionIdentifier": job_pos_id,
         }
+        request_uuid = uuid.uuid4()
+        logger.info("_get_job_pos_id_from_sd", request_uuid=request_uuid)
         try:
-            job_pos_response = sd_lookup("GetProfession20080201", self.settings, params)
+            job_pos_response = sd_lookup(
+                "GetProfession20080201",
+                settings=self.settings,
+                params=params,
+                request_uuid=request_uuid,
+            )
         except Exception:  # TODO: Be specific here
             logger.info("This job_position could not be found in SD")
             return None

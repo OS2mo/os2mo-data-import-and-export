@@ -288,5 +288,12 @@ def read_employment_at(
     if employment_id:
         params.update({"EmploymentIdentifier": employment_id})
 
-    response = sd_lookup(url, settings=settings, params=params)
+    request_uuid = uuid.uuid4()
+    logger.info("read_employment_at", request_uuid=request_uuid)
+    response = sd_lookup(
+        url,
+        settings=settings,
+        params=params,
+        request_uuid=request_uuid,
+    )
     return response.get("Person")

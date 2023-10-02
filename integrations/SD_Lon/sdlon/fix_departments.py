@@ -6,6 +6,7 @@ from typing import Optional
 from typing import List
 from typing import OrderedDict
 from uuid import UUID
+from uuid import uuid4
 
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -78,7 +79,7 @@ class FixDepartments:
         """
         inst_id = self.settings.sd_institution_identifier
         params = {"UUIDIndicator": "true", "InstitutionIdentifier": inst_id}
-        request_uuid = uuid.uuid4()
+        request_uuid = uuid4()
         logger.info("get_institution", request_uuid=request_uuid)
         institution_info = sd_lookup(
             "GetInstitution20111201",
@@ -268,8 +269,13 @@ class FixDepartments:
         if uuid is None and shortname is None:
             raise Exception("Provide either uuid or shortname")
 
+        request_uuid = uuid4()
+        logger.info("get_department", request_uuid=request_uuid)
         department_info = sd_lookup(
-            "GetDepartment20111201", settings=self.settings, params=params
+            "GetDepartment20111201",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         department = department_info.get("Department")
         if department is None:
@@ -349,9 +355,17 @@ class FixDepartments:
         for time_delta in time_deltas:
             effective_date = validity_date + datetime.timedelta(days=time_delta)
             params["EffectiveDate"] = (effective_date.strftime("%d.%m.%Y"),)
-
+            request_uuid = uuid4()
+            logger.info(
+                "_read_department_engagements",
+                request_uuid=request_uuid,
+                time_delta=time_delta,
+            )
             employments = sd_lookup(
-                "GetEmployment20111201", settings=self.settings, params=params
+                "GetEmployment20111201",
+                settings=self.settings,
+                params=params,
+                request_uuid=request_uuid,
             )
             people = employments.get("Person", [])
             if not isinstance(people, list):
@@ -473,8 +487,13 @@ class FixDepartments:
             "EffectiveDate": validity_date.strftime("%d.%m.%Y"),
             "DepartmentUUIDIdentifier": unit_uuid,
         }
+        request_uuid = uuid4()
+        logger.info("get_parent", request_uuid=request_uuid)
         parent_response = sd_lookup(
-            "GetDepartmentParent20190701", settings=self.settings, params=params
+            "GetDepartmentParent20190701",
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
         )
         if "DepartmentParent" not in parent_response:
             logger.error(

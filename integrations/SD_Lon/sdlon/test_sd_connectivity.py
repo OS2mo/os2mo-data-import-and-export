@@ -1,11 +1,16 @@
 import logging
+import uuid
 from uuid import UUID
 
 import click
 from pydantic import ValidationError
 
 from .config import get_changed_at_settings
+from .log import get_logger
 from .sd_common import sd_lookup
+
+
+logger = get_logger()
 
 
 class TestSdConnectivity(object):
@@ -36,11 +41,14 @@ class TestSdConnectivity(object):
             "UUIDIndicator": "true",
             "InstitutionIdentifier": self.settings.sd_institution_identifier,
         }
+        request_uuid = uuid.uuid4()
+        logger.info("_check_contact_to_sd", request_uuid=request_uuid)
         try:
             institution_info = sd_lookup(
                 "GetInstitution20111201",
                 settings=self.settings,
                 params=params,
+                request_uuid=request_uuid,
             )
         except Exception:
             logging.exception("Fejl i kontakt til SD Løn")
