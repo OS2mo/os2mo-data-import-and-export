@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from datetime import date
 from functools import partial
 from operator import itemgetter
@@ -25,11 +26,15 @@ from tqdm import tqdm
 
 from . import sd_payloads
 from .config import get_importer_settings
+from .log import get_logger
 from .sd_changed_at import ChangeAtSD
 from .sd_common import EmploymentStatus
 from .sd_common import mora_assert
 from .sd_common import primary_types
 from .sd_common import sd_lookup
+
+
+logger = get_logger()
 
 
 def fetch_user_employments(cpr: str) -> List:
@@ -47,8 +52,14 @@ def fetch_user_employments(cpr: str) -> List:
         "SalaryCodeGroupIndicator": "false",
         "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
-
-    sd_employments_response = sd_lookup("GetEmployment20111201", None, params)
+    request_uuid = uuid.uuid4()
+    logger.info("fetch_user_employments", request_uuid=request_uuid)
+    sd_employments_response = sd_lookup(
+        "GetEmployment20111201",
+        settings=None,
+        params=params,
+        request_uuid=request_uuid,
+    )
     if "Person" not in sd_employments_response:
         return []
 

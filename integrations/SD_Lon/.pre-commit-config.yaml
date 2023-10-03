@@ -12,11 +12,9 @@ repos:
       - id: black
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.00
+    rev: v1.5.1
     hooks:
       - id: mypy
-        additional_dependencies:
-          - pydantic
         language: system
         types: [file, python]
 

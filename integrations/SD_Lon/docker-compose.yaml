@@ -19,7 +19,18 @@ services:
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
       AUTH_SERVER: "http://keycloak:8080/auth"
-    command: "uvicorn sdlon.main:app --host 0.0.0.0 --reload"
+
+      # Access the Postgres cluster in local dev envs and CI.
+      # The env vars below are used when creating the initial "sd_payload" DB user and database in `./docker/start.sh`.
+      PGHOST: mox-db
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: mysecretpassword
+      # Name of application database, DB user, and password
+      APP_DATABASE: sd_payload
+      APP_DBUSER: sd_payload
+      APP_DBPASSWORD: super_secret_sd_payload_password
+
     networks:
       - os2mo_default
     ports:

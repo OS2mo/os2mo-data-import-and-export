@@ -3,6 +3,7 @@ import logging
 import pathlib
 import sqlite3
 import sys
+import uuid
 from functools import lru_cache
 from itertools import tee
 from operator import itemgetter
@@ -314,7 +315,15 @@ class ChangeAtSD:
                     "DeactivationDate": "31.12.9999",
                 }
             )
-        response = sd_lookup(url, settings=self.settings, params=params)
+
+        request_uuid = uuid.uuid4()
+        logger.info("read_employment_changed", request_uuid=request_uuid)
+        response = sd_lookup(
+            url,
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
+        )
 
         employment_response = ensure_list(response.get("Person", []))
 
@@ -352,8 +361,15 @@ class ChangeAtSD:
             params["DeactivationDate"] = to_date.strftime("%d.%m.%Y")
             params["DeactivationTime"] = to_date.strftime("%H:%M")
 
+        request_uuid = uuid.uuid4()
+        logger.info("get_sd_persons_changed", request_uuid=request_uuid)
         url = "GetPersonChangedAtDate20111201"
-        response = sd_lookup(url, settings=self.settings, params=params)
+        response = sd_lookup(
+            url,
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
+        )
         persons_changed = ensure_list(response.get("Person", []))
         return persons_changed
 
@@ -380,7 +396,14 @@ class ChangeAtSD:
             "PostalAddressIndicator": "false",
         }
         url = "GetPerson20111201"
-        response = sd_lookup(url, settings=self.settings, params=params)
+        request_uuid = uuid.uuid4()
+        logger.info("get_sd_person", request_uuid=request_uuid)
+        response = sd_lookup(
+            url,
+            settings=self.settings,
+            params=params,
+            request_uuid=request_uuid,
+        )
         person = ensure_list(response.get("Person", []))
         return person
 
@@ -969,7 +992,14 @@ class ChangeAtSD:
                     "UUIDIndicator": "true",
                     "DepartmentIdentifier": department["DepartmentIdentifier"],
                 }
-                response = sd_lookup(url, settings=self.settings, params=params)
+                request_uuid = uuid.uuid4()
+                logger.info("edit_engagement_department", request_uuid=request_uuid)
+                response = sd_lookup(
+                    url,
+                    settings=self.settings,
+                    params=params,
+                    request_uuid=request_uuid,
+                )
                 logger.warning("GetDepartment returned", response=response)
                 org_unit = response["Department"]["DepartmentUUIDIdentifier"]
                 if org_unit is None:
