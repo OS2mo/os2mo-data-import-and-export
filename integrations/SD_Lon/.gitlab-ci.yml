@@ -35,123 +35,123 @@ Lint SDLoen Integration:
     - python -m black --diff --check tests/*.py sdlon/*.py
 
 
-# Build
-########
-Build SD image:
-  extends: .build-docker
-  variables:
-    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/
-    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile
-    CI_IMAGE: ${SD_IMAGE_SHA}
-
-Build SD-init image:
-  extends: .build-docker
-  variables:
-    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/
-    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/Dockerfile
-    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
-
-Build SDTool image:
-  extends: .build-docker
-  variables:
-    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/
-    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile.sdtool
-    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
-
-# Test
-######
-Test SDLoen Integration:
-  stage: test
-  needs: ["Build SD image"]
-  image: ${SD_IMAGE_SHA}
-  variables:
-    GIT_STRATEGY: none # We do not need the source code
-    HYPOTHESIS_PROFILE: ci
-  script:
-    - cd /app/
-    # Run CLIs
-    - python -m sdlon.sd_changed_at --help
-    - python -m sdlon.sd_changed_at_redo --help
-    - python -m sdlon.sd_cli --help
-    - python -m sdlon.sd_fixup --help
-    - python -m sdlon.sd_importer --help
-    - python -m sdlon.sd_log_analyzer --help
-    - python -m sdlon.sync_job_id --help
-    - python -m sdlon.test_mo_against_sd --help
-    # Run tests
-    - pytest tests/
-
-
-# Release
-##########
-Release SD master image:
-  extends: .release-master
-  variables:
-    CI_IMAGE: ${SD_IMAGE_SHA}
-    RELEASE_IMAGE: ${SD_RELEASE_REGISTRY_IMAGE}
-
-Release SD release image:
-  extends: .release-version
-  variables:
-    CI_IMAGE: ${SD_IMAGE_SHA}
-    RELEASE_IMAGE: ${SD_RELEASE_REGISTRY_IMAGE}
-
-Release SD_INIT master image:
-  extends: .release-master
-  variables:
-    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
-    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
-
-Release SD_INIT release image:
-  extends: .release-version
-  variables:
-    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
-    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
-
-Release SDTool master image:
-  extends: .release-master
-  variables:
-    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
-    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
-
-Release SDTool release image:
-  extends: .release-version
-  variables:
-    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
-    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
-
-Release SDChangedAt to Flux dev:
-  extends: .release-to-dev
-  needs: ["Release version"]
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-dev
-
-Release SDChangedAt to Flux test:
-  extends: .release-to-test
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-test
-
-Release SDChangedAt Flux prod:
-  extends: .release-to-prod
-  needs: []
-  variables:
-    ENDPOINT: os2mo/flux/sdchangedat/update-prod
-
-Release SDChangedAt to Salt dev:
-  extends: .release-to-dev
-  needs: ["Release version"]
-  variables:
-    ENDPOINT: os2mo/salt/sdchangedat/update-dev
-
-Release SDChangedAt to Salt test:
-  extends: .release-to-test
-  needs: []
-  variables:
-    ENDPOINT: os2mo/salt/sdchangedat/update-test
-
-Release SDChangedAt Salt prod:
-  extends: .release-to-prod
-  needs: []
-  variables:
-    ENDPOINT: os2mo/salt/sdchangedat/update-prod
+## Build
+#########
+#Build SD image:
+#  extends: .build-docker
+#  variables:
+#    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/
+#    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile
+#    CI_IMAGE: ${SD_IMAGE_SHA}
+#
+#Build SD-init image:
+#  extends: .build-docker
+#  variables:
+#    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/
+#    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/init/Dockerfile
+#    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
+#
+#Build SDTool image:
+#  extends: .build-docker
+#  variables:
+#    CONTEXT: ${CI_PROJECT_DIR}/integrations/SD_Lon/
+#    DOCKERFILE: ${CI_PROJECT_DIR}/integrations/SD_Lon/Dockerfile.sdtool
+#    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+#
+## Test
+#######
+#Test SDLoen Integration:
+#  stage: test
+#  needs: ["Build SD image"]
+#  image: ${SD_IMAGE_SHA}
+#  variables:
+#    GIT_STRATEGY: none # We do not need the source code
+#    HYPOTHESIS_PROFILE: ci
+#  script:
+#    - cd /app/
+#    # Run CLIs
+#    - python -m sdlon.sd_changed_at --help
+#    - python -m sdlon.sd_changed_at_redo --help
+#    - python -m sdlon.sd_cli --help
+#    - python -m sdlon.sd_fixup --help
+#    - python -m sdlon.sd_importer --help
+#    - python -m sdlon.sd_log_analyzer --help
+#    - python -m sdlon.sync_job_id --help
+#    - python -m sdlon.test_mo_against_sd --help
+#    # Run tests
+#    - pytest tests/
+#
+#
+## Release
+###########
+#Release SD master image:
+#  extends: .release-master
+#  variables:
+#    CI_IMAGE: ${SD_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SD_RELEASE_REGISTRY_IMAGE}
+#
+#Release SD release image:
+#  extends: .release-version
+#  variables:
+#    CI_IMAGE: ${SD_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SD_RELEASE_REGISTRY_IMAGE}
+#
+#Release SD_INIT master image:
+#  extends: .release-master
+#  variables:
+#    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
+#
+#Release SD_INIT release image:
+#  extends: .release-version
+#  variables:
+#    CI_IMAGE: ${SD_INIT_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SD_INIT_RELEASE_REGISTRY_IMAGE}
+#
+#Release SDTool master image:
+#  extends: .release-master
+#  variables:
+#    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
+#
+#Release SDTool release image:
+#  extends: .release-version
+#  variables:
+#    CI_IMAGE: ${SDTOOL_IMAGE_SHA}
+#    RELEASE_IMAGE: ${SDTOOL_RELEASE_REGISTRY_IMAGE}
+#
+#Release SDChangedAt to Flux dev:
+#  extends: .release-to-dev
+#  needs: ["Release version"]
+#  variables:
+#    ENDPOINT: os2mo/flux/sdchangedat/update-dev
+#
+#Release SDChangedAt to Flux test:
+#  extends: .release-to-test
+#  needs: []
+#  variables:
+#    ENDPOINT: os2mo/flux/sdchangedat/update-test
+#
+#Release SDChangedAt Flux prod:
+#  extends: .release-to-prod
+#  needs: []
+#  variables:
+#    ENDPOINT: os2mo/flux/sdchangedat/update-prod
+#
+#Release SDChangedAt to Salt dev:
+#  extends: .release-to-dev
+#  needs: ["Release version"]
+#  variables:
+#    ENDPOINT: os2mo/salt/sdchangedat/update-dev
+#
+#Release SDChangedAt to Salt test:
+#  extends: .release-to-test
+#  needs: []
+#  variables:
+#    ENDPOINT: os2mo/salt/sdchangedat/update-test
+#
+#Release SDChangedAt Salt prod:
+#  extends: .release-to-prod
+#  needs: []
+#  variables:
+#    ENDPOINT: os2mo/salt/sdchangedat/update-prod
