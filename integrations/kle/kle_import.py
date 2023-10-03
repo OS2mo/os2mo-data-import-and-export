@@ -324,7 +324,7 @@ if __name__ == "__main__":
     settings.start_logging_based_on_settings()
 
     mora_base = settings.mora_base
-    mox_base = settings.mox_base
+    mox_base = mora_base + "/lora"
 
     kle = KleImporter(mox_base, mora_base)
     kle.import_kle()
