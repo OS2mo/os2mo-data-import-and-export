@@ -1,2 +1,0 @@
-class NoCurrentValdityException(Exception):
-    pass
