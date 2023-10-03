@@ -178,7 +178,7 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
 
 def are_caches_equivalent(
     old_cache: dict, new_cache: dict, do_deepdiff: bool = True
-) -> object:
+) -> bool:
     if old_cache == new_cache:
         return True
 
@@ -188,20 +188,21 @@ def are_caches_equivalent(
     return False
 
 
+# The old cache did not calculate primary for historic caches
 def remove_primary(engagements: dict):
     for key, value in engagements.items():
         for elem in value:
-            keep = elem.get("primary_boolean")
-            if not keep:
-                elem.pop("primary_boolean")
+            elem.pop("primary_boolean")
     return engagements
 
 
-def compare_for_equivalence(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
+def compare_for_equivalence(
+    old_cache: LoraCache, new_cache: GQLLoraCache, state: str
+) -> bool:
     old_cache, new_cache = account_for_fixes(old_cache, new_cache)
     do_deepdiff = new_cache.settings.log_level == LogLevel.DEBUG
 
-    if state != "Actual State":
+    if state != "Actual_State":
         new_cache.engagements = remove_primary(new_cache.engagements)
 
     cache_pairs = [
@@ -227,20 +228,21 @@ def compare_for_equivalence(old_cache: LoraCache, new_cache: GQLLoraCache, state
         cons_old, cons_new = consolidate_validities_in_single_cache(
             old_cache=old, new_cache=new
         )
-        is_equivalent = are_caches_equivalent(
+        is_equiv = are_caches_equivalent(
             old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff
         )
-        assert is_equivalent
 
-        equivalence_bools.append((name, is_equivalent))
+        equivalence_bools.append((name, is_equiv))
 
+    is_equivalent: bool = True
     for name, equal in equivalence_bools:
         if not equal:
             logger.debug("+++++++++++++++++++++++++++++++++++++++++")
             logger.debug(f"The first error is in {name}")
             logger.debug("+++++++++++++++++++++++++++++++++++++++++")
+            is_equivalent = False
 
-        assert equal
+    return is_equivalent
 
 
 def init_caches(settings: GqlLoraCacheSettings):
@@ -355,6 +357,7 @@ def test_cache_equivalence():
     settings = GqlLoraCacheSettings()
     setup_logging(settings.log_level.value)
 
+    are_all_cache_states_equivalent: bool = True
     cache_pairs = init_caches(settings)
     for new_cache, old_cache, state in cache_pairs:
         job = f"equivalence_test_{state}"
@@ -363,14 +366,18 @@ def test_cache_equivalence():
             old_cache, new_cache = populate_caches(
                 old_cache=old_cache, new_cache=new_cache, state=state
             )
-            compare_for_equivalence(
+            is_equiv = compare_for_equivalence(
                 old_cache=old_cache, new_cache=new_cache, state=state
             )
+            if not is_equiv:
+                are_all_cache_states_equivalent = False
         except Exception as e:
             notify_prometheus(settings=settings, job=job, error=True)
             raise e
         else:
-            notify_prometheus(settings=settings, job=job)
+            notify_prometheus(settings=settings, job=job, error=(not is_equiv))
+
+    assert are_all_cache_states_equivalent
 
 
 @trigger_equiv_router.post("/trigger_cache_equivalence")
