@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 from itertools import starmap
 from operator import itemgetter
@@ -7,9 +8,13 @@ import click
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from .log import get_logger
 from .sd_common import EmploymentStatus
 from .sd_common import load_settings
 from .sd_common import sd_lookup
+
+
+logger = get_logger()
 
 
 def progress_iterator(elements, outputter, mod=10):
@@ -150,7 +155,13 @@ class TestMOAgainstSd(object):
             "SalaryCodeGroupIndicator": "false",
             "EffectiveDate": self.date.strftime("%d.%m.%Y"),
         }
-        sd_employments_response = sd_lookup("GetEmployment20111201", params)
+        request_uuid = uuid.uuid4()
+        logger.info("check_user", request_uuid=request_uuid)
+        sd_employments_response = sd_lookup(
+            "GetEmployment20111201",
+            params=params,
+            request_uuid=request_uuid,
+        )
         if "Person" not in sd_employments_response:
             return mo_uuid, {
                 "uuid": mo_uuid,

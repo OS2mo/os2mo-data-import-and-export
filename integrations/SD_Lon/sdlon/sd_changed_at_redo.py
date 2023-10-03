@@ -6,12 +6,17 @@
 # angiv uuider for de berørte på kommandolinien
 import datetime
 import sys
+import uuid
 
 import click
 
 from .config import get_changed_at_settings
+from .log import get_logger
 from .sd_changed_at import ChangeAtSD
 from .sd_common import sd_lookup
+
+
+logger = get_logger()
 
 
 def read_person(cat, cpr):
@@ -24,7 +29,9 @@ def read_person(cat, cpr):
         "PostalAddressIndicator": "false",
     }
     url = "GetPerson20111201"
-    response = sd_lookup(url, params=params)
+    request_uuid = uuid.uuid4()
+    logger.info("read_person", request_uuid=request_uuid)
+    response = sd_lookup(url, params=params, request_uuid=request_uuid)
     person = response.get("Person", [])
 
     if not isinstance(person, list):

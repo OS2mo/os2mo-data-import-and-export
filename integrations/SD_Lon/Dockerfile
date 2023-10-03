@@ -8,6 +8,8 @@ RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsod
 # These need to be installed manually ALL THE TIME for debugging, so let's
 # include them here for now until we have a more stable application
 RUN apt -y install vim sqlite3 screen
+# `./docker/start.sh` requires `psql`
+RUN apt -y install postgresql-client
 
 WORKDIR /app
 
@@ -23,4 +25,4 @@ RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry install --no-root --no-dev
 
 COPY . ./
 
-CMD ["uvicorn", "--factory", "sdlon.main:create_app", "--host", "0.0.0.0"]
+CMD ["./docker/start.sh"]
