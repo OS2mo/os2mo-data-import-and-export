@@ -66,7 +66,6 @@ include:
     file: "/gitlab-ci-templates/common/no-interrupt.v1.yml"
   - project: 'labs/salt-automation'
     file: "/gitlab-ci-templates/python/pypi-meta.v1.yml"
-  - local: "integrations/SD_Lon/.gitlab-ci.yml"
   - local: "exporters/os2sync_export/.gitlab-ci.yml"
   - local: "exporters/sql_export/.gitlab-ci.yml"
 
