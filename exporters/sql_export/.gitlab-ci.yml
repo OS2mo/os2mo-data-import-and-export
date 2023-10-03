@@ -14,6 +14,7 @@ include:
       - gitlab-ci-templates/common/docker-release-meta.v1.yml
       - gitlab-ci-templates/python/pytest-meta.v1.yml
       - gitlab-ci-templates/common/config-updater-flux.v1.yml
+      - gitlab-ci-templates/common/config-updater-salt.v1.yml
 
 variables:
   SQL_EXPORT_RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-sql_export
