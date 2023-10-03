@@ -53,7 +53,7 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
 
         settings = {
             "mora.base": self.job_settings.mora_base,
-            "mox.base": self.job_settings.mox_base,
+            "mox.base": self.mox_base,
             "exporters": {
                 "actual_state": {
                     "manager_responsibility_class": self.primary_manager_responsibility

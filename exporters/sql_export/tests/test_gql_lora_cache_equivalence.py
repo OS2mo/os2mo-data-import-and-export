@@ -354,8 +354,6 @@ def notify_prometheus(
 def test_cache_equivalence():
     settings = GqlLoraCacheSettings()
     # settings.start_logging_based_on_settings()
-    print(settings.log_level)
-    print(settings.log_level.value)
     setup_logging(settings.log_level.value)
 
     cache_pairs = init_caches(settings)
