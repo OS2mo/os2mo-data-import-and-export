@@ -353,12 +353,12 @@ def notify_prometheus(
 
 def test_cache_equivalence():
     settings = GqlLoraCacheSettings()
-    # settings.start_logging_based_on_settings()
     setup_logging(settings.log_level.value)
 
     cache_pairs = init_caches(settings)
     for new_cache, old_cache, state in cache_pairs:
-        notify_prometheus(settings=settings, job=state, start=True)
+        job = f"equivalence_test_{state}"
+        notify_prometheus(settings=settings, job=job, start=True)
         try:
             old_cache, new_cache = populate_caches(
                 old_cache=old_cache, new_cache=new_cache, state=state
@@ -367,10 +367,10 @@ def test_cache_equivalence():
                 old_cache=old_cache, new_cache=new_cache, state=state
             )
         except Exception as e:
-            notify_prometheus(settings=settings, job=state, error=True)
+            notify_prometheus(settings=settings, job=job, error=True)
             raise e
         else:
-            notify_prometheus(settings=settings, job=state)
+            notify_prometheus(settings=settings, job=job)
 
 
 @trigger_equiv_router.post("/trigger_cache_equivalence")
