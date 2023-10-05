@@ -2,6 +2,7 @@ import logging
 
 import pandas as pd
 from more_itertools import prepend
+from raclients.upload import run_report_and_upload
 from sqlalchemy import and_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
@@ -101,21 +102,21 @@ if __name__ == "__main__":
     logger.info("Finding settings")
     settings = EmployeePhoneBookSettings()
     settings.start_logging_based_on_settings()
-    file_path = settings.report_dir_path
+
     logger.info("Settings in place. Initiating report.")
 
-    run_report(
+    run_report_and_upload(
+        settings,
+        "Medarbejdertelefonbog.xlsx",
+        run_report,
         list_employees_for_phonebook,
         "Medarbejdertelefonbog",
         "Frederikshavn Kommune",
-        file_path + "/Medarbejdertelefonbog.xlsx",
     )
-    logger.info("Ran employee xlsx format report successfully!")
-
-    logger.info("Initiating CSV report.")
-    run_report_as_csv(
+    run_report_and_upload(
+        settings,
+        "Medarbejdertelefonbog.csv",
+        run_report_as_csv,
         list_employees_for_phonebook,
         "Frederikshavn Kommune",
-        file_path + "/Medarbejdertelefonbog.csv",
     )
-    logger.info("Ran employee CSV format report successfully!")
