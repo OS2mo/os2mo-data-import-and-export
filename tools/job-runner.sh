@@ -141,20 +141,6 @@ imports_test_ad_connectivity_writer(){
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
 }
 
-imports_test_sd_connectivity(){
-    echo running imports_test_sd_connectivity
-    cd integrations/SD_Lon/
-    ${POETRYPATH} run python -m sdlon.test_sd_connectivity
-    EXIT_CODE=$?
-    cd ../..
-    return $EXIT_CODE
-}
-
-imports_sd_fix_departments(){
-    echo running imports_sd_fix_departments
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py
-}
-
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
     if [[ ${USE_DOCKER_SD_CHANGED_AT:-"false"} == "true" ]]; then
@@ -494,10 +480,6 @@ imports(){
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
-    fi
-
-    if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
-        run-job imports_test_sd_connectivity || return 2
     fi
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
