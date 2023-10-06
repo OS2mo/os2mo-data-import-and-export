@@ -341,7 +341,7 @@ reports_employee_phonebook_for_frederikshavn(){
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
       echo "Trying to upload report to FTPS server..."
-      lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put ${file_to_upload_to_ftps_server}; quit"
+      lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put /tmp/Medarbejdertelefonbog.csv; quit"
 
       EXIT_CODE_LFTP=$?
       if [ $EXIT_CODE_LFTP -eq 0 ]; then
