@@ -252,14 +252,6 @@ exports_cpr_uuid(){
     )
 }
 
-exports_viborg_emus(){
-    echo running viborg_emus
-    EMUS_FILENAME="tmp/emus_export.xml"
-
-    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
-    ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
-}
-
 exports_viborg_eksterne(){
     echo "running viborgs eksterne"
     ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
@@ -585,10 +577,6 @@ exports(){
 
     if [ "${RUN_QUERIES_ALLEROED}" == "true" ]; then
         run-job exports_queries_alleroed &
-    fi
-
-    if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
-        run-job exports_viborg_emus &
     fi
 
     if [ "${RUN_EXPORTS_VIBORG_EKSTERNE}" == "true" ]; then
