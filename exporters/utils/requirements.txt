@@ -1,6 +1,0 @@
-more_itertools
-pytest
-parameterized
-hypothesis
-jinja2
-ra-utils>=0.3.1

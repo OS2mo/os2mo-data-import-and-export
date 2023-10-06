@@ -1,4 +1,0 @@
-aiohttp
-click
-sqlalchemy
-more_itertools
