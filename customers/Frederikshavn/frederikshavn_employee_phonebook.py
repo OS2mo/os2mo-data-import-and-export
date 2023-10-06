@@ -1,8 +1,9 @@
 import logging
+import shutil
 
 import pandas as pd
 from more_itertools import prepend
-from raclients.upload import run_report_and_upload
+from raclients.upload import file_uploader
 from sqlalchemy import and_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
@@ -102,21 +103,24 @@ if __name__ == "__main__":
     logger.info("Finding settings")
     settings = EmployeePhoneBookSettings()
     settings.start_logging_based_on_settings()
-
     logger.info("Settings in place. Initiating report.")
 
-    run_report_and_upload(
-        settings,
-        "Medarbejdertelefonbog.xlsx",
-        run_report,
-        list_employees_for_phonebook,
-        "Medarbejdertelefonbog",
-        "Frederikshavn Kommune",
-    )
-    run_report_and_upload(
-        settings,
-        "Medarbejdertelefonbog.csv",
-        run_report_as_csv,
-        list_employees_for_phonebook,
-        "Frederikshavn Kommune",
-    )
+    with file_uploader(settings, "Medarbejdertelefonbog.xlsx") as filename:
+        run_report(
+            list_employees_for_phonebook,
+            "Medarbejdertelefonbog",
+            "Frederikshavn Kommune",
+            filename,
+        )
+    logger.info("Ran employee xlsx format report successfully!")
+
+    logger.info("Initiating CSV report.")
+    with file_uploader(settings, "Medarbejdertelefonbog.csv") as filename:
+        run_report_as_csv(
+            list_employees_for_phonebook,
+            "Frederikshavn Kommune",
+            filename,
+        )
+        # Note that only the csv file is copied, not the xlsx file.
+        shutil.copyfile(filename, "/tmp/Medarbejdertelefonbog.csv")
+    logger.info("Ran employee CSV format report successfully!")

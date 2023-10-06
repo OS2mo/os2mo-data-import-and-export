@@ -11,7 +11,6 @@ class EmployeePhoneBookSettings(JobSettings):
     ftps_pass: str | None
     ftps_folder: str | None
     ftps_certificate: str | None
-    file_to_upload_to_ftps_server: str | None
 
     # Settings for Employee Phonebook:
     sql_cell_phone_number_field: str | None = (
