@@ -19,7 +19,6 @@ services:
       ACTUAL_STATE__DB_NAME: actualstate
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
-      ENABLE_METRICS: "false"
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
     ports:
       - 8000:8000/tcp
