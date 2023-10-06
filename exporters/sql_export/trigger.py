@@ -10,6 +10,7 @@ from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import HTTPException
 from fastapi import Query
+from fastramqpi.metrics import dipex_last_success_timestamp
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Field
@@ -122,6 +123,7 @@ def refresh_db(
 
         sql_export.swap_tables()
         logger.info("*SQL export ended*")
+        dipex_last_success_timestamp.set_to_current_time()
     finally:
         # Another operation can start now
         lock.release()
