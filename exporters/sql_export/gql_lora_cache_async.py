@@ -5,6 +5,7 @@ import os
 import pickle
 import time
 import typing
+from functools import lru_cache
 from pathlib import Path
 
 from dateutil.parser import parse as parse_date
@@ -63,6 +64,11 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
         }
 
         return settings
+
+
+@lru_cache()
+def get_gql_cache_settings(*args, **kwargs) -> GqlLoraCacheSettings:
+    return GqlLoraCacheSettings(*args, **kwargs)
 
 
 logger = logging.getLogger(__name__)
@@ -148,7 +154,7 @@ class GQLLoraCache:
         if isinstance(settings, dict):
             settings = None
         self.resolve_dar = resolve_dar
-        self.settings: GqlLoraCacheSettings = settings or GqlLoraCacheSettings()
+        self.settings: GqlLoraCacheSettings = settings or get_gql_cache_settings()
         self.std_page_size = self.settings.std_page_size
 
         self.full_history = full_history
