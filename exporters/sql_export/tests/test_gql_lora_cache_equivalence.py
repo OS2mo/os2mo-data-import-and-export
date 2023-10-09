@@ -115,7 +115,7 @@ def is_same_date(old_date: str | None, new_date: str | None) -> bool:
 
     diff = abs(od - nd)
 
-    return diff < datetime.timedelta(days=2)
+    return diff <= datetime.timedelta(days=2)
 
 
 def compare_elem_date_to_list(
