@@ -47,16 +47,28 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
     return old_addresses
 
 
+# This is an in list function, but it ignores to and from dates, as those are buggy
 def complicated_in_list(elem: dict, list_of_elements: list[dict]):
+    # the element definitely isn't in the list of the list is empty
+    if len(list_of_elements) == 0:
+        return False
+
     for element in list_of_elements:
+        # assume we're good
         valid = True
         for key, value in elem.items():
+            # ignore to and from dates, those are buggy
             if key == "from_date" or key == "to_date":
                 continue
+            # if different, set the difference bool
             if element[key] != value:
                 valid = False
+        # if the elem is in the list, we might as well just return that
         if valid:
-            return valid
+            return True
+
+    # if it isn't in the list, we should return that
+    return False
 
 
 # The old cache has a problem where it-connections, managers, and org units never ends
@@ -64,19 +76,23 @@ def complicated_in_list(elem: dict, list_of_elements: list[dict]):
 # though it shouldn't be.
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
     for key, list_of_old_values in old_cache.items():
-        list_of_new_values: list[dict] | None = new_cache.get(key)
-        if list_of_new_values is None:
-            continue
+        list_of_new_values: list[dict] = new_cache.get(key, [])
 
+        # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
+        # for each old element, check if it has the bug or is supposed to be there
         for old_val in list_of_old_values:
-            if complicated_in_list(
-                old_val, list_of_new_values
-            ) and not complicated_in_list(old_val, fixed_list):
-
+            if complicated_in_list(old_val, list_of_new_values):
+                # the elem is good, add it to the list
                 fixed_list.append(old_val)
 
-        old_cache[key] = fixed_list
+        # if there's no elements in the approved list, we probably shouldn't have an entry with
+        # that uuid
+        if len(fixed_list) == 0:
+            old_cache.pop(key)
+        else:
+            old_cache[key] = fixed_list
+
     return old_cache
 
 
