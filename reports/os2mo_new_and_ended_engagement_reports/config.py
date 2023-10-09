@@ -14,12 +14,8 @@ class EngagementSettings(JobSettings):
         "/opt/dipex/os2mo/os2mo-data-import-and-export/employee_uuids_today.json"
     )
 
-    report_new_persons_file_path: Path = Path(
-        "/opt/docker/os2mo/queries/new_persons.csv"
-    )
-    report_ended_engagements_file_path: Path = Path(
-        "/opt/docker/os2mo/queries/ended_engagements.csv"
-    )
+    report_new_persons_file_path: str = "new_persons.csv"
+    report_ended_engagements_file_path: str = "ended_engagements.csv"
 
 
 @lru_cache()

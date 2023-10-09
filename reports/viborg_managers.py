@@ -14,6 +14,8 @@ import json
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.utils.priority_by_class import choose_public_address
+from raclients.upload import file_uploader
+
 
 """
 Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
@@ -38,7 +40,6 @@ settings = json.loads(cfg_file.read_text())
 MORA_BASE = settings["mora.base"]
 MORA_ROOT_ORG_UNIT_NAME = settings["municipality.name"]
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
-REPORT_OUTFILE = settings["mora.folder.query_export"]+'/viborg_managers.csv'
 
 
 logging.basicConfig(
@@ -263,9 +264,10 @@ def main(
     find_people(mh, nodes)
     fieldnames, rows = prepare_report(mh, nodes)
     rows = collapse_same_manager_more_departments(rows)
-    mh._write_csv(fieldnames, rows, report_outfile)
+    with file_uploader(settings, report_outfile) as filename:
+        mh._write_csv(fieldnames, rows, filename)
 
 
 if __name__ == '__main__':
     morah = MoraHelper(MORA_BASE)
-    main(report_outfile=REPORT_OUTFILE, mh=morah)
+    main(report_outfile="viborg_managers.csv", mh=morah)

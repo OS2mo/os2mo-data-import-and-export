@@ -25,6 +25,7 @@ from more_itertools import first, one, prepend
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
+from raclients.upload import file_uploader, run_report_and_upload
 from sqlalchemy import or_
 
 from exporters import common_queries as cq
@@ -94,20 +95,8 @@ def get_managers_for_export(
     return response["managers"]
 
 
-class CommonQueryExportSettingsAlleroed(JobSettings):
-    # Common settings for Alleroed:
-    file_export_path: Path = Path("/opt/docker/os2mo/queries")
-
-
-@lru_cache()
-def get_common_query_export_settings_alleroed(
-    *args, **kwargs
-) -> CommonQueryExportSettingsAlleroed:
-    return CommonQueryExportSettingsAlleroed(*args, **kwargs)
-
-
 def setup_alleroed_gql_client(
-    settings: CommonQueryExportSettingsAlleroed,
+    settings: JobSettings,
 ) -> GraphQLClient:
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v3",
@@ -490,22 +479,25 @@ def list_alleroed_employees(session, org_name: str) -> list:
 
 
 if __name__ == "__main__":
-    settings = CommonQueryExportSettingsAlleroed()
+    settings = JobSettings()
     settings.start_logging_based_on_settings()
 
-    file_path = settings.file_export_path
-    run_report(
+    run_report_and_upload(
+        settings,
+        "Medarbejdertelefonbog.xlsx",
+        run_report,
         list_employees_for_phonebook,
         "Medarbejdertelefonbog",
         "Allerød",
-        "/opt/docker/os2mo/queries/Medarbejdertelefonbog.xlsx",
     )
 
-    run_report(
+    run_report_and_upload(
+        settings,
+        "Ansatte.xlsx",
+        run_report,
         list_alleroed_employees,
         "Ansatte",
         "Allerød",
-        "/opt/docker/os2mo/queries/Ansatte.xlsx",
     )
 
     gql_client = setup_alleroed_gql_client(settings=settings)
@@ -536,59 +528,63 @@ if __name__ == "__main__":
         print("Initiating a GraphQL session.")
         print("Retrieving queries to write from.")
 
-        filename = "Alle_lederfunktioner_os2mo.csv"
-        write_multiple_managers_from_graphql_payload(mh, session, file_path / filename)
+        with file_uploader(settings, "Alle_lederfunktioner_os2mo.csv") as filename:
+            write_multiple_managers_from_graphql_payload(mh, session, filename)
         print("Successfully wrote all necessary manager details to csv.")
 
     print(f"Alle ledere: {time.time() - t}s")
 
-    filename = "AlleBK-stilling-email_os2mo.csv"
-    cq.export_all_employees(mh, nodes, file_path / filename)
+    with file_uploader(settings, "AlleBK-stilling-email_os2mo.csv") as filename:
+        cq.export_all_employees(mh, nodes, filename)
     print("AlleBK-stilling-email: {}s".format(time.time() - t))
 
-    filename = "Alleroed_org_incl-medarbejdere_os2mo.csv"
-    cq.export_orgs(mh, nodes, file_path / filename)
+    with file_uploader(
+        settings, "Alleroed_org_incl-medarbejdere_os2mo.csv"
+    ) as filename:
+        cq.export_orgs(mh, nodes, filename)
     print("Alleroed org incl medarbejdere: {}s".format(time.time() - t))
 
-    filename = "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv"
-    cq.export_adm_org(mh, nodes, file_path / filename)
+    with file_uploader(
+        settings, "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv"
+    ) as filename:
+        cq.export_adm_org(mh, nodes, filename)
     print("Adm-org-incl-start-stop: {}s".format(time.time() - t))
 
     try:  # Handle possibility of this report failing, as has been the case.
-        filename = "teams-tilknyttede-os2mo.csv"
-        cq.export_all_teams(mh, nodes, file_path / filename)
+        with file_uploader(settings, "teams-tilknyttede-os2mo.csv") as filename:
+            cq.export_all_teams(mh, nodes, filename)
         print("Teams: {}s".format(time.time() - t))
     except ValueError as exc:
         print("Something went wrong:", exc.args[0])
 
     nodes = mh.read_ou_tree(sd)
-    filename = "SD-løn org med Pnr_os2mo.csv"
-    cq.export_orgs(mh, nodes, file_path / filename, include_employees=False)
+    with file_uploader(settings, "SD-løn org med Pnr_os2mo.csv") as filename:
+        cq.export_orgs(mh, nodes, filename, include_employees=False)
     print("SD-løn: {}".format(time.time() - t))
 
     nodes = mh.read_ou_tree(udvalg)
-    filename = "AMR-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
     org_types = ["AMR"]
-    export_udvalg(
-        mh,
-        nodes,
-        file_path / filename,
-        fieldnames,
-        org_types,
-    )
+    with file_uploader(settings, "AMR-udvalgsmedlemer_i_hieraki.csv") as filename:
+        export_udvalg(
+            mh,
+            nodes,
+            filename,
+            fieldnames,
+            org_types,
+        )
     print("AMR: {}".format(time.time() - t))
 
-    filename = "MED-udvalgsmedlemer_i_hieraki.csv"
     fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
     org_types = ["H-MED", "C-MED", "L-MED"]
-    export_udvalg(
-        mh,
-        nodes,
-        file_path / filename,
-        fieldnames,
-        org_types,
-    )
+    with file_uploader(settings, "MED-udvalgsmedlemer_i_hieraki.csv") as filename:
+        export_udvalg(
+            mh,
+            nodes,
+            filename,
+            fieldnames,
+            org_types,
+        )
     print("MED: {}".format(time.time() - t))
 
     print("Export completed")

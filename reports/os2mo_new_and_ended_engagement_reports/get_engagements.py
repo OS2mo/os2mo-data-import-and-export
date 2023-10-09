@@ -13,7 +13,10 @@ from gql.client import SyncClientSession
 
 import pandas as pd
 
+from raclients.upload import file_uploader
+
 from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
+from reports.os2mo_new_and_ended_engagement_reports.config import EngagementSettings
 from reports.os2mo_new_and_ended_engagement_reports.config import (
     get_engagement_settings,
 )
@@ -405,9 +408,8 @@ def convert_person_and_engagement_data_to_csv(
     )
 
 
-def write_file(contents_of_file: str, path_to_file: str):
-    """
-    A generic way of writing a file.
+def write_file(settings: EngagementSettings, contents_of_file: str, path_to_file: str):
+    """Upload a file to OS2mo.
 
     args:
     Data with the contents wished to be written. A path to where the file is wanted to be stored.
@@ -415,8 +417,9 @@ def write_file(contents_of_file: str, path_to_file: str):
     returns:
     A written file with the desired contents.
     """
-    with open(path_to_file, "w", encoding="utf-8") as file:
-        file.write(contents_of_file)
+    with file_uploader(settings, path_to_file) as filename:
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(contents_of_file)
 
 
 def get_differences_in_uuids(
@@ -526,13 +529,16 @@ def main() -> None:
 
     # Write CSV report on all new persons.
     write_file(
-        new_persons_in_mo_csv_data_to_write, settings.report_new_persons_file_path
+        settings,
+        new_persons_in_mo_csv_data_to_write,
+        settings.report_new_persons_file_path,
     )
 
     print("Wrote CSV report for new persons in MO today")
 
     # Write CSV report on all ended engagements.
     write_file(
+        settings,
         ended_engagements_in_mo_csv_data_to_write,
         settings.report_ended_engagements_file_path,
     )

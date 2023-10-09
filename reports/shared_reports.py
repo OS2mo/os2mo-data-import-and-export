@@ -12,6 +12,7 @@ import pandas as pd
 from anytree import PreOrderIter
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
+from raclients.upload import file_uploader
 from ra_utils.load_settings import load_settings
 
 
@@ -232,25 +233,33 @@ def main() -> None:
     host = settings["mora.base"]
     org = settings["reports.org_name"]
     pay_org = settings.get("reports.pay_org_name", org)
-    outdir = Path(settings["mora.folder.query_export"])
 
     # Reports
     reports = CustomerReports(host, org)
     sd_reports = CustomerReports(host, pay_org)
 
-    report_to_csv(reports.employees(), outdir / "Alle Stillinger OS2mo.csv")
-    report_to_csv(reports.managers(), outdir / "Alle Lederfunktioner OS2mo.csv")
-    report_to_csv(
-        reports.organisation_employees(),
-        outdir / "Organisationsstruktur og Stillinger OS2mo.csv",
-    )
-    report_to_csv(
-        reports.organisation_units(), outdir / "Organisationsenheder OS2mo.csv"
-    )
-    report_to_csv(
-        sd_reports.organisation_overview(),
-        outdir / "SDLønorganisation og P-Nummer OS2mo.csv",
-    )
+    with file_uploader(settings, "Alle Stillinger OS2mo.csv") as filename:
+        report_to_csv(reports.employees(), filename)
+
+    with file_uploader(settings, "Alle Lederfunktioner OS2mo.csv") as filename:
+        report_to_csv(reports.managers(), filename)
+
+    with file_uploader(settings, "Organisationsstruktur og Stillinger OS2mo.csv") as filename:
+        report_to_csv(
+            reports.organisation_employees(),
+            filename,
+        )
+
+    with file_uploader(settings, "Organisationsenheder OS2mo.csv") as filename:
+        report_to_csv(
+            reports.organisation_units(), filename
+        )
+
+    with file_uploader(settings, "SDLønorganisation og P-Nummer OS2mo.csv") as filename:
+        report_to_csv(
+            sd_reports.organisation_overview(),
+            filename,
+        )
 
 
 if __name__ == "__main__":

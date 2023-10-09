@@ -2,6 +2,7 @@ import logging
 import sys
 
 from ra_utils.load_settings import load_settings
+from raclients.upload import run_report_and_upload
 
 from reports.query_actualstate import list_employees, list_MED_members, run_report
 
@@ -15,27 +16,28 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 
+
 if __name__ == "__main__":
     # Læs fra settings
     settings = load_settings()
-    query_path = settings["mora.folder.query_export"]
     logger.debug("Running reports for Frederikshavn")
-    # Lav rapport over MED_medlemmer
-    run_report(
+
+    run_report_and_upload(
+        settings,
+        "MED_medlemmer.xlsx",
+        run_report,
         list_MED_members,
         "MED",
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
-        query_path + "/MED_medlemmer.xlsx",
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
     )
-    logger.debug("MED report done.")
-
-    # Lav rapport over Ansatte i kommunen.
-    run_report(
+    run_report_and_upload(
+        settings,
+        "Ansatte.xlsx",
+        run_report,
         list_employees,
         "Ansatte",
         "Frederikshavn Kommune",
-        query_path + "/Ansatte.xlsx",
     )
-    logger.debug("Employee report done.")
 
+    logger.debug("Employee report done.")
     logger.debug("All reports for Frederikshavn done")

@@ -4,9 +4,6 @@ from ra_utils.job_settings import JobSettings
 
 
 class EmployeePhoneBookSettings(JobSettings):
-    # Common settings for Frederikshavn
-    report_dir_path: str = "/opt/docker/os2mo/queries"
-
     # FTPS settings for Frederikshavn:
     ftps_url: str | None
     ftps_port: int | None
@@ -14,7 +11,6 @@ class EmployeePhoneBookSettings(JobSettings):
     ftps_pass: str | None
     ftps_folder: str | None
     ftps_certificate: str | None
-    file_to_upload_to_ftps_server: str | None
 
     # Settings for Employee Phonebook:
     sql_cell_phone_number_field: str | None = (

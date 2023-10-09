@@ -7,11 +7,11 @@
 # Imports
 # --------------------------------------------------------------------------------------
 from datetime import date
-from pathlib import Path
 
 import pandas as pd
 from anytree import PreOrderIter
 from ra_utils.load_settings import load_settings
+from raclients.upload import file_uploader
 
 from reports.shared_reports import CustomerReports
 
@@ -101,16 +101,16 @@ def main() -> None:
     settings = load_settings()
     host = settings["mora.base"]
     org = settings["reports.org_name"]
-    outdir = Path(settings["mora.folder.query_export"])
 
     # Survey
     survey = Survey(host, org)
 
-    with pd.ExcelWriter(outdir / "Datasæt til trivselsundersøgelse.xlsx") as writer:
-        survey.org_unit_overview().to_excel(
-            writer, sheet_name="Organisation", index=False
-        )
-        survey.employees().to_excel(writer, sheet_name="Medarbejdere", index=False)
+    with file_uploader(settings, "Datasæt til trivselsundersøgelse.xlsx") as filename:
+        with pd.ExcelWriter(filename) as writer:
+            survey.org_unit_overview().to_excel(
+                writer, sheet_name="Organisation", index=False
+            )
+            survey.employees().to_excel(writer, sheet_name="Medarbejdere", index=False)
 
 
 if __name__ == "__main__":

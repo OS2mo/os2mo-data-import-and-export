@@ -246,7 +246,6 @@ exports_viborg_eksterne(){
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
         system_user="${system_user%%@*}"
-        [ -z "${query_export}" ] && exit 1
         [ -z "${system_user}" ] && exit 1
         [ -z "${password}" ] && exit 1
         [ -z "${destination_smb_share}" ] && exit 1
@@ -254,7 +253,7 @@ exports_viborg_eksterne(){
         [ -z "${outfile_basename}" ] && exit 1
         [ -z "${workgroup}" ] && exit 1
 
-        cd ${query_export}
+        cd /tmp
         smbclient -U "${system_user}%${password}"  \
             ${destination_smb_share} -m SMB2  \
             -W ${workgroup} --directory ${destination_directory} \
@@ -284,25 +283,8 @@ exports_ad_enddate_fixer(){
 
 exports_plan2learn(){
     echo "running exports_plan2learn"
-    declare -a CSV_FILES=(
-	bruger
-	leder
-	engagement
-	organisation
-	stillingskode
-    )
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
-
-    (
-        # get OUT_DIR and EXPORTS_DIR
-        SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
-	[ -z "$query_export" ] && exit 1
-	for f in "${CSV_FILES[@]}"
-	do
-	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
-		   ${query_export}/plan2learn_${f}.csv ${f}.csv
-	done
-    )
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py
 }
 
 exports_queries_ballerup(){
@@ -358,7 +340,7 @@ reports_employee_phonebook_for_frederikshavn(){
     EXIT_CODE=$?
     if [ $EXIT_CODE -eq 0 ]; then
       echo "Trying to upload report to FTPS server..."
-      lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put ${file_to_upload_to_ftps_server}; quit"
+      lftp -u "${ftps_user},${ftps_pass}" -d "${ftps_url}" -e "set ssl:verify-certificate/${ftps_certificate} no; ls; put /tmp/Medarbejdertelefonbog.csv; quit"
 
       EXIT_CODE_LFTP=$?
       if [ $EXIT_CODE_LFTP -eq 0 ]; then

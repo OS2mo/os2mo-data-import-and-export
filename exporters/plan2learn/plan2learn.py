@@ -7,7 +7,6 @@ Helper class to make a number of pre-defined queries into MO
 """
 import datetime
 import logging
-import pathlib
 import sys
 import time
 from functools import partial
@@ -20,6 +19,7 @@ from anytree import PreOrderIter
 from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
+from raclients.upload import file_uploader
 from ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import get_cache as LoraCache
@@ -584,7 +584,6 @@ def main(speedup, dry_run=None):
 
     mh = MoraHelper(hostname=SETTINGS["mora.base"], export_ansi=False)
 
-    dest_folder = pathlib.Path(SETTINGS["mora.folder.query_export"])
     root_unit = SETTINGS["exporters.plan2learn.root_unit"]
 
     if speedup:
@@ -614,32 +613,32 @@ def main(speedup, dry_run=None):
     print("Bruger: {}s".format(time.time() - t))
     logger.info("Bruger: {}s".format(time.time() - t))
 
-    filename = str(dest_folder / "plan2learn_organisation.csv")
-    eksporterede_afdelinger = export_organisation(mh, nodes, filename, lc)
+    with file_uploader(SETTINGS, "plan2learn_organisation.csv") as filename:
+        eksporterede_afdelinger = export_organisation(mh, nodes, filename, lc)
     print("Organisation: {}s".format(time.time() - t))
     logger.info("Organisation: {}s".format(time.time() - t))
 
-    filename = str(dest_folder / "plan2learn_engagement.csv")
-    brugere_rows = export_engagement(
-        mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
-    )
+    with file_uploader(SETTINGS, "plan2learn_engagement.csv") as filename:
+        brugere_rows = export_engagement(
+            mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
+        )
     print("Engagement: {}s".format(time.time() - t))
     logger.info("Engagement: {}s".format(time.time() - t))
 
-    filename = str(dest_folder / "plan2learn_stillingskode.csv")
-    export_stillingskode(mh, nodes, filename)
+    with file_uploader(SETTINGS, "plan2learn_stillingskode.csv") as filename:
+        export_stillingskode(mh, nodes, filename)
     print("Stillingskode: {}s".format(time.time() - t))
     logger.info("Stillingskode: {}s".format(time.time() - t))
 
-    filename = str(dest_folder / "plan2learn_leder.csv")
-    export_leder(mh, nodes, filename, eksporterede_afdelinger)
+    with file_uploader(SETTINGS, "plan2learn_leder.csv") as filename:
+        export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print("Leder: {}s".format(time.time() - t))
     logger.info("Leder: {}s".format(time.time() - t))
 
     # Now exported the now fully populated brugere.csv
-    filename = str(dest_folder / "plan2learn_bruger.csv")
     brugere_fieldnames = ["BrugerId", "CPR", "Navn", "E-mail", "Mobil", "Stilling"]
-    mh._write_csv(brugere_fieldnames, brugere_rows, filename)
+    with file_uploader(SETTINGS, "plan2learn_bruger.csv") as filename:
+        mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
     print("Export completed")
     logger.info("Export completed")
