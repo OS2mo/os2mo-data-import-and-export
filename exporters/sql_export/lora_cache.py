@@ -7,8 +7,8 @@ import click
 import sentry_sdk
 from dateutil import tz
 
+from .gql_lora_cache_async import get_gql_cache_settings
 from .gql_lora_cache_async import GQLLoraCache
-from .gql_lora_cache_async import GqlLoraCacheSettings
 from .old_lora_cache import OldLoraCache
 
 logger = logging.getLogger(__name__)
@@ -19,10 +19,10 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    if GqlLoraCacheSettings().job_settings.sentry_dsn:
-        sentry_sdk.init(dsn=GqlLoraCacheSettings().job_settings.sentry_dsn)
+    if get_gql_cache_settings().job_settings.sentry_dsn:
+        sentry_sdk.init(dsn=get_gql_cache_settings().job_settings.sentry_dsn)
 
-    if GqlLoraCacheSettings().use_new_cache:
+    if get_gql_cache_settings().use_new_cache:
         return GQLLoraCache(
             resolve_dar=resolve_dar,
             full_history=full_history,
@@ -73,7 +73,7 @@ def fetch_loracache() -> Tuple[
 )
 @click.option("--read-from-cache", is_flag=True)
 def cli(historic, skip_past, resolve_dar, read_from_cache):
-    GqlLoraCacheSettings().start_logging_based_on_settings()
+    get_gql_cache_settings().job_settings.start_logging_based_on_settings()
     lc = get_cache(
         full_history=historic,
         skip_past=skip_past,

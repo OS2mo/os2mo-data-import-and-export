@@ -3,6 +3,7 @@ import typing
 
 from deepdiff.diff import DeepDiff
 
+from ..gql_lora_cache_async import get_gql_cache_settings
 from ..gql_lora_cache_async import GQLLoraCache
 from ..gql_lora_cache_async import GqlLoraCacheSettings
 from ..log import get_logger
@@ -354,7 +355,7 @@ def notify_prometheus(
 
 
 def test_cache_equivalence():
-    settings = GqlLoraCacheSettings()
+    settings = get_gql_cache_settings()
     setup_logging(settings.log_level.value)
 
     are_all_cache_states_equivalent: bool = True
