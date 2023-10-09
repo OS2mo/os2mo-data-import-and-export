@@ -246,7 +246,6 @@ exports_viborg_eksterne(){
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
         system_user="${system_user%%@*}"
-        [ -z "${query_export}" ] && exit 1
         [ -z "${system_user}" ] && exit 1
         [ -z "${password}" ] && exit 1
         [ -z "${destination_smb_share}" ] && exit 1
@@ -254,7 +253,7 @@ exports_viborg_eksterne(){
         [ -z "${outfile_basename}" ] && exit 1
         [ -z "${workgroup}" ] && exit 1
 
-        cd ${query_export}
+        cd /tmp
         smbclient -U "${system_user}%${password}"  \
             ${destination_smb_share} -m SMB2  \
             -W ${workgroup} --directory ${destination_directory} \
