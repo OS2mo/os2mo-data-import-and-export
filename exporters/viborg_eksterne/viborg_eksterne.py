@@ -4,12 +4,13 @@
 #
 import datetime
 import logging
-import pathlib
+import shutil
 import sys
 import time
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
+from raclients.upload import file_uploader
 from ra_utils.load_settings import load_settings
 from ra_utils.deprecation import deprecated
 from raclients.upload import file_uploader
@@ -116,7 +117,10 @@ class ViborgEksterne:
                 for row in self._gen_from_mo(employee, mh):
                     rows.append(row)
 
-        mh._write_csv(self.fieldnames, rows, filename)
+        with file_uploader(self.settings, filename) as tmp_filename:
+            mh._write_csv(self.fieldnames, rows, tmp_filename)
+            # Copy for so we can upload with smb in job-runner.sh
+            shutil.copyfile(tmp_filename, f"/tmp/{filename}")
 
     def _get_disallowed_engagement_types(self):
         # Medarbejder (månedsløn) and Medarbejder (timeløn)
