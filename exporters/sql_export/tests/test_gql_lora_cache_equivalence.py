@@ -75,6 +75,7 @@ def complicated_in_list(elem: dict, list_of_elements: list[dict]):
 # This means that a closed it connection would still be part of the actual state export
 # though it shouldn't be.
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
+    keys_to_pop = []
     for key, list_of_old_values in old_cache.items():
         list_of_new_values: list[dict] = new_cache.get(key, [])
 
@@ -89,11 +90,27 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
         # if there's no elements in the approved list, we probably shouldn't have an entry with
         # that uuid
         if len(fixed_list) == 0:
-            old_cache.pop(key)
+            keys_to_pop.append(key)
         else:
             old_cache[key] = fixed_list
 
+    for key in keys_to_pop:
+        old_cache.pop(key)
+
     return old_cache
+
+
+# MO this makes me sad, so many was to be infinity
+def is_technically_none(date: str | None) -> bool:
+    if date is None or len(date) == 0:
+        return True
+
+    d = datetime.datetime.fromisoformat(date)
+
+    if d.year == 9999 or d.year <= 1930:
+        return True
+
+    return False
 
 
 # Vi har lavet nogle ændringer i hvordan vi håndterer datoer når de kommer ud af graphql.
@@ -107,25 +124,18 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
 #
 # Det gamle lora api gør stadig sådan, men det gør graphql ikke, og derfor kan der
 # være en timediff på op til 47 timer, 59 min, 59 sek, og næsten et helt sekund
-# i milisekunder
+# i millisekunder
 #
 # Jeg kan ikke lide det, det er noget lort, men så længe vi ikke har lavet den
 # opgave hvor vi grundlæggende ændrer på om vi bruger timezones så tror jeg at
 # det her er nødvendigt.
 def is_same_date(old_date: str | None, new_date: str | None) -> bool:
-    def compare_to_none(date: str | None) -> bool:
-        if date is None:
-            return True
-        date_date = datetime.datetime.fromisoformat(date)
-        if date_date.year == 9999 or date_date.year <= 1930:  # because railroad time
-            return True
+    if is_technically_none(old_date) and is_technically_none(new_date):
+        return True
 
-        return False
-
-    if old_date is None:
-        return compare_to_none(new_date)
-    if new_date is None:
-        return compare_to_none(old_date)
+    # mypy gets angry if we don't do this
+    assert old_date is not None
+    assert new_date is not None
 
     od = datetime.datetime.fromisoformat(old_date)
     nd = datetime.datetime.fromisoformat(new_date)
@@ -377,6 +387,7 @@ def test_cache_equivalence():
     are_all_cache_states_equivalent: bool = True
     cache_pairs = init_caches(settings)
     for new_cache, old_cache, state in cache_pairs:
+        are_all_cache_states_equivalent = True
         job = f"equivalence_test_{state}"
         notify_prometheus(settings=settings, job=job, start=True)
         try:
