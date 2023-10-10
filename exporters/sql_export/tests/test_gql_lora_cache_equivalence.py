@@ -45,13 +45,13 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
     return old_addresses
 
 
-# This is an in list function, but it ignores to and from dates, as those are buggy
-def complicated_in_list(elem: dict, list_of_elements: list[dict]):
-    # the element definitely isn't in the list of the list is empty
-    if len(list_of_elements) == 0:
-        return False
+def get_corresponding_elem(
+    old_elem: dict, list_of_new_elems: list[dict]
+) -> dict | None:
+    if len(list_of_new_elems) == 0:
+        return None
 
-    for element in list_of_elements:
+    for elem in list_of_new_elems:
         # assume we're good
         valid = True
         for key, value in elem.items():
@@ -59,14 +59,15 @@ def complicated_in_list(elem: dict, list_of_elements: list[dict]):
             if key == "from_date" or key == "to_date":
                 continue
             # if different, set the difference bool
-            if element[key] != value:
+            if old_elem.get(key) != value:
                 valid = False
-        # if the elem is in the list, we might as well just return that
-        if valid:
-            return True
+                break
 
-    # if it isn't in the list, we should return that
-    return False
+        # if the elem is in the list, we return it
+        if valid:
+            return elem
+
+    return None
 
 
 # The old cache has a problem where it-connections, managers, and org units never ends
@@ -81,9 +82,11 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
         fixed_list: list[dict] = []
         # for each old element, check if it has the bug or is supposed to be there
         for old_val in list_of_old_values:
-            if complicated_in_list(old_val, list_of_new_values):
+
+            fixed = get_corresponding_elem(old_val, list_of_new_values)
+            if fixed is not None:
                 # the elem is good, add it to the list
-                fixed_list.append(old_val)
+                fixed_list.append(fixed)
 
         # if there's no elements in the approved list, we probably shouldn't have an entry with
         # that uuid
@@ -199,6 +202,7 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
         old_cache.it_connections, new_cache.it_connections
     )
     old_cache.managers = fix_never_ending(old_cache.managers, new_cache.managers)
+    old_cache.kles = fix_never_ending(old_cache.kles, new_cache.kles)
 
     return old_cache, new_cache
 
@@ -212,7 +216,9 @@ def are_caches_equivalent(
     if do_deepdiff:
         logger.debug(80 * "#")
         logger.debug(f"cache = {name}")
-        diff = DeepDiff(old_cache, new_cache, verbose_level=2)
+        diff = DeepDiff(
+            tmp_ignore_dates(old_cache), tmp_ignore_dates(new_cache), verbose_level=2
+        )
         logger.debug(diff)
         print(80 * "!")
     return False
@@ -266,11 +272,11 @@ def compare_for_equivalence(
 
     equivalence_bools = []
     for old, new, name in cache_pairs:
-        old = tmp_ignore_dates(old)
-        new = tmp_ignore_dates(new)
+        oc = tmp_ignore_dates(old)
+        nc = tmp_ignore_dates(new)
 
         cons_old, cons_new = consolidate_validities_in_single_cache(
-            old_cache=old, new_cache=new
+            old_cache=oc, new_cache=nc
         )
         is_equiv = are_caches_equivalent(
             old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff, name=name
