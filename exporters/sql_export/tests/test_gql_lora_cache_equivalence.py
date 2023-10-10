@@ -130,8 +130,10 @@ def is_technically_none(date: str | None) -> bool:
 # opgave hvor vi grundlæggende ændrer på om vi bruger timezones så tror jeg at
 # det her er nødvendigt.
 def is_same_date(old_date: str | None, new_date: str | None) -> bool:
-    if is_technically_none(old_date) and is_technically_none(new_date):
-        return True
+    if is_technically_none(old_date):
+        return is_technically_none(new_date)
+    if is_technically_none(new_date):
+        return is_technically_none(old_date)
 
     # mypy gets angry if we don't do this
     assert old_date is not None
@@ -204,14 +206,17 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
 
 
 def are_caches_equivalent(
-    old_cache: dict, new_cache: dict, do_deepdiff: bool = True
+    old_cache: dict, new_cache: dict, do_deepdiff: bool = True, name: str | None = None
 ) -> bool:
     if old_cache == new_cache:
         return True
 
     if do_deepdiff:
+        logger.debug(80 * "#")
+        logger.debug(f"cache = {name}")
         diff = DeepDiff(old_cache, new_cache, verbose_level=2)
         logger.debug(diff)
+        print(80 * "!")
     return False
 
 
@@ -256,7 +261,7 @@ def compare_for_equivalence(
             old_cache=old, new_cache=new
         )
         is_equiv = are_caches_equivalent(
-            old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff
+            old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff, name=name
         )
 
         equivalence_bools.append((name, is_equiv))
