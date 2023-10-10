@@ -26,23 +26,21 @@ logger = get_logger()
 trigger_equiv_router = APIRouter()
 
 
+# The addresses hava a bug in the old cache. The old cache takes the dar field beskrivelse,
+# and uses that as the value. It does this in a loop, where it fills out the values. Sometimes the
+# field is empty. In those cases the value is set to the same as the last iteration, as
+# the loop doesn't reset the variables
 def fix_addresses(old_addresses: dict, new_addresses: dict):
-    for key, list_of_values in old_addresses.items():
-        new_list_of_values = new_addresses.get(key)
-        if new_list_of_values is None or len(new_list_of_values) == 0:
+    for key, list_of_new_values in new_addresses.items():
+        list_of_old_values = old_addresses.get(key, [])
+        if len(list_of_old_values) == 0:
             continue
 
-        addresses = zip(list_of_values, new_list_of_values)
-
-        for old_address, new_address in addresses:
-            old_scope = old_address.get("scope")
-            old_value = old_address.get("value")
-            new_value = new_address.get("value")
-
-            if old_scope != "DAR":
-                continue
-            if old_value is None:
-                old_address["value"] = new_value
+        for i in range(len(list_of_new_values)):
+            new_address = list_of_new_values[i]
+            old_address = list_of_old_values[i]
+            if new_address.get("scope") == "DAR":
+                old_address["value"] = new_address["value"]
 
     return old_addresses
 
@@ -228,6 +226,17 @@ def remove_primary(engagements: dict):
     return engagements
 
 
+def tmp_ignore_dates(cache: dict) -> dict:
+    for key, list_of_vals in cache:
+        for elem in list_of_vals:
+            if "from_date" in elem:
+                elem.pop("from_date")
+            if "to_date" in elem:
+                elem.pop("to_date")
+
+    return cache
+
+
 def compare_for_equivalence(
     old_cache: LoraCache, new_cache: GQLLoraCache, state: str
 ) -> bool:
@@ -257,6 +266,9 @@ def compare_for_equivalence(
 
     equivalence_bools = []
     for old, new, name in cache_pairs:
+        old = tmp_ignore_dates(old)
+        new = tmp_ignore_dates(new)
+
         cons_old, cons_new = consolidate_validities_in_single_cache(
             old_cache=old, new_cache=new
         )
