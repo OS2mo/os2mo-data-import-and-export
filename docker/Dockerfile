@@ -17,6 +17,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
 # Install requirements
 RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
 WORKDIR /code
+COPY poetry/pyproject.toml poetry/poetry.lock* ./
+RUN poetry install --no-interaction
 COPY . .
 RUN poetry install --no-interaction
 
