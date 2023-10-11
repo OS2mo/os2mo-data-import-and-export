@@ -216,9 +216,7 @@ def are_caches_equivalent(
     if do_deepdiff:
         logger.debug(80 * "#")
         logger.debug(f"cache = {name}")
-        diff = DeepDiff(
-            tmp_ignore_dates(old_cache), tmp_ignore_dates(new_cache), verbose_level=2
-        )
+        diff = DeepDiff(old_cache, new_cache, verbose_level=2)
         logger.debug(diff)
         print(80 * "!")
     return False
@@ -230,17 +228,6 @@ def remove_primary(engagements: dict):
         for elem in value:
             elem.pop("primary_boolean")
     return engagements
-
-
-def tmp_ignore_dates(cache: dict) -> dict:
-    for key, list_of_vals in cache:
-        for elem in list_of_vals:
-            if "from_date" in elem:
-                elem.pop("from_date")
-            if "to_date" in elem:
-                elem.pop("to_date")
-
-    return cache
 
 
 def compare_for_equivalence(
@@ -272,11 +259,9 @@ def compare_for_equivalence(
 
     equivalence_bools = []
     for old, new, name in cache_pairs:
-        oc = tmp_ignore_dates(old)
-        nc = tmp_ignore_dates(new)
 
         cons_old, cons_new = consolidate_validities_in_single_cache(
-            old_cache=oc, new_cache=nc
+            old_cache=old, new_cache=new
         )
         is_equiv = are_caches_equivalent(
             old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff, name=name
