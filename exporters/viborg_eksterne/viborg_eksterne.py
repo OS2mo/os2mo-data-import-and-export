@@ -92,6 +92,8 @@ class ViborgEksterne:
 
         with file_uploader(self.settings, outfile_name) as filename:
             self.export_engagement(mh, filename, lc, lc_historic)
+            # Copy for so we can upload with smb in job-runner.sh
+            shutil.copyfile(filename, f"/tmp/{outfile_name}")
         logger.info("Time: {}s".format(time.time() - t))
 
         logger.info("Export completed")
@@ -117,10 +119,7 @@ class ViborgEksterne:
                 for row in self._gen_from_mo(employee, mh):
                     rows.append(row)
 
-        with file_uploader(self.settings, filename) as tmp_filename:
-            mh._write_csv(self.fieldnames, rows, tmp_filename)
-            # Copy for so we can upload with smb in job-runner.sh
-            shutil.copyfile(tmp_filename, f"/tmp/{filename}")
+        mh._write_csv(self.fieldnames, rows, filename)
 
     def _get_disallowed_engagement_types(self):
         # Medarbejder (månedsløn) and Medarbejder (timeløn)
