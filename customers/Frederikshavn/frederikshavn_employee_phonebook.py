@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 from more_itertools import prepend
 from raclients.upload import file_uploader
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
 from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
@@ -64,7 +64,9 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
     query = (
         session.query(
-            Bruger.fornavn + " " + Bruger.efternavn,
+            Bruger.uuid,
+            Bruger.fornavn,
+            Bruger.efternavn,
             Cellphonenr.c.værdi,
             Phonenr.c.værdi,
             Afdelinger.c.navn,
@@ -75,6 +77,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
             Engagement.enhed_uuid.in_(alle_enheder),
             Engagement.enhed_uuid != settings.sql_excluded_organisation_units_uuid,
             Engagement.bruger_uuid == Bruger.uuid,
+            or_(Cellphonenr.c.værdi != "", Phonenr.c.værdi != ""),
         )
         .join(Cellphonenr, Cellphonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
         .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
@@ -85,14 +88,15 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     data_df = pd.DataFrame(
         data,
         columns=[
-            "Navn",
+            "Username",
+            "Fornavn",
+            "Efternavn",
             "Mobil nr.",
             "Telefon nr.",
             "Afdeling",
             "Stillingsbetegnelse",
         ],
     )
-    print(data_df.columns)
 
     # Return data as a list of tuples with columns as the first element
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
