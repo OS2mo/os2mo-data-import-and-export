@@ -1,4 +1,4 @@
-from io import StringIO
+from io import BytesIO
 from socket import timeout  # Used to handle exception
 from typing import Any
 
@@ -67,9 +67,6 @@ def main():
     print("Directory listing before upload:")
     dir_list()
 
-    # The server insists on returning a timeout after every upload, so we
-    # re-start the connection for each file.
-    ftps = start_ftpes_connection()
 
     filenames = [
         "bruger.csv",
@@ -80,9 +77,12 @@ def main():
     ]
 
     for to_file in filenames:
+        # The server insists on returning a timeout after every upload, so we
+        # re-start the connection for each file.
+        ftps = start_ftpes_connection()
         from_file = f"plan2learn_{to_file}"
 
-        csv_file = StringIO(read_file(SETTINGS, from_file))
+        csv_file = BytesIO(read_file(SETTINGS, from_file).encode())
         print("Uploading: {}".format(to_file))
         try:
             ftps.storbinary("STOR {}".format(to_file), csv_file)
