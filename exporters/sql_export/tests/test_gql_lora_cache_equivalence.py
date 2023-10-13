@@ -236,8 +236,10 @@ def compare_for_equivalence(
     old_cache, new_cache = account_for_fixes(old_cache, new_cache)
     do_deepdiff = new_cache.settings.log_level == LogLevel.DEBUG
 
-    if state != "Actual_State":
-        new_cache.engagements = remove_primary(new_cache.engagements)
+    if state == "Actual_State":
+        old_cache.engagements = remove_primary(old_cache.engagements)
+
+    new_cache.engagements = remove_primary(new_cache.engagements)
 
     cache_pairs = [
         (old_cache.facets, new_cache.facets, "facets"),
