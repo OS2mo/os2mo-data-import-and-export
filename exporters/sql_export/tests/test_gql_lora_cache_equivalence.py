@@ -210,6 +210,9 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
 def are_caches_equivalent(
     old_cache: dict, new_cache: dict, do_deepdiff: bool = True, name: str | None = None
 ) -> bool:
+    if name == "associations":
+        old_cache = format_assocs(old_cache)
+
     if old_cache == new_cache:
         return True
 
@@ -228,6 +231,15 @@ def remove_primary(engagements: dict):
         for elem in value:
             elem.pop("primary_boolean")
     return engagements
+
+
+def format_assocs(assoc_cache: dict):
+    for assoc_key, assoc_list in assoc_cache.items():
+        for assoc in assoc_list:
+            if assoc.get("user") == "":
+                assoc["user"] = None
+
+    return assoc_cache
 
 
 def compare_for_equivalence(
