@@ -512,10 +512,6 @@ if __name__ == "__main__":
     for root in roots:
         if root["name"] == "Allerød":
             alleroed = root["uuid"]
-        if root["name"] == "9B":
-            sd = root["uuid"]
-        if root["name"] == "H-MED Hoved-MED":
-            udvalg = root["uuid"]
 
     if threaded_speedup:
         cq.pre_cache_users(mh)
@@ -556,35 +552,5 @@ if __name__ == "__main__":
         print("Teams: {}s".format(time.time() - t))
     except ValueError as exc:
         print("Something went wrong:", exc.args[0])
-
-    nodes = mh.read_ou_tree(sd)
-    with file_uploader(settings, "SD-løn org med Pnr_os2mo.csv") as filename:
-        cq.export_orgs(mh, nodes, filename, include_employees=False)
-    print("SD-løn: {}".format(time.time() - t))
-
-    nodes = mh.read_ou_tree(udvalg)
-    fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
-    org_types = ["AMR"]
-    with file_uploader(settings, "AMR-udvalgsmedlemer_i_hieraki.csv") as filename:
-        export_udvalg(
-            mh,
-            nodes,
-            filename,
-            fieldnames,
-            org_types,
-        )
-    print("AMR: {}".format(time.time() - t))
-
-    fieldnames = ["Hoved-MED", "Center-MED", "Lokal-MED", "AMR-Gruppe"]
-    org_types = ["H-MED", "C-MED", "L-MED"]
-    with file_uploader(settings, "MED-udvalgsmedlemer_i_hieraki.csv") as filename:
-        export_udvalg(
-            mh,
-            nodes,
-            filename,
-            fieldnames,
-            org_types,
-        )
-    print("MED: {}".format(time.time() - t))
 
     print("Export completed")
