@@ -84,7 +84,9 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
         for old_val in list_of_old_values:
 
             fixed = get_corresponding_elem(old_val, list_of_new_values)
+
             if fixed is not None:
+                list_of_new_values.remove(fixed)
                 # the elem is good, add it to the list
                 fixed_list.append(fixed)
 
