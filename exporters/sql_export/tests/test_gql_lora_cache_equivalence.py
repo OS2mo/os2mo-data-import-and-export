@@ -1,5 +1,4 @@
 import datetime
-import typing
 
 from deepdiff.diff import DeepDiff
 
@@ -24,6 +23,8 @@ from prometheus_client import Gauge
 
 logger = get_logger()
 trigger_equiv_router = APIRouter()
+from_date = "from_date"
+to_date = "to_date"
 
 
 # The addresses hava a bug in the old cache. The old cache takes the dar field beskrivelse,
@@ -58,7 +59,7 @@ def get_corresponding_elem(
         valid = True
         for key, value in elem.items():
             # ignore to and from dates, those are buggy
-            if key == "from_date" or key == "to_date":
+            if key == from_date or key == to_date:
                 continue
             # if different, set the difference bool
             if old_elem.get(key) != value:
@@ -259,9 +260,7 @@ def compare_for_equivalence(
     equivalence_bools = []
     for old, new, name in cache_pairs:
 
-        cons_old, cons_new = consolidate_validities_in_single_cache(
-            old_cache=old, new_cache=new
-        )
+        cons_old, cons_new = handle_validities(old_cache=old, new_cache=new)
         is_equiv = are_caches_equivalent(
             old_cache=cons_old, new_cache=cons_new, do_deepdiff=do_deepdiff, name=name
         )
