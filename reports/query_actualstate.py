@@ -430,6 +430,5 @@ def run_report_as_csv(reporttype, org_name: str, file_name: str):
     # write data as csv file
     with open(file_name, "w+", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(data_df.columns)
         for row in data_df.itertuples(index=False):
             writer.writerow(row)
