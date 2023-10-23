@@ -76,7 +76,7 @@ def get_corresponding_elem(
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
     keys_to_pop = []
     for key, list_of_old_values in old_cache.items():
-        list_of_new_values: list[dict] = new_cache.get(key, [])
+        list_of_new_values: list[dict] = new_cache.get(key, []).copy()
 
         # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
