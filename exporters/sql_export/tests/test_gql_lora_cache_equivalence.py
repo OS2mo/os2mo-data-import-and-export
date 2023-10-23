@@ -152,61 +152,42 @@ def is_same_date(old_date: str | None, new_date: str | None) -> bool:
     return diff <= datetime.timedelta(days=2)
 
 
-def compare_elem_date_to_list(
-    old_elem: dict, list_of_new_elems: list[dict]
-) -> typing.Tuple[dict, list[dict]]:
-    to_date = "to_date"
-    from_date = "from_date"
+def handle_validities(old_cache: dict, new_cache: dict):
 
-    old_from_date = old_elem.get(from_date)
-    old_to_date = old_elem.get(to_date)
+    # assume all new items are in the old as well, otherwise we will catch it later
+    for nk, list_of_new_values in new_cache.items():
+        if not isinstance(list_of_new_values, list):
+            break
+        list_of_old_values = old_cache[nk]
 
-    for new_elem in list_of_new_elems:
-        if to_date not in new_elem or from_date not in new_elem:
-            continue
+        length = len(list_of_new_values)
 
-        new_from_date = new_elem.get(from_date)
-        new_to_date = new_elem.get(to_date)
-        if not is_same_date(old_from_date, new_from_date) and not is_same_date(
-            old_to_date, new_to_date
-        ):
-            continue
+        for i in range(length):
+            new_elem = list_of_new_values[i]
+            old_elem = list_of_old_values[i]
 
-        old_elem[from_date] = new_from_date
-        old_elem[to_date] = new_to_date
+            if get_corresponding_elem(old_elem, [new_elem.copy()]) is None:
+                continue
+            if is_same_date(old_elem[from_date], new_elem[from_date]):
+                old_elem.pop(from_date)
+                new_elem.pop(from_date)
+            if is_same_date(old_elem[to_date], new_elem[to_date]):
+                old_elem.pop(to_date)
+                new_elem.pop(to_date)
 
-    return old_elem, list_of_new_elems
-
-
-def cons_date_in_lists(list_of_old_values: list[dict], list_of_new_values: list[dict]):
-    work_list = list_of_new_values.copy()
-    for old_elem in list_of_old_values:
-        if "from_date" not in old_elem or "to_date" not in old_elem:
-            continue
-        old_elem, work_list = compare_elem_date_to_list(old_elem, work_list)
-
-    return list_of_old_values
-
-
-def consolidate_validities_in_single_cache(old_cache: dict, new_cache: dict):
-    work_dict: dict = new_cache.copy()
-    for key, list_of_old_values in old_cache.items():
-        list_of_new_values = work_dict.get(key)
-        if list_of_new_values is None:
-            continue
-
-        old_cache[key] = cons_date_in_lists(list_of_old_values, list_of_new_values)
     return old_cache, new_cache
 
 
 def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.addresses = fix_addresses(old_cache.addresses, new_cache.addresses)
+    old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
     old_cache.units = fix_never_ending(old_cache.units, new_cache.units)
     old_cache.it_connections = fix_never_ending(
         old_cache.it_connections, new_cache.it_connections
     )
     old_cache.managers = fix_never_ending(old_cache.managers, new_cache.managers)
     old_cache.kles = fix_never_ending(old_cache.kles, new_cache.kles)
+    old_cache.roles = fix_never_ending(old_cache.roles, new_cache.roles)
 
     return old_cache, new_cache
 
