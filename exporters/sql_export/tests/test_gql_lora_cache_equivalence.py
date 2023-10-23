@@ -37,10 +37,12 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
             continue
 
         for i in range(len(list_of_new_values)):
-            new_address = list_of_new_values[i]
+            new_address = list_of_new_values[i].copy()
             old_address = list_of_old_values[i]
             if new_address.get("scope") == "DAR":
                 old_address["value"] = new_address["value"]
+                old_address[from_date] = new_address[from_date]
+                old_address[to_date] = new_address[to_date]
 
     return old_addresses
 
@@ -65,7 +67,7 @@ def get_corresponding_elem(
 
         # if the elem is in the list, we return it
         if valid:
-            return elem
+            return elem.copy()
 
     return None
 
@@ -76,7 +78,7 @@ def get_corresponding_elem(
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
     keys_to_pop = []
     for key, list_of_old_values in old_cache.items():
-        list_of_new_values: list[dict] = new_cache.get(key, [])
+        list_of_new_values: list[dict] = new_cache.get(key, []).copy()
 
         # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
