@@ -1,4 +1,5 @@
 import datetime
+from pprint import pprint
 
 from deepdiff.diff import DeepDiff
 
@@ -159,9 +160,15 @@ def handle_validities(old_cache: dict, new_cache: dict):
     for nk, list_of_new_values in new_cache.items():
         if not isinstance(list_of_new_values, list):
             break
+        if nk not in old_cache:
+            continue
+
         list_of_old_values = old_cache[nk]
 
         length = len(list_of_new_values)
+        if length != len(list_of_old_values):
+            pprint(list_of_new_values)
+            pprint(list_of_old_values)
 
         for i in range(length):
             new_elem = list_of_new_values[i]
@@ -181,7 +188,7 @@ def handle_validities(old_cache: dict, new_cache: dict):
 
 def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.addresses = fix_addresses(old_cache.addresses, new_cache.addresses)
-    old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
+    # old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
     old_cache.units = fix_never_ending(old_cache.units, new_cache.units)
     old_cache.it_connections = fix_never_ending(
         old_cache.it_connections, new_cache.it_connections
@@ -189,6 +196,9 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.managers = fix_never_ending(old_cache.managers, new_cache.managers)
     old_cache.kles = fix_never_ending(old_cache.kles, new_cache.kles)
     old_cache.roles = fix_never_ending(old_cache.roles, new_cache.roles)
+    old_cache.associations = fix_never_ending(
+        old_cache.associations, new_cache.associations
+    )
 
     return old_cache, new_cache
 
