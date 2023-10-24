@@ -64,7 +64,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
     query = (
         session.query(
-            Bruger.uuid,
+            Engagement.uuid,
             Bruger.fornavn,
             Bruger.efternavn,
             Cellphonenr.c.værdi,
