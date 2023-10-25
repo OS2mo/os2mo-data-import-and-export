@@ -3,7 +3,6 @@
 services:
   sql_export:
     build: .
-    command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
       AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_ID: "dipex"
