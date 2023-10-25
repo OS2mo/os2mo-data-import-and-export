@@ -7,7 +7,12 @@ from raclients.upload import file_uploader
 from sqlalchemy import and_, or_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
-from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
+from exporters.sql_export.sql_export.sql_table_defs import (
+    Adresse,
+    Bruger,
+    Engagement,
+    Enhed,
+)
 from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
 
 logger = logging.getLogger(__name__)

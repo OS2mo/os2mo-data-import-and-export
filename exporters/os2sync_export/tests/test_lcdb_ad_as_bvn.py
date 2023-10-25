@@ -8,13 +8,13 @@ from sqlalchemy.orm import sessionmaker
 from tests.helpers import dummy_settings
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import ItForbindelse
-from exporters.sql_export.sql_table_defs import ItSystem
-from exporters.sql_export.sql_table_defs import Tilknytning
+from exporters.sql_export.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_export.sql_table_defs import ItForbindelse
+from exporters.sql_export.sql_export.sql_table_defs import ItSystem
+from exporters.sql_export.sql_export.sql_table_defs import Tilknytning
 
 AD_IT_SYSTEM = "Active Directory"
 

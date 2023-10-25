@@ -22,14 +22,14 @@ from tenacity import stop_after_attempt
 from tenacity import wait_random_exponential
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import DARAdresse
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import KLE
-from exporters.sql_export.sql_table_defs import Leder
-from exporters.sql_export.sql_table_defs import Tilknytning
+from exporters.sql_export.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_export.sql_table_defs import DARAdresse
+from exporters.sql_export.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_export.sql_table_defs import KLE
+from exporters.sql_export.sql_export.sql_table_defs import Leder
+from exporters.sql_export.sql_export.sql_table_defs import Tilknytning
 
 
 LOG_LEVEL = logging.DEBUG

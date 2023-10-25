@@ -7,7 +7,7 @@ import pandas as pd
 import xlsxwriter
 from openpyxl import load_workbook
 
-from exporters.sql_export.sql_table_defs import (
+from exporters.sql_export.sql_export.sql_table_defs import (
     Adresse,
     Base,
     Bruger,

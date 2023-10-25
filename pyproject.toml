@@ -10,7 +10,7 @@ keywords = ["DIPEX", "OS2mo-data-import-and-export"]
 packages = [
     { include = "integrations/*.py" },
     { include = "integrations/**/*.py" },
-    { include = "exporters/sql_export/*.py" },
+    { include = "exporters/sql_export/sql_export/*.py" },
     { include = "exporters/utils/*.py" },
 ]
 
