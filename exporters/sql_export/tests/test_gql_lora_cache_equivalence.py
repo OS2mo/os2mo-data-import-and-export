@@ -1,5 +1,4 @@
 import datetime
-from pprint import pprint
 
 from deepdiff.diff import DeepDiff
 
@@ -43,35 +42,8 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
             old_address = list_of_old_values[i]
             if new_address.get("scope") == "DAR":
                 old_address["value"] = new_address["value"]
-                old_address[from_date] = new_address[from_date]
-                old_address[to_date] = new_address[to_date]
 
     return old_addresses
-
-
-def get_corresponding_elem(
-    old_elem: dict, list_of_new_elems: list[dict]
-) -> dict | None:
-    if len(list_of_new_elems) == 0:
-        return None
-
-    for elem in list_of_new_elems:
-        # assume we're good
-        valid = True
-        for key, value in elem.items():
-            # ignore to and from dates, those are buggy
-            if key == from_date or key == to_date:
-                continue
-            # if different, set the difference bool
-            if old_elem.get(key) != value:
-                valid = False
-                break
-
-        # if the elem is in the list, we return it
-        if valid:
-            return elem.copy()
-
-    return None
 
 
 # The old cache has a problem where it-connections, managers, and org units never ends
@@ -80,29 +52,26 @@ def get_corresponding_elem(
 def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
     keys_to_pop = []
     for key, list_of_old_values in old_cache.items():
+        if key not in new_cache:
+            keys_to_pop.append(key)
+            continue
         list_of_new_values: list[dict] = new_cache.get(key, []).copy()
 
         # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
-        # for each old element, check if it has the bug or is supposed to be there
-        for old_val in list_of_old_values:
 
-            fixed = get_corresponding_elem(old_val, list_of_new_values)
+        for i in range(len(list_of_new_values)):
+            old = list_of_old_values[i].copy()
+            new = list_of_new_values[i]
 
-            if fixed is not None:
-                list_of_new_values.remove(fixed)
-                # the elem is good, add it to the list
-                fixed_list.append(fixed)
+            old[from_date] = new[from_date]
+            old[to_date] = new[to_date]
+            fixed_list.append(old)
 
-        # if there's no elements in the approved list, we probably shouldn't have an entry with
-        # that uuid
-        if len(fixed_list) == 0:
-            keys_to_pop.append(key)
-        else:
-            old_cache[key] = fixed_list
+        old_cache[key] = fixed_list
 
-    for key in keys_to_pop:
-        old_cache.pop(key)
+    for k in keys_to_pop:
+        old_cache.pop(k)
 
     return old_cache
 
@@ -160,35 +129,27 @@ def handle_validities(old_cache: dict, new_cache: dict):
     for nk, list_of_new_values in new_cache.items():
         if not isinstance(list_of_new_values, list):
             break
-        if nk not in old_cache:
-            continue
 
         list_of_old_values = old_cache[nk]
 
         length = len(list_of_new_values)
-        if length != len(list_of_old_values):
-            pprint(list_of_new_values)
-            pprint(list_of_old_values)
 
         for i in range(length):
             new_elem = list_of_new_values[i]
             old_elem = list_of_old_values[i]
 
-            if get_corresponding_elem(old_elem, [new_elem.copy()]) is None:
-                continue
             if is_same_date(old_elem[from_date], new_elem[from_date]):
-                old_elem.pop(from_date)
-                new_elem.pop(from_date)
+                old_elem[from_date] = new_elem[from_date]
+
             if is_same_date(old_elem[to_date], new_elem[to_date]):
-                old_elem.pop(to_date)
-                new_elem.pop(to_date)
+                old_elem[to_date] = new_elem[to_date]
 
     return old_cache, new_cache
 
 
 def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.addresses = fix_addresses(old_cache.addresses, new_cache.addresses)
-    # old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
+    old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
     old_cache.units = fix_never_ending(old_cache.units, new_cache.units)
     old_cache.it_connections = fix_never_ending(
         old_cache.it_connections, new_cache.it_connections
