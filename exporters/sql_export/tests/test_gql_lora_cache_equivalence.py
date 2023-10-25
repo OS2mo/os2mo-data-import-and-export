@@ -169,6 +169,7 @@ def are_caches_equivalent(
 ) -> bool:
     if name == "associations":
         old_cache = format_assocs(old_cache)
+        new_cache = format_assocs(new_cache)
 
     if old_cache == new_cache:
         return True
@@ -193,6 +194,9 @@ def remove_primary(engagements: dict):
 def format_assocs(assoc_cache: dict):
     for assoc_key, assoc_list in assoc_cache.items():
         for assoc in assoc_list:
+            if "unit" in assoc:
+                assoc.pop("unit")
+
             if assoc.get("user") == "":
                 assoc["user"] = None
 
