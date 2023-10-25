@@ -28,10 +28,6 @@ $POETRYPATH install --no-interaction
 
 #.venv/bin/pip install --editable . this was the cause of 57056
 
-cd $DIPEXAR/integrations/SD_Lon/
-$POETRYPATH env use python3.11
-$POETRYPATH install
-
 cd $DIPEXAR/exporters/os2sync_export
 $POETRYPATH env use python3.11
 $POETRYPATH install
