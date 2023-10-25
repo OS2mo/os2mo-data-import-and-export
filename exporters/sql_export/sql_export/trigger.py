@@ -16,8 +16,7 @@ from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
 from ra_utils.job_settings import JobSettings
-
-from .sql_export import SqlExport
+from sql_export.sql_export import SqlExport
 
 logger = logging.getLogger(__name__)
 trigger_router = APIRouter()

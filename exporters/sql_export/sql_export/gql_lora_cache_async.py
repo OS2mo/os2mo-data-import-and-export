@@ -16,11 +16,10 @@ from ra_utils.async_to_sync import async_to_sync
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 from raclients.graph.util import execute_paged
+from sql_export.log import LogLevel
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
-
-from .log import LogLevel
 
 RETRY_MAX_TIME = 60 * 5
 

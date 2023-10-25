@@ -8,9 +8,8 @@ import sys
 
 import click
 from ra_utils.load_settings import load_settings
+from sql_export.sql_export import SqlExport
 from sqlalchemy import create_engine
-
-from .sql_export import SqlExport
 
 LOG_LEVEL = logging.DEBUG
 

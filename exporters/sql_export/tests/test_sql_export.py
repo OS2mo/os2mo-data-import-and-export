@@ -14,17 +14,16 @@ from hypothesis import given
 from hypothesis.strategies import booleans
 from more_itertools import one
 from parameterized import parameterized
+from sql_export.sql_export import SqlExport
+from sql_export.sql_export import wrap_export
+from sql_export.sql_table_defs import Base
+from sql_export.sql_table_defs import Bruger
+from sql_export.sql_table_defs import Enhed
+from sql_export.sql_table_defs import ItForbindelse
+from sql_export.sql_table_defs import Tilknytning
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
-
-from ..sql_export import SqlExport
-from ..sql_export import wrap_export
-from ..sql_table_defs import Base
-from ..sql_table_defs import Bruger
-from ..sql_table_defs import Enhed
-from ..sql_table_defs import ItForbindelse
-from ..sql_table_defs import Tilknytning
 
 
 class FakeLC:

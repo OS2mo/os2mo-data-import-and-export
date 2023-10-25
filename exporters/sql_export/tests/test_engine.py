@@ -4,8 +4,7 @@ import tempfile
 import unittest
 
 import sqlalchemy
-
-from ..lc_for_jobs_db import get_engine
+from sql_export.lc_for_jobs_db import get_engine
 
 
 class Test(unittest.TestCase):
