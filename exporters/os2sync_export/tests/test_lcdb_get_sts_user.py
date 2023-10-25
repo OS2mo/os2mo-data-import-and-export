@@ -10,7 +10,7 @@ from tests.helpers import dummy_settings
 from tests.helpers import mock_engagements_to_user
 from tests.helpers import NICKNAME_TEMPLATE
 
-from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_export.sql_table_defs import Bruger
 
 # Mock contents of `Bruger` model
 _lcdb_mock_users = [

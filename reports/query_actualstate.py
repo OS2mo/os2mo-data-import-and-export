@@ -22,7 +22,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
+from exporters.sql_export.sql_export.sql_table_defs import (
     Adresse,
     Bruger,
     Engagement,

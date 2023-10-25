@@ -29,7 +29,12 @@ from raclients.upload import file_uploader, run_report_and_upload
 from sqlalchemy import or_
 
 from exporters import common_queries as cq
-from exporters.sql_export.sql_table_defs import Adresse, Bruger, Engagement, Enhed
+from exporters.sql_export.sql_export.sql_table_defs import (
+    Adresse,
+    Bruger,
+    Engagement,
+    Enhed,
+)
 from reports.query_actualstate import expand_org_path, run_report, set_of_org_units
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
