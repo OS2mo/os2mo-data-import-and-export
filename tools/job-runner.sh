@@ -143,40 +143,28 @@ imports_test_ad_connectivity_writer(){
 
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
-    if [[ ${USE_DOCKER_SD_CHANGED_AT:-"false"} == "true" ]]; then
-        curl -s -X POST --output /dev/null "http://localhost:8030/trigger"
-        if [[ $? != 0 ]]; then
-            return $?
-        fi
+    curl -s -X POST --output /dev/null "http://localhost:8030/trigger"
+    if [[ $? != 0 ]]; then
+        return $?
+    fi
 
+    sd_changed_at_status
+    SD_STATUS=$?
+    SD_STATUS_CHECK_START=$(date +%s)
+
+    echo "Waiting for SD-changed-at to finish"
+    while [[ ${SD_STATUS} != 0 ]]; do
+        SD_CURRENT_TIMESTAMP=$(date +%s)
+        if [[ ${SD_CURRENT_TIMESTAMP} -ge $((${SD_STATUS_CHECK_START} + 900)) ]]; then
+            SD_STATUS=1
+            break
+        fi
+        sleep 2
         sd_changed_at_status
         SD_STATUS=$?
-        SD_STATUS_CHECK_START=$(date +%s)
-
-        echo "Waiting for SD-changed-at to finish"
-        while [[ ${SD_STATUS} != 0 ]]; do
-            SD_CURRENT_TIMESTAMP=$(date +%s)
-            if [[ ${SD_CURRENT_TIMESTAMP} -ge $((${SD_STATUS_CHECK_START} + 900)) ]]; then
-                SD_STATUS=1
-                break
-            fi
-            sleep 2
-            sd_changed_at_status
-            SD_STATUS=$?
-        done
-        echo "Exit imports_sd_changed_at with status: ${SD_STATUS}"
-        return ${SD_STATUS}
-    else
-        BACK_UP_AFTER_JOBS+=(
-            ${DIPEXAR}/cpr_mo_ad_map.csv
-            ${DIPEXAR}/settings/cpr_uuid_map.csv
-        )
-        cd integrations/SD_Lon/
-        ${POETRYPATH} run python -m sdlon.sd_changed_at changed-at-cli
-        EXIT_CODE=$?
-        cd ../..
-    fi
-    return $EXIT_CODE
+    done
+    echo "Exit imports_sd_changed_at with status: ${SD_STATUS}"
+    return ${SD_STATUS}
 }
 
 imports_opus_diff_import(){
