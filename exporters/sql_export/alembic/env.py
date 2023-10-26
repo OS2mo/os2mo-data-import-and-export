@@ -1,5 +1,5 @@
-import os
-import sys
+__package__ = "sql_export.alembic"
+
 from logging.config import fileConfig
 
 from alembic import context
@@ -9,7 +9,6 @@ from ..sql_export import SqlExport
 from ..sql_url import DatabaseFunction
 from ..sql_url import generate_connection_url
 
-sys.path.append(os.getcwd())
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
