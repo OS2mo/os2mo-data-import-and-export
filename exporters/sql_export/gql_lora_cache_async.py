@@ -10,6 +10,7 @@ from pathlib import Path
 
 from dateutil.parser import parse as parse_date
 from gql import gql
+from log import LogLevel
 from more_itertools import first
 from pydantic import BaseSettings
 from ra_utils.async_to_sync import async_to_sync
@@ -19,8 +20,6 @@ from raclients.graph.util import execute_paged
 from tenacity import retry
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
-
-from .log import LogLevel
 
 RETRY_MAX_TIME = 60 * 5
 
