@@ -17,7 +17,7 @@ from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
-from exporters.sql_export.lora_cache import fetch_loracache
+from exporters.sql_export.sql_export.lora_cache import fetch_loracache
 
 
 logger = logging.getLogger("MoAdSync")

@@ -15,7 +15,7 @@ from ra_utils.load_settings import load_settings
 from ra_utils.deprecation import deprecated
 from raclients.upload import file_uploader
 
-from exporters.sql_export.lora_cache import get_cache as LoraCache
+from exporters.sql_export.sql_export.lora_cache import get_cache as LoraCache
 import exporters.sql_export.lora_cache
 from exporters.utils.priority_by_class import lc_choose_public_address
 

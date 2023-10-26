@@ -22,7 +22,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from raclients.upload import file_uploader
 from ra_utils.load_settings import load_settings
 
-from exporters.sql_export.lora_cache import get_cache as LoraCache
+from exporters.sql_export.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
 from exporters.utils.priority_by_class import lc_choose_public_address
 

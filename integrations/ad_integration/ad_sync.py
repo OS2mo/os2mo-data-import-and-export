@@ -20,7 +20,7 @@ from ra_utils.tqdm_wrapper import tqdm
 
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
-from exporters.sql_export.lora_cache import get_cache as LoraCache
+from exporters.sql_export.sql_export.lora_cache import get_cache as LoraCache
 
 logger = logging.getLogger("AdSyncRead")
 

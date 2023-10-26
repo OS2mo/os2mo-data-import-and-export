@@ -7,7 +7,7 @@ from os2sync_export.lcdb_os2mo import try_get_it_user_key
 from sqlalchemy.orm import sessionmaker
 from tests.helpers import dummy_settings
 
-from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_export.sql_table_defs import Adresse
 from exporters.sql_export.sql_export.sql_table_defs import Base
 from exporters.sql_export.sql_export.sql_table_defs import Bruger
