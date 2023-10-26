@@ -46,6 +46,35 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
     return old_addresses
 
 
+def fix_managers(old_managers: dict, new_managers: dict):
+    man_level_key = "manager_level"
+    man_type_key = "manager_type"
+    unit_key = "unit"
+
+    for key, list_of_old_values in old_managers.items():
+        if key not in new_managers:
+            continue
+
+        list_of_new_values = new_managers.get(key, []).copy()
+        len_of_new_list = len(list_of_new_values)
+        len_of_old_list = len(list_of_old_values)
+
+        for i in range(min(len_of_old_list, len_of_new_list)):
+
+            if list_of_old_values[i][man_level_key] is None:
+                list_of_old_values[i][man_level_key] = list_of_new_values[i][
+                    man_level_key
+                ]
+            if list_of_old_values[i][man_type_key] is None:
+                list_of_old_values[i][man_type_key] = list_of_new_values[i][
+                    man_type_key
+                ]
+            if list_of_old_values[i][unit_key] is None:
+                list_of_old_values[i][unit_key] = list_of_new_values[i][unit_key]
+
+    return old_managers
+
+
 # The old cache has a problem where it-connections, managers, and org units never ends
 # This means that a closed it connection would still be part of the actual state export
 # though it shouldn't be.
@@ -60,7 +89,10 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
         # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
 
-        for i in range(len(list_of_new_values)):
+        len_new_values = len(list_of_new_values)
+        len_old_values = len(list_of_old_values)
+
+        for i in range(min(len_new_values, len_old_values)):
             old = list_of_old_values[i].copy()
             new = list_of_new_values[i]
 
@@ -160,6 +192,9 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.associations = fix_never_ending(
         old_cache.associations, new_cache.associations
     )
+
+    if old_cache.full_history and not old_cache.skip_past:
+        old_cache.managers = fix_managers(old_cache.managers, new_cache.managers)
 
     return old_cache, new_cache
 
