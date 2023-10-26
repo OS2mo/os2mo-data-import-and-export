@@ -16,20 +16,14 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     POETRY_VERSION="1.3.1" \
-    POETRY_VIRTUALENVS_CREATE=false \
     POETRY_HOME=/opt/poetry
 
-# Install poetry in an isolated environment
-RUN python -m venv $POETRY_HOME \
-    && pip install --no-cache-dir poetry==${POETRY_VERSION}
+RUN curl -sSL https://install.python-poetry.org | python3 - 
 
-# Install project in another isolated environment
-WORKDIR /opt
-RUN python -m venv $VIRTUAL_ENV
+WORKDIR /opt/sql_export
 COPY poetry.lock pyproject.toml ./
-RUN poetry install --no-root --only=main
+RUN POETRY_NO_INTERACTION=1 /opt/poetry/bin/poetry  install --no-root --only=main
 
-COPY . /opt/sql_export
 COPY sql_export ./sql_export/
 CMD [ "uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0" ]
 
