@@ -1,15 +1,16 @@
 # SPDX-FileCopyrightText: Magenta ApS
 #
 # SPDX-License-Identifier: MPL-2.0
-FROM python:3.11-bullseye
+FROM python:3.11-bookworm
 
 # Install binary database connection libraries
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | tee /etc/apt/trusted.gpg.d/microsoft.asc \
- && curl https://packages.microsoft.com/config/debian/11/prod.list | tee /etc/apt/sources.list.d/microsoft.list \
- && apt-get update \
- && apt-get --no-install-recommends -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev sqlcmd \
+RUN apt-get update \
+ && apt-get --no-install-recommends -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
+
+# Install sqlcmd utility
+RUN wget -qO- https://github.com/microsoft/go-sqlcmd/releases/download/v1.4.0/sqlcmd-v1.4.0-linux-amd64.tar.bz2 | tar xj --directory=/usr/local/bin/
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
