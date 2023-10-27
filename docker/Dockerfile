@@ -17,7 +17,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
 # Install requirements
 RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
 WORKDIR /code
+COPY pyproject.toml poetry.lock /code/
+RUN poetry install --no-interaction --no-root
 COPY . .
-RUN poetry install --no-interaction
 
 CMD ["python", "./metacli.py"]
