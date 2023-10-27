@@ -4,6 +4,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from ra_utils.load_settings import load_settings
+from ..sql_table_defs_external import Base
 
 from ..sql_export import SqlExport
 from ..sql_url import DatabaseFunction
@@ -22,7 +23,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
