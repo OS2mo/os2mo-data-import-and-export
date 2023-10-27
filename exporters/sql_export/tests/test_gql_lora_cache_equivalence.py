@@ -47,10 +47,7 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
 
 
 def fix_managers(old_managers: dict, new_managers: dict):
-    man_level_key = "manager_level"
-    man_type_key = "manager_type"
-    unit_key = "unit"
-
+    keys = ["manager_level", "manager_type", "unit", "user"]
     for key, list_of_old_values in old_managers.items():
         if key not in new_managers:
             continue
@@ -60,17 +57,9 @@ def fix_managers(old_managers: dict, new_managers: dict):
         len_of_old_list = len(list_of_old_values)
 
         for i in range(min(len_of_old_list, len_of_new_list)):
-
-            if list_of_old_values[i][man_level_key] is None:
-                list_of_old_values[i][man_level_key] = list_of_new_values[i][
-                    man_level_key
-                ]
-            if list_of_old_values[i][man_type_key] is None:
-                list_of_old_values[i][man_type_key] = list_of_new_values[i][
-                    man_type_key
-                ]
-            if list_of_old_values[i][unit_key] is None:
-                list_of_old_values[i][unit_key] = list_of_new_values[i][unit_key]
+            for elem_key in keys:
+                if list_of_old_values[i][elem_key] is None:
+                    list_of_old_values[i][elem_key] = list_of_new_values[i][elem_key]
 
     return old_managers
 
