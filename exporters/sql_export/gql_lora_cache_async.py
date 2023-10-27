@@ -31,7 +31,14 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
 
     use_new_cache: bool = False
     primary_manager_responsibility: str | None = None
-    exporters_actual_state_manager_responsibility_class: str | None = None
+    type: str | None = None
+    historic_type: str | None = None
+    db_name: str | None = None
+    historic_db_name: str | None = None
+    host: str | None = None
+    password: str | None = None
+    username: str | None = None
+
     prometheus_pushgateway: str | None = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
     std_page_size: int = 300
@@ -57,8 +64,17 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
             "mox.base": self.mox_base,
             "exporters": {
                 "actual_state": {
-                    "manager_responsibility_class": self.primary_manager_responsibility
-                }
+                    "manager_responsibility_class": self.primary_manager_responsibility,
+                    "user": self.username,
+                    "password": self.password,
+                    "db_name": self.db_name,
+                    "type": self.type,
+                    "host": self.host,
+                },
+                "actual_state_historic": {
+                    "db_name": self.historic_db_name,
+                    "type": self.historic_type,
+                },
             },
             "use_new_cache": self.use_new_cache,
         }
