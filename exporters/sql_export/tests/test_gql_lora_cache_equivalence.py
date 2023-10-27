@@ -193,7 +193,7 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
         old_cache.associations, new_cache.associations
     )
 
-    if old_cache.full_history and not old_cache.skip_past:
+    if old_cache.full_history and old_cache.skip_past:
         old_cache.managers = fix_managers(old_cache.managers, new_cache.managers)
 
     return old_cache, new_cache
