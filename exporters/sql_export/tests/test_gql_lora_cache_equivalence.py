@@ -232,6 +232,9 @@ def format_assocs(assoc_cache: dict):
             if "unit" in assoc:
                 assoc.pop("unit")
 
+            if "dynamic_class" in assoc:
+                assoc.pop("dynamic_class")
+
             if assoc.get("user") == "":
                 assoc["user"] = None
 
