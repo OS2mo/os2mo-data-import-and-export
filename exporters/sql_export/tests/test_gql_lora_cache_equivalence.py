@@ -164,7 +164,7 @@ def handle_validities(old_cache: dict, new_cache: dict):
 
         list_of_old_values = old_cache[nk]
 
-        length = len(list_of_new_values)
+        length = min(len(list_of_new_values), len(list_of_old_values))
 
         for i in range(length):
             new_elem = list_of_new_values[i]
