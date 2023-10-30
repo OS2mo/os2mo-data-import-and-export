@@ -31,7 +31,6 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
 
     use_new_cache: bool = False
     primary_manager_responsibility: str | None = None
-    exporters_actual_state_manager_responsibility_class: str | None = None
     prometheus_pushgateway: str | None = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
     std_page_size: int = 300
@@ -431,20 +430,17 @@ class GQLLoraCache:
 
         async def format_managers_and_location(qr: dict):
             def find_manager(managers: typing.List[dict]) -> str | None:
-                prim_manager_resp = (
-                    self.settings.primary_manager_responsibility
-                    or self.settings.exporters_actual_state_manager_responsibility_class
-                )
                 if not managers:
                     return None
-                if prim_manager_resp is None:
+                if self.settings.primary_manager_responsibility is None:
                     return first(managers)["uuid"]
                 return first(
                     map(
                         lambda m: m["uuid"],
                         filter(
                             lambda ma: (
-                                prim_manager_resp in ma["responsibility_uuids"]
+                                self.settings.primary_manager_responsibility
+                                in ma["responsibility_uuids"]
                             ),
                             managers,
                         ),
