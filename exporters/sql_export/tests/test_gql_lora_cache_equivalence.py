@@ -33,15 +33,12 @@ to_date = "to_date"
 # the loop doesn't reset the variables
 def fix_addresses(old_addresses: dict, new_addresses: dict):
     for key, list_of_new_values in new_addresses.items():
-        list_of_old_values = old_addresses.get(key, [])
-        if len(list_of_old_values) == 0:
-            continue
 
-        for i in range(len(list_of_new_values)):
-            new_address = list_of_new_values[i].copy()
-            old_address = list_of_old_values[i]
-            if new_address.get("scope") == "DAR":
-                old_address["value"] = new_address["value"]
+        for (old_address, new_address) in zip(
+            old_addresses.get(key, []), list_of_new_values.copy()
+        ):
+            if new_address.get("scope").upper() == "DAR":
+                old_address["value"] = new_address.get("value")
 
     return old_addresses
 
@@ -49,17 +46,11 @@ def fix_addresses(old_addresses: dict, new_addresses: dict):
 def fix_managers(old_managers: dict, new_managers: dict):
     keys = ["manager_level", "manager_type", "unit", "user"]
     for key, list_of_old_values in old_managers.items():
-        if key not in new_managers:
-            continue
 
-        list_of_new_values = new_managers.get(key, []).copy()
-        len_of_new_list = len(list_of_new_values)
-        len_of_old_list = len(list_of_old_values)
-
-        for i in range(min(len_of_old_list, len_of_new_list)):
+        for old, new in zip(list_of_old_values, new_managers.get(key, []).copy()):
             for elem_key in keys:
-                if list_of_old_values[i][elem_key] is None:
-                    list_of_old_values[i][elem_key] = list_of_new_values[i][elem_key]
+                if old.get(elem_key) is None:
+                    old[elem_key] = new.get(elem_key)
 
     return old_managers
 
@@ -73,24 +64,19 @@ def fix_never_ending(old_cache: dict, new_cache: dict[str, list[dict]]) -> dict:
         if key not in new_cache:
             keys_to_pop.append(key)
             continue
-        list_of_new_values: list[dict] = new_cache.get(key, []).copy()
 
         # list of checked elements that doesn't have the bug
         fixed_list: list[dict] = []
 
-        len_new_values = len(list_of_new_values)
-        len_old_values = len(list_of_old_values)
+        for old, new in zip(list_of_old_values, new_cache.get(key, []).copy()):
 
-        for i in range(min(len_new_values, len_old_values)):
-            old = list_of_old_values[i].copy()
-            new = list_of_new_values[i]
-
-            old[from_date] = new[from_date]
-            old[to_date] = new[to_date]
-            fixed_list.append(old)
+            old[from_date] = new.get(from_date)
+            old[to_date] = new.get(to_date)
+            fixed_list.append(old.copy())
 
         old_cache[key] = fixed_list
 
+    # TODO maybe a better check
     for k in keys_to_pop:
         old_cache.pop(k)
 
@@ -151,13 +137,7 @@ def handle_validities(old_cache: dict, new_cache: dict):
         if not isinstance(list_of_new_values, list):
             break
 
-        list_of_old_values = old_cache[nk]
-
-        length = min(len(list_of_new_values), len(list_of_old_values))
-
-        for i in range(length):
-            new_elem = list_of_new_values[i]
-            old_elem = list_of_old_values[i]
+        for old_elem, new_elem in zip(old_cache.get(nk, []), list_of_new_values):
 
             if is_same_date(old_elem[from_date], new_elem[from_date]):
                 old_elem[from_date] = new_elem[from_date]
@@ -171,6 +151,7 @@ def handle_validities(old_cache: dict, new_cache: dict):
 def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.addresses = fix_addresses(old_cache.addresses, new_cache.addresses)
     old_cache.addresses = fix_never_ending(old_cache.addresses, new_cache.addresses)
+
     old_cache.units = fix_never_ending(old_cache.units, new_cache.units)
     old_cache.it_connections = fix_never_ending(
         old_cache.it_connections, new_cache.it_connections
@@ -203,7 +184,7 @@ def are_caches_equivalent(
         logger.debug(f"cache = {name}")
         diff = DeepDiff(old_cache, new_cache, verbose_level=2)
         logger.debug(diff)
-        print(80 * "!")
+        logger.debug(80 * "!")
     return False
 
 
