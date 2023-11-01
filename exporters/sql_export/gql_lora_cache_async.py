@@ -59,6 +59,7 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
                     "manager_responsibility_class": self.primary_manager_responsibility
                 }
             },
+            "exporters.actual_state.manager_responsibility_class": self.primary_manager_responsibility,
             "use_new_cache": self.use_new_cache,
         }
 
