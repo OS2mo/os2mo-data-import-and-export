@@ -375,12 +375,12 @@ def read_cpr(employee: dict) -> str:
     return cpr
 
 
-def find_all_filtered_ids(inputfile, filter_ids):
+def find_all_filtered_units(inputfile, filter_ids) -> list[dict]:
     file_diffs = file_diff(None, inputfile)
     all_units = file_diffs["units"]
     all_units.extend(file_diffs["cancelled_units"])
     all_filtered_units, _ = filter_units(all_units, filter_ids)
-    return set(map(itemgetter("@id"), all_filtered_units))
+    return list(all_filtered_units)
 
 
 def include_cancelled(filename: str, employees, cancelled_employees) -> List:
@@ -402,7 +402,7 @@ def include_cancelled(filename: str, employees, cancelled_employees) -> List:
 def read_and_transform_data(
     inputfile1: Optional[str],
     inputfile2: str,
-    filter_ids: List[Optional[str]],
+    filter_ids: List[str],
     disable_tqdm=False,
     opus_id: Optional[int] = None,
 ) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
@@ -416,13 +416,15 @@ def read_and_transform_data(
     employees = include_cancelled(
         inputfile2, file_diffs["employees"], file_diffs["cancelled_employees"]
     )
-    all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
-    filtered_units, units = filter_units(file_diffs["units"], filter_ids)
+    all_filtered_units = find_all_filtered_units(inputfile2, filter_ids)
+    _, units = filter_units(file_diffs["units"], filter_ids)
     active_employees, terminated_employees = split_employees_leaves(employees)
-    filtered_employees = filter_employees(active_employees, all_filtered_ids)
+    filtered_employees = filter_employees(
+        active_employees, {unit["@id"] for unit in all_filtered_units}
+    )
     return (
         list(units),
-        list(filtered_units),
+        list(all_filtered_units),
         list(filtered_employees),
         list(terminated_employees),
     )

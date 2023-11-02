@@ -841,7 +841,7 @@ class OpusDiffImport(object):
         If a unit is filtered from the Opus file it means it cannot be deleted in Opus, but should not appear in MO.
         Any units that exists in MO, but are later moved in Opus to be below one of the filtered units should be terminated in MO.
         """
-        unfiltered_units = list(map(opus_helpers.gen_unit_uuid, units))
+        unfiltered_units = {opus_helpers.gen_unit_uuid(unit) for unit in units}
         if dry_run:
             print(
                 f"There are {len(unfiltered_units)} units that should have been terminated."
@@ -896,7 +896,7 @@ def import_one(
     xml_date: datetime,
     latest_date: Optional[datetime],
     dumps: Dict,
-    filter_ids: Optional[List],
+    filter_ids: List[str],
     opus_id: Optional[int] = None,
     rundb_write=True,
 ):
