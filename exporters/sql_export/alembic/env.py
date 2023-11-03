@@ -3,12 +3,13 @@ __package__ = "sql_export.alembic"
 from logging.config import fileConfig
 
 from alembic import context
-from ra_utils.load_settings import load_settings
+
+from exporters.sql_export.sql_url import DatabaseFunction, generate_connection_url
 from ..sql_table_defs_external import Base
 
 from ..sql_export import SqlExport
-from ..sql_url import DatabaseFunction
-from ..sql_url import generate_connection_url
+from ..trigger import DatabaseSettings
+
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -43,7 +44,10 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = generate_connection_url(database_function=DatabaseFunction.ACTUAL_STATE)
+    url = generate_connection_url(
+        database_function=DatabaseFunction.ACTUAL_STATE,
+        settings=DatabaseSettings().to_old_settings(),
+    )
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -62,7 +66,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    sql_exporter = SqlExport(settings=load_settings())
+    sql_exporter = SqlExport(settings=DatabaseSettings().to_old_settings())
     connectable = sql_exporter._get_engine()
 
     with connectable.connect() as connection:

@@ -3,7 +3,6 @@
 services:
   sql_export:
     build: .
-    command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
       AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_ID: "dipex"
@@ -20,6 +19,7 @@ services:
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
+      USE_NEW_CACHE: "true"
     ports:
       - 8789:8000/tcp
     volumes:
@@ -27,6 +27,10 @@ services:
     networks:
       - os2mo_default
       - sql_export
+    depends_on:
+      export-db:
+        condition: service_started
+
 
   export-db:
     image: postgres:13
