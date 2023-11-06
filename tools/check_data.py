@@ -26,7 +26,7 @@ def main():
 
     if settings.get("crontab.RUN_OPUS_DIFF_IMPORT"):
         unfiltered_units = list(terminate_filtered_units(dry_run=True))
-        assert not unfiltered_units, f"Found {len(unfiltered_units)} unit(s) that should have been filtered: {[u['name'] for u in unfiltered_units]}"
+        assert not unfiltered_units, f"Found {len(unfiltered_units)} unit(s) that should have been filtered."
 
         unfiltered_employees = terminate_filtered_employees(dry_run=True)
         assert not unfiltered_employees, f"Found {len(unfiltered_employees)} engagements that should have been filtered"

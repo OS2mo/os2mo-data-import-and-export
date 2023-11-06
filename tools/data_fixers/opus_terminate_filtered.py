@@ -29,7 +29,7 @@ def terminate_filtered_employees(dry_run):
     latest_date, opus_dump = opus_helpers.get_latest_dump()
     file_diffs = opus_helpers.file_diff(None, opus_dump)
     # Get every id of filtered units
-    all_ids = opus_helpers.find_all_filtered_ids(opus_dump, filter_ids)
+    all_ids = opus_helpers.find_all_filtered_units(opus_dump, filter_ids)
     # find all engagements to a filtered unit in latest opus-file
     filtered_employees = list(
         filter(lambda emp: emp.get("orgUnit") in all_ids, file_diffs["employees"])

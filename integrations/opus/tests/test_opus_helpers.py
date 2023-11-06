@@ -59,9 +59,9 @@ class test_opus_helpers(TestCase):
         ]
     )
     def test_all_filtered_ids_fiter_top_unit(self, file, filter_ids, expected):
-        all_filtered = opus_helpers.find_all_filtered_ids(file, filter_ids)
+        all_filtered = opus_helpers.find_all_filtered_units(file, filter_ids)
         self.assertEqual(len(all_filtered), len(expected))
-        self.assertEqual(all_filtered, expected)
+        self.assertEqual({ou["@id"] for ou in all_filtered}, expected)
 
     @parameterized.expand(
         [
@@ -82,7 +82,7 @@ class test_opus_helpers(TestCase):
             (["1"], [0, 3, 0, 1], None),
             # Read specific opus_id
             ([], [1, 0, 0, 0], 1),
-            (["1"], [0, 1, 0, 0], 1),
+            (["1"], [0, 3, 0, 0], 1),
         ]
     )
     def test_full_(self, filter_ids, expected, opus_id):
