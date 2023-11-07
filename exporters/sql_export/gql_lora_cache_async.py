@@ -5,10 +5,12 @@ import os
 import pickle
 import time
 from pathlib import Path
+from uuid import UUID
 
 from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
+from more_itertools import only
 from ra_utils.async_to_sync import async_to_sync
 from raclients.graph.client import GraphQLClient
 from raclients.graph.util import execute_paged
@@ -98,6 +100,7 @@ class GQLLoraCache:
         full_history: bool = False,
         skip_past: bool = False,
         settings=None,
+        graphql_session=None,
     ):
         logger.info(
             f"Initialising LoRa cache, {resolve_dar=}, {full_history=}, {skip_past=}"
@@ -127,7 +130,7 @@ class GQLLoraCache:
         self.related: dict = {}
         self.dar_cache: dict = {}
 
-        self.gql_client_session: GraphQLClient
+        self.gql_client_session: GraphQLClient = graphql_session
 
         self.org_uuid = self._get_org_uuid()
 
@@ -148,13 +151,18 @@ class GQLLoraCache:
         simple_query: bool,
         query_fields: str,
         variable_values: dict | None,
+        uuid: UUID | None = None,
     ):
         """Builds graphql queries and returns the gql object and variable values dict."""
         if variable_values is None:
             variable_values = {}
-
-        query_filters = ["$limit: int", "$offset: int"]
-        query_variables = ["limit: $limit", "offset: $offset"]
+        if uuid:
+            query_filters = ["$uuids: [UUID!]"]
+            query_variables = ["uuids: $uuids"]
+            variable_values.update({"uuids": [str(uuid)]})
+        else:
+            query_filters = ["$limit: int", "$offset: int"]
+            query_variables = ["limit: $limit", "offset: $offset"]
 
         query_types_with_no_dates = ["facets", "classes", "itsystems"]
         obj_type = "objects" if self.full_history else "current"
@@ -203,13 +211,21 @@ class GQLLoraCache:
         simple_query: bool = False,
         page_size: int | None = None,
         offset: int = 0,
+        uuid: UUID | None = None,
     ):
         gql_query, gql_variable_values = await self.construct_query(
             query_fields=query,
             query_type=query_type,
             variable_values=variable_values,
             simple_query=simple_query,
+            uuid=uuid,
         )
+        if uuid:
+            res = await self.gql_client_session.execute(
+                gql(gql_query), variable_values=gql_variable_values
+            )
+            yield only(res["page"])
+            return
         try:
             async for obj in execute_paged(
                 gql_session=self.gql_client_session,
@@ -251,22 +267,33 @@ class GQLLoraCache:
             org = session.execute(query)["org"]["uuid"]
         return org
 
-    async def _cache_lora_facets(self) -> None:
+    async def _cache_lora_facets(self):
+        obj = await self._fetch_facets()
+        self.facets.update(obj)
+
+    async def _fetch_facets(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching facets")
         query = """
                 uuid
                 user_key
             """
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="facets",
+            uuid=uuid,
             simple_query=True,
         ):
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
-            self.facets.update(obj)
+            res.update(obj)
+        return res
 
-    async def _cache_lora_classes(self) -> None:
+    async def _cache_lora_classes(self):
+        obj = await self._fetch_classes()
+        self.classes.update(obj)
+
+    async def _fetch_classes(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching classes")
         query = """
                     uuid
@@ -278,9 +305,11 @@ class GQLLoraCache:
 
         dictionary = {"name": "title", "facet_uuid": "facet"}
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="classes",
+            uuid=uuid,
             simple_query=True,
         ):
             obj = convert_dict(
@@ -289,9 +318,14 @@ class GQLLoraCache:
                 resolve_validity=False,
                 replace_dict=dictionary,
             )
-            self.classes.update(obj)
+            res.update(obj)
+        return res
 
-    async def _cache_lora_itsystems(self) -> None:
+    async def _cache_lora_itsystems(self):
+        obj = await self._fetch_itsystems()
+        self.itsystems.update(obj)
+
+    async def _fetch_itsystems(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching it systems")
         query = """
                     uuid
@@ -299,15 +333,22 @@ class GQLLoraCache:
                     name
             """
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="itsystems",
+            uuid=uuid,
             simple_query=True,
         ):
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
-            self.itsystems.update(obj)
+            res.update(obj)
+        return res
 
-    async def _cache_lora_users(self) -> None:
+    async def _cache_lora_users(self):
+        obj = await self._fetch_users()
+        self.users.update(obj)
+
+    async def _fetch_users(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching users")
         query = """
                         uuid
@@ -335,17 +376,24 @@ class GQLLoraCache:
             "nickname_surname": "kaldenavn_efternavn",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="employees",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.users)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_units(self) -> None:
+    async def _cache_lora_units(self):
+        obj = await self._fetch_units()
+        self.units.update(obj)
+
+    async def _fetch_units(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching org units")
 
         async def format_managers_and_location(qr: dict):
@@ -442,10 +490,9 @@ class GQLLoraCache:
             "parent_uuid": "parent",
             "unit_type_uuid": "unit_type",
         }
-
+        res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="org_units",
+            query=query, query_type="org_units", uuid=uuid
         ):
             if not self.full_history:
                 obj = align_current(obj)
@@ -459,9 +506,14 @@ class GQLLoraCache:
             obj = await format_managers_and_location(obj)
 
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.units)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_engagements(self) -> None:
+    async def _cache_lora_engagements(self):
+        obj = await self._fetch_engagements()
+        self.engagements.update(obj)
+
+    async def _fetch_engagements(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching engagements")
 
         def collect_extensions(d: dict):
@@ -511,18 +563,25 @@ class GQLLoraCache:
             "is_primary": "primary_boolean",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="engagements",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = collect_extensions(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.engagements)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_roles(self) -> None:
+    async def _cache_lora_roles(self):
+        obj = await self._fetch_roles()
+        self.roles.update(obj)
+
+    async def _fetch_roles(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching roles")
         query = """
                         uuid
@@ -541,17 +600,24 @@ class GQLLoraCache:
             "role_type_uuid": "role_type",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="roles",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.roles)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_leaves(self) -> None:
+    async def _cache_lora_leaves(self):
+        obj = await self._fetch_leaves()
+        self.leaves.update(obj)
+
+    async def _fetch_leaves(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching leaves")
         query = """
                         uuid
@@ -571,17 +637,24 @@ class GQLLoraCache:
             "engagement_uuid": "engagement",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="leaves",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = convert_dict(obj, replace_dict=replace_dictionary)
-            insert_obj(obj, self.leaves)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_it_connections(self) -> None:
+    async def _cache_lora_it_connections(self):
+        obj = await self._fetch_it_connections()
+        self.it_connections.update(obj)
+
+    async def _fetch_it_connections(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching it users")
 
         async def set_primary_boolean(res: dict) -> dict:
@@ -615,18 +688,25 @@ class GQLLoraCache:
             "user_key": "username",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="itusers",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = await set_primary_boolean(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.it_connections)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_kles(self) -> None:
+    async def _cache_lora_kles(self):
+        obj = await self._fetch_kles()
+        self.kles.update(obj)
+
+    async def _fetch_kles(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching KLEs")
 
         async def format_aspects(d: dict) -> dict:
@@ -663,18 +743,25 @@ class GQLLoraCache:
             "org_unit_uuid": "unit",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="kles",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = await format_aspects(obj)
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.kles)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_related(self) -> None:
+    async def _cache_lora_related(self):
+        obj = await self._fetch_related()
+        self.related.update(obj)
+
+    async def _fetch_related(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching related")
 
         def format_related(d: dict):
@@ -696,9 +783,11 @@ class GQLLoraCache:
                         }
             """
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="related_units",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
@@ -706,10 +795,14 @@ class GQLLoraCache:
             obj = format_related(obj)
 
             obj = convert_dict(obj)
+            insert_obj(obj, res)
+        return res
 
-            insert_obj(obj, self.related)
+    async def _cache_lora_managers(self):
+        obj = await self._fetch_managers()
+        self.managers.update(obj)
 
-    async def _cache_lora_managers(self) -> None:
+    async def _fetch_managers(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching managers")
         query = """
                         uuid
@@ -732,17 +825,24 @@ class GQLLoraCache:
             "org_unit_uuid": "unit",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="managers",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, self.managers)
+            insert_obj(obj, res)
+        return res
 
-    async def _cache_lora_associations(self) -> None:
+    async def _cache_lora_associations(self):
+        obj = await self._fetch_associations()
+        self.associations.update(obj)
+
+    async def _fetch_associations(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching associations")
 
         async def process_associations_helper(res: dict) -> dict:
@@ -805,18 +905,25 @@ class GQLLoraCache:
             "org_unit_uuid": "unit",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="associations",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = await process_associations_helper(obj)
             obj = convert_dict(obj, replace_dict=replace_dict)
-            insert_obj(obj, self.associations)
+            insert_obj(obj, res)
+        return res
 
     async def _cache_lora_address(self):
+        obj = await self._fetch_address()
+        self.addresses.update(obj)
+
+    async def _fetch_address(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching addresses")
 
         async def prep_address(d: dict) -> dict:
@@ -879,9 +986,11 @@ class GQLLoraCache:
             "visibility_uuid": "visibility",
         }
 
+        res: dict = {}
         async for obj in self._execute_query(
             query=query,
             query_type="addresses",
+            uuid=uuid,
         ):
             if not self.full_history:
                 obj = align_current(obj)
@@ -901,7 +1010,8 @@ class GQLLoraCache:
 
             obj = await prep_address(obj)
             obj = convert_dict(obj, replace_dict=replace_dict)
-            insert_obj(obj, self.addresses)
+            insert_obj(obj, res)
+        return res
 
     async def populate_cache_async(self, dry_run=None, skip_associations=False):
         """
