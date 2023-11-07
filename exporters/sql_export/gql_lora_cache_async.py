@@ -4,9 +4,9 @@ import logging
 import os
 import pickle
 import time
-import typing
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from dateutil.parser import parse as parse_date
 from gql import gql
@@ -38,7 +38,7 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
 
     job_settings: JobSettings = JobSettings()
 
-    def to_old_settings(self) -> dict[str, typing.Any]:
+    def to_old_settings(self) -> dict[str, Any]:
         """Convert our DatabaseSettings to a settings.json format.
 
         This serves to implement the adapter pattern, adapting from pydantic and its
@@ -192,7 +192,7 @@ class GQLLoraCache:
         )
 
     def get_historic_query(self) -> dict:
-        params: typing.Dict[str, typing.Optional[str]] = {
+        params: dict[str, str | None] = {
             "to_date": str(datetime.datetime.now()),
             "from_date": str((datetime.datetime.now() - datetime.timedelta(minutes=1))),
         }
@@ -209,65 +209,43 @@ class GQLLoraCache:
         self,
         query_type: str,
         simple_query: bool,
-        query: str,
+        query_fields: str,
         variable_values: dict | None,
-        page_size: int | None,
-        offset: int,
     ):
+        """Builds graphql queries and returns the gql object and variable values dict."""
         if variable_values is None:
             variable_values = {}
 
-        query_footer = """
-                                }
-                            }
-                        }"""
-        query_header = ""
+        query_filters = ["$limit: int", "$offset: int"]
+        query_variables = ["limit: $limit", "offset: $offset"]
 
-        if simple_query:
-            query_header = (
-                """
-                                query ($limit: int, $offset: int) {
-                                    page: """
-                + query_type
-                + """ (limit: $limit, offset: $offset){
-                    """
-            )
-            query_footer = """
-                                        }
-                                    }"""
+        if self.full_history:
+            query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
+            query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
+            variable_values.update({"from_date": None, "to_date": None})
 
-        else:
-            if not self.full_history:
-                query_header = (
-                    """
-                                query ($limit: int, $offset: int) {
-                                    page: """
-                    + query_type
-                    + """ (limit: $limit, offset: $offset){
-                        uuid
-                        obj: current {"""
-                )
+        query_filters_string = ", ".join(query_filters)
+        query_variables_string = ", ".join(query_variables)
 
-            if self.full_history:
-                query_header = (
-                    """
-                                query ($to_date: DateTime,
-                                       $from_date: DateTime,
-                                       $limit: int,
-                                       $offset: int) {
-                                    page: """
-                    + query_type
-                    + """ (from_date: $from_date,
-                                                     to_date: $to_date,
-                                                     limit: $limit,
-                                                     offset: $offset) {
-                        uuid
-                        obj: objects {
-                             """
-                )
-                variable_values.update(self.get_historic_query())
+        # account for simple_query differences
+        query_contents = (
+            f"""uuid
+                    obj: current {{
+                        {query_fields}
+                    }}"""
+            if not simple_query
+            else f"{query_fields}"
+        )
 
-        return gql(query_header + query + query_footer), variable_values
+        full_query = f"""
+            query ({query_filters_string}) {{
+                page: {query_type}({query_variables_string}){{
+                    {query_contents}
+                }}
+            }}
+
+            """
+        return full_query, variable_values
 
     @retry(
         reraise=True,
@@ -278,23 +256,21 @@ class GQLLoraCache:
         self,
         query: str,
         query_type: str,
-        variable_values: typing.Optional[dict] = None,
+        variable_values: dict | None = None,
         simple_query: bool = False,
-        page_size: typing.Optional[int] = None,
+        page_size: int | None = None,
         offset: int = 0,
     ):
         gql_query, gql_variable_values = await self.construct_query(
-            query=query,
+            query_fields=query,
             query_type=query_type,
             variable_values=variable_values,
-            page_size=page_size,
-            offset=offset,
             simple_query=simple_query,
         )
         try:
             async for obj in execute_paged(
                 gql_session=self.gql_client_session,
-                document=gql_query,
+                document=gql(gql_query),
                 variable_values=gql_variable_values,
                 per_page=(page_size or self.std_page_size),
             ):
@@ -430,7 +406,7 @@ class GQLLoraCache:
         logger.info("Caching org units")
 
         async def format_managers_and_location(qr: dict):
-            def find_manager(managers: typing.List[dict]) -> str | None:
+            def find_manager(managers: list[dict]) -> str | None:
                 if not managers:
                     return None
                 if self.settings.primary_manager_responsibility is None:
