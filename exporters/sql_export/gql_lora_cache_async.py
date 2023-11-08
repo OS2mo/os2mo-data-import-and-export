@@ -25,7 +25,7 @@ from .log import LogLevel
 RETRY_MAX_TIME = 60 * 5
 
 
-class GqlLoraCacheSettings(BaseSettings):  # type: ignore
+class GqlLoraCacheSettings(JobSettings):  # type: ignore
     class Config:
         frozen = True
 
@@ -36,7 +36,6 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
     std_page_size: int = 300
     log_level: LogLevel = LogLevel.DEBUG
 
-    job_settings: JobSettings = JobSettings()
 
     def to_old_settings(self) -> dict[str, Any]:
         """Convert our DatabaseSettings to a settings.json format.
@@ -52,7 +51,7 @@ class GqlLoraCacheSettings(BaseSettings):  # type: ignore
         """
 
         settings = {
-            "mora.base": self.job_settings.mora_base,
+            "mora.base": self.mora_base,
             "mox.base": self.mox_base,
             "exporters": {
                 "actual_state": {

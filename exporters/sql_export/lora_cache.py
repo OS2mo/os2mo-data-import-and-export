@@ -19,8 +19,8 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 
 def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=None):
-    if get_gql_cache_settings().job_settings.sentry_dsn:
-        sentry_sdk.init(dsn=get_gql_cache_settings().job_settings.sentry_dsn)
+    if get_gql_cache_settings().sentry_dsn:
+        sentry_sdk.init(dsn=get_gql_cache_settings().sentry_dsn)
 
     if get_gql_cache_settings().use_new_cache:
         return GQLLoraCache(
@@ -73,7 +73,7 @@ def fetch_loracache() -> Tuple[
 )
 @click.option("--read-from-cache", is_flag=True)
 def cli(historic, skip_past, resolve_dar, read_from_cache):
-    get_gql_cache_settings().job_settings.start_logging_based_on_settings()
+    get_gql_cache_settings().start_logging_based_on_settings()
     lc = get_cache(
         full_history=historic,
         skip_past=skip_past,
