@@ -4,11 +4,12 @@ from raclients.graph.client import GraphQLClient
 
 
 @click.command()
-@click.option("--mora_base", envvar="MORA_BASE", default="http://localhost:5000")
-@click.option("--client_id", envvar="CLIENT_ID", default="dipex")
-@click.option("--client_secret", envvar="CLIENT_SECRET")
-@click.option("--auth_realm", envvar="AUTH_REALM", default="mo")
-@click.option("--auth_server", envvar="AUTH_SERVER")
+@click.option("--mora-base", envvar="MORA_BASE", default="http://localhost:5000")
+@click.option("--client-id", envvar="CLIENT_ID", default="dipex")
+@click.option("--client-secret", envvar="CLIENT_SECRET")
+@click.option("--auth-realm", envvar="AUTH_REALM", default="mo")
+@click.option("--auth-server", envvar="AUTH_SERVER")
+@click.option("--graphql-version", envvar="GRAPHQL_VERSION", default="19", type=int)
 @click.argument("query")
 def gql_cli(
     mora_base: str,
@@ -16,6 +17,7 @@ def gql_cli(
     client_secret: str,
     auth_realm: str,
     auth_server: str,
+    graphql_version: int,
     query,
 ) -> None:
     """Post graphql query to OS2MO.
@@ -24,7 +26,7 @@ def gql_cli(
     """
     q = gql(query)
     with GraphQLClient(
-        url=f"{mora_base}/graphql/v5",
+        url=f"{mora_base}/graphql/v{graphql_version}",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
