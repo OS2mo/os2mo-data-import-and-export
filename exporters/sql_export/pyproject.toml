@@ -24,7 +24,7 @@ raclients = "^3.1.4"
 parameterized = "^0.9.0"
 pytest = "^7.3.1"
 lora-utils = {git = "https://github.com/magenta-aps/lora-utils.git", rev = "master"}
-ra-utils = {extras = ["prometheus-client"], version = "^1.13.9"}
+ra-utils = {extras = ["prometheus-client"], version = "^1.14.0"}
 os2mo-dar-client = "^1.0.1"
 prometheus-client = "^0.16.0"
 os2mo-data-import = "^5.4.3"
@@ -34,7 +34,7 @@ psycopg2-binary = "^2.9.6"
 sentry-sdk = "^1.22.2"
 pyodbc = "^4.0.39"
 fastramqpi = "1.7.0"
-pymssql = "=2.2.8"
+pymssql = "^2.2.10"
 more-itertools = "^9"
 deepdiff = "^6.5.0"
 
