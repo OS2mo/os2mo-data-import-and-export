@@ -159,9 +159,8 @@ def account_for_fixes(old_cache: LoraCache, new_cache: GQLLoraCache):
     old_cache.managers = fix_never_ending(old_cache.managers, new_cache.managers)
     old_cache.kles = fix_never_ending(old_cache.kles, new_cache.kles)
     old_cache.roles = fix_never_ending(old_cache.roles, new_cache.roles)
-    old_cache.associations = fix_never_ending(
-        old_cache.associations, new_cache.associations
-    )
+    old_cache.related = fix_never_ending(old_cache.related, new_cache.related)
+    old_cache.leaves = fix_never_ending(old_cache.leaves, new_cache.leaves)
 
     if old_cache.full_history and old_cache.skip_past:
         old_cache.managers = fix_managers(old_cache.managers, new_cache.managers)
