@@ -370,7 +370,7 @@ def notify_prometheus(
 
 def test_cache_equivalence():
     settings = get_gql_cache_settings()
-    setup_logging(settings.log_level.value)
+    settings.start_logging_based_on_settings()
 
     are_all_cache_states_equivalent: bool = True
     cache_pairs = init_caches(settings)
