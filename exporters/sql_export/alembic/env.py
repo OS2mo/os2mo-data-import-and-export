@@ -4,7 +4,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
-from exporters.sql_export.sql_url import DatabaseFunction, generate_connection_url
+from ..sql_url import DatabaseFunction, generate_connection_url
 from ..sql_table_defs_external import Base
 
 from ..sql_export import SqlExport

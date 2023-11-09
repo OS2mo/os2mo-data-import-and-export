@@ -7,6 +7,14 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 Base: DeclarativeMeta = declarative_base()
 
+""" This file exists only to generate alembic migrations.
+The old definitions contain a 'w' prefix to all table names. These tables are renamed programmatically
+as the final step in the sql-export. To prepare for an event-driven sql-export we introduce this 'external'
+schema which is how we want the tables to be. Changes to this schema can be used to generate new alembic migrations.
+See README for instructions.
+Once we use event-driven sql-export everywhere we can merge the two definitions.
+"""
+
 
 class Facet(Base):
     __tablename__ = "facetter"

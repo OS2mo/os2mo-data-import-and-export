@@ -1,1 +1,7 @@
-Generic single-database configuration.
+# Alembic migrations for the OS2MO - SQL export.
+
+Migrations are generated from the schema defined in sql_table_defs_external.py. To change the schema and add new migrations first ensure you have a local database, eg.
+(The following commands must be run from os2mo-data-import-and-export/exporters)
+`TYPE=SQLite DB_NAME=ACTUAL_STATE ALEMBIC_CONFIG=./sql_export/alembic.ini poetry run alembic upgrade head`
+Then run the autogenerate command:
+`TYPE=SQLite DB_NAME=ACTUAL_STATE ALEMBIC_CONFIG=./sql_export/alembic.ini poetry run alembic revision --autogenerate -m "Changes to schema`
