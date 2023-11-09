@@ -123,7 +123,8 @@ class SqlExport:
 
         tasks = [
             self._add_classification,
-            self._add_users_and_units,
+            self._add_units,
+            self._add_users,
             self._add_addresses,
             self._add_dar_addresses,
             self._add_engagements,
@@ -222,8 +223,8 @@ class SqlExport:
             for result in self.engine.execute("select * from klasser limit 4"):
                 print(result.items())
 
-    def _add_users_and_units(self, output=False):
-        logger.info("Add users and units")
+    def _add_users(self, output=False):
+        logger.info("Add users")
         users = tqdm(self.lc.users.items(), desc="Export user", unit="user")
         for chunk in ichunked(users, self.chunk_size):
             for user, user_effects in chunk:
@@ -242,6 +243,12 @@ class SqlExport:
                     self.session.add(sql_user)
             self.session.commit()
 
+        if output:
+            for result in self.engine.execute("select * from enheder limit 5"):
+                print(result)
+
+    def _add_units(self, output=False):
+        logger.info("Add users")
         units = tqdm(self.lc.units.items(), desc="Export unit", unit="unit")
         for chunk in ichunked(units, self.chunk_size):
             for unit, unit_validities in chunk:
@@ -284,8 +291,6 @@ class SqlExport:
             self.session.commit()
 
         if output:
-            for result in self.engine.execute("select * from brugere limit 5"):
-                print(result)
             for result in self.engine.execute("select * from enheder limit 5"):
                 print(result)
 
