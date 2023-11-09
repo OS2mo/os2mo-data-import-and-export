@@ -1,13 +1,11 @@
 import datetime
+import logging
 
 from deepdiff.diff import DeepDiff
 
 from ..gql_lora_cache_async import get_gql_cache_settings
 from ..gql_lora_cache_async import GQLLoraCache
 from ..gql_lora_cache_async import GqlLoraCacheSettings
-from ..log import get_logger
-from ..log import LogLevel
-from ..log import setup_logging
 from ..old_lora_cache import OldLoraCache as LoraCache
 
 """Integration endpoints."""
@@ -21,7 +19,7 @@ import prometheus_client
 from prometheus_client import CollectorRegistry
 from prometheus_client import Gauge
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
 trigger_equiv_router = APIRouter()
 from_date = "from_date"
 to_date = "to_date"
@@ -214,7 +212,7 @@ def compare_for_equivalence(
     old_cache: LoraCache, new_cache: GQLLoraCache, state: str
 ) -> bool:
     old_cache, new_cache = account_for_fixes(old_cache, new_cache)
-    do_deepdiff = new_cache.settings.log_level == LogLevel.DEBUG
+    do_deepdiff = True
 
     if state == "Actual_State":
         old_cache.engagements = remove_primary(old_cache.engagements)
@@ -370,7 +368,7 @@ def notify_prometheus(
 
 def test_cache_equivalence():
     settings = get_gql_cache_settings()
-    setup_logging(settings.log_level.value)
+    settings.start_logging_based_on_settings()
 
     are_all_cache_states_equivalent: bool = True
     cache_pairs = init_caches(settings)
