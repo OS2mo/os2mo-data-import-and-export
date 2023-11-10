@@ -297,7 +297,7 @@ def init_caches(settings: GqlLoraCacheSettings):
     ]
 
 
-def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
+async def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     logger.info(80 * "=")
     logger.info(f"Processing {state}")
     logger.info(80 * "=")
@@ -305,7 +305,7 @@ def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     start = datetime.datetime.now()
 
     logger.info("Populating the new cache")
-    new_cache.populate_cache_async(dry_run=False)
+    await new_cache.populate_cache_async(dry_run=False)
     new_cache_time = datetime.datetime.now() - start
     logger.info(f"Populated new cache in {new_cache_time}")
 
@@ -367,7 +367,7 @@ def notify_prometheus(
         logger.warning(ue)
 
 
-def trigger_cache_equivalence_test():
+async def trigger_cache_equivalence_test():
     settings = get_gql_cache_settings()
     settings.start_logging_based_on_settings()
 
@@ -378,7 +378,7 @@ def trigger_cache_equivalence_test():
         job = f"equivalence_test_{state}"
         notify_prometheus(settings=settings, job=job, start=True)
         try:
-            old_cache, new_cache = populate_caches(
+            old_cache, new_cache = await populate_caches(
                 old_cache=old_cache, new_cache=new_cache, state=state
             )
             is_equiv = compare_for_equivalence(
@@ -399,7 +399,7 @@ def trigger_cache_equivalence_test():
 async def trigger_cache_equivalence(
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
-    background_tasks.add_task(trigger_cache_equivalence_test())
+    background_tasks.add_task(trigger_cache_equivalence_test)
     return {"triggered": "OK"}
 
 
