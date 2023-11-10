@@ -193,7 +193,7 @@ class SqlExport:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
-    def _add_facets(self, output=False):
+    def _add_facets(self):
         logger.info("Add classification")
         facets = tqdm(self.lc.facets.items(), desc="Export facet", unit="facet")
         for chunk in ichunked(facets, self.chunk_size):
@@ -204,11 +204,8 @@ class SqlExport:
                 )
                 self.session.add(sql_facet)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from facetter limit 4"):
-                print(result.items())
 
-    def _add_classes(self, output=False):
+    def _add_classes(self):
 
         classes = tqdm(self.lc.classes.items(), desc="Export class", unit="class")
         for chunk in ichunked(classes, self.chunk_size):
@@ -223,11 +220,7 @@ class SqlExport:
                 self.session.add(sql_class)
             self.session.commit()
 
-        if output:
-            for result in self.engine.execute("select * from klasser limit 4"):
-                print(result.items())
-
-    def _add_users(self, output=False):
+    def _add_users(self):
         logger.info("Add users")
         users = tqdm(self.lc.users.items(), desc="Export user", unit="user")
         for chunk in ichunked(users, self.chunk_size):
@@ -247,11 +240,7 @@ class SqlExport:
                     self.session.add(sql_user)
             self.session.commit()
 
-        if output:
-            for result in self.engine.execute("select * from enheder limit 5"):
-                print(result)
-
-    def _add_units(self, output=False):
+    def _add_units(self):
         logger.info("Add users")
         units = tqdm(self.lc.units.items(), desc="Export unit", unit="unit")
         for chunk in ichunked(units, self.chunk_size):
@@ -294,11 +283,7 @@ class SqlExport:
                     self.session.add(sql_unit)
             self.session.commit()
 
-        if output:
-            for result in self.engine.execute("select * from enheder limit 5"):
-                print(result)
-
-    def _add_engagements(self, output=False):
+    def _add_engagements(self):
         logger.info("Add engagements")
         engagements = tqdm(
             self.lc.engagements.items(), desc="Export engagement", unit="engagement"
@@ -340,11 +325,7 @@ class SqlExport:
                     self.session.add(sql_engagement)
             self.session.commit()
 
-        if output:
-            for result in self.engine.execute("select * from engagementer limit 5"):
-                print(result.items())
-
-    def _add_addresses(self, output=False):
+    def _add_addresses(self):
         logger.info("Add addresses")
         addresses = tqdm(
             self.lc.addresses.items(), desc="Export address", unit="address"
@@ -385,11 +366,8 @@ class SqlExport:
                     )
                     self.session.add(sql_address)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from adresser limit 10"):
-                print(result.items())
 
-    def _add_dar_addresses(self, output=False):
+    def _add_dar_addresses(self):
         logger.info("Add DAR addresses")
         dar = tqdm(self.lc.dar_cache.items(), desc="Export DAR", unit="DAR")
         for chunk in ichunked(dar, self.chunk_size):
@@ -405,11 +383,8 @@ class SqlExport:
                 )
                 self.session.add(sql_address)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from dar_adresser limit 10"):
-                print(result.items())
 
-    def _add_associations(self, output=False):
+    def _add_associations(self):
         logger.info("Add associations")
         associations = tqdm(
             self.lc.associations.items(), desc="Export association", unit="association"
@@ -479,15 +454,8 @@ class SqlExport:
                     )
                     self.session.add(sql_leave)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from tilknytninger limit 4"):
-                print(result.items())
-            for result in self.engine.execute("select * from orlover limit 4"):
-                print(result.items())
-            for result in self.engine.execute("select * from roller limit 4"):
-                print(result.items())
 
-    def _add_it_systems(self, output=False):
+    def _add_it_systems(self):
         logger.info("Add IT systems")
         itsystems = tqdm(
             self.lc.itsystems.items(), desc="Export itsystem", unit="itsystem"
@@ -519,14 +487,8 @@ class SqlExport:
                     )
                     self.session.add(sql_it_connection)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from it_systemer limit 2"):
-                print(result.items())
 
-            for result in self.engine.execute("select * from it_forbindelser limit 2"):
-                print(result.items())
-
-    def _add_kles(self, output=False):
+    def _add_kles(self):
         logger.info("Add KLES")
         kles = tqdm(self.lc.kles.items(), desc="Export KLE", unit="KLE")
         for chunk in ichunked(kles, self.chunk_size):
@@ -549,11 +511,8 @@ class SqlExport:
                     )
                     self.session.add(sql_kle)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from kle limit 10"):
-                print(result.items())
 
-    def _add_receipt(self, query_time, start_time=None, end_time=None, output=False):
+    def _add_receipt(self, query_time, start_time=None, end_time=None):
         logger.info("Add Receipt")
         sql_kvittering = Kvittering(
             query_tid=query_time,
@@ -562,23 +521,15 @@ class SqlExport:
         )
         self.session.add(sql_kvittering)
         self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from kvittering limit 10"):
-                print(result.items())
         return sql_kvittering
 
-    def _update_receipt(
-        self, sql_kvittering, start_time=None, end_time=None, output=False
-    ):
+    def _update_receipt(self, sql_kvittering, start_time=None, end_time=None):
         logger.info("Update Receipt")
         sql_kvittering.start_levering_tid = start_time
         sql_kvittering.slut_levering_tid = end_time
         self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from kvittering limit 10"):
-                print(result.items())
 
-    def _add_related(self, output=False):
+    def _add_related(self):
         logger.info("Add Enhedssammenkobling")
         relateds = tqdm(self.lc.related.items(), desc="Export related", unit="related")
         for chunk in ichunked(relateds, self.chunk_size):
@@ -594,13 +545,8 @@ class SqlExport:
                     )
                     self.session.add(sql_related)
             self.session.commit()
-        if output:
-            for result in self.engine.execute(
-                "select * from enhedssammenkobling limit 10"
-            ):
-                print(result.items())
 
-    def _add_managers(self, output=False):
+    def _add_managers(self):
         logger.info("Add managers")
         managers = tqdm(self.lc.managers.items(), desc="Export manager", unit="manager")
         for chunk in ichunked(managers, self.chunk_size):
@@ -634,11 +580,6 @@ class SqlExport:
                         )
                         self.session.add(sql_responsibility)
             self.session.commit()
-        if output:
-            for result in self.engine.execute("select * from ledere limit 10"):
-                print(result.items())
-            for result in self.engine.execute("select * from leder_ansvar limit 10"):
-                print(result.items())
 
     def log_overlapping_runs_aak(self):
         self.engine.execute(
