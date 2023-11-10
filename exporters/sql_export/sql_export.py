@@ -196,230 +196,257 @@ class SqlExport:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
-    def _add_facets(self):
+    def _generate_sql_facets(self, uuid, facet_info) -> Facet:
+        return Facet(
+            uuid=uuid,
+            bvn=facet_info["user_key"],
+        )
+
+    def _add_facets(self) -> None:
         logger.info("Add classification")
         facets = tqdm(self.lc.facets.items(), desc="Export facet", unit="facet")
         for chunk in ichunked(facets, self.chunk_size):
-            for facet, facet_info in chunk:
-                sql_facet = Facet(
-                    uuid=facet,
-                    bvn=facet_info["user_key"],
-                )
+            for uuid, facet_info in chunk:
+                sql_facet = self._generate_sql_facets(uuid, facet_info)
                 self.session.add(sql_facet)
             self.session.commit()
 
-    def _add_classes(self):
+    def _generate_sql_classes(self, uuid, klasse_info) -> Klasse:
+        return Klasse(
+            uuid=uuid,
+            bvn=klasse_info["user_key"],
+            titel=klasse_info["title"],
+            facet_uuid=klasse_info["facet"],
+            facet_bvn=self.lc.facets[klasse_info["facet"]]["user_key"],
+        )
+
+    def _add_classes(self) -> None:
 
         classes = tqdm(self.lc.classes.items(), desc="Export class", unit="class")
         for chunk in ichunked(classes, self.chunk_size):
-            for klasse, klasse_info in chunk:
-                sql_class = Klasse(
-                    uuid=klasse,
-                    bvn=klasse_info["user_key"],
-                    titel=klasse_info["title"],
-                    facet_uuid=klasse_info["facet"],
-                    facet_bvn=self.lc.facets[klasse_info["facet"]]["user_key"],
-                )
+            for uuid, klasse_info in chunk:
+                sql_class = self._generate_sql_classes(uuid, klasse_info)
                 self.session.add(sql_class)
             self.session.commit()
 
-    def _add_users(self):
+    def _generate_sql_users(self, uuid, user_info) -> Bruger:
+        return Bruger(
+            uuid=uuid,
+            bvn=user_info["user_key"],
+            fornavn=user_info["fornavn"],
+            efternavn=user_info["efternavn"],
+            kaldenavn_fornavn=user_info["kaldenavn_fornavn"],
+            kaldenavn_efternavn=user_info["kaldenavn_efternavn"],
+            cpr=user_info["cpr"] if self.export_cpr else "",
+            startdato=user_info["from_date"],
+            slutdato=user_info["to_date"],
+        )
+
+    def _add_users(self) -> None:
         logger.info("Add users")
         users = tqdm(self.lc.users.items(), desc="Export user", unit="user")
         for chunk in ichunked(users, self.chunk_size):
-            for user, user_effects in chunk:
+            for uuid, user_effects in chunk:
                 for user_info in user_effects:
-                    sql_user = Bruger(
-                        uuid=user,
-                        bvn=user_info["user_key"],
-                        fornavn=user_info["fornavn"],
-                        efternavn=user_info["efternavn"],
-                        kaldenavn_fornavn=user_info["kaldenavn_fornavn"],
-                        kaldenavn_efternavn=user_info["kaldenavn_efternavn"],
-                        cpr=user_info["cpr"] if self.export_cpr else "",
-                        startdato=user_info["from_date"],
-                        slutdato=user_info["to_date"],
-                    )
+                    sql_user = self._generate_sql_users(uuid, user_info)
                     self.session.add(sql_user)
             self.session.commit()
 
-    def _add_units(self):
+    def _generate_sql_units(self, uuid, unit_info) -> Enhed:
+        location = unit_info.get("location")
+        manager_uuid = unit_info.get("manager_uuid")
+        acting_manager_uuid = unit_info.get("acting_manager_uuid")
+
+        unit_type = unit_info["unit_type"]
+
+        enhedsniveau_titel = ""
+        if unit_info["level"]:
+            enhedsniveau_titel = self.lc.classes[unit_info["level"]]["title"]
+
+        (
+            org_unit_hierarchy_uuid,
+            org_unit_hierarchy_class,
+        ) = self._get_lora_class(unit_info["org_unit_hierarchy"])
+
+        return Enhed(
+            uuid=uuid,
+            navn=unit_info["name"],
+            bvn=unit_info["user_key"],
+            forældreenhed_uuid=unit_info["parent"],
+            enhedstype_uuid=unit_type,
+            enhedsniveau_uuid=unit_info["level"],
+            organisatorisk_sti=location,
+            leder_uuid=manager_uuid,
+            fungerende_leder_uuid=acting_manager_uuid,
+            enhedstype_titel=self.lc.classes[unit_type]["title"],
+            enhedsniveau_titel=enhedsniveau_titel,
+            opmærkning_uuid=org_unit_hierarchy_uuid,
+            opmærkning_titel=org_unit_hierarchy_class["title"],
+            startdato=unit_info["from_date"],
+            slutdato=unit_info["to_date"],
+        )
+
+    def _add_units(self) -> None:
         logger.info("Add users")
         units = tqdm(self.lc.units.items(), desc="Export unit", unit="unit")
         for chunk in ichunked(units, self.chunk_size):
-            for unit, unit_validities in chunk:
+            for uuid, unit_validities in chunk:
                 for unit_info in unit_validities:
-                    location = unit_info.get("location")
-                    manager_uuid = unit_info.get("manager_uuid")
-                    acting_manager_uuid = unit_info.get("acting_manager_uuid")
-
-                    unit_type = unit_info["unit_type"]
-
-                    enhedsniveau_titel = ""
-                    if unit_info["level"]:
-                        enhedsniveau_titel = self.lc.classes[unit_info["level"]][
-                            "title"
-                        ]
-
-                    (
-                        org_unit_hierarchy_uuid,
-                        org_unit_hierarchy_class,
-                    ) = self._get_lora_class(unit_info["org_unit_hierarchy"])
-
-                    sql_unit = Enhed(
-                        uuid=unit,
-                        navn=unit_info["name"],
-                        bvn=unit_info["user_key"],
-                        forældreenhed_uuid=unit_info["parent"],
-                        enhedstype_uuid=unit_type,
-                        enhedsniveau_uuid=unit_info["level"],
-                        organisatorisk_sti=location,
-                        leder_uuid=manager_uuid,
-                        fungerende_leder_uuid=acting_manager_uuid,
-                        enhedstype_titel=self.lc.classes[unit_type]["title"],
-                        enhedsniveau_titel=enhedsniveau_titel,
-                        opmærkning_uuid=org_unit_hierarchy_uuid,
-                        opmærkning_titel=org_unit_hierarchy_class["title"],
-                        startdato=unit_info["from_date"],
-                        slutdato=unit_info["to_date"],
-                    )
+                    sql_unit = self._generate_sql_units(uuid, unit_info)
                     self.session.add(sql_unit)
             self.session.commit()
 
-    def _add_engagements(self):
+    def _generate_sql_engagements(self, uuid, engagement_info) -> Engagement:
+        if engagement_info["primary_type"] is not None:
+            primærtype_titel = self.lc.classes[engagement_info["primary_type"]]["title"]
+        else:
+            primærtype_titel = ""
+
+        engagement_type_uuid = engagement_info["engagement_type"]
+        job_function_uuid, job_function_class = self._get_lora_class(
+            engagement_info["job_function"]
+        )
+
+        return Engagement(
+            uuid=uuid,
+            enhed_uuid=engagement_info["unit"],
+            bruger_uuid=engagement_info["user"],
+            bvn=engagement_info["user_key"],
+            engagementstype_uuid=engagement_info["engagement_type"],
+            primær_boolean=engagement_info.get("primary_boolean"),
+            arbejdstidsfraktion=engagement_info["fraction"],
+            engagementstype_titel=self.lc.classes.get(
+                engagement_type_uuid, {"title": engagement_type_uuid}
+            )["title"],
+            primærtype_titel=primærtype_titel,
+            stillingsbetegnelse_uuid=job_function_uuid,
+            stillingsbetegnelse_titel=job_function_class["title"],
+            primærtype_uuid=engagement_info["primary_type"],
+            startdato=engagement_info["from_date"],
+            slutdato=engagement_info["to_date"],
+            **engagement_info["extensions"],
+        )
+
+    def _add_engagements(self) -> None:
         logger.info("Add engagements")
         engagements = tqdm(
             self.lc.engagements.items(), desc="Export engagement", unit="engagement"
         )
         for chunk in ichunked(engagements, self.chunk_size):
-            for engagement, engagement_validity in chunk:
+            for uuid, engagement_validity in chunk:
                 for engagement_info in engagement_validity:
-                    if engagement_info["primary_type"] is not None:
-                        primærtype_titel = self.lc.classes[
-                            engagement_info["primary_type"]
-                        ]["title"]
-                    else:
-                        primærtype_titel = ""
-
-                    engagement_type_uuid = engagement_info["engagement_type"]
-                    job_function_uuid, job_function_class = self._get_lora_class(
-                        engagement_info["job_function"]
-                    )
-
-                    sql_engagement = Engagement(
-                        uuid=engagement,
-                        enhed_uuid=engagement_info["unit"],
-                        bruger_uuid=engagement_info["user"],
-                        bvn=engagement_info["user_key"],
-                        engagementstype_uuid=engagement_info["engagement_type"],
-                        primær_boolean=engagement_info.get("primary_boolean"),
-                        arbejdstidsfraktion=engagement_info["fraction"],
-                        engagementstype_titel=self.lc.classes.get(
-                            engagement_type_uuid, {"title": engagement_type_uuid}
-                        )["title"],
-                        primærtype_titel=primærtype_titel,
-                        stillingsbetegnelse_uuid=job_function_uuid,
-                        stillingsbetegnelse_titel=job_function_class["title"],
-                        primærtype_uuid=engagement_info["primary_type"],
-                        startdato=engagement_info["from_date"],
-                        slutdato=engagement_info["to_date"],
-                        **engagement_info["extensions"],
+                    sql_engagement = self._generate_sql_engagements(
+                        uuid, engagement_info
                     )
                     self.session.add(sql_engagement)
             self.session.commit()
 
-    def _add_addresses(self):
+    def _generate_sql_addresses(self, uuid, address_info) -> Adresse:
+        visibility_text = None
+        if address_info["visibility"] is not None:
+            visibility_text = self.lc.classes[address_info["visibility"]]["title"]
+        visibility_scope = None
+        if address_info["visibility"] is not None:
+            visibility_scope = self.lc.classes[address_info["visibility"]]["scope"]
+
+        return Adresse(
+            uuid=uuid,
+            enhed_uuid=address_info["unit"],
+            bruger_uuid=address_info["user"],
+            værdi=address_info["value"],
+            dar_uuid=address_info["dar_uuid"],
+            adressetype_uuid=address_info["adresse_type"],
+            adressetype_bvn=self.lc.classes[address_info["adresse_type"]]["user_key"],
+            adressetype_scope=address_info["scope"],
+            adressetype_titel=self.lc.classes[address_info["adresse_type"]]["title"],
+            synlighed_uuid=address_info["visibility"],
+            synlighed_scope=visibility_scope,
+            synlighed_titel=visibility_text,
+            startdato=address_info["from_date"],
+            slutdato=address_info["to_date"],
+        )
+
+    def _add_addresses(self) -> None:
         logger.info("Add addresses")
         addresses = tqdm(
             self.lc.addresses.items(), desc="Export address", unit="address"
         )
         for chunk in ichunked(addresses, self.chunk_size):
-            for address, address_validities in chunk:
+            for uuid, address_validities in chunk:
                 for address_info in address_validities:
-                    visibility_text = None
-                    if address_info["visibility"] is not None:
-                        visibility_text = self.lc.classes[address_info["visibility"]][
-                            "title"
-                        ]
-                    visibility_scope = None
-                    if address_info["visibility"] is not None:
-                        visibility_scope = self.lc.classes[address_info["visibility"]][
-                            "scope"
-                        ]
-
-                    sql_address = Adresse(
-                        uuid=address,
-                        enhed_uuid=address_info["unit"],
-                        bruger_uuid=address_info["user"],
-                        værdi=address_info["value"],
-                        dar_uuid=address_info["dar_uuid"],
-                        adressetype_uuid=address_info["adresse_type"],
-                        adressetype_bvn=self.lc.classes[address_info["adresse_type"]][
-                            "user_key"
-                        ],
-                        adressetype_scope=address_info["scope"],
-                        adressetype_titel=self.lc.classes[address_info["adresse_type"]][
-                            "title"
-                        ],
-                        synlighed_uuid=address_info["visibility"],
-                        synlighed_scope=visibility_scope,
-                        synlighed_titel=visibility_text,
-                        startdato=address_info["from_date"],
-                        slutdato=address_info["to_date"],
-                    )
+                    sql_address = self._generate_sql_addresses(uuid, address_info)
                     self.session.add(sql_address)
             self.session.commit()
 
-    def _add_dar_addresses(self):
+    def _generate_sql_dar_addresses(self, uuid, address_info) -> DARAdresse:
+        return DARAdresse(
+            uuid=uuid,
+            **{
+                key: value
+                for key, value in address_info.items()
+                if key in DARAdresse.__table__.columns.keys() and key != "id"
+            },
+        )
+
+    def _add_dar_addresses(self) -> None:
         logger.info("Add DAR addresses")
         dar = tqdm(self.lc.dar_cache.items(), desc="Export DAR", unit="DAR")
         for chunk in ichunked(dar, self.chunk_size):
 
-            for address, address_info in chunk:
-                sql_address = DARAdresse(
-                    uuid=address,
-                    **{
-                        key: value
-                        for key, value in address_info.items()
-                        if key in DARAdresse.__table__.columns.keys() and key != "id"
-                    },
-                )
+            for uuid, address_info in chunk:
+                sql_address = self._generate_sql_dar_addresses(uuid, address_info)
                 self.session.add(sql_address)
             self.session.commit()
 
-    def _add_associations(self):
+    def _generate_sql_associations(self, uuid, association_info) -> Tilknytning:
+        (
+            association_type_uuid,
+            association_type_class,
+        ) = self._get_lora_class(association_info["association_type"])
+        job_function_uuid, job_function_class = self._get_lora_class(
+            association_info["job_function"]
+        )
+        return Tilknytning(
+            uuid=uuid,
+            bruger_uuid=association_info["user"],
+            enhed_uuid=association_info["unit"],
+            bvn=association_info["user_key"],
+            tilknytningstype_uuid=association_type_uuid,
+            tilknytningstype_titel=association_type_class["title"],
+            startdato=association_info["from_date"],
+            slutdato=association_info["to_date"],
+            it_forbindelse_uuid=association_info["it_user"],
+            stillingsbetegnelse_uuid=job_function_uuid,
+            stillingsbetegnelse_titel=job_function_class["title"],
+            primær_boolean=association_info.get("primary_boolean"),
+            faglig_organisation=association_info.get("dynamic_class"),
+        )
+
+    def _add_associations(self) -> None:
         logger.info("Add associations")
         associations = tqdm(
             self.lc.associations.items(), desc="Export association", unit="association"
         )
         for chunk in ichunked(associations, self.chunk_size):
 
-            for association, association_validity in chunk:
+            for uuid, association_validity in chunk:
                 for association_info in association_validity:
-                    (
-                        association_type_uuid,
-                        association_type_class,
-                    ) = self._get_lora_class(association_info["association_type"])
-                    job_function_uuid, job_function_class = self._get_lora_class(
-                        association_info["job_function"]
-                    )
-                    sql_association = Tilknytning(
-                        uuid=association,
-                        bruger_uuid=association_info["user"],
-                        enhed_uuid=association_info["unit"],
-                        bvn=association_info["user_key"],
-                        tilknytningstype_uuid=association_type_uuid,
-                        tilknytningstype_titel=association_type_class["title"],
-                        startdato=association_info["from_date"],
-                        slutdato=association_info["to_date"],
-                        it_forbindelse_uuid=association_info["it_user"],
-                        stillingsbetegnelse_uuid=job_function_uuid,
-                        stillingsbetegnelse_titel=job_function_class["title"],
-                        primær_boolean=association_info.get("primary_boolean"),
-                        faglig_organisation=association_info.get("dynamic_class"),
+                    sql_association = self._generate_sql_associations(
+                        uuid, association_info
                     )
                     self.session.add(sql_association)
             self.session.commit()
+
+    def _generate_sql_role(self, uuid, role_info) -> Rolle:
+        return Rolle(
+            uuid=uuid,
+            bruger_uuid=role_info["user"],
+            enhed_uuid=role_info["unit"],
+            rolletype_uuid=role_info["role_type"],
+            rolletype_titel=self.lc.classes[role_info["role_type"]]["title"],
+            startdato=role_info["from_date"],
+            slutdato=role_info["to_date"],
+        )
 
     def _add_roles(self) -> None:
         logger.info("Add roles")
@@ -427,53 +454,62 @@ class SqlExport:
         roles = tqdm(self.lc.roles.items(), desc="Export role", unit="role")
         for chunk in ichunked(roles, self.chunk_size):
 
-            for role, role_validity in chunk:
+            for uuid, role_validity in chunk:
                 for role_info in role_validity:
-                    sql_role = Rolle(
-                        uuid=role,
-                        bruger_uuid=role_info["user"],
-                        enhed_uuid=role_info["unit"],
-                        rolletype_uuid=role_info["role_type"],
-                        rolletype_titel=self.lc.classes[role_info["role_type"]][
-                            "title"
-                        ],
-                        startdato=role_info["from_date"],
-                        slutdato=role_info["to_date"],
-                    )
+                    sql_role = self._generate_sql_role(uuid, role_info)
                     self.session.add(sql_role)
             self.session.commit()
+
+    def _generate_sql_leave(self, uuid, leave_info) -> Orlov:
+        leave_type = leave_info["leave_type"]
+        return Orlov(
+            uuid=uuid,
+            bvn=leave_info["user_key"],
+            bruger_uuid=leave_info["user"],
+            orlovstype_uuid=leave_type,
+            orlovstype_titel=self.lc.classes[leave_type]["title"],
+            engagement_uuid=leave_info["engagement"],
+            startdato=leave_info["from_date"],
+            slutdato=leave_info["to_date"],
+        )
 
     def _add_leaves(self) -> None:
         logger.info("Add leaves")
         leaves = tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave")
         for chunk in ichunked(leaves, self.chunk_size):
 
-            for leave, leave_validity in chunk:
+            for uuid, leave_validity in chunk:
                 for leave_info in leave_validity:
-                    leave_type = leave_info["leave_type"]
-                    sql_leave = Orlov(
-                        uuid=leave,
-                        bvn=leave_info["user_key"],
-                        bruger_uuid=leave_info["user"],
-                        orlovstype_uuid=leave_type,
-                        orlovstype_titel=self.lc.classes[leave_type]["title"],
-                        engagement_uuid=leave_info["engagement"],
-                        startdato=leave_info["from_date"],
-                        slutdato=leave_info["to_date"],
-                    )
+                    sql_leave = self._generate_sql_leave(uuid, leave_info)
                     self.session.add(sql_leave)
             self.session.commit()
 
-    def _add_it_systems(self):
+    def _generate_sql_it_systems(self, uuid, itsystem_info) -> ItSystem:
+
+        return ItSystem(uuid=uuid, navn=itsystem_info["name"])
+
+    def _add_it_systems(self) -> None:
         logger.info("Add IT systems")
         itsystems = tqdm(
             self.lc.itsystems.items(), desc="Export itsystem", unit="itsystem"
         )
         for chunk in ichunked(itsystems, self.chunk_size):
-            for itsystem, itsystem_info in chunk:
-                sql_itsystem = ItSystem(uuid=itsystem, navn=itsystem_info["name"])
+            for uuid, itsystem_info in chunk:
+                sql_itsystem = self._generate_sql_it_systems(uuid, itsystem_info)
                 self.session.add(sql_itsystem)
             self.session.commit()
+
+    def _generate_sql_it_user(self, uuid, it_connection_info) -> ItForbindelse:
+        return ItForbindelse(
+            uuid=uuid,
+            it_system_uuid=it_connection_info["itsystem"],
+            bruger_uuid=it_connection_info["user"],
+            enhed_uuid=it_connection_info["unit"],
+            brugernavn=it_connection_info["username"],
+            startdato=it_connection_info["from_date"],
+            slutdato=it_connection_info["to_date"],
+            primær_boolean=it_connection_info.get("primary_boolean"),
+        )
 
     def _add_it_users(self):
         logger.info("Add IT users")
@@ -484,42 +520,34 @@ class SqlExport:
         )
         for chunk in ichunked(it_connections, self.chunk_size):
 
-            for it_connection, it_connection_validity in chunk:
+            for uuid, it_connection_validity in chunk:
                 for it_connection_info in it_connection_validity:
-                    sql_it_connection = ItForbindelse(
-                        uuid=it_connection,
-                        it_system_uuid=it_connection_info["itsystem"],
-                        bruger_uuid=it_connection_info["user"],
-                        enhed_uuid=it_connection_info["unit"],
-                        brugernavn=it_connection_info["username"],
-                        startdato=it_connection_info["from_date"],
-                        slutdato=it_connection_info["to_date"],
-                        primær_boolean=it_connection_info.get("primary_boolean"),
+                    sql_it_connection = self._generate_sql_it_user(
+                        uuid, it_connection_info
                     )
                     self.session.add(sql_it_connection)
             self.session.commit()
 
-    def _add_kles(self):
+    def _generate_sql_kles(self, uuid, kle_info) -> KLE:
+        return KLE(
+            uuid=uuid,
+            enhed_uuid=kle_info["unit"],
+            kle_aspekt_uuid=kle_info["kle_aspect"],
+            kle_aspekt_titel=self.lc.classes[kle_info["kle_aspect"]]["title"],
+            kle_nummer_uuid=kle_info["kle_number"],
+            kle_nummer_titel=self.lc.classes[kle_info["kle_number"]]["title"],
+            startdato=kle_info["from_date"],
+            slutdato=kle_info["to_date"],
+        )
+
+    def _add_kles(self) -> None:
         logger.info("Add KLES")
         kles = tqdm(self.lc.kles.items(), desc="Export KLE", unit="KLE")
         for chunk in ichunked(kles, self.chunk_size):
 
-            for kle, kle_validity in chunk:
+            for uuid, kle_validity in chunk:
                 for kle_info in kle_validity:
-                    sql_kle = KLE(
-                        uuid=kle,
-                        enhed_uuid=kle_info["unit"],
-                        kle_aspekt_uuid=kle_info["kle_aspect"],
-                        kle_aspekt_titel=self.lc.classes[kle_info["kle_aspect"]][
-                            "title"
-                        ],
-                        kle_nummer_uuid=kle_info["kle_number"],
-                        kle_nummer_titel=self.lc.classes[kle_info["kle_number"]][
-                            "title"
-                        ],
-                        startdato=kle_info["from_date"],
-                        slutdato=kle_info["to_date"],
-                    )
+                    sql_kle = self._generate_sql_kles(uuid, kle_info)
                     self.session.add(sql_kle)
             self.session.commit()
 
@@ -540,54 +568,65 @@ class SqlExport:
         sql_kvittering.slut_levering_tid = end_time
         self.session.commit()
 
-    def _add_related(self):
+    def _generate_sql_related(self, uuid, related_info) -> Enhedssammenkobling:
+        return Enhedssammenkobling(
+            uuid=uuid,
+            enhed1_uuid=related_info["unit1_uuid"],
+            enhed2_uuid=related_info["unit2_uuid"],
+            startdato=related_info["from_date"],
+            slutdato=related_info["to_date"],
+        )
+
+    def _add_related(self) -> None:
         logger.info("Add Enhedssammenkobling")
         relateds = tqdm(self.lc.related.items(), desc="Export related", unit="related")
         for chunk in ichunked(relateds, self.chunk_size):
 
-            for related, related_validity in chunk:
+            for uuid, related_validity in chunk:
                 for related_info in related_validity:
-                    sql_related = Enhedssammenkobling(
-                        uuid=related,
-                        enhed1_uuid=related_info["unit1_uuid"],
-                        enhed2_uuid=related_info["unit2_uuid"],
-                        startdato=related_info["from_date"],
-                        slutdato=related_info["to_date"],
-                    )
+                    sql_related = self._generate_sql_related(uuid, related_info)
                     self.session.add(sql_related)
             self.session.commit()
 
-    def _add_managers(self):
+    def _generate_sql_managers(self, uuid, manager_info) -> Leder:
+        return Leder(
+            uuid=uuid,
+            bruger_uuid=manager_info["user"],
+            enhed_uuid=manager_info["unit"],
+            niveautype_uuid=manager_info["manager_level"],
+            ledertype_uuid=manager_info["manager_type"],
+            niveautype_titel=self.lc.classes[manager_info["manager_level"]]["title"],
+            ledertype_titel=self.lc.classes[manager_info["manager_type"]]["title"],
+            startdato=manager_info["from_date"],
+            slutdato=manager_info["to_date"],
+        )
+
+    def _generate_sql_manager_responsibility(
+        self, uuid, manager_uuid, manager_info
+    ) -> LederAnsvar:
+        return LederAnsvar(
+            leder_uuid=manager_uuid,
+            lederansvar_uuid=uuid,
+            lederansvar_titel=self.lc.classes[uuid]["title"],
+            startdato=manager_info["from_date"],
+            slutdato=manager_info["to_date"],
+        )
+
+    def _add_managers(self) -> None:
         logger.info("Add managers")
         managers = tqdm(self.lc.managers.items(), desc="Export manager", unit="manager")
         for chunk in ichunked(managers, self.chunk_size):
 
-            for manager, manager_validity in chunk:
+            for manager_uuid, manager_validity in chunk:
                 for manager_info in manager_validity:
-                    sql_manager = Leder(
-                        uuid=manager,
-                        bruger_uuid=manager_info["user"],
-                        enhed_uuid=manager_info["unit"],
-                        niveautype_uuid=manager_info["manager_level"],
-                        ledertype_uuid=manager_info["manager_type"],
-                        niveautype_titel=self.lc.classes[manager_info["manager_level"]][
-                            "title"
-                        ],
-                        ledertype_titel=self.lc.classes[manager_info["manager_type"]][
-                            "title"
-                        ],
-                        startdato=manager_info["from_date"],
-                        slutdato=manager_info["to_date"],
+                    sql_manager = self._generate_sql_managers(
+                        manager_uuid, manager_info
                     )
                     self.session.add(sql_manager)
 
-                    for responsibility in manager_info["manager_responsibility"]:
-                        sql_responsibility = LederAnsvar(
-                            leder_uuid=manager,
-                            lederansvar_uuid=responsibility,
-                            lederansvar_titel=self.lc.classes[responsibility]["title"],
-                            startdato=manager_info["from_date"],
-                            slutdato=manager_info["to_date"],
+                    for responsibility_uuid in manager_info["manager_responsibility"]:
+                        sql_responsibility = self._generate_sql_manager_responsibility(
+                            responsibility_uuid, manager_uuid, manager_info
                         )
                         self.session.add(sql_responsibility)
             self.session.commit()
