@@ -122,7 +122,8 @@ class SqlExport:
         self._update_receipt(kvittering, start_delivery_time)
 
         tasks = [
-            self._add_classification,
+            self._add_facets,
+            self._add_classes,
             self._add_units,
             self._add_users,
             self._add_addresses,
@@ -192,7 +193,7 @@ class SqlExport:
                 if old_table in actual_tables:
                     op.drop_table(old_table)
 
-    def _add_classification(self, output=False):
+    def _add_facets(self, output=False):
         logger.info("Add classification")
         facets = tqdm(self.lc.facets.items(), desc="Export facet", unit="facet")
         for chunk in ichunked(facets, self.chunk_size):
@@ -203,6 +204,11 @@ class SqlExport:
                 )
                 self.session.add(sql_facet)
             self.session.commit()
+        if output:
+            for result in self.engine.execute("select * from facetter limit 4"):
+                print(result.items())
+
+    def _add_classes(self, output=False):
 
         classes = tqdm(self.lc.classes.items(), desc="Export class", unit="class")
         for chunk in ichunked(classes, self.chunk_size):
@@ -218,8 +224,6 @@ class SqlExport:
             self.session.commit()
 
         if output:
-            for result in self.engine.execute("select * from facetter limit 4"):
-                print(result.items())
             for result in self.engine.execute("select * from klasser limit 4"):
                 print(result.items())
 
