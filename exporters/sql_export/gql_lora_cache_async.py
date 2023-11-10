@@ -170,7 +170,9 @@ class GQLLoraCache:
         query_filters = ["$limit: int", "$offset: int"]
         query_variables = ["limit: $limit", "offset: $offset"]
 
-        if self.full_history:
+        query_types_with_no_dates = ["facets", "classes", "itsystems"]
+
+        if self.full_history and query_type not in query_types_with_no_dates:
             query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
             query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
             variable_values.update({"from_date": None, "to_date": None})
