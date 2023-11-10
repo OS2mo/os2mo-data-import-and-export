@@ -130,6 +130,8 @@ class SqlExport:
             self._add_dar_addresses,
             self._add_engagements,
             self._add_associations,
+            self._add_roles,
+            self._add_leaves,
             self._add_managers,
             self._add_it_systems,
             self._add_kles,
@@ -417,6 +419,10 @@ class SqlExport:
                     )
                     self.session.add(sql_association)
             self.session.commit()
+
+    def _add_roles(self) -> None:
+        logger.info("Add roles")
+
         roles = tqdm(self.lc.roles.items(), desc="Export role", unit="role")
         for chunk in ichunked(roles, self.chunk_size):
 
@@ -436,6 +442,8 @@ class SqlExport:
                     self.session.add(sql_role)
             self.session.commit()
 
+    def _add_leaves(self) -> None:
+        logger.info("Add leaves")
         leaves = tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave")
         for chunk in ichunked(leaves, self.chunk_size):
 
