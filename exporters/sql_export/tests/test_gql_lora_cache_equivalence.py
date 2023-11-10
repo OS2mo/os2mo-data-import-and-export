@@ -305,7 +305,7 @@ def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     start = datetime.datetime.now()
 
     logger.info("Populating the new cache")
-    new_cache.populate_cache(dry_run=False)
+    new_cache.populate_cache_async(dry_run=False)
     new_cache_time = datetime.datetime.now() - start
     logger.info(f"Populated new cache in {new_cache_time}")
 
