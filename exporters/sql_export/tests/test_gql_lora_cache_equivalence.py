@@ -2,6 +2,7 @@ import datetime
 import logging
 
 from deepdiff.diff import DeepDiff
+from ra_utils.async_to_sync import async_to_sync
 
 from ..gql_lora_cache_async import get_gql_cache_settings
 from ..gql_lora_cache_async import GQLLoraCache
@@ -366,7 +367,7 @@ def notify_prometheus(
         logger.warning(ue)
 
 
-def test_cache_equivalence():
+def trigger_cache_equivalence_test():
     settings = get_gql_cache_settings()
     settings.start_logging_based_on_settings()
 
@@ -398,5 +399,10 @@ def test_cache_equivalence():
 async def trigger_cache_equivalence(
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
-    background_tasks.add_task(test_cache_equivalence())
+    background_tasks.add_task(trigger_cache_equivalence_test())
     return {"triggered": "OK"}
+
+
+@async_to_sync
+def test_cache_equivalence():
+    trigger_cache_equivalence_test()
