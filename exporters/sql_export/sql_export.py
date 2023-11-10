@@ -134,6 +134,7 @@ class SqlExport:
             self._add_leaves,
             self._add_managers,
             self._add_it_systems,
+            self._add_it_users,
             self._add_kles,
             self._add_related,
         ]
@@ -474,6 +475,8 @@ class SqlExport:
                 self.session.add(sql_itsystem)
             self.session.commit()
 
+    def _add_it_users(self):
+        logger.info("Add IT users")
         it_connections = tqdm(
             self.lc.it_connections.items(),
             desc="Export it connection",
