@@ -171,6 +171,8 @@ class GQLLoraCache:
         query_variables = ["limit: $limit", "offset: $offset"]
 
         query_types_with_no_dates = ["facets", "classes", "itsystems"]
+        obj_type = "objects" if self.full_history else "current"
+
 
         if self.full_history and query_type not in query_types_with_no_dates:
             query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
@@ -183,7 +185,7 @@ class GQLLoraCache:
         # account for simple_query differences
         query_contents = (
             f"""uuid
-                    obj: current {{
+                    obj: {obj_type} {{
                         {query_fields}
                     }}"""
             if not simple_query

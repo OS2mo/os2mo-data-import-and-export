@@ -74,7 +74,7 @@ async def test_historic_query():
             query ($limit: int, $offset: int, $to_date: DateTime, $from_date: DateTime) {
                 page: engagements(limit: $limit, offset: $offset, from_date: $from_date, to_date: $to_date){
                     uuid
-                    obj: current {
+                    obj: objects {
                         uuid
                     }
                 }
