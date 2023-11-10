@@ -313,7 +313,7 @@ async def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: 
     logger.info("Populating the old cache")
     start = datetime.datetime.now()
 
-    old_cache.populate_cache(dry_run=False)
+    await old_cache.populate_cache(dry_run=False)
     old_cache.calculate_primary_engagements()
     old_cache.calculate_derived_unit_data()
 
@@ -404,5 +404,5 @@ async def trigger_cache_equivalence(
 
 
 @async_to_sync
-def test_cache_equivalence():
-    trigger_cache_equivalence_test()
+async def test_cache_equivalence():
+    await trigger_cache_equivalence_test()
