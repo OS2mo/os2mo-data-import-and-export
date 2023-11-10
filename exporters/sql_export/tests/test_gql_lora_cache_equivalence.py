@@ -177,11 +177,11 @@ def are_caches_equivalent(
         return True
 
     if do_deepdiff:
-        logger.debug(80 * "#")
-        logger.debug(f"cache = {name}")
+        logger.info(80 * "#")
+        logger.info(f"cache = {name}")
         diff = DeepDiff(old_cache, new_cache, verbose_level=2)
-        logger.debug(diff)
-        logger.debug(80 * "!")
+        logger.info(diff)
+        logger.info(80 * "!")
     return False
 
 
@@ -250,9 +250,9 @@ def compare_for_equivalence(
     is_equivalent: bool = True
     for name, equal in equivalence_bools:
         if not equal:
-            logger.debug("+++++++++++++++++++++++++++++++++++++++++")
-            logger.debug(f"The first error is in {name}")
-            logger.debug("+++++++++++++++++++++++++++++++++++++++++")
+            logger.info("+++++++++++++++++++++++++++++++++++++++++")
+            logger.info(f"The first error is in {name}")
+            logger.info("+++++++++++++++++++++++++++++++++++++++++")
             is_equivalent = False
 
     return is_equivalent
@@ -297,19 +297,19 @@ def init_caches(settings: GqlLoraCacheSettings):
 
 
 def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
-    logger.debug(80 * "=")
-    logger.debug(f"Processing {state}")
-    logger.debug(80 * "=")
+    logger.info(80 * "=")
+    logger.info(f"Processing {state}")
+    logger.info(80 * "=")
 
     start = datetime.datetime.now()
 
-    logger.debug("Populating the new cache")
+    logger.info("Populating the new cache")
     new_cache.populate_cache(dry_run=False)
     new_cache_time = datetime.datetime.now() - start
-    logger.debug(f"Populated new cache in {new_cache_time}")
+    logger.info(f"Populated new cache in {new_cache_time}")
 
-    logger.debug(80 * "+")
-    logger.debug("Populating the old cache")
+    logger.info(80 * "+")
+    logger.info("Populating the old cache")
     start = datetime.datetime.now()
 
     old_cache.populate_cache(dry_run=False)
@@ -317,10 +317,10 @@ def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: str):
     old_cache.calculate_derived_unit_data()
 
     old_cache_time = datetime.datetime.now() - start
-    logger.debug(f"Populated old cache in {old_cache_time}")
-    logger.debug(80 * "+")
+    logger.info(f"Populated old cache in {old_cache_time}")
+    logger.info(80 * "+")
 
-    logger.debug(f"Slowdown: {new_cache_time/old_cache_time}")
+    logger.info(f"Slowdown: {new_cache_time/old_cache_time}")
 
     return old_cache, new_cache
 
