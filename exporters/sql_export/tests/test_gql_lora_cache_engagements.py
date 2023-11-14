@@ -1,15 +1,9 @@
 from unittest.mock import AsyncMock
-from uuid import uuid4
 
 from graphql import ExecutionResult
 from ra_utils.async_to_sync import async_to_sync
 
 from ..gql_lora_cache_async import GQLLoraCache
-
-
-class MockGqlLoraCache(GQLLoraCache):
-    def _get_org_uuid(self):
-        return uuid4()
 
 
 gql_response = {
@@ -76,7 +70,7 @@ expected = {
 
 @async_to_sync
 async def test_cache_engagements():
-    lc = MockGqlLoraCache(full_history=True)
+    lc = GQLLoraCache(full_history=True)
     lc.gql_client_session = AsyncMock()
     lc.gql_client_session.execute.side_effect = [
         ExecutionResult(data=gql_response, extensions={"__page_out_of_range": True})
