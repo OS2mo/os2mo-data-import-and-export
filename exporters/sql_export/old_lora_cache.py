@@ -21,8 +21,9 @@ import requests
 from dateutil import parser
 from dateutil import tz
 from more_itertools import bucket
-from os2mo_dar_client import DARClient
+from os2mo_dar_client import AsyncDARClient
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.async_to_sync import async_to_sync
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
 from retrying import retry
@@ -1134,18 +1135,18 @@ class OldLoraCache:
             self.units[unit][0]["manager_uuid"] = manager_uuid
             self.units[unit][0]["acting_manager_uuid"] = acting_manager_uuid
 
-    def _read_from_dar(self, uuids: Set[UUID]) -> Tuple[Dict, Set[UUID]]:
-        with DARClient() as dc:
-            return dc.fetch(uuids)
+    async def _read_from_dar(self, uuids: Set[UUID]) -> Tuple[Dict, Set[UUID]]:
+        async with AsyncDARClient() as dc:
+            return await dc.fetch(uuids)
 
-    def _cache_dar(self):
+    async def _cache_dar(self):
         # Initialize cache for entries we cannot lookup
         dar_uuids = missing = set(self.dar_map.keys())
         dar_cache = dict(
             map(lambda dar_uuid: (dar_uuid, {"betegnelse": None}), dar_uuids)
         )
         if self.resolve_dar:
-            dar_hits, missing = self._read_from_dar(dar_uuids)
+            dar_hits, missing = await self._read_from_dar(dar_uuids)
             # dar_hits is a dict with UUIDs as keys. We need to cast them to strings.
             dar_hits_uuids_as_str = map(str, dar_hits.keys())
             dar_hits = dict(zip(dar_hits_uuids_as_str, dar_hits.values()))
@@ -1158,7 +1159,7 @@ class OldLoraCache:
         logger.info(f"Total dar: {len(dar_uuids)}, no-hit: {len(missing)}")
         return dar_cache
 
-    def populate_cache(self, dry_run=None, skip_associations=False):
+    async def populate_cache_async(self, dry_run=None, skip_associations=False):
         """
         Perform the actual data import.
         :param skip_associations: If associations are not needed, they can be
@@ -1262,78 +1263,78 @@ class OldLoraCache:
         msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
 
         # Here we should activate read-only mode
-        def read_facets():
+        async def read_facets():
             logger.info("Læs facetter")
             self.facets = self._cache_lora_facets()
             return self.facets
 
-        def read_classes():
+        async def read_classes():
             logger.info("Læs klasser")
             self.classes = self._cache_lora_classes()
             return self.classes
 
-        def read_users():
+        async def read_users():
             logger.info("Læs brugere")
             self.users = self._cache_lora_users()
             return self.users
 
-        def read_units():
+        async def read_units():
             logger.info("Læs enheder")
             self.units = self._cache_lora_units()
             return self.units
 
-        def read_addresses():
+        async def read_addresses():
             logger.info("Læs adresser:")
             self.addresses = self._cache_lora_address()
-            self.dar_cache = self._cache_dar()
+            self.dar_cache = await self._cache_dar()
             return self.addresses
 
-        def read_engagements():
+        async def read_engagements():
             logger.info("Læs engagementer")
             self.engagements = self._cache_lora_engagements()
             return self.engagements
 
-        def read_managers():
+        async def read_managers():
             logger.info("Læs ledere")
             self.managers = self._cache_lora_managers()
             return self.managers
 
-        def read_associations():
+        async def read_associations():
             logger.info("Læs tilknytninger")
             self.associations = self._cache_lora_associations()
             return self.associations
 
-        def read_leaves():
+        async def read_leaves():
             logger.info("Læs orlover")
             self.leaves = self._cache_lora_leaves()
             return self.leaves
 
-        def read_roles():
+        async def read_roles():
             logger.info("Læs roller")
             self.roles = self._cache_lora_roles()
             return self.roles
 
-        def read_itsystems():
+        async def read_itsystems():
             logger.info("Læs itsystem")
             self.itsystems = self._cache_lora_itsystems()
             return self.itsystems
 
-        def read_it_connections():
+        async def read_it_connections():
             logger.info("Læs it kobling")
             self.it_connections = self._cache_lora_it_connections()
             return self.it_connections
 
-        def read_kles():
+        async def read_kles():
             logger.info("Læs kles")
             self.kles = self._cache_lora_kles()
             return self.kles
 
-        def read_related():
+        async def read_related():
             logger.info("Læs enhedssammenkobling")
             self.related = self._cache_lora_related()
             return self.related
 
-        def read_dar():
+        async def read_dar():
             logger.info("Læs dar")
             # Actually already read when processing adresses
             return self.dar_cache
@@ -1357,9 +1358,13 @@ class OldLoraCache:
         tasks.append((read_dar, dar_file))
 
         for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
-            data = task()
+            data = await task()
             if filename:
                 with open(filename, "wb") as f:
                     pickle.dump(data, f, PICKLE_PROTOCOL)
 
         # Here we should de-activate read-only mode
+
+    @async_to_sync
+    async def populate_cache(self, dry_run=None, skip_associations=False):
+        await self.populate_cache_async(dry_run, skip_associations)

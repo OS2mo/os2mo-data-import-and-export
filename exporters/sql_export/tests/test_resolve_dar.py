@@ -7,6 +7,7 @@ from hypothesis import given
 from hypothesis.strategies import booleans
 from hypothesis.strategies import lists
 from hypothesis.strategies import uuids
+from ra_utils.async_to_sync import async_to_sync
 
 from ..old_lora_cache import OldLoraCache
 
@@ -40,19 +41,21 @@ class TestResolveDar(unittest.TestCase):
         self.assertEqual(lc.dar_map, {})
 
     @given(booleans())
-    def test_cache_dar_empty(self, resolve_dar):
+    @async_to_sync
+    async def test_cache_dar_empty(self, resolve_dar):
         """With empty dar_map, resolve does not matter."""
         lc = LoraCacheTest(resolve_dar)
         self.assertEqual(lc.resolve_dar, resolve_dar)
         self.assertEqual(lc.dar_map, {})
 
         with self._caplog.at_level(logging.INFO):
-            dar_cache = lc._cache_dar()
+            dar_cache = await lc._cache_dar()
             self.assertEqual(self.get_last_log(), "Total dar: 0, no-hit: 0")
         self.assertEqual(dar_cache, {})
 
     @given(booleans(), lists(uuids()))
-    def test_cache_dar(self, resolve_dar, dar_uuids):
+    @async_to_sync
+    async def test_cache_dar(self, resolve_dar, dar_uuids):
         """With filled dar_map, resolve does matter."""
         lc = LoraCacheTest(resolve_dar=resolve_dar)
         self.assertEqual(lc.resolve_dar, resolve_dar)
@@ -70,7 +73,7 @@ class TestResolveDar(unittest.TestCase):
             lc, "_read_from_dar", return_value=({}, dar_uuids)
         ) as sync_dar_fetch:
             with self._caplog.at_level(logging.INFO):
-                dar_cache = lc._cache_dar()
+                dar_cache = await lc._cache_dar()
                 expected_log_message = f"Total dar: {num_uuids}, no-hit: {num_uuids}"
                 assert self.get_last_log() == expected_log_message
 

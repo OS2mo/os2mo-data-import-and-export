@@ -312,8 +312,8 @@ async def populate_caches(old_cache: LoraCache, new_cache: GQLLoraCache, state: 
     logger.info(80 * "+")
     logger.info("Populating the old cache")
     start = datetime.datetime.now()
+    await old_cache.populate_cache_async(dry_run=False)
 
-    await old_cache.populate_cache(dry_run=False)
     old_cache.calculate_primary_engagements()
     old_cache.calculate_derived_unit_data()
 
