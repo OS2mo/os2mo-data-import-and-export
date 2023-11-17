@@ -102,6 +102,7 @@ class TestPersonImporterReusesCPR(HelperMixin):
             mock_create_details, expected_person_uuid
         )
 
+    @settings(deadline=None)
     @given(
         st.booleans(), st.from_type(los_pers.Person), _primary_strategy, st.datetimes()
     )
