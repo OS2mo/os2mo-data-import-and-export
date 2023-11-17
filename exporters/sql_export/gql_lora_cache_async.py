@@ -140,20 +140,6 @@ class GQLLoraCache:
             execute_timeout=300,
         )
 
-    def get_historic_query(self) -> dict:
-        params: dict[str, str | None] = {
-            "to_date": str(datetime.datetime.now()),
-            "from_date": str((datetime.datetime.now() - datetime.timedelta(minutes=1))),
-        }
-        if self.full_history:
-            params["to_date"] = None
-            params["from_date"] = None
-        if self.skip_past:
-            params["from_date"] = str(
-                (datetime.datetime.now() - datetime.timedelta(minutes=1))
-            )
-        return params
-
     async def construct_query(
         self,
         query_type: str,
@@ -175,6 +161,9 @@ class GQLLoraCache:
             query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
             query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
             variable_values.update({"from_date": None, "to_date": None})
+
+        if self.skip_past:
+            variable_values.update({"from_date": str(datetime.date.today())})
 
         query_filters_string = ", ".join(query_filters)
         query_variables_string = ", ".join(query_variables)
