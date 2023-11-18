@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "viborg-eksterne"
+version = "0.1.0"
+description = ""
+authors = ["Emil Madsen <emil@magenta.dk>"]
+readme = "README.md"
+packages = [{include = "viborg_eksterne"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+click = "^8.1.7"
+ra-utils = "^1.14.0"
+raclients = "^3.3.1"
+pydantic = ">=1,<2"
+more-itertools = ">9,<10"
+fastapi = "^0.104.1"
+strawberry-graphql = "^0.214.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
