@@ -12,7 +12,7 @@ services:
       CLIENT_ID: "dipex"
       AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-      MORA_BASE: "http://mo:80"
+      MORA_BASE: "http://mo:5000"
     networks:
       - os2mo
     volumes:
