@@ -1,11 +1,23 @@
+from unittest.mock import MagicMock
+from uuid import uuid4
+
 from ra_utils.async_to_sync import async_to_sync
+from raclients.graph.client import GraphQLClient
 
 from ..gql_lora_cache_async import GQLLoraCache
 
 
+class MockGQLLoraCache(GQLLoraCache):
+    def _setup_gql_client(self) -> GraphQLClient:
+        return MagicMock()
+
+    def _get_org_uuid(self):
+        return uuid4()
+
+
 @async_to_sync
 async def test_simple_query():
-    lc = GQLLoraCache()
+    lc = MockGQLLoraCache()
     gql_obj, variable_values = await lc.construct_query(
         query_fields="uuid",
         query_type="engagements",
@@ -26,7 +38,7 @@ async def test_simple_query():
 
 @async_to_sync
 async def test_actual_state_query():
-    lc = GQLLoraCache()
+    lc = MockGQLLoraCache()
     gql_obj, variable_values = await lc.construct_query(
         query_fields="uuid",
         query_type="engagements",
@@ -50,7 +62,7 @@ async def test_actual_state_query():
 
 @async_to_sync
 async def test_historic_query():
-    lc = GQLLoraCache()
+    lc = MockGQLLoraCache()
     lc.full_history = True
     gql_obj, variable_values = await lc.construct_query(
         query_fields="uuid",
