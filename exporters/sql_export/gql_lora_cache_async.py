@@ -129,6 +129,8 @@ class GQLLoraCache:
 
         self.gql_client_session: GraphQLClient
 
+        self.org_uuid = self._get_org_uuid()
+
     def _setup_gql_client(self) -> GraphQLClient:
         return GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v3",
@@ -222,6 +224,32 @@ class GQLLoraCache:
             logger.error(gql_query)
             logger.error(gql_variable_values)
             raise e
+
+    # Used to set a value in the __init__, if this was async, init would have to be
+    # as well, which would mean that the new cache could only be initiated from
+    # async functions
+    def _get_org_uuid(self):
+        query = gql(
+            """
+            query {
+              org {
+                uuid
+              }
+            }
+            """
+        )
+        with GraphQLClient(
+            url=f"{self.settings.mora_base}/graphql/v3",
+            client_id=self.settings.client_id,
+            client_secret=self.settings.client_secret,
+            auth_realm=self.settings.auth_realm,
+            auth_server=self.settings.auth_server,
+            sync=True,
+            httpx_client_kwargs={"timeout": None},
+            execute_timeout=None,
+        ) as session:
+            org = session.execute(query)["org"]["uuid"]
+        return org
 
     async def _cache_lora_facets(self) -> None:
         logger.info("Caching facets")
@@ -371,9 +399,7 @@ class GQLLoraCache:
                             name
                             unit_type_uuid
                             org_unit_level_uuid
-                            parent{
-                                uuid
-                            }
+                            parent_uuid
                             org_unit_hierarchy_uuid: org_unit_hierarchy
                             validity {
                                 from
@@ -388,9 +414,7 @@ class GQLLoraCache:
                             name
                             unit_type_uuid
                             org_unit_level_uuid
-                            parent {
-                                uuid
-                            }
+                            parent_uuid
                             org_unit_hierarchy_uuid: org_unit_hierarchy
                             manager_uuid: managers(inherit: false) {
                                 org_unit_uuid
@@ -415,6 +439,7 @@ class GQLLoraCache:
         dictionary = {
             "org_unit_level_uuid": "level",
             "org_unit_hierarchy_uuid": "org_unit_hierarchy",
+            "parent_uuid": "parent",
             "unit_type_uuid": "unit_type",
         }
 
@@ -428,7 +453,9 @@ class GQLLoraCache:
             for item in obj["obj"]:
                 if item is None:
                     continue
-                item["parent"] = item["parent"]["uuid"] if item["parent"] else None
+                if item["parent_uuid"] == self.org_uuid:
+                    item["parent_uuid"] = None
+
             obj = await format_managers_and_location(obj)
 
             obj = convert_dict(obj, replace_dict=dictionary)
