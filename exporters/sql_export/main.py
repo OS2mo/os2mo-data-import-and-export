@@ -11,7 +11,7 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.main import FastRAMQPI
 from ra_utils.job_settings import JobSettings
 
-from .tests.test_gql_lora_cache_equivalence import trigger_equiv_router
+from .equivalence_test import trigger_equiv_router
 from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
