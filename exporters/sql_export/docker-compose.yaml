@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: MPL-2.0
 services:
   sql_export:
-
     tty: true
     stdin_open: true
-
     build: .
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
@@ -13,6 +11,7 @@ services:
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
+      MO_URL: "http://mo:5000"
       MORA_BASE: "http://mo:5000"
       MOX_BASE: "http://mo:5000/lora"
 

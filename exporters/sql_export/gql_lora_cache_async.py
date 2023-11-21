@@ -133,6 +133,22 @@ class GQLLoraCache:
         self.gql_client_session: GraphQLClient = graphql_session
 
         self.org_uuid = self._get_org_uuid()
+        self.cache_functions_map = {
+            "address": self._cache_lora_address,
+            "association": self._cache_lora_associations,
+            "class": self._cache_lora_classes,
+            "engagement": self._cache_lora_engagements,
+            "facet": self._cache_lora_facets,
+            "itsystem": self._cache_lora_itsystems,
+            "ituser": self._cache_lora_it_connections,
+            "kle": self._cache_lora_kles,
+            "leave": self._cache_lora_leaves,
+            "manager": self._cache_lora_managers,
+            "org_unit": self._cache_lora_units,
+            "person": self._cache_lora_users,
+            "related_unit": self._cache_lora_related,
+            "role": self._cache_lora_roles,
+        }
 
     def _setup_gql_client(self) -> GraphQLClient:
         return GraphQLClient(
