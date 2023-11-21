@@ -427,13 +427,13 @@ async def init_pairs(
 async def build_caches():
     get_gql_cache_settings().start_logging_based_on_settings()
     lora_full_history, gql_full_history = await init_pairs(
-        historic=True, skip_past=False, resolve_dar=True
+        historic=True, skip_past=False, resolve_dar=True, state="Full_History",
     )
     lora_skip_past, gql_skip_past = await init_pairs(
-        historic=True, skip_past=True, resolve_dar=True
+        historic=True, skip_past=True, resolve_dar=True, state="Skip_Past",
     )
     lora_actual_state, gql_actual_state = await init_pairs(
-        historic=False, skip_past=False, resolve_dar=True
+        historic=False, skip_past=False, resolve_dar=True, state="Actual_State",
     )
 
     ref_cache = deepcopy(gql_full_history)
