@@ -183,7 +183,7 @@ async def compare_by_uuid(
     for lora in lora_list.copy():
         if await compare_elem_to_list(
             lora, gql_list, cache_name
-        ) or await compare_elem_to_list(lora, ref_list, cache_name):
+        ) or await is_date_error(lora, ref_list):
             lora_list.remove(lora)
 
     return lora_list == gql_list
@@ -211,8 +211,8 @@ async def pprint_caches(lora: dict, gql: dict, cache_name: str, cache_state: str
     lora = await clean_cache(lora)
     gql = await clean_cache(gql)
 
-    pprint(f"Lora: {lora}")
-    pprint(f"Gql: {gql}")
+    # pprint(f"Lora: {lora}")
+    # pprint(f"Gql: {gql}")
     diff = deepdiff.DeepDiff(lora, gql, verbose_level=2)
     pprint(diff)
 
