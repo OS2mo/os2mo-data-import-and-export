@@ -113,8 +113,13 @@ async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
 
         if key in [TO_DATE, FROM_DATE]:
             if is_same_date(elem.get(key), comp_elem.get(key)):
-
                 continue
+
+            if is_technically_none(elem.get(key)) and await should_date_be_closed(
+                comp_elem.get(key, ""), key
+            ):
+                continue
+
             return False
 
         if elem[key] != comp_elem[key]:
@@ -211,9 +216,10 @@ async def pprint_caches(lora: dict, gql: dict, cache_name: str, cache_state: str
     lora = await clean_cache(lora)
     gql = await clean_cache(gql)
 
-    # pprint(f"Lora: {lora}")
-    # pprint(f"Gql: {gql}")
+    pprint(f"Lora: {lora}")
+    pprint(f"Gql: {gql}")
     diff = deepdiff.DeepDiff(lora, gql, verbose_level=2)
+    logger.error(diff)
     pprint(diff)
 
 
