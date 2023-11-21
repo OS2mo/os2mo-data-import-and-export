@@ -257,7 +257,7 @@ async def compare_single_element(
 
 async def notify_prometheus(
     job: str,
-    success: bool = True,
+    success: bool | None = None,
     start: bool = False,
     prometheus_pushgateway: str = "pushgateway",
 ) -> None:
@@ -265,27 +265,28 @@ async def notify_prometheus(
 
     Args:
     """
-    # a bit hacky, if this is an equivalence test we'd like to record the time it finished, so
-    # whe know the last time an equivalence test succeded
-    name = "mo_end_time"
-    if start:
-        name = "mo_start_time"
 
     registry = CollectorRegistry()
-    g_time = Gauge(
-        name=name, documentation="Unixtime for job end time", registry=registry
+    g_ret_code = Gauge(
+        name="mo_return_code",
+        documentation="Return code of job",
+        registry=registry,
     )
 
-    g_time.set_to_current_time()
-
-    if not start:
-        g_ret_code = Gauge(
-            name="mo_return_code",
-            documentation="Return code of job",
-            registry=registry,
+    if success is None:
+        name = "mo_end_time"
+        if start:
+            name = "mo_start_time"
+        g_time = Gauge(
+            name=name, documentation="Unixtime for job end time", registry=registry
         )
 
-        if not success:
+        g_time.set_to_current_time()
+        g_ret_code.set(-1)
+
+    if success is not None:
+
+        if success:
             g_ret_code.set(1)
         else:
             g_ret_code.inc(0)
@@ -356,12 +357,19 @@ async def compare_full_caches(
     ]
 
     is_equivalent: bool
-    # i think i can do a lot with async. I should learn more about futures
-    # async with asyncio.TaskGroup() as tg:
+    is_cache_valid: bool = True
     for lora, gql, ref, name in cache_pairings:
         is_equivalent = await compare_single_element(lora, gql, ref, name, state)
-        job = f"equivalence_test_{state}_{name}"
+        job = f"{str(name)}_{state}_equivalence_test"
         await notify_prometheus(job, is_equivalent)
+        if not is_equivalent:
+            is_cache_valid = False
+
+    await notify_prometheus(
+        job=f"equiv_test_{state}_lora",
+        success=is_cache_valid,
+        prometheus_pushgateway=get_gql_cache_settings().prometheus_pushgateway,
+    )
 
 
 async def populate_cache(cache: OldLoraCache | GQLLoraCache):
@@ -371,7 +379,7 @@ async def populate_cache(cache: OldLoraCache | GQLLoraCache):
 
 
 async def init_pairs(
-    historic: bool, skip_past: bool, resolve_dar: bool
+    historic: bool, skip_past: bool, resolve_dar: bool, state: str
 ) -> Tuple[OldLoraCache, GQLLoraCache]:
     lora_cache = OldLoraCache(
         resolve_dar=resolve_dar,
@@ -379,8 +387,19 @@ async def init_pairs(
         skip_past=skip_past,
         settings=get_gql_cache_settings().to_old_settings(),
     )
+    job = f"equiv_test_{state}_lora"
 
+    await notify_prometheus(
+        job=job,
+        start=True,
+        prometheus_pushgateway=get_gql_cache_settings().prometheus_pushgateway,
+    )
     await populate_cache(lora_cache)
+    await notify_prometheus(
+        job=job,
+        start=False,
+        prometheus_pushgateway=get_gql_cache_settings().prometheus_pushgateway,
+    )
 
     gql_cache = GQLLoraCache(
         resolve_dar=resolve_dar,
@@ -389,7 +408,18 @@ async def init_pairs(
         settings=get_gql_cache_settings(),
     )
 
+    job = f"equiv_test_{state}_gql"
+    await notify_prometheus(
+        job=job,
+        start=True,
+        prometheus_pushgateway=get_gql_cache_settings().prometheus_pushgateway,
+    )
     await populate_cache(gql_cache)
+    await notify_prometheus(
+        job=job,
+        start=False,
+        prometheus_pushgateway=get_gql_cache_settings().prometheus_pushgateway,
+    )
 
     return lora_cache, gql_cache
 

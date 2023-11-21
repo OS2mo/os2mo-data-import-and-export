@@ -17,7 +17,7 @@ class GqlLoraCacheSettings(JobSettings):  # type: ignore
 
     use_new_cache: bool = False
     primary_manager_responsibility: str | None = None
-    prometheus_pushgateway: str | None = "pushgateway"
+    prometheus_pushgateway: str = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
     std_page_size: int = 300
 
