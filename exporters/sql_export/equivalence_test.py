@@ -164,7 +164,7 @@ async def check_for_date_error(elem: dict, ref: dict) -> bool:
             elem.get(TO_DATE),
             ref.get(TO_DATE),
         ):
-            return False
+            continue
         if elem.get(key, "") != ref.get(key, ""):
             return False
 
