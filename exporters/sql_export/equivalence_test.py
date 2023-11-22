@@ -48,6 +48,7 @@ class CacheNames(str, Enum):
 IGNORED_KEYS = {
     CacheNames.ENGAGEMENTS: ["primary_boolean"],
     CacheNames.ADDRESSES: ["value"],
+    CacheNames.ASSOCIATIONS: ["dynamic_class"],
 }
 
 
