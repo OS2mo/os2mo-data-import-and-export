@@ -105,6 +105,17 @@ def is_same_date(first_date_time: str | None, second_date_time: str | None) -> b
     return diff <= datetime.timedelta(days=2)
 
 
+async def are_dates_ok(
+    lora_from: str | None, gql_from: str | None, lora_to: str | None, gql_to: str | None
+) -> bool:
+
+    # if this is one of those with date errors, the error is in both from and to dates
+    if is_technically_none(lora_to) and not is_technically_none(gql_to):
+        return True
+
+    return is_same_date(lora_from, gql_from) and is_same_date(lora_to, gql_to)
+
+
 async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
     keys = await get_set_of_keys(elem, comp_elem)
 
@@ -113,11 +124,11 @@ async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
             continue
 
         if key in [TO_DATE, FROM_DATE]:
-            if is_same_date(elem.get(key), comp_elem.get(key)):
-                continue
-
-            if is_technically_none(elem.get(key)) and not is_technically_none(
-                comp_elem.get(key)
+            if await are_dates_ok(
+                elem.get(FROM_DATE),
+                comp_elem.get(FROM_DATE),
+                elem.get(TO_DATE),
+                comp_elem.get(TO_DATE),
             ):
                 continue
 
