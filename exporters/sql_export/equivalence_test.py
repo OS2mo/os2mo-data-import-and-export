@@ -1,5 +1,4 @@
 import datetime
-import logging
 import urllib.error
 from copy import deepcopy
 from enum import Enum
@@ -16,12 +15,14 @@ from starlette.background import BackgroundTasks
 
 from .config import get_gql_cache_settings
 from .gql_lora_cache_async import GQLLoraCache
+from .log import get_logger
+from .log import setup_logging
 from .old_lora_cache import OldLoraCache
 
 TO_DATE = "to_date"
 FROM_DATE = "from_date"
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 trigger_equiv_router = APIRouter()
 
@@ -267,11 +268,6 @@ async def notify_prometheus(
     """
 
     registry = CollectorRegistry()
-    g_ret_code = Gauge(
-        name="mo_return_code",
-        documentation="Return code of job",
-        registry=registry,
-    )
 
     if success is None:
         name = "mo_end_time"
@@ -282,9 +278,14 @@ async def notify_prometheus(
         )
 
         g_time.set_to_current_time()
-        g_ret_code.set(-1)
 
     if success is not None:
+
+        g_ret_code = Gauge(
+            name="mo_return_code",
+            documentation="Return code of job",
+            registry=registry,
+        )
 
         if success:
             g_ret_code.set(1)
@@ -425,7 +426,8 @@ async def init_pairs(
 
 
 async def build_caches():
-    get_gql_cache_settings().start_logging_based_on_settings()
+    setup_logging("DEBUG")
+
     lora_full_history, gql_full_history = await init_pairs(
         historic=True,
         skip_past=False,
