@@ -122,7 +122,7 @@ async def are_dates_ok(
 
 async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
     keys = await get_set_of_keys(elem, comp_elem)
-    if [TO_DATE, FROM_DATE] in keys and not await are_dates_ok(
+    if (TO_DATE in keys or FROM_DATE in keys) and not await are_dates_ok(
         elem.get(FROM_DATE),
         comp_elem.get(FROM_DATE),
         elem.get(TO_DATE),
