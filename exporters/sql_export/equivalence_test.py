@@ -51,7 +51,7 @@ IGNORED_KEYS = {
     CacheNames.ASSOCIATIONS: ["dynamic_class"],
     CacheNames.IT_CONNECTIONS: ["primary_boolean"],
     # from the old test, there's some issues where this isn't filled
-    CacheNames.MANAGERS: ["manager_level", "manager_type", "unit", "user"],
+    CacheNames.MANAGERS: ["manager_level", "manager_type", "unit", "user", "from_date"],
 }
 
 
@@ -357,7 +357,7 @@ async def compare_full_caches(
     is_cache_valid: bool = True
     for lora, gql, ref, name in cache_pairings:
         is_equivalent = await compare_single_element(lora, gql, ref, name, state)
-        job = f"{str(name)}_{state}_equivalence_test"
+        job = f"{str(name.value)}_{state}_equivalence_test"
         await notify_prometheus(job, is_equivalent)
         if not is_equivalent:
             is_cache_valid = False
