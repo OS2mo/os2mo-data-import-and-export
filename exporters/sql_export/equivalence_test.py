@@ -118,23 +118,23 @@ async def are_dates_ok(
 
 async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
     keys = await get_set_of_keys(elem, comp_elem)
+    if [TO_DATE, FROM_DATE] in keys and not await are_dates_ok(
+        elem.get(FROM_DATE),
+        comp_elem.get(FROM_DATE),
+        elem.get(TO_DATE),
+        comp_elem.get(TO_DATE),
+    ):
+        return False
 
     for key in keys:
         if key in IGNORED_KEYS.get(cache_name, []):
             continue
 
-        if key in [TO_DATE, FROM_DATE]:
-            if await are_dates_ok(
-                elem.get(FROM_DATE),
-                comp_elem.get(FROM_DATE),
-                elem.get(TO_DATE),
-                comp_elem.get(TO_DATE),
+        if elem[key] != comp_elem[key]:
+            if (elem[key] == "" or elem[key] is None) and (
+                comp_elem[key] == "" or comp_elem is None
             ):
                 continue
-
-            return False
-
-        if elem[key] != comp_elem[key]:
             return False
 
     return True
@@ -151,35 +151,16 @@ async def compare_elem_to_list(
     return False
 
 
-async def should_date_be_closed(ref: str, key: str) -> bool:
-
-    ref_date = datetime.datetime.fromisoformat(ref).date()
-    today_date = datetime.date.today()
-
-    if key == FROM_DATE:
-        if ref_date > today_date:
-            return True
-        return False
-
-    if key == TO_DATE:
-        if ref_date < today_date:
-            return True
-        return False
-
-    # for mypy
-    return False
-
-
 async def check_for_date_error(elem: dict, ref: dict) -> bool:
     keys = await get_set_of_keys(elem, ref)
     for key in keys:
-        if key in [TO_DATE, FROM_DATE]:
-            if is_same_date(elem.get(key), ref.get(key)):
-                continue
-            if is_technically_none(elem.get(key)):
-                if await should_date_be_closed(ref.get(key, ""), key):
-                    continue
-                return False
+        if key in [TO_DATE, FROM_DATE] and await are_dates_ok(
+            elem.get(FROM_DATE),
+            ref.get(FROM_DATE),
+            elem.get(TO_DATE),
+            ref.get(TO_DATE),
+        ):
+            return False
         if elem.get(key, "") != ref.get(key, ""):
             return False
 
