@@ -49,6 +49,7 @@ IGNORED_KEYS = {
     CacheNames.ENGAGEMENTS: ["primary_boolean"],
     CacheNames.ADDRESSES: ["value"],
     CacheNames.ASSOCIATIONS: ["dynamic_class"],
+    CacheNames.IT_CONNECTIONS: ["primary_boolean"],
 }
 
 
