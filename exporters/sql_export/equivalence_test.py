@@ -131,7 +131,7 @@ async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
         return False
 
     for key in keys:
-        if key in IGNORED_KEYS.get(cache_name, []):
+        if key in IGNORED_KEYS.get(cache_name, []) or key in [FROM_DATE, TO_DATE]:
             continue
 
         if elem[key] != comp_elem[key]:
