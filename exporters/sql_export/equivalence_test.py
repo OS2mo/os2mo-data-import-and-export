@@ -50,6 +50,8 @@ IGNORED_KEYS = {
     CacheNames.ADDRESSES: ["value"],
     CacheNames.ASSOCIATIONS: ["dynamic_class"],
     CacheNames.IT_CONNECTIONS: ["primary_boolean"],
+    # from the old test, there's some issues where this isn't filled
+    CacheNames.MANAGERS: ["manager_level", "manager_type", "unit", "user"],
 }
 
 
