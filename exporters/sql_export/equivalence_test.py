@@ -116,8 +116,8 @@ async def compare(elem: dict, comp_elem: dict, cache_name: CacheNames) -> bool:
             if is_same_date(elem.get(key), comp_elem.get(key)):
                 continue
 
-            if is_technically_none(elem.get(key)) and await should_date_be_closed(
-                comp_elem.get(key, ""), key
+            if is_technically_none(elem.get(key)) and not is_technically_none(
+                comp_elem.get(key)
             ):
                 continue
 
