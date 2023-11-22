@@ -2,6 +2,10 @@
 # SPDX-License-Identifier: MPL-2.0
 services:
   sql_export:
+
+    tty: true
+    stdin_open: true
+
     build: .
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
@@ -12,7 +16,7 @@ services:
       MORA_BASE: "http://mo:5000"
       MOX_BASE: "http://mo:5000/lora"
 
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
 
       ACTUAL_STATE__TYPE: Postgres
       ACTUAL_STATE__HOST: export-db
@@ -20,6 +24,7 @@ services:
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
+      USE_NEW_CACHE: "true"
     ports:
       - 8789:8000/tcp
     volumes:
