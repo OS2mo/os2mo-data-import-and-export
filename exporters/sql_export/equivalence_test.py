@@ -288,9 +288,9 @@ async def notify_prometheus(
         )
 
         if success:
-            g_ret_code.set(1)
+            g_ret_code.set(0)
         else:
-            g_ret_code.inc(0)
+            g_ret_code.set(1)
 
     try:
         prometheus_client.exposition.pushadd_to_gateway(
