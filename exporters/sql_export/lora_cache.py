@@ -7,9 +7,9 @@ import click
 import sentry_sdk
 from dateutil import tz
 
+from .equivalence_test.old_lora_cache import OldLoraCache
 from .gql_lora_cache_async import get_gql_cache_settings
 from .gql_lora_cache_async import GQLLoraCache
-from .old_lora_cache import OldLoraCache
 
 logger = logging.getLogger(__name__)
 
