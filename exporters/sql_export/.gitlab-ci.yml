@@ -48,7 +48,7 @@ Test SQL Exporter:
   variables:
     POETRY_VERSION: "1.3.1"
     PYPROJECT_PREFIX: exporters/sql_export/
-    PYTEST_EXTRA_FLAGS: --ignore tests/test_gql_lora_cache_equivalence.py --ignore equivalence_test.py
+    PYTEST_EXTRA_FLAGS: --ignore equivalence_test/equivalence_test.py
 
 
 # Release

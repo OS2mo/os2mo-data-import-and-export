@@ -9,7 +9,7 @@ from hypothesis.strategies import lists
 from hypothesis.strategies import uuids
 from ra_utils.async_to_sync import async_to_sync
 
-from ..old_lora_cache import OldLoraCache
+from ..equivalence_test.old_lora_cache import OldLoraCache
 
 
 class LoraCacheTest(OldLoraCache):
