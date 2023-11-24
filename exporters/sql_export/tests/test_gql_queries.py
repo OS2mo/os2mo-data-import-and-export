@@ -83,3 +83,79 @@ async def test_historic_query():
             """
     assert gql_obj == expected
     assert variable_values == {"from_date": None, "to_date": None}
+
+
+@async_to_sync
+async def test_simple_query_uuid():
+    uuid = uuid4()
+    lc = MockGQLLoraCache()
+    gql_obj, variable_values = await lc.construct_query(
+        query_fields="uuid",
+        query_type="engagements",
+        variable_values={},
+        simple_query=True,
+        uuid=uuid,
+    )
+    expected = """
+            query ($uuids: [UUID!]) {
+                page: engagements(uuids: $uuids){
+                    uuid
+                }
+            }
+
+            """
+    assert gql_obj == expected
+    assert variable_values == {"uuids": [str(uuid)]}
+
+
+@async_to_sync
+async def test_actual_state_query_uuid():
+    uuid = uuid4()
+    lc = MockGQLLoraCache()
+    gql_obj, variable_values = await lc.construct_query(
+        query_fields="uuid",
+        query_type="engagements",
+        variable_values={},
+        simple_query=False,
+        uuid=uuid,
+    )
+    expected = """
+            query ($uuids: [UUID!]) {
+                page: engagements(uuids: $uuids){
+                    uuid
+                    obj: current {
+                        uuid
+                    }
+                }
+            }
+
+            """
+    assert gql_obj == expected
+    assert variable_values == {"uuids": [str(uuid)]}
+
+
+@async_to_sync
+async def test_historic_query_uuid():
+    uuid = uuid4()
+    lc = MockGQLLoraCache()
+    lc.full_history = True
+    gql_obj, variable_values = await lc.construct_query(
+        query_fields="uuid",
+        query_type="engagements",
+        variable_values={},
+        simple_query=False,
+        uuid=uuid,
+    )
+    expected = """
+            query ($uuids: [UUID!], $to_date: DateTime, $from_date: DateTime) {
+                page: engagements(uuids: $uuids, from_date: $from_date, to_date: $to_date){
+                    uuid
+                    obj: objects {
+                        uuid
+                    }
+                }
+            }
+
+            """
+    assert gql_obj == expected
+    assert variable_values == {"from_date": None, "to_date": None, "uuids": [str(uuid)]}
