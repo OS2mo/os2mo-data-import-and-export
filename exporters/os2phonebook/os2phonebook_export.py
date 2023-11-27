@@ -549,16 +549,15 @@ async def transfer_json():
     basic_auth = BasicAuth(username, password)
 
     @retry(
-        wait=wait_random_exponential(multiplier=1000, max=10000),
-        stop=stop_after_attempt(20),
+        wait=wait_random_exponential(max=60),
+        stop=stop_after_attempt(10),
         reraise=True,
     )
     async def push_updates(url, payload):
         async with aiohttp_session.post(
             base_url + url, json=payload, auth=basic_auth
         ) as response:
-            if response.status != 200:
-                logger.warning("OS2Phonebook returned non-200 status code")
+            response.raise_for_status()
             print(await response.text())
 
     with elapsedtime("push_x"):
