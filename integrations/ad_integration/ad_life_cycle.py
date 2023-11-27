@@ -30,7 +30,6 @@ from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
-from exporters.sql_export.equivalence_test.old_lora_cache import OldLoraCache
 from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 
@@ -136,10 +135,7 @@ class AdLifeCycle:
 
     def _update_lora_cache(
         self, dry_run: bool = True
-    ) -> Tuple[
-        typing.Union[OldLoraCache, GQLLoraCache],
-        typing.Union[OldLoraCache, GQLLoraCache],
-    ]:
+    ) -> Tuple[GQLLoraCache, GQLLoraCache]:
         """
         Read all information from AD and LoRa.
         :param dry_run: If True, LoRa dump will be read from cache.
