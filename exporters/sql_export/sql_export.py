@@ -2,17 +2,20 @@ import datetime
 import logging
 import typing
 from typing import Tuple
+from uuid import UUID
 
 import click
 import ra_utils.ensure_single_run
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from more_itertools import ichunked
+from more_itertools import one
 from ra_utils.ensure_single_run import ensure_single_run
 from ra_utils.job_settings import JobSettings
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
 from sqlalchemy import create_engine
+from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
@@ -38,6 +41,7 @@ from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
 from .sql_table_defs import Rolle
+from .sql_table_defs import sql_type
 from .sql_table_defs import Tilknytning
 from .sql_url import DatabaseFunction
 from .sql_url import generate_connection_url
@@ -61,6 +65,97 @@ class SqlExport:
         self.engine = self._get_engine()
         self.export_cpr = self._get_export_cpr_setting()
         self.chunk_size = 5000
+        self.generate_functions_map = {
+            "address": self._handle_address,
+            "association": self._handle_association,
+            "class": self._handle_class,
+            "engagement": self._handle_engagement,
+            "facet": self._handle_facet,
+            "it_system": self._handle_it_system,
+            "ituser": self._handle_it_user,
+            "kle": self._handle_kle,
+            "leave": self._handle_leave,
+            "manager": self._handle_manager,
+            "related": self._handle_related,
+            "role": self._handle_role,
+            "org_unit": self._handle_org_unit,
+            "person": self._handle_person,
+        }
+
+    async def _handle_address(self, uuid):
+        result = await self.lc._fetch_address(uuid)
+        for res in result[str(uuid)]:
+
+            if res["scope"] == "DAR":
+                yield self._generate_sql_dar_addresses(uuid, res)
+            yield self._generate_sql_addresses(uuid, res)
+
+    async def _handle_association(self, uuid):
+        result = await self.lc._fetch_associations(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_associations(uuid, res)
+
+    async def _handle_class(self, uuid):
+        result = await self.lc._fetch_classes(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_classes(uuid, res)
+
+    async def _handle_engagement(self, uuid):
+        result = await self.lc._fetch_engagements(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_engagements(uuid, res)
+
+    async def _handle_facet(self, uuid):
+        result = await self.lc._fetch_facets(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_facets(uuid, res)
+
+    async def _handle_it_system(self, uuid):
+        result = await self.lc._fetch_itsystems(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_it_systems(uuid, res)
+
+    async def _handle_it_user(self, uuid):
+        result = await self.lc._fetch_it_connections(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_it_user(uuid, res)
+
+    async def _handle_kle(self, uuid):
+        result = await self.lc._fetch_kles(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_kles(uuid, res)
+
+    async def _handle_leave(self, uuid):
+        result = await self.lc._fetch_leaves(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_leave(uuid, res)
+
+    async def _handle_manager(self, uuid):
+        result = await self.lc._fetch_managers(uuid)
+        for res in result[str(uuid)]:
+            for r in res["manager_responsibility"]:
+                yield self._generate_sql_manager_responsibility(r, str(uuid), res)
+            yield self._generate_sql_managers(uuid, res)
+
+    async def _handle_related(self, uuid):
+        result = await self.lc._fetch_related(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_related(uuid, res)
+
+    async def _handle_role(self, uuid):
+        result = await self.lc._fetch_roles(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_role(uuid, res)
+
+    async def _handle_org_unit(self, uuid):
+        result = await self.lc._fetch_units(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_units(uuid, res)
+
+    async def _handle_person(self, uuid):
+        result = await self.lc._fetch_users(uuid)
+        for res in result[str(uuid)]:
+            yield self._generate_sql_users(uuid, res)
 
     def _get_engine(self) -> Engine:
         database_function = DatabaseFunction.ACTUAL_STATE
@@ -221,7 +316,6 @@ class SqlExport:
         )
 
     def _add_classes(self) -> None:
-
         classes = tqdm(self.lc.classes.items(), desc="Export class", unit="class")
         for chunk in ichunked(classes, self.chunk_size):
             for uuid, klasse_info in chunk:
@@ -384,7 +478,8 @@ class SqlExport:
             **{
                 key: value
                 for key, value in address_info.items()
-                if key in DARAdresse.__table__.columns.keys() and key != "id"
+                if key in DARAdresse.__table__.columns.keys()
+                and key not in ("id", "uuid")
             },
         )
 
@@ -392,7 +487,6 @@ class SqlExport:
         logger.info("Add DAR addresses")
         dar = tqdm(self.lc.dar_cache.items(), desc="Export DAR", unit="DAR")
         for chunk in ichunked(dar, self.chunk_size):
-
             for uuid, address_info in chunk:
                 sql_address = self._generate_sql_dar_addresses(uuid, address_info)
                 self.session.add(sql_address)
@@ -428,7 +522,6 @@ class SqlExport:
             self.lc.associations.items(), desc="Export association", unit="association"
         )
         for chunk in ichunked(associations, self.chunk_size):
-
             for uuid, association_validity in chunk:
                 for association_info in association_validity:
                     sql_association = self._generate_sql_associations(
@@ -453,7 +546,6 @@ class SqlExport:
 
         roles = tqdm(self.lc.roles.items(), desc="Export role", unit="role")
         for chunk in ichunked(roles, self.chunk_size):
-
             for uuid, role_validity in chunk:
                 for role_info in role_validity:
                     sql_role = self._generate_sql_role(uuid, role_info)
@@ -477,7 +569,6 @@ class SqlExport:
         logger.info("Add leaves")
         leaves = tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave")
         for chunk in ichunked(leaves, self.chunk_size):
-
             for uuid, leave_validity in chunk:
                 for leave_info in leave_validity:
                     sql_leave = self._generate_sql_leave(uuid, leave_info)
@@ -485,7 +576,6 @@ class SqlExport:
             self.session.commit()
 
     def _generate_sql_it_systems(self, uuid, itsystem_info) -> ItSystem:
-
         return ItSystem(uuid=uuid, navn=itsystem_info["name"])
 
     def _add_it_systems(self) -> None:
@@ -519,7 +609,6 @@ class SqlExport:
             unit="it connection",
         )
         for chunk in ichunked(it_connections, self.chunk_size):
-
             for uuid, it_connection_validity in chunk:
                 for it_connection_info in it_connection_validity:
                     sql_it_connection = self._generate_sql_it_user(
@@ -544,7 +633,6 @@ class SqlExport:
         logger.info("Add KLES")
         kles = tqdm(self.lc.kles.items(), desc="Export KLE", unit="KLE")
         for chunk in ichunked(kles, self.chunk_size):
-
             for uuid, kle_validity in chunk:
                 for kle_info in kle_validity:
                     sql_kle = self._generate_sql_kles(uuid, kle_info)
@@ -581,7 +669,6 @@ class SqlExport:
         logger.info("Add Enhedssammenkobling")
         relateds = tqdm(self.lc.related.items(), desc="Export related", unit="related")
         for chunk in ichunked(relateds, self.chunk_size):
-
             for uuid, related_validity in chunk:
                 for related_info in related_validity:
                     sql_related = self._generate_sql_related(uuid, related_info)
@@ -616,7 +703,6 @@ class SqlExport:
         logger.info("Add managers")
         managers = tqdm(self.lc.managers.items(), desc="Export manager", unit="manager")
         for chunk in ichunked(managers, self.chunk_size):
-
             for manager_uuid, manager_validity in chunk:
                 for manager_info in manager_validity:
                     sql_manager = self._generate_sql_managers(
@@ -640,7 +726,6 @@ class SqlExport:
         )
 
     def export(self, resolve_dar: bool, use_pickle: typing.Any) -> None:
-
         self.perform_export(
             resolve_dar=resolve_dar,
             use_pickle=use_pickle,
@@ -648,9 +733,46 @@ class SqlExport:
 
         self.swap_tables()
 
+    # TODO: find a nicer way to add type-hints to table
+    def check_sql(self, uuid: UUID, objects: list[sql_type], table: sql_type):
+
+        """Updates sql with the provided objects matching the objects UUID.
+
+        Given a UUID, a list of objects and a table  we find any objects currently in sql for the given uuid.
+        Then we add the objects that are not allready in sql - either new or changed in MO -  and remove any that
+        do not match.
+        """
+        search_key = table.leder_uuid if table == LederAnsvar else table.uuid
+        # Lookup engagement in sql
+        current_objects = self.session.execute(
+            select(table).where(search_key == str(uuid))
+        ).all()
+        if current_objects is not None:
+            current_objects = [one(c) for c in current_objects]
+
+        unchanged = [n for n in current_objects if n in objects]
+
+        # Delete all rows from sql that do not match the found objects
+        removed = [r for r in current_objects if r not in objects]
+        logger.info(f"Delete {len(removed)} rows to {table} for {uuid=}")
+        for r in removed:
+            self.session.delete(r)
+
+        # Create all rows not currently in sql
+        new = [n for n in objects if n not in current_objects]
+        logger.info(f"Add {len(new)} rows to {table} for {uuid=}")
+        for n in new:
+            self.session.add(n)
+
+        # Check that the result is the expected amount of rows in sql.
+        assert len(objects) == len(unchanged) + len(
+            new
+        ), f"expected {len(objects)=} to be equal to {len(unchanged)=} + {len(new)=}"
+
+        self.session.commit()
+
 
 def wrap_export(args: dict, settings: dict) -> None:
-
     sql_export = SqlExport(
         force_sqlite=args["force_sqlite"],
         historic=args["historic"],

@@ -23,7 +23,9 @@ services:
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
+      EVENTDRIVEN: "true"
       USE_NEW_CACHE: "true"
+      FULL_HISTORY: "true"
     ports:
       - 8789:8000/tcp
     volumes:

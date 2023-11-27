@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
+from more_itertools import partition
 from ra_utils.job_settings import JobSettings
 from ramqp.depends import RateLimit
 from ramqp.mo import MORouter
@@ -25,6 +26,9 @@ from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport
+from .sql_table_defs import DARAdresse
+from .sql_table_defs import LederAnsvar
+from .sql_table_defs import type_map
 from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
@@ -45,21 +49,33 @@ async def amqp_trigger(
 ):
     logger.info(f"Event Triggered on {key} with {uuid=}")
 
-    # TODO: find a way to set this up at startup
-    lc.gql_client_session = gql_session
-
-    func_name = lc.cache_functions_map.get(key)
-    if func_name is None:
+    sql_func = sql_exporter.generate_functions_map.get(key)
+    if sql_func is None:
         logger.warn("No matching cache functions for this change.")
         return
-    res = await func_name(uuid)
 
-    print(res)
+    sql_objects = [sql_obj async for sql_obj in sql_func(str(uuid))]
+
+    if key == "address":
+        sql_objects, dar_adresses = partition(
+            lambda m: isinstance(m, DARAdresse), sql_objects  # type: ignore
+        )
+        sql_exporter.check_sql(uuid, list(dar_adresses), DARAdresse)  # type: ignore
+    elif key == "manager":
+        sql_objects, responsibility_objects = partition(
+            lambda m: isinstance(m, LederAnsvar), sql_objects
+        )
+        sql_exporter.check_sql(
+            uuid, list(responsibility_objects), LederAnsvar  # type: ignore
+        )
+
+    sql_exporter.check_sql(uuid, list(sql_objects), type_map[key])  # type: ignore
 
 
 class Settings(JobSettings):
     fastramqpi: FastRAMQPISettings
     eventdriven: bool = False
+    full_history: bool = False
 
     class Config:
         frozen = True
@@ -71,7 +87,7 @@ async def index() -> dict[str, str]:
     return {"name": "sql_export"}
 
 
-def create_fastramqpi(**kwargs) -> FastRAMQPI:
+def create_app(**kwargs) -> FastAPI:
     settings: Settings = Settings(**kwargs)
     settings.start_logging_based_on_settings()
     if settings.sentry_dsn:
@@ -88,17 +104,13 @@ def create_fastramqpi(**kwargs) -> FastRAMQPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
-    return fastramqpi
-
-
-def create_app(**kwargs) -> FastAPI:
-    fastramqpi = create_fastramqpi(**kwargs)
     context = fastramqpi.get_context()
 
     @asynccontextmanager
     async def sql_exporter() -> AsyncGenerator[None, None]:
         lc = GQLLoraCache(
             settings=GqlLoraCacheSettings().to_old_settings(),
+            full_history=settings.full_history,
             graphql_session=context["graphql_session"],
         )
         await lc._cache_lora_classes()
@@ -106,8 +118,10 @@ def create_app(**kwargs) -> FastAPI:
             settings=DatabaseSettings(use_new_cache=True).to_old_settings()
         )
         sql_exporter.lc = lc
+        sql_exporter.session = sql_exporter._get_db_session()
         fastramqpi.add_context(sql_exporter=sql_exporter)
         yield
 
     fastramqpi.add_lifespan_manager(sql_exporter(), priority=1100)
+
     return fastramqpi.get_app()
