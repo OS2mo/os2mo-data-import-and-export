@@ -20,10 +20,11 @@ from ramqp.depends import RateLimit
 from ramqp.mo import MORouter
 from ramqp.mo import MORoutingKey
 from ramqp.mo import PayloadUUID
+from sqlalchemy import inspect
 
-from .equivalence_test.equivalence_test import trigger_equiv_router
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
+from .equivalence_test.equivalence_test import trigger_equiv_router
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport
 from .sql_table_defs import DARAdresse
@@ -119,7 +120,12 @@ def create_app(**kwargs) -> FastAPI:
         )
         sql_exporter.lc = lc
         sql_exporter.session = sql_exporter._get_db_session()
-        fastramqpi.add_context(sql_exporter=sql_exporter)
+        # Check wether the tables exists (https://stackoverflow.com/a/64862306)
+        ins = inspect(sql_exporter.engine)
+        if not ins.dialect.has_table(sql_exporter.engine.connect(), "brugere"):
+            await sql_exporter.lc.populate_cache_async()
+            sql_exporter.export(resolve_dar=True, use_pickle=False)
+
         yield
 
     fastramqpi.add_lifespan_manager(sql_exporter(), priority=1100)
