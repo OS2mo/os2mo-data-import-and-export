@@ -15,7 +15,6 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
 from more_itertools import partition
-from ra_utils.job_settings import JobSettings
 from ramqp.depends import RateLimit
 from ramqp.mo import MORouter
 from ramqp.mo import MORoutingKey
@@ -35,21 +34,16 @@ from .trigger import trigger_router
 logger = logging.getLogger(__name__)
 
 fastapi_router = APIRouter()
-amqp_router = MORouter()
-
+actualstate_router = MORouter()
+historic_router = MORouter()
 
 sql_exporter_ = Annotated[SqlExport, Depends(from_user_context("sql_exporter"))]
+sql_exporter_historic_ = Annotated[
+    SqlExport, Depends(from_user_context("sql_exporter_historic"))
+]
 
 
-@amqp_router.register("*")
-async def amqp_trigger(
-    uuid: PayloadUUID,
-    sql_exporter: sql_exporter_,
-    key: MORoutingKey,
-    _: RateLimit,
-):
-    logger.info(f"Event Triggered on {key} with {uuid=}")
-
+async def handle_event(sql_exporter: SqlExport, uuid: PayloadUUID, key: MORoutingKey):
     sql_func = sql_exporter.generate_functions_map.get(key)
     if sql_func is None:
         logger.warn("No matching cache functions for this change.")
@@ -73,10 +67,36 @@ async def amqp_trigger(
     sql_exporter.check_sql(uuid, list(sql_objects), type_map[key])  # type: ignore
 
 
-class Settings(JobSettings):
+@actualstate_router.register("*")
+async def amqp_trigger(
+    uuid: PayloadUUID,
+    sql_exporter: sql_exporter_,
+    key: MORoutingKey,
+    _: RateLimit,
+):
+    logger.info(f"Event triggered on {key} with {uuid=}")
+
+    await handle_event(sql_exporter, uuid, key)
+    logger.info(f"Event handled on {key} with {uuid=}")
+
+
+@historic_router.register("*")
+async def amqp_trigger_historic(
+    uuid: PayloadUUID,
+    sql_exporter: sql_exporter_historic_,
+    key: MORoutingKey,
+    _: RateLimit,
+):
+    logger.info(f"Event triggered on historic {key} with {uuid=}")
+
+    await handle_event(sql_exporter, uuid, key)
+
+    logger.info(f"Event handled on historic {key} with {uuid=}")
+
+
+class Settings(DatabaseSettings):
     fastramqpi: FastRAMQPISettings
     eventdriven: bool = False
-    full_history: bool = False
 
     class Config:
         frozen = True
@@ -97,7 +117,9 @@ def create_app(**kwargs) -> FastAPI:
     fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings.fastramqpi)
     if settings.eventdriven:
         amqpsystem = fastramqpi.get_amqpsystem()
-        amqpsystem.router.registry.update(amqp_router.registry)
+        amqpsystem.router.registry.update(actualstate_router.registry)
+        if settings.historic_state is not None:
+            amqpsystem.router.registry.update(historic_router.registry)
     fastramqpi.get_app().include_router(trigger_router)
     fastramqpi.get_app().include_router(trigger_equiv_router)
     fastramqpi.add_context(settings=settings, sql_exporter=None)
@@ -108,15 +130,15 @@ def create_app(**kwargs) -> FastAPI:
     context = fastramqpi.get_context()
 
     @asynccontextmanager
-    async def sql_exporter() -> AsyncGenerator[None, None]:
+    async def sql_exporter(full_history) -> AsyncGenerator[None, None]:
         lc = GQLLoraCache(
             settings=GqlLoraCacheSettings().to_old_settings(),
-            full_history=settings.full_history,
+            full_history=full_history,
             graphql_session=context["graphql_session"],
         )
         await lc._cache_lora_classes()
         sql_exporter = SqlExport(
-            settings=DatabaseSettings(use_new_cache=True).to_old_settings()
+            settings=settings.to_old_settings(), historic=full_history
         )
         sql_exporter.lc = lc
         sql_exporter.session = sql_exporter._get_db_session()
@@ -126,8 +148,14 @@ def create_app(**kwargs) -> FastAPI:
             await sql_exporter.lc.populate_cache_async()
             sql_exporter.export(resolve_dar=True, use_pickle=False)
 
+        if full_history:
+            fastramqpi.add_context(sql_exporter_historic=sql_exporter)
+        else:
+            fastramqpi.add_context(sql_exporter=sql_exporter)
         yield
 
-    fastramqpi.add_lifespan_manager(sql_exporter(), priority=1100)
+    fastramqpi.add_lifespan_manager(sql_exporter(False), priority=1100)
+    if settings.historic_state is not None:
+        fastramqpi.add_lifespan_manager(sql_exporter(True), priority=1200)
 
     return fastramqpi.get_app()
