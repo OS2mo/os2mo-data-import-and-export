@@ -266,13 +266,22 @@ class SqlExport:
         def timestamp():
             return datetime.datetime.now()
 
-        trunc_tables = dict(Base.metadata.tables)
-        trunc_tables.pop("kvittering")
+        tables = dict(Base.metadata.tables)
 
-        logger.info("Dropping tables")
-        Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
-        logger.info("Creating tables")
-        Base.metadata.create_all(self.engine)
+        logger.info("Dropping work tables")
+        Base.metadata.drop_all(
+            self.engine,
+            tables=[table for name, table in tables.items() if name[0] == "w"],
+        )
+        logger.info("Ensure work tables and 'kvittering' exists")
+        Base.metadata.create_all(
+            self.engine,
+            tables=[
+                table
+                for name, table in tables.items()
+                if name[0] == "w" or name == "kvittering"
+            ],
+        )
 
         self.session = self._get_db_session()
 
