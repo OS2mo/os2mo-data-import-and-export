@@ -26,15 +26,20 @@ class Compare:
         return left == right
 
 
-class Facet(Base, Compare):
-    __tablename__ = "facetter"
-    uuid = Column(String(36), nullable=False, primary_key=True)
+class BaseFacet(Compare):
     bvn = Column(String(250), nullable=False)
+    uuid = Column(String(36), nullable=False, primary_key=True)
 
 
-class Klasse(Base, Compare):
-    __tablename__ = "klasser"
+class WFacet(Base, BaseFacet):
+    __tablename__ = "wfacetter"
 
+
+class Facet(Base, BaseFacet):
+    __tablename__ = "facetter"
+
+
+class BaseKlasse(Compare):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
     titel = Column(String(250), nullable=False)
@@ -42,9 +47,15 @@ class Klasse(Base, Compare):
     facet_bvn = Column(String(250), nullable=False)
 
 
-class Bruger(Base, Compare):
-    __tablename__ = "brugere"
+class WKlasse(Base, BaseKlasse):
+    __tablename__ = "wklasser"
 
+
+class Klasse(Base, BaseKlasse):
+    __tablename__ = "klasser"
+
+
+class BaseBruger(Compare):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bvn = Column(String(250), nullable=False)
@@ -57,8 +68,15 @@ class Bruger(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Enhed(Base, Compare):
-    __tablename__ = "enheder"
+class WBruger(Base, BaseBruger):
+    __tablename__ = "wbrugere"
+
+
+class Bruger(Base, BaseBruger):
+    __tablename__ = "brugere"
+
+
+class BaseEnhed(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -78,8 +96,15 @@ class Enhed(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Adresse(Base, Compare):
-    __tablename__ = "adresser"
+class WEnhed(Base, BaseEnhed):
+    __tablename__ = "wenheder"
+
+
+class Enhed(Base, BaseEnhed):
+    __tablename__ = "enheder"
+
+
+class BaseAdresse(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -98,8 +123,15 @@ class Adresse(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Engagement(Base, Compare):
-    __tablename__ = "engagementer"
+class WAdresse(Base, BaseAdresse):
+    __tablename__ = "wadresser"
+
+
+class Adresse(Base, BaseAdresse):
+    __tablename__ = "adresser"
+
+
+class BaseEngagement(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -128,8 +160,15 @@ class Engagement(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Rolle(Base, Compare):
-    __tablename__ = "roller"
+class WEngagement(Base, BaseEngagement):
+    __tablename__ = "wengagementer"
+
+
+class Engagement(Base, BaseEngagement):
+    __tablename__ = "engagementer"
+
+
+class BaseRolle(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -141,8 +180,15 @@ class Rolle(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Tilknytning(Base, Compare):
-    __tablename__ = "tilknytninger"
+class WRolle(Base, BaseRolle):
+    __tablename__ = "wroller"
+
+
+class Rolle(Base, BaseRolle):
+    __tablename__ = "roller"
+
+
+class BaseTilknytning(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -160,9 +206,15 @@ class Tilknytning(Base, Compare):
     faglig_organisation = Column(String(250), nullable=True)
 
 
-class Orlov(Base, Compare):
-    __tablename__ = "orlover"
+class WTilknytning(Base, BaseTilknytning):
+    __tablename__ = "wtilknytninger"
 
+
+class Tilknytning(Base, BaseTilknytning):
+    __tablename__ = "tilknytninger"
+
+
+class BaseOrlov(Compare):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bvn = Column(String(250), nullable=False)
@@ -174,15 +226,29 @@ class Orlov(Base, Compare):
     slutdato = Column(String(10))
 
 
-class ItSystem(Base, Compare):
-    __tablename__ = "it_systemer"
+class WOrlov(Base, BaseOrlov):
+    __tablename__ = "worlover"
+
+
+class Orlov(Base, BaseOrlov):
+    __tablename__ = "orlover"
+
+
+class BaseItSystem(Compare):
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     navn = Column(String(250), nullable=False)
 
 
-class ItForbindelse(Base, Compare):
-    __tablename__ = "it_forbindelser"
+class WItSystem(Base, BaseItSystem):
+    __tablename__ = "wit_systemer"
+
+
+class ItSystem(Base, BaseItSystem):
+    __tablename__ = "it_systemer"
+
+
+class BaseItForbindelse(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -195,9 +261,15 @@ class ItForbindelse(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Leder(Base, Compare):
-    __tablename__ = "ledere"
+class WItForbindelse(Base, BaseItForbindelse):
+    __tablename__ = "wit_forbindelser"
 
+
+class ItForbindelse(Base, BaseItForbindelse):
+    __tablename__ = "it_forbindelser"
+
+
+class BaseLeder(Compare):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
@@ -210,8 +282,15 @@ class Leder(Base, Compare):
     slutdato = Column(String(10))
 
 
-class LederAnsvar(Base, Compare):
-    __tablename__ = "leder_ansvar"
+class WLeder(Base, BaseLeder):
+    __tablename__ = "wledere"
+
+
+class Leder(Base, BaseLeder):
+    __tablename__ = "ledere"
+
+
+class BaseLederAnsvar(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String(36))  # , ForeignKey('ledere.uuid'))
@@ -221,8 +300,15 @@ class LederAnsvar(Base, Compare):
     slutdato = Column(String(10))
 
 
-class KLE(Base, Compare):
-    __tablename__ = "kle"
+class WLederAnsvar(Base, BaseLederAnsvar):
+    __tablename__ = "wleder_ansvar"
+
+
+class LederAnsvar(Base, BaseLederAnsvar):
+    __tablename__ = "leder_ansvar"
+
+
+class BaseKLE(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -235,7 +321,15 @@ class KLE(Base, Compare):
     slutdato = Column(String(10))
 
 
-class Kvittering(Base, Compare):
+class WKLE(Base, BaseKLE):
+    __tablename__ = "wkle"
+
+
+class KLE(Base, BaseKLE):
+    __tablename__ = "kle"
+
+
+class Kvittering(Base):
     __tablename__ = "kvittering"
 
     id = Column(Integer, nullable=False, primary_key=True)
@@ -244,8 +338,7 @@ class Kvittering(Base, Compare):
     slut_levering_tid = Column(DateTime)
 
 
-class Enhedssammenkobling(Base, Compare):
-    __tablename__ = "enhedssammenkobling"
+class BaseEnhedssammenkobling(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -255,8 +348,15 @@ class Enhedssammenkobling(Base, Compare):
     slutdato = Column(String(10))
 
 
-class DARAdresse(Base, Compare):
-    __tablename__ = "dar_adresser"
+class WEnhedssammenkobling(Base, BaseEnhedssammenkobling):
+    __tablename__ = "wenhedssammenkobling"
+
+
+class Enhedssammenkobling(Base, BaseEnhedssammenkobling):
+    __tablename__ = "enhedssammenkobling"
+
+
+class BaseDARAdresse(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -270,6 +370,14 @@ class DARAdresse(Base, Compare):
     kommunekode = Column(String(8))
     adgangsadresseid = Column(String(36))
     betegnelse = Column(String(250))
+
+
+class WDARAdresse(Base, BaseDARAdresse):
+    __tablename__ = "wdar_adresser"
+
+
+class DARAdresse(Base, BaseDARAdresse):
+    __tablename__ = "dar_adresser"
 
 
 sql_type = (
