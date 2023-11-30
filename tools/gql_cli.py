@@ -1,3 +1,5 @@
+from json import dumps
+
 import click
 from gql import gql
 from raclients.graph.client import GraphQLClient
@@ -9,7 +11,8 @@ from raclients.graph.client import GraphQLClient
 @click.option("--client-secret", envvar="CLIENT_SECRET")
 @click.option("--auth-realm", envvar="AUTH_REALM", default="mo")
 @click.option("--auth-server", envvar="AUTH_SERVER")
-@click.option("--graphql-version", envvar="GRAPHQL_VERSION", default="19", type=int)
+@click.option("--graphql-version", envvar="GRAPHQL_VERSION", default="20", type=int)
+@click.option("--json", envvar="OUTPUT_JSON", default=False, type=bool, is_flag=True)
 @click.argument("query")
 def gql_cli(
     mora_base: str,
@@ -18,6 +21,7 @@ def gql_cli(
     auth_realm: str,
     auth_server: str,
     graphql_version: int,
+    json: bool,
     query,
 ) -> None:
     """Post graphql query to OS2MO.
@@ -36,6 +40,10 @@ def gql_cli(
     ) as session:
 
         r = session.execute(q)
+
+    if json:
+        r = dumps(r, indent=2)
+
     click.echo(r)
 
 
