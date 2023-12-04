@@ -10,16 +10,14 @@ from itertools import starmap
 from operator import attrgetter
 
 import click
-from aiohttp import BasicAuth
-from aiohttp import ClientSession
 from more_itertools import side_effect
-from ra_utils.async_to_sync import async_to_sync
 from sqlalchemy import event
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
+import httpx
 from tenacity import retry
 from tenacity import stop_after_attempt
-from tenacity import wait_random_exponential
+from tenacity import wait_exponential
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import Adresse
@@ -102,6 +100,7 @@ def generate_json():
     # Prepare session
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
+
     # Count number of queries
     def query_counter(*_):
         query_counter.count += 1
@@ -513,8 +512,7 @@ def generate_json():
 
 
 @cli.command()
-@async_to_sync
-async def transfer_json():
+def transfer_json():
     # Load settings file
     settings = None
     with elapsedtime("loading_settings"):
@@ -546,26 +544,21 @@ async def transfer_json():
     org_units_url = settings.get(
         "exporters.os2phonebook_org_units_uri", "load-org-units"
     )
-    basic_auth = BasicAuth(username, password)
+    basic_auth = (username, password)
 
     @retry(
-        wait=wait_random_exponential(max=60),
+        wait=wait_exponential(max=60),
         stop=stop_after_attempt(10),
         reraise=True,
     )
     async def push_updates(url, payload):
-        async with aiohttp_session.post(
-            base_url + url, json=payload, auth=basic_auth
-        ) as response:
-            response.raise_for_status()
-            print(await response.text())
+        r = httpx.post(base_url + url, json=payload, auth=basic_auth)
+        r.raise_for_status()
+        print(r.text)
 
     with elapsedtime("push_x"):
-        async with ClientSession() as aiohttp_session:
-            await asyncio.gather(
-                push_updates(employees_url, employee_map),
-                push_updates(org_units_url, org_unit_map),
-            )
+        push_updates(employees_url, employee_map)
+        push_updates(org_units_url, org_unit_map)
 
 
 if __name__ == "__main__":
