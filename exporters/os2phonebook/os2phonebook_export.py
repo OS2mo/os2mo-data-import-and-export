@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import pathlib
@@ -551,7 +550,7 @@ def transfer_json():
         stop=stop_after_attempt(10),
         reraise=True,
     )
-    async def push_updates(url, payload):
+    def push_updates(url, payload):
         r = httpx.post(base_url + url, json=payload, auth=basic_auth)
         r.raise_for_status()
         print(r.text)
