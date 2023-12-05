@@ -167,6 +167,13 @@ imports_sd_changed_at(){
     return ${SD_STATUS}
 }
 
+imports_sdtool_plus(){
+    echo running imports_sdtool_plus
+    if ! curl -m 1800 -X POST http://localhost:8040/trigger; then
+        return $?
+    fi
+}
+
 imports_opus_diff_import(){
     echo running opus_diff_import
     BACK_UP_AFTER_JOBS+=(
@@ -449,6 +456,10 @@ imports(){
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
+    fi
+
+    if [ "${RUN_SDTOOL_PLUS}" == "true" ]; then
+        run-job imports_sdtool_plus || return 2
     fi
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
