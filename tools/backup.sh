@@ -6,10 +6,7 @@ source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
 
 # read the run-job script et al
-for module in tools/job-runner.d/*.sh; do
-    #echo sourcing $module
-    source $module
-done
+source tools/job-runner.sh
 
 prometrics-job-start "backup"
 
