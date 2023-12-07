@@ -49,8 +49,8 @@ def sql_export(resolve_dar):
         "exporters.actual_state.db_name": settings.get(
             "lc-for-jobs.actual_db_name", "ActualState"
         ),
-        "exporters.actual_state.manager_responsibility_class": settings[
-            "exporters.actual_state.manager_responsibility_class"
+        "exporters.actual_state.primary_manager_responsibility": settings[
+            "exporters.actual_state.primary_manager_responsibility"
         ],
     }
     settings.update(overrides)
