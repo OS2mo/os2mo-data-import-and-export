@@ -21,10 +21,10 @@ from sqlalchemy.orm import Session
 from ..sql_export import SqlExport
 from ..sql_export import wrap_export
 from ..sql_table_defs import Base
-from ..sql_table_defs import Bruger
-from ..sql_table_defs import Enhed
-from ..sql_table_defs import ItForbindelse
-from ..sql_table_defs import Tilknytning
+from ..sql_table_defs import WBruger
+from ..sql_table_defs import WEnhed
+from ..sql_table_defs import WItForbindelse
+from ..sql_table_defs import WTilknytning
 
 
 class FakeLC:
@@ -241,7 +241,7 @@ def test_sql_export_writes_users(cpr: Optional[str]):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Bruger,
+        WBruger,
         uuid=user_uuid,
         cpr=cpr,
         bvn=user["user_key"],
@@ -284,7 +284,7 @@ def test_sql_export_writes_org_units():
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Enhed,
+        WEnhed,
         uuid=unit_uuid,
         navn=unit["name"],
         bvn=unit["user_key"],
@@ -346,7 +346,7 @@ def test_sql_export_writes_associations(assoc_type_present: bool):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Tilknytning,
+        WTilknytning,
         uuid=assoc_uuid,
         bruger_uuid=assoc["user"],
         enhed_uuid=assoc["unit"],
@@ -388,7 +388,7 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        ItForbindelse,
+        WItForbindelse,
         uuid=it_user_uuid,
         it_system_uuid=it_user["itsystem"],
         bruger_uuid=it_user["user"],

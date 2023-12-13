@@ -119,6 +119,7 @@ class SqlExport:
             "org_unit": self._handle_org_unit,
             "person": self._handle_person,
         }
+        self.lc = None
 
     async def _handle_address(self, uuid):
         result = await self.lc._fetch_address(uuid)
