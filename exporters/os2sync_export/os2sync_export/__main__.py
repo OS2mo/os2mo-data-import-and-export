@@ -166,6 +166,12 @@ def main(settings: Settings):
     )
     mo_org_units = read_all_org_units(settings)
 
+    existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
+        os2sync_client,
+        os2sync_api_url=settings.os2sync_api_url,
+        request_uuid=request_uuid,
+    )
+
     logger.info(f"Orgenheder som tjekkes i OS2Sync: {len(mo_org_units)}")
 
     changed = [
@@ -176,12 +182,6 @@ def main(settings: Settings):
     ]
 
     logger.info(f"Orgenheder som blev ændret i OS2Sync: {sum(changed)}")
-
-    existing_os2sync_org_units, existing_os2sync_users = os2sync.get_hierarchy(
-        os2sync_client,
-        os2sync_api_url=settings.os2sync_api_url,
-        request_uuid=request_uuid,
-    )
 
     if settings.os2sync_autowash:
         # Delete any org_unit not in os2mo
