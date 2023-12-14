@@ -103,127 +103,7 @@ class SqlExport:
         self.engine = self._get_engine()
         self.export_cpr = self._get_export_cpr_setting()
         self.chunk_size = 5000
-        self.generate_functions_map = {
-            "address": self._handle_address,
-            "association": self._handle_association,
-            "class": self._handle_class,
-            "engagement": self._handle_engagement,
-            "facet": self._handle_facet,
-            "it_system": self._handle_it_system,
-            "ituser": self._handle_it_user,
-            "kle": self._handle_kle,
-            "leave": self._handle_leave,
-            "manager": self._handle_manager,
-            "related": self._handle_related,
-            "role": self._handle_role,
-            "org_unit": self._handle_org_unit,
-            "person": self._handle_person,
-        }
         self.lc = None
-
-    async def _handle_address(self, uuid):
-        result = await self.lc._fetch_address(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            if res["scope"] == "DAR":
-                yield self._generate_sql_dar_addresses(uuid, res, DARAdresse)
-            yield self._generate_sql_addresses(uuid, res, Adresse)
-
-    async def _handle_association(self, uuid):
-        result = await self.lc._fetch_associations(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_associations(uuid, res, Tilknytning)
-
-    async def _handle_class(self, uuid):
-        result = await self.lc._fetch_classes(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_classes(uuid, res, Klasse)
-
-    async def _handle_engagement(self, uuid):
-        result = await self.lc._fetch_engagements(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_engagements(uuid, res, Engagement)
-
-    async def _handle_facet(self, uuid):
-        result = await self.lc._fetch_facets(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_facets(uuid, res, Facet)
-
-    async def _handle_it_system(self, uuid):
-        result = await self.lc._fetch_itsystems(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_it_systems(uuid, res, ItSystem)
-
-    async def _handle_it_user(self, uuid):
-        result = await self.lc._fetch_it_connections(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_it_user(uuid, res, ItForbindelse)
-
-    async def _handle_kle(self, uuid):
-        result = await self.lc._fetch_kles(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_kles(uuid, res, KLE)
-
-    async def _handle_leave(self, uuid):
-        result = await self.lc._fetch_leaves(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_leave(uuid, res, Orlov)
-
-    async def _handle_manager(self, uuid):
-        result = await self.lc._fetch_managers(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            for r in res["manager_responsibility"]:
-                yield self._generate_sql_manager_responsibility(
-                    r, str(uuid), res, LederAnsvar
-                )
-            yield self._generate_sql_managers(uuid, res, Leder)
-
-    async def _handle_related(self, uuid):
-        result = await self.lc._fetch_related(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_related(uuid, res, Enhedssammenkobling)
-
-    async def _handle_role(self, uuid):
-        result = await self.lc._fetch_roles(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_role(uuid, res, Rolle)
-
-    async def _handle_org_unit(self, uuid):
-        result = await self.lc._fetch_units(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_units(uuid, res, Enhed)
-
-    async def _handle_person(self, uuid):
-        result = await self.lc._fetch_users(uuid)
-        if not result:
-            return
-        for res in result[str(uuid)]:
-            yield self._generate_sql_users(uuid, res, Bruger)
 
     def _get_engine(self) -> Engine:
         database_function = DatabaseFunction.ACTUAL_STATE
@@ -712,7 +592,7 @@ class SqlExport:
                     self.session.add(sql_it_connection)
             self.session.commit()
 
-    def _generate_sql_kles(self, uuid, kle_info, model: Type[_T_KLE]) -> _T_KLE:
+    def _generate_sql_kle(self, uuid, kle_info, model: Type[_T_KLE]) -> _T_KLE:
         return model(
             uuid=uuid,
             enhed_uuid=kle_info["unit"],
@@ -730,7 +610,7 @@ class SqlExport:
         for chunk in ichunked(kles, self.chunk_size):
             for uuid, kle_validity in chunk:
                 for kle_info in kle_validity:
-                    sql_kle = self._generate_sql_kles(uuid, kle_info, WKLE)
+                    sql_kle = self._generate_sql_kle(uuid, kle_info, WKLE)
                     self.session.add(sql_kle)
             self.session.commit()
 
@@ -837,8 +717,7 @@ class SqlExport:
 
         self.swap_tables()
 
-    # TODO: find a nicer way to add type-hints to table
-    def check_sql(self, uuid: UUID, objects: list[sql_type], table: sql_type):
+    def update_sql(self, uuid: UUID, objects: list[sql_type], table: Type[sql_type]):
         """Updates sql with the provided objects matching the objects UUID.
 
         Given a UUID, a list of objects and a table  we find any objects currently in sql for the given uuid.

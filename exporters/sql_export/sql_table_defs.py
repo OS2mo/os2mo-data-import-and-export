@@ -398,20 +398,3 @@ sql_type = (
     | Enhedssammenkobling
     | DARAdresse
 )
-
-type_map = {
-    "address": Adresse,
-    "association": Tilknytning,
-    "class": Klasse,
-    "engagement": Engagement,
-    "facet": Facet,
-    "it_system": ItSystem,
-    "ituser": ItForbindelse,
-    "kle": KLE,
-    "leave": Orlov,
-    "manager": Leder,
-    "related": Enhedssammenkobling,
-    "role": Rolle,
-    "org_unit": Enhed,
-    "person": Bruger,
-}
