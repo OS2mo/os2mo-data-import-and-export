@@ -249,7 +249,7 @@ class SqlExport:
 
     def _generate_sql_facets(self, uuid, facet_info, model: Type[_T_Facet]) -> _T_Facet:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bvn=facet_info["user_key"],
         )
 
@@ -266,7 +266,7 @@ class SqlExport:
         self, uuid, klasse_info, model: Type[_T_Klasse]
     ) -> _T_Klasse:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bvn=klasse_info["user_key"],
             titel=klasse_info["title"],
             facet_uuid=klasse_info["facet"],
@@ -547,7 +547,7 @@ class SqlExport:
     def _generate_sql_it_systems(
         self, uuid, itsystem_info, model: Type[_T_ItSystem]
     ) -> _T_ItSystem:
-        return model(uuid=uuid, navn=itsystem_info["name"])
+        return model(uuid=str(uuid), navn=itsystem_info["name"])
 
     def _add_it_systems(self) -> None:
         logger.info("Add IT systems")

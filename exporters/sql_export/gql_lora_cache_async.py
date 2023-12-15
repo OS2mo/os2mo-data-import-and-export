@@ -285,6 +285,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
             res.update(obj)
         return res
@@ -312,6 +314,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(
                 obj,
                 resolve_object=False,
@@ -340,6 +344,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
             res.update(obj)
         return res

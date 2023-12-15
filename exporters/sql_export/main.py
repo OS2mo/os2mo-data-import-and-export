@@ -90,11 +90,10 @@ async def handle_class(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_classes(uuid)
-    class_objects = [
-        sql_exporter._generate_sql_classes(uuid, res, Klasse)
-        for res in result.get(str(uuid), [])
-    ]
-
+    res = result.get(str(uuid))
+    class_objects = (
+        [sql_exporter._generate_sql_classes(uuid, res, Klasse)] if res else []
+    )
     sql_exporter.update_sql(uuid, class_objects, Klasse)
 
 
@@ -116,10 +115,10 @@ async def handle_facet(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_facets(uuid)
-    facets_objects = [
-        sql_exporter._generate_sql_facets(uuid, res, Facet)
-        for res in result.get(str(uuid), [])
-    ]
+    res = result.get(str(uuid))
+    facets_objects = (
+        [sql_exporter._generate_sql_facets(uuid, res, Facet)] if res else []
+    )
 
     sql_exporter.update_sql(uuid, facets_objects, Facet)
 
@@ -129,10 +128,10 @@ async def handle_it_system(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_itsystems(uuid)
-    itsystems_objects = [
-        sql_exporter._generate_sql_it_systems(uuid, res, ItSystem)
-        for res in result.get(str(uuid), [])
-    ]
+    res = result.get(str(uuid))
+    itsystems_objects = (
+        [sql_exporter._generate_sql_it_systems(uuid, res, ItSystem)] if res else []
+    )
 
     sql_exporter.update_sql(uuid, itsystems_objects, ItSystem)
 
@@ -358,6 +357,8 @@ def create_app(**kwargs) -> FastAPI:
             graphql_session=context["graphql_session"],
         )
         await lc._cache_lora_classes()
+        await lc._cache_lora_facets()
+
         sql_exporter = SqlExport(
             settings=settings.to_old_settings(), historic=full_history
         )
