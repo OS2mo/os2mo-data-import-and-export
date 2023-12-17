@@ -384,6 +384,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
         .join(Afdelinger, Afdelinger.c.navn == Enhed.navn, isouter=True)
         .order_by(Bruger.efternavn)
+        .distinct()
     )
     data = query.all()
     data_df = pd.DataFrame(
