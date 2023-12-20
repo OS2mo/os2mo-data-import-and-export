@@ -566,7 +566,7 @@ def overwrite_unit_uuids(sts_org_unit: Dict, os2sync_uuid_from_it_systems: List)
         )
 
 
-def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
+def get_sts_orgunit(uuid: str, settings: Settings) -> Optional[OrgUnit]:
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
 
     if is_ignored(base, settings):
@@ -606,7 +606,7 @@ def get_sts_orgunit(uuid: str, settings) -> Optional[OrgUnit]:
         if manager_uuid:
             sts_org_unit["ManagerUuid"] = manager_uuid
 
-    if has_kle():
+    if settings.enable_kle and has_kle():
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),

@@ -19,7 +19,7 @@ from raclients.graph.client import GraphQLClient
 logger = logging.getLogger(__name__)
 
 
-def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
+def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore
     """
     Read config from settings.json.
 
@@ -95,6 +95,8 @@ class Settings(JobSettings):
 
     # To be used with the job-function-configurator integration.
     os2sync_use_extension_field_as_job_function: bool = False
+
+    os2sync_enable_kle: bool = False
 
     class Config:
 
