@@ -79,7 +79,7 @@ def convert_dict(
     if resolve_object:
         for obj in query_res["obj"]:
             if obj is None:
-                continue
+                return {}
             if resolve_validity:
                 obj = res_validity(obj)
             obj = replace(obj, replace_dict)
@@ -389,7 +389,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -502,12 +502,12 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query, query_type="org_units", uuid=uuid
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
             for item in obj["obj"]:
-                if item is None:
-                    continue
                 if item["parent_uuid"] == self.org_uuid:
                     item["parent_uuid"] = None
 
@@ -578,7 +578,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -617,7 +617,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -656,7 +656,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -709,7 +709,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -766,7 +766,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -808,7 +808,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -852,7 +852,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -935,7 +935,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -1019,7 +1019,7 @@ class GQLLoraCache:
             uuid=uuid,
         ):
             if obj is None:
-                continue
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
