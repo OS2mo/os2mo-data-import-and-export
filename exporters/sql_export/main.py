@@ -383,8 +383,8 @@ def create_app(**kwargs) -> FastAPI:
             fastramqpi.add_context(sql_exporter=sql_exporter)
         yield
 
-    fastramqpi.add_lifespan_manager(sql_exporter(False), priority=1100)
+    fastramqpi.add_lifespan_manager(sql_exporter(full_history=False), priority=1100)
     if settings.historic_state is not None:
-        fastramqpi.add_lifespan_manager(sql_exporter(True), priority=1200)
+        fastramqpi.add_lifespan_manager(sql_exporter(full_history=True), priority=1200)
 
     return fastramqpi.get_app()
