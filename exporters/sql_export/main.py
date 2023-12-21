@@ -191,7 +191,6 @@ async def handle_manager(
                 )
                 for res in result.get(str(uuid), [])
             ]
-            # breakpoint()
             sql_exporter.update_sql(uuid, manager_responsibility_objects, LederAnsvar)
     sql_exporter.update_sql(uuid, managers_objects, Leder)
 
@@ -254,8 +253,8 @@ handle_function_map = {
     "class": handle_class,
     "engagement": handle_engagement,
     "facet": handle_facet,
-    "it_system": handle_it_system,
-    "it_user": handle_it_user,
+    "itsystem": handle_it_system,
+    "ituser": handle_it_user,
     "kle": handle_kle,
     "leave": handle_leave,
     "manager": handle_manager,
@@ -271,8 +270,8 @@ handle_function_map = {
 @actualstate_router.register("class")
 @actualstate_router.register("engagement")
 @actualstate_router.register("facet")
-@actualstate_router.register("it_system")
-@actualstate_router.register("it_user")
+@actualstate_router.register("itsystem")
+@actualstate_router.register("ituser")
 @actualstate_router.register("kle")
 @actualstate_router.register("leave")
 @actualstate_router.register("manager")
@@ -280,7 +279,7 @@ handle_function_map = {
 @actualstate_router.register("role")
 @actualstate_router.register("org_unit")
 @actualstate_router.register("person")
-async def trigger_actual_state_event_address(
+async def trigger_actual_state_event(
     uuid: PayloadUUID,
     sql_exporter: SqlExport,
     key: MORoutingKey,
@@ -295,8 +294,8 @@ async def trigger_actual_state_event_address(
 @historic_router.register("class")
 @historic_router.register("engagement")
 @historic_router.register("facet")
-@historic_router.register("it_system")
-@historic_router.register("it_user")
+@historic_router.register("itsystem")
+@historic_router.register("ituser")
 @historic_router.register("kle")
 @historic_router.register("leave")
 @historic_router.register("manager")
@@ -304,7 +303,7 @@ async def trigger_actual_state_event_address(
 @historic_router.register("role")
 @historic_router.register("org_unit")
 @historic_router.register("person")
-async def historic_trigger_event_address(
+async def trigger_historic_event(
     uuid: PayloadUUID,
     sql_exporter: SqlExportHistoric,
     key: MORoutingKey,
