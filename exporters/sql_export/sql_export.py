@@ -283,7 +283,7 @@ class SqlExport:
 
     def _generate_sql_users(self, uuid, user_info, model: Type[_T_Bruger]) -> _T_Bruger:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bvn=user_info["user_key"],
             fornavn=user_info["fornavn"],
             efternavn=user_info["efternavn"],
@@ -321,7 +321,7 @@ class SqlExport:
         ) = self._get_lora_class(unit_info["org_unit_hierarchy"])
 
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             navn=unit_info["name"],
             bvn=unit_info["user_key"],
             forældreenhed_uuid=unit_info["parent"],
@@ -362,7 +362,7 @@ class SqlExport:
         )
 
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             enhed_uuid=engagement_info["unit"],
             bruger_uuid=engagement_info["user"],
             bvn=engagement_info["user_key"],
@@ -406,7 +406,7 @@ class SqlExport:
             visibility_scope = self.lc.classes[address_info["visibility"]]["scope"]
 
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             enhed_uuid=address_info["unit"],
             bruger_uuid=address_info["user"],
             værdi=address_info["value"],
@@ -440,7 +440,7 @@ class SqlExport:
         self, uuid, address_info, model: Type[_T_DARAdresse]
     ) -> _T_DARAdresse:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             **{
                 key: value
                 for key, value in address_info.items()
@@ -470,7 +470,7 @@ class SqlExport:
             association_info["job_function"]
         )
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bruger_uuid=association_info["user"],
             enhed_uuid=association_info["unit"],
             bvn=association_info["user_key"],
@@ -501,7 +501,7 @@ class SqlExport:
 
     def _generate_sql_role(self, uuid, role_info, model: Type[_T_Rolle]) -> _T_Rolle:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bruger_uuid=role_info["user"],
             enhed_uuid=role_info["unit"],
             rolletype_uuid=role_info["role_type"],
@@ -524,7 +524,7 @@ class SqlExport:
     def _generate_sql_leave(self, uuid, leave_info, model: Type[_T_Orlov]) -> _T_Orlov:
         leave_type = leave_info["leave_type"]
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bvn=leave_info["user_key"],
             bruger_uuid=leave_info["user"],
             orlovstype_uuid=leave_type,
@@ -566,7 +566,7 @@ class SqlExport:
         self, uuid, it_connection_info, model: Type[_T_ItForbindelse]
     ) -> _T_ItForbindelse:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             it_system_uuid=it_connection_info["itsystem"],
             bruger_uuid=it_connection_info["user"],
             enhed_uuid=it_connection_info["unit"],
@@ -594,7 +594,7 @@ class SqlExport:
 
     def _generate_sql_kle(self, uuid, kle_info, model: Type[_T_KLE]) -> _T_KLE:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             enhed_uuid=kle_info["unit"],
             kle_aspekt_uuid=kle_info["kle_aspect"],
             kle_aspekt_titel=self.lc.classes[kle_info["kle_aspect"]]["title"],
@@ -635,7 +635,7 @@ class SqlExport:
         self, uuid, related_info, model: Type[_T_Enhedssammenkobling]
     ) -> _T_Enhedssammenkobling:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             enhed1_uuid=related_info["unit1_uuid"],
             enhed2_uuid=related_info["unit2_uuid"],
             startdato=related_info["from_date"],
@@ -658,7 +658,7 @@ class SqlExport:
         self, uuid, manager_info, model: Type[_T_Leder]
     ) -> _T_Leder:
         return model(
-            uuid=uuid,
+            uuid=str(uuid),
             bruger_uuid=manager_info["user"],
             enhed_uuid=manager_info["unit"],
             niveautype_uuid=manager_info["manager_level"],

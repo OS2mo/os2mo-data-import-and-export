@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
-from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from hypothesis import given
 from hypothesis.strategies import booleans
 from more_itertools import one
@@ -58,6 +57,12 @@ class FakeLC:
     def populate_cache(self, dry_run=False, skip_associations=False):
         raise NotImplementedError()
 
+    async def _fetch_users(self, uuid):
+        return self.users[str(uuid)]
+
+    async def _fetch_classes(self, uuid):
+        return self.classes[str(uuid)]
+
 
 class FakeLCSqlExport(SqlExport):
     def _get_lora_cache(self, resolve_dar, use_pickle):
@@ -68,12 +73,14 @@ class _TestableSqlExport(SqlExport):
     def __init__(self, inject_lc=None):
         super().__init__(force_sqlite=False, historic=False, settings={})
         self.inject_lc = inject_lc
+        self.lc = self._get_lora_cache(resolve_dar=False, use_pickle=True)
+        self.session = self._get_db_session()
 
     def _get_engine(self) -> Engine:
         return MagicMock()
 
     def _get_db_session(self) -> Session:
-        return UnifiedAlchemyMagicMock()
+        return MagicMock()
 
     def _get_export_cpr_setting(self) -> bool:
         return True
