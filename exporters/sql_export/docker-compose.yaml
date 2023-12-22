@@ -2,10 +2,8 @@
 # SPDX-License-Identifier: MPL-2.0
 services:
   sql_export:
-
     tty: true
     stdin_open: true
-
     build: .
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
@@ -13,6 +11,7 @@ services:
       CLIENT_ID: "dipex"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
+      MO_URL: "http://mo:5000"
       MORA_BASE: "http://mo:5000"
       MOX_BASE: "http://mo:5000/lora"
 
@@ -23,8 +22,16 @@ services:
       ACTUAL_STATE__DB_NAME: actualstate
       ACTUAL_STATE__USER: postgres
       ACTUAL_STATE__PASSWORD: mysecretpassword
+      HISTORIC_STATE__TYPE: Postgres
+      HISTORIC_STATE__HOST: export-db-historic
+      HISTORIC_STATE__DB_NAME: historic
+      HISTORIC_STATE__USER: postgres
+      HISTORIC_STATE__PASSWORD: mysecretpassword2
+
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
+      EVENTDRIVEN: "true"
       USE_NEW_CACHE: "true"
+      FULL_HISTORY: "true"
     ports:
       - 8789:8000/tcp
     volumes:
@@ -38,6 +45,17 @@ services:
     environment:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: actualstate
+    tmpfs:
+      - /var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - sql_export
+
+  export-db-historic:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword2
+      POSTGRES_DB: historic
     tmpfs:
       - /var/lib/postgresql/data
     restart: unless-stopped

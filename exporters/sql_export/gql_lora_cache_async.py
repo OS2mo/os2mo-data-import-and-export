@@ -79,7 +79,7 @@ def convert_dict(
     if resolve_object:
         for obj in query_res["obj"]:
             if obj is None:
-                continue
+                return {}
             if resolve_validity:
                 obj = res_validity(obj)
             obj = replace(obj, replace_dict)
@@ -285,6 +285,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
             res.update(obj)
         return res
@@ -312,6 +314,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(
                 obj,
                 resolve_object=False,
@@ -340,6 +344,8 @@ class GQLLoraCache:
             uuid=uuid,
             simple_query=True,
         ):
+            if obj is None:
+                return {}
             obj = convert_dict(obj, resolve_object=False, resolve_validity=False)
             res.update(obj)
         return res
@@ -382,6 +388,8 @@ class GQLLoraCache:
             query_type="employees",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -494,12 +502,12 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query, query_type="org_units", uuid=uuid
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
             for item in obj["obj"]:
-                if item is None:
-                    continue
                 if item["parent_uuid"] == self.org_uuid:
                     item["parent_uuid"] = None
 
@@ -569,6 +577,8 @@ class GQLLoraCache:
             query_type="engagements",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -606,6 +616,8 @@ class GQLLoraCache:
             query_type="roles",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -643,6 +655,8 @@ class GQLLoraCache:
             query_type="leaves",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -694,6 +708,8 @@ class GQLLoraCache:
             query_type="itusers",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -749,6 +765,8 @@ class GQLLoraCache:
             query_type="kles",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -789,6 +807,8 @@ class GQLLoraCache:
             query_type="related_units",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -831,6 +851,8 @@ class GQLLoraCache:
             query_type="managers",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -906,16 +928,20 @@ class GQLLoraCache:
         }
 
         res: dict = {}
+
         async for obj in self._execute_query(
             query=query,
             query_type="associations",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
             obj = await process_associations_helper(obj)
             obj = convert_dict(obj, replace_dict=replace_dict)
+
             insert_obj(obj, res)
         return res
 
@@ -992,6 +1018,8 @@ class GQLLoraCache:
             query_type="addresses",
             uuid=uuid,
         ):
+            if obj is None:
+                return {}
             if not self.full_history:
                 obj = align_current(obj)
 
@@ -1010,6 +1038,7 @@ class GQLLoraCache:
 
             obj = await prep_address(obj)
             obj = convert_dict(obj, replace_dict=replace_dict)
+
             insert_obj(obj, res)
         return res
 

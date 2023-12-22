@@ -9,7 +9,6 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
 
-from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from hypothesis import given
 from hypothesis.strategies import booleans
 from more_itertools import one
@@ -21,10 +20,10 @@ from sqlalchemy.orm import Session
 from ..sql_export import SqlExport
 from ..sql_export import wrap_export
 from ..sql_table_defs import Base
-from ..sql_table_defs import Bruger
-from ..sql_table_defs import Enhed
-from ..sql_table_defs import ItForbindelse
-from ..sql_table_defs import Tilknytning
+from ..sql_table_defs import WBruger
+from ..sql_table_defs import WEnhed
+from ..sql_table_defs import WItForbindelse
+from ..sql_table_defs import WTilknytning
 
 
 class FakeLC:
@@ -58,6 +57,12 @@ class FakeLC:
     def populate_cache(self, dry_run=False, skip_associations=False):
         raise NotImplementedError()
 
+    async def _fetch_users(self, uuid):
+        return self.users[str(uuid)]
+
+    async def _fetch_classes(self, uuid):
+        return self.classes[str(uuid)]
+
 
 class FakeLCSqlExport(SqlExport):
     def _get_lora_cache(self, resolve_dar, use_pickle):
@@ -68,12 +73,14 @@ class _TestableSqlExport(SqlExport):
     def __init__(self, inject_lc=None):
         super().__init__(force_sqlite=False, historic=False, settings={})
         self.inject_lc = inject_lc
+        self.lc = self._get_lora_cache(resolve_dar=False, use_pickle=True)
+        self.session = self._get_db_session()
 
     def _get_engine(self) -> Engine:
         return MagicMock()
 
     def _get_db_session(self) -> Session:
-        return UnifiedAlchemyMagicMock()
+        return MagicMock()
 
     def _get_export_cpr_setting(self) -> bool:
         return True
@@ -241,7 +248,7 @@ def test_sql_export_writes_users(cpr: Optional[str]):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Bruger,
+        WBruger,
         uuid=user_uuid,
         cpr=cpr,
         bvn=user["user_key"],
@@ -284,7 +291,7 @@ def test_sql_export_writes_org_units():
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Enhed,
+        WEnhed,
         uuid=unit_uuid,
         navn=unit["name"],
         bvn=unit["user_key"],
@@ -346,7 +353,7 @@ def test_sql_export_writes_associations(assoc_type_present: bool):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        Tilknytning,
+        WTilknytning,
         uuid=assoc_uuid,
         bruger_uuid=assoc["user"],
         enhed_uuid=assoc["unit"],
@@ -388,7 +395,7 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
     # Assert
     _assert_db_session_add(
         sql_export.session,
-        ItForbindelse,
+        WItForbindelse,
         uuid=it_user_uuid,
         it_system_uuid=it_user["itsystem"],
         bruger_uuid=it_user["user"],
