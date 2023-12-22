@@ -339,8 +339,9 @@ def create_app(**kwargs) -> FastAPI:
         amqpsystem.router.registry.update(actualstate_router.registry)
         if settings.historic_state is not None:
             amqpsystem.router.registry.update(historic_router.registry)
-    fastramqpi.get_app().include_router(trigger_router)
-    fastramqpi.get_app().include_router(trigger_equiv_router)
+    else:
+        fastramqpi.get_app().include_router(trigger_router)
+        fastramqpi.get_app().include_router(trigger_equiv_router)
     fastramqpi.add_context(settings=settings, sql_exporter=None)
 
     app = fastramqpi.get_app()
