@@ -21,7 +21,6 @@ from ramqp.mo import PayloadUUID
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
-from .equivalence_test.equivalence_test import trigger_equiv_router
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport as _SqlExport
 from .sql_table_defs import Adresse
@@ -341,7 +340,6 @@ def create_app(**kwargs) -> FastAPI:
             amqpsystem.router.registry.update(historic_router.registry)
     else:
         fastramqpi.get_app().include_router(trigger_router)
-        fastramqpi.get_app().include_router(trigger_equiv_router)
     fastramqpi.add_context(settings=settings, sql_exporter=None)
 
     app = fastramqpi.get_app()
