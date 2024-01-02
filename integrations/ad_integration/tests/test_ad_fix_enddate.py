@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import pytest as pytest
 from click.testing import CliRunner
+from freezegun import freeze_time
 from hypothesis import given
 from hypothesis import strategies as st
 
@@ -482,7 +483,10 @@ def test_get_split_engagement(mock_response, expected_split):
         _get_mock_graphql_session(mock_response),
         split=True,
     )
-    actual_split: MOSplitEngagement = mo_engagement_source.get_split_engagement(AD_USER)
+    with freeze_time("2023-12-01"):
+        actual_split: MOSplitEngagement = mo_engagement_source.get_split_engagement(
+            AD_USER
+        )
     assert actual_split == expected_split
 
 
