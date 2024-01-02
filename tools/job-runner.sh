@@ -143,7 +143,7 @@ imports_test_ad_connectivity_writer(){
 
 imports_sd_changed_at(){
     echo running imports_sd_changed_at
-    curl -s -X POST --output /dev/null "http://localhost:8030/trigger"
+    curl -s -X POST -m 3600 --output /dev/null "http://localhost:8030/trigger"
     if [[ $? != 0 ]]; then
         return $?
     fi
