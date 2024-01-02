@@ -1,13 +1,11 @@
 import logging
 import pickle
-import typing
 from typing import Tuple
 
 import click
 import sentry_sdk
 from dateutil import tz
 
-from .equivalence_test.old_lora_cache import OldLoraCache
 from .gql_lora_cache_async import get_gql_cache_settings
 from .gql_lora_cache_async import GQLLoraCache
 
@@ -22,25 +20,15 @@ def get_cache(resolve_dar=True, full_history=False, skip_past=False, settings=No
     if get_gql_cache_settings().sentry_dsn:
         sentry_sdk.init(dsn=get_gql_cache_settings().sentry_dsn)
 
-    if get_gql_cache_settings().use_new_cache:
-        return GQLLoraCache(
-            resolve_dar=resolve_dar,
-            full_history=full_history,
-            skip_past=skip_past,
-            settings=settings,
-        )
-    else:
-        return OldLoraCache(
-            resolve_dar=resolve_dar,
-            full_history=full_history,
-            skip_past=skip_past,
-            settings=settings,
-        )
+    return GQLLoraCache(
+        resolve_dar=resolve_dar,
+        full_history=full_history,
+        skip_past=skip_past,
+        settings=settings,
+    )
 
 
-def fetch_loracache() -> Tuple[
-    typing.Union[OldLoraCache, GQLLoraCache], typing.Union[OldLoraCache, GQLLoraCache]
-]:
+def fetch_loracache() -> Tuple[GQLLoraCache, GQLLoraCache]:
     # Here we should activate read-only mode, actual state and
     # full history dumps needs to be in sync.
 

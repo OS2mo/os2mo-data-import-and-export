@@ -23,7 +23,6 @@ from sqlalchemy.engine.reflection import Inspector
 from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 
-from .equivalence_test.old_lora_cache import OldLoraCache
 from .gql_lora_cache_async import GQLLoraCache
 from .lora_cache import get_cache as LoraCache
 from .sql_table_defs import Adresse
@@ -120,9 +119,7 @@ class SqlExport:
     def _get_export_cpr_setting(self) -> bool:
         return self.settings.get("exporters.actual_state.export_cpr", True)
 
-    def _get_lora_cache(
-        self, resolve_dar, use_pickle
-    ) -> typing.Union[OldLoraCache, GQLLoraCache]:
+    def _get_lora_cache(self, resolve_dar, use_pickle) -> GQLLoraCache:
         if self.historic:
             lc = LoraCache(
                 resolve_dar=resolve_dar, full_history=True, settings=self.settings
