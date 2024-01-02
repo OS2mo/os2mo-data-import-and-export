@@ -673,7 +673,7 @@ class SqlExport:
         self, uuid, manager_uuid, manager_info, model: Type[_T_LederAnsvar]
     ) -> _T_LederAnsvar:
         return model(
-            leder_uuid=manager_uuid,
+            leder_uuid=str(manager_uuid),
             lederansvar_uuid=uuid,
             lederansvar_titel=self.lc.classes[uuid]["title"],
             startdato=manager_info["from_date"],
