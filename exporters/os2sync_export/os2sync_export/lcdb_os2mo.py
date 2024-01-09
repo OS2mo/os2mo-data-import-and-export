@@ -295,17 +295,18 @@ def get_sts_orgunit(session, uuid, settings: Settings) -> Optional[OrgUnit]:
         if manager:
             sts_org_unit.update({"ManagerUuid": manager.bruger_uuid})
 
-    mokles = {}
-    lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
-    for lc_kle in lc_kles:
-        mokles[lc_kle.uuid] = {
-            "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
-        }
-    os2mo.kle_to_orgunit(
-        sts_org_unit,
-        list(mokles.values()),
-        use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
-    )
+    if settings.os2sync_enable_kle:
+        mokles = {}
+        lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
+        for lc_kle in lc_kles:
+            mokles[lc_kle.uuid] = {
+                "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
+            }
+        os2mo.kle_to_orgunit(
+            sts_org_unit,
+            list(mokles.values()),
+            use_contact_for_tasks=settings.os2sync_use_contact_for_tasks,
+        )
 
     if settings.os2sync_uuid_from_it_systems:
         overwrite_unit_uuids(
