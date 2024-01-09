@@ -2,19 +2,18 @@ import unittest
 from unittest.mock import patch
 
 import pytest
+from os2sync_export.lcdb_os2mo import Adresse
+from os2sync_export.lcdb_os2mo import Bruger
+from os2sync_export.lcdb_os2mo import Engagement
 from os2sync_export.lcdb_os2mo import get_sts_user_raw
+from os2sync_export.lcdb_os2mo import ItForbindelse
+from os2sync_export.lcdb_os2mo import ItSystem
 from os2sync_export.lcdb_os2mo import try_get_it_user_key
 from sqlalchemy.orm import sessionmaker
 from tests.helpers import dummy_settings
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import Base
-from exporters.sql_export.sql_table_defs import WAdresse as Adresse
-from exporters.sql_export.sql_table_defs import WBruger as Bruger
-from exporters.sql_export.sql_table_defs import WEngagement as Engagement
-from exporters.sql_export.sql_table_defs import WItForbindelse as ItForbindelse
-from exporters.sql_export.sql_table_defs import WItSystem as ItSystem
-from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
 
 AD_IT_SYSTEM = "Active Directory"
 
@@ -70,14 +69,6 @@ class Tests_lc_db(unittest.TestCase):
         """
         setup a bunch of additional stuff
         """
-        tilknytning = Tilknytning(
-            uuid="t1",
-            bvn="t1bvn",
-            bruger_uuid="b1",
-            enhed_uuid="E2",
-            tilknytningstype_titel="titel",
-        )
-        self.session.add(tilknytning)
         engagement = Engagement(
             uuid="Eng1",
             bvn="Eng1bvn",
@@ -96,14 +87,6 @@ class Tests_lc_db(unittest.TestCase):
             cpr="cpr2",
         )
         self.session.add(bruger)
-        tilknytning = Tilknytning(
-            uuid="t2",
-            bvn="t2bvn",
-            bruger_uuid="b2",
-            enhed_uuid="E3",
-            tilknytningstype_titel="titel2",
-        )
-        self.session.add(tilknytning)
         engagement = Engagement(
             uuid="Eng2",
             bvn="Eng2bvn",

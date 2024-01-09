@@ -4,13 +4,12 @@ from unittest.mock import patch
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from os2sync_export import lcdb_os2mo
 from os2sync_export import os2mo
+from os2sync_export.lcdb_os2mo import Bruger
 from parameterized import parameterized
 from tests.helpers import dummy_positions
 from tests.helpers import dummy_settings
 from tests.helpers import mock_engagements_to_user
 from tests.helpers import NICKNAME_TEMPLATE
-
-from exporters.sql_export.sql_table_defs import Bruger
 
 # Mock contents of `Bruger` model
 _lcdb_mock_users = [
