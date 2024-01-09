@@ -606,7 +606,7 @@ def get_sts_orgunit(uuid: str, settings: Settings) -> Optional[OrgUnit]:
         if manager_uuid:
             sts_org_unit["ManagerUuid"] = manager_uuid
 
-    if settings.enable_kle and has_kle():
+    if settings.os2sync_enable_kle and has_kle():
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
