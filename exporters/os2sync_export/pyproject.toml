@@ -10,7 +10,7 @@ keywords = ["os2mo", "dipex", "os2sync"]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-dipex = "^4.54.1"
+dipex = "^5.24.0"
 tqdm = "^4.62.0"
 more-itertools = "^9.1.0"
 Jinja2 = "^2.10"

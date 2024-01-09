@@ -7,14 +7,12 @@ import pandas as pd
 import xlsxwriter
 from openpyxl import load_workbook
 
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Base,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import Base
+from exporters.sql_export.sql_table_defs import WAdresse as Adresse
+from exporters.sql_export.sql_table_defs import WBruger as Bruger
+from exporters.sql_export.sql_table_defs import WEngagement as Engagement
+from exporters.sql_export.sql_table_defs import WEnhed as Enhed
+from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
 from reports.query_actualstate import (
     XLSXExporter,
     get_engine,

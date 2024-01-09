@@ -807,13 +807,13 @@ cli = ["clevercsv (==0.7.1)", "click (==8.0.3)", "pyyaml (==5.4.1)", "toml (==0.
 
 [[package]]
 name = "dipex"
-version = "4.54.1"
+version = "5.24.0"
 description = "OS2mo-data-import-and-export"
 optional = false
 python-versions = ">=3.11,<4.0"
 files = [
-    {file = "dipex-4.54.1-py3-none-any.whl", hash = "sha256:d89b7aca8b36d2cedec6c11dfb6f8dafa0969c3272d8a09675a6c33b2cf95bfc"},
-    {file = "dipex-4.54.1.tar.gz", hash = "sha256:4863cefe74f5e7b84cc3208f231932b01c1d1be94bf1d95aa6b2074074b8f0c5"},
+    {file = "dipex-5.24.0-py3-none-any.whl", hash = "sha256:85ff30c29e7039ad5af3bbc950c8870949c2eb23e27285bd8ec1593f8be0b003"},
+    {file = "dipex-5.24.0.tar.gz", hash = "sha256:a99eed5595b55b7cdb83f5831297b2aac6aed5878319022426a611a4ee748965"},
 ]
 
 [package.dependencies]
@@ -837,7 +837,6 @@ freezegun = ">=0.3.11,<0.4.0"
 "fs.smbfs" = ">=1.0.3,<2.0.0"
 glom = ">=22.1.0,<23.0.0"
 google-cloud-storage = ">=2.1.0,<3.0.0"
-httpx = ">=0.24.0,<0.25.0"
 hypothesis = ">=6.36.1,<7.0.0"
 idna = ">=3.3,<4.0"
 imagesize = ">=1.1.0,<2.0.0"
@@ -875,7 +874,7 @@ pytz = ">=2021.3,<2022.0"
 pywinrm = {version = ">=0.4.2,<0.5.0", extras = ["kerberos"]}
 PyYAML = ">=6.0,<7.0"
 ra-utils = ">=1.13.7,<2.0.0"
-raclients = ">=3.1.4,<4.0.0"
+raclients = ">=3.3.2,<4.0.0"
 ramodels = ">=19.0.0,<20.0.0"
 recommonmark = ">=0.7.1,<0.8.0"
 requests = ">=2.21.0,<3.0.0"
@@ -1510,50 +1509,51 @@ decorator = "*"
 
 [[package]]
 name = "h11"
-version = "0.12.0"
+version = "0.14.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "h11-0.12.0-py3-none-any.whl", hash = "sha256:36a3cb8c0a032f56e2da7084577878a035d3b61d104230d4bd49c0c6b555a9c6"},
-    {file = "h11-0.12.0.tar.gz", hash = "sha256:47222cb6067e4a307d535814917cd98fd0a57b6788ce715755fa2b6c28b56042"},
+    {file = "h11-0.14.0-py3-none-any.whl", hash = "sha256:e3fe4ac4b851c468cc8363d500db52c2ead036020723024a109d37346efaa761"},
+    {file = "h11-0.14.0.tar.gz", hash = "sha256:8f19fbbe99e72420ff35c00b27a34cb9937e902a8b810e2c88300c6f0a3b699d"},
 ]
 
 [[package]]
-name = "httpcore"
-version = "0.15.0"
+name = "httpcore-with-random-feature-branch"
+version = "1.0.0"
 description = "A minimal low-level HTTP client."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "httpcore-0.15.0-py3-none-any.whl", hash = "sha256:1105b8b73c025f23ff7c36468e4432226cbb959176eab66864b8e31c4ee27fa6"},
-    {file = "httpcore-0.15.0.tar.gz", hash = "sha256:18b68ab86a3ccf3e7dc0f43598eaddcf472b602aba29f9aa6ab85fe2ada3980b"},
+    {file = "httpcore_with_random_feature_branch-1.0.0-py3-none-any.whl", hash = "sha256:2270ffd462357232e8409f9c41e96ff6fc8532e14811c6520effa407f97cca0d"},
+    {file = "httpcore_with_random_feature_branch-1.0.0.tar.gz", hash = "sha256:ca70a12ec110f710824fdaf2d0f5fdf3e4ffed0b1f499bdb6d3238fcb344c2a0"},
 ]
 
 [package.dependencies]
-anyio = "==3.*"
 certifi = "*"
-h11 = ">=0.11,<0.13"
-sniffio = "==1.*"
+h11 = ">=0.13,<0.15"
 
 [package.extras]
+asyncio = ["anyio (>=4.0,<5.0)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (==1.*)"]
+trio = ["trio (>=0.22.0,<0.23.0)"]
 
 [[package]]
-name = "httpx"
-version = "0.24.0"
+name = "httpx-with-httpcore-with-random-feature-branch"
+version = "0.25.1"
 description = "The next generation HTTP client."
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "httpx-0.24.0-py3-none-any.whl", hash = "sha256:447556b50c1921c351ea54b4fe79d91b724ed2b027462ab9a329465d147d5a4e"},
-    {file = "httpx-0.24.0.tar.gz", hash = "sha256:507d676fc3e26110d41df7d35ebd8b3b8585052450f4097401c9be59d928c63e"},
+    {file = "httpx_with_httpcore_with_random_feature_branch-0.25.1-py3-none-any.whl", hash = "sha256:98e9469d3fcdaa3d0777e7cad1ee5f80a5ccde0d1d7b41e19fa190dba2703c1a"},
+    {file = "httpx_with_httpcore_with_random_feature_branch-0.25.1.tar.gz", hash = "sha256:d51125a32e6949d8420f99051550286701b3c92be5bfdc45d70d5b5d9a9a9256"},
 ]
 
 [package.dependencies]
+anyio = "*"
 certifi = "*"
-httpcore = ">=0.15.0,<0.18.0"
+httpcore-with-random-feature-branch = "*"
 idna = "*"
 sniffio = "*"
 
@@ -3210,23 +3210,23 @@ sentry = ["pydantic (>=1.10.2,<2.0.0)", "sentry-sdk (>=1.12.1,<2.0.0)"]
 
 [[package]]
 name = "raclients"
-version = "3.1.4"
+version = "3.3.2"
 description = "Clients for OS2mo/LoRa"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "raclients-3.1.4-py3-none-any.whl", hash = "sha256:c0515cdf8d21e2fd42e40af5eec9e29e321d5eca3386f55fc1bd5c239e6f8866"},
-    {file = "raclients-3.1.4.tar.gz", hash = "sha256:fc714d42b130b44a72b2e6b3a41dd148980435b57f0a9da0734cc370c1df5e5f"},
+    {file = "raclients-3.3.2-py3-none-any.whl", hash = "sha256:cdcdb5dc8b65f8d408171e6d757df7fbfe18a1eae2744191a7793b756540c9a5"},
+    {file = "raclients-3.3.2.tar.gz", hash = "sha256:de02a2f52c9b39d830240370e2568e49ceb02d710495b565894b99ce4bf74adf"},
 ]
 
 [package.dependencies]
 Authlib = ">=1.2.0,<2.0.0"
 fastapi = ">=0.88,<1.0"
 gql = ">=3.4.0,<4.0.0"
-httpx = ">=0.23.3,<0.25.0"
+httpx-with-httpcore-with-random-feature-branch = ">=0.25.1,<0.26.0"
 more-itertools = ">=9.1.0,<10.0.0"
 pydantic = ">=1.10.5,<2.0.0"
-ramodels = ">=18.5.2,<20.0.0"
+ramodels = ">=18.5.2,<23.0.0"
 structlog = ">=22.3,<24.0"
 tenacity = ">=8.2.2,<9.0.0"
 tqdm = ">=4.65.0,<5.0.0"
@@ -3976,4 +3976,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "4461ea345977a79ad89058ebd4063bc352e9697df2ea67219565bad72fa0297f"
+content-hash = "886f30fd804105be3ece8c233da2201d89ff1f72010c4b9a1374976ac03992b1"

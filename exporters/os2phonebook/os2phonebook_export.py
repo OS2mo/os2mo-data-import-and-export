@@ -9,24 +9,24 @@ from itertools import starmap
 from operator import attrgetter
 
 import click
+import httpx
 from more_itertools import side_effect
 from sqlalchemy import event
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
-import httpx
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse
-from exporters.sql_export.sql_table_defs import Bruger
-from exporters.sql_export.sql_table_defs import DARAdresse
-from exporters.sql_export.sql_table_defs import Engagement
-from exporters.sql_export.sql_table_defs import Enhed
-from exporters.sql_export.sql_table_defs import KLE
-from exporters.sql_export.sql_table_defs import Leder
-from exporters.sql_export.sql_table_defs import Tilknytning
+from exporters.sql_export.sql_table_defs import WAdresse as Adresse
+from exporters.sql_export.sql_table_defs import WBruger as Bruger
+from exporters.sql_export.sql_table_defs import WDARAdresse as DARAdresse
+from exporters.sql_export.sql_table_defs import WEngagement as Engagement
+from exporters.sql_export.sql_table_defs import WEnhed as Enhed
+from exporters.sql_export.sql_table_defs import WKLE as KLE
+from exporters.sql_export.sql_table_defs import WLeder as Leder
+from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
 
 
 LOG_LEVEL = logging.DEBUG
