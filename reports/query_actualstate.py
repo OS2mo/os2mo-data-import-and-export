@@ -12,7 +12,6 @@ from typing import Dict, List
 import jmespath
 import numpy as np
 import pandas as pd
-import xlsxwriter
 import xlsxwriter.worksheet
 from gql import gql
 from more_itertools import prepend
@@ -22,13 +21,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import WAdresse as Adresse
+from exporters.sql_export.sql_table_defs import WBruger as Bruger
+from exporters.sql_export.sql_table_defs import WEngagement as Engagement
+from exporters.sql_export.sql_table_defs import WEnhed as Enhed
+from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
 
 
 class XLSXExporter:
