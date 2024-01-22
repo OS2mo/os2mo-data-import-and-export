@@ -20,7 +20,9 @@ from reports.shared_reports import CustomerReports
 # --------------------------------------------------------------------------------------
 
 
-def age_from_cpr(cpr_no: str) -> int:
+def age_from_cpr(cpr_no: str | None) -> str:
+    if cpr_no is None:
+        return "-"
     year = int(cpr_no[4:6])
     code_msd = int(cpr_no[6])
     century: int = 0
@@ -36,7 +38,22 @@ def age_from_cpr(cpr_no: str) -> int:
             century = 2000
         else:
             century = 1800
-    return date.today().year - (century + year)
+    return str(date.today().year - (century + year))
+
+
+def gender_guess_from_cpr(cpr_no: str | None) -> str:
+    """Return "Kvinde", "Mand" or "-".
+
+    Male or female CPR is guessed by the last digit, "-" is returned
+    when there is no CPR available.
+    """
+    if cpr_no is None:
+        return "-"
+
+    if int(cpr_no) % 2:
+        return "Mand"
+
+    return "Kvinde"
 
 
 class Survey(CustomerReports):
@@ -70,9 +87,6 @@ class Survey(CustomerReports):
             for uuid, employee in employees.items():
                 address = self.read_user_address(uuid, cpr=True)
                 engagements = self.read_user_engagements(uuid)
-                gender = "Kvinde"
-                if int(address["CPR-Nummer"]) % 2:
-                    gender = "Mand"
                 emp_type = (
                     "Leder"
                     if self._mo_lookup(uuid, "e/{}/details/")["manager"]
@@ -89,7 +103,7 @@ class Survey(CustomerReports):
                             "E-mail": address.get("E-mail") or "",
                             "Type": emp_type,
                             "Alder": age_from_cpr(address["CPR-Nummer"]),
-                            "Køn": gender,
+                            "Køn": gender_guess_from_cpr(address["CPR-Nummer"]),
                         }
                     )
 
