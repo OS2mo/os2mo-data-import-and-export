@@ -747,6 +747,4 @@ elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     else
         echo "unknown job '$1'"
     fi
-elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
-    # export essential functions
 fi
