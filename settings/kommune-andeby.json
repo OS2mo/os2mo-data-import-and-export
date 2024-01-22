@@ -2,7 +2,6 @@
     "crontab.RUN_CHECK_AD_CONNECTIVITY": false,
     "crontab.RUN_QUERIES_BALLERUP": false,
     "crontab.RUN_SD_CHANGED_AT": false,
-    "crontab.RUN_SD_DB_OVERVIEW": false,
     "crontab.RUN_AD_SYNC": false,
     "crontab.RUN_MOX_STS_ORGSYNC": false,
     "crontab.RUN_MOX_ROLLE": false,
