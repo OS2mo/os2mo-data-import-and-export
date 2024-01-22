@@ -386,14 +386,6 @@ exports_historic_skip_past_cache_loracache() {
     return $EXIT_CODE
 }
 
-
-reports_sd_db_overview(){
-    echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
-    local STATUS=$?
-    return $STATUS
-}
-
 run-job(){
     local JOB=$1
     prometrics-job-start ${JOB}
@@ -582,10 +574,6 @@ reports(){
         && echo "ERROR in preparing exports" \
         && return 1 
 
-    if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview &
-    fi
-
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
         run-job reports_viborg_managers &
     fi
@@ -761,5 +749,4 @@ elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
-    export -f pre_backup post_backup reports_sd_db_overview
 fi
