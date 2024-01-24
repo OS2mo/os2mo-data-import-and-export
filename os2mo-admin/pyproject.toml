@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "os2mo-admin"
+version = "0.0.0"
+authors = ["Magenta ApS <info@magenta.dk>"]
+description = "Collection of OS2mo utilities"
+license = "MPL-2.0"
+homepage = "https://magenta.dk/"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
+packages = [{include = "os2mo_admin"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+raclients = "^3.3.2"
+click = "^8.1.7"
+gql = "^3.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
