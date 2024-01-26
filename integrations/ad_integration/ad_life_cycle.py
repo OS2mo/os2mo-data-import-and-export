@@ -543,5 +543,5 @@ def ad_life_cycle(
 
 
 if __name__ == "__main__":
-    start_logging(export_log_file="AD_life_cycle.log")
+    start_logging()
     ad_life_cycle()

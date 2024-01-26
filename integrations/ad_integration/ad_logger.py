@@ -1,8 +1,5 @@
 import logging.config
 import sys
-from pathlib import Path
-
-from ra_utils.load_settings import load_settings
 
 from .read_ad_conf_settings import read_settings
 
@@ -29,20 +26,13 @@ class PasswordRemovalFormatter(logging.Formatter):
         return s
 
 
-def start_logging(export_log_file, **kwargs):
-    settings = load_settings()
-
+def start_logging(**kwargs):
     config = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
             "default": {
                 "format": "%(levelname)s %(asctime)s %(name)s: %(message)s",
-                "()": PasswordRemovalFormatter,
-                "settings": kwargs.get("settings") or read_settings(),
-            },
-            "export": {
-                "format": "%(asctime)s: %(message)s",
                 "()": PasswordRemovalFormatter,
                 "settings": kwargs.get("settings") or read_settings(),
             },
@@ -53,21 +43,11 @@ def start_logging(export_log_file, **kwargs):
                 "class": "logging.StreamHandler",
                 "stream": sys.stdout,
             },
-            # Export logs to the MO queries folder
-            "export": {
-                "formatter": "export",
-                "class": "logging.FileHandler",
-                "filename": Path(settings["mora.folder.query_export"], export_log_file),
-            },
         },
         "loggers": {
             "": {
                 "handlers": ["local"],
                 "level": "DEBUG",
-            },
-            "export": {
-                "handlers": ["export"],
-                "level": "ERROR",
             },
             "urllib3": {
                 "level": "WARNING",

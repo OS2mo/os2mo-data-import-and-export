@@ -280,5 +280,5 @@ def import_ad_group(**args):
 
 
 if __name__ == "__main__":
-    start_logging(export_log_file="external_ad_users.log")
+    start_logging()
     import_ad_group()

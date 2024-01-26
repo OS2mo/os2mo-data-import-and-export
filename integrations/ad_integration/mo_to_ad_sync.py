@@ -226,7 +226,7 @@ def main(
     preview_command_for_uuid: Optional[uuid.UUID],
     dry_run: bool,
 ):
-    start_logging(export_log_file="mo_to_ad_sync.log")
+    start_logging()
 
     settings = load_settings()
     if "crontab.SENTRY_DSN" in settings:

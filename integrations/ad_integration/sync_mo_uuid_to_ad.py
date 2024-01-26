@@ -214,7 +214,7 @@ class SyncMoUuidToAd(AD):
 @optgroup.option("--sync-all", is_flag=True)
 @optgroup.option("--sync-cpr")
 def cli(**args):
-    start_logging(export_log_file="sync_mo_uuid_to_ad.log")
+    start_logging()
 
     # Set log level according to --debug command line arg
     logger.setLevel(logging.INFO)
