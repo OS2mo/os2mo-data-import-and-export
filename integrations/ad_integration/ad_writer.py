@@ -1377,5 +1377,5 @@ def cli(**args):
 
 
 if __name__ == "__main__":
-    start_logging(export_log_file="ad_writer.log")
+    start_logging()
     cli()
