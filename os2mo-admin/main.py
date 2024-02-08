@@ -9,6 +9,7 @@ import structlog
 import click
 
 from handlers.purge_addresses import purge_addresses
+from handlers.purge_itusers import purge_itusers
 from handlers.refresher import refresher
 
 
@@ -62,6 +63,7 @@ def cli(
 
 
 cli.add_command(purge_addresses)
+cli.add_command(purge_itusers)
 cli.add_command(refresher)
 
 
