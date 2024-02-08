@@ -17,7 +17,11 @@ from raclients.graph.client import GraphQLClient
 @click.option("-v", "--verbose", count=True)
 @click.option("--mora-base", envvar="MORA_BASE", default="http://localhost:5000")
 @click.option("--client-id", envvar="CLIENT_ID", default="dipex")
-@click.option("--client-secret", envvar="CLIENT_SECRET")
+@click.option(
+    "--client-secret",
+    envvar="CLIENT_SECRET",
+    default="603f1c82-d012-4d04-9382-dbe659c533fb",
+)
 @click.option("--auth-realm", envvar="AUTH_REALM", default="mo")
 @click.option(
     "--auth-server", envvar="AUTH_SERVER", default="http://localhost:5000/auth"
