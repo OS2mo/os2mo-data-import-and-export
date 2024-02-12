@@ -406,7 +406,7 @@ class AdMoSync:
             )
             validity = {
                 "from": VALIDITY["from"],  # today
-                "to": to_date,
+                "to": to_date if to_date != "9999-12-31" else None,
             }
             self._edit_engagement_post_to_mo(
                 uuid, ad_object_compare, engagement, validity
