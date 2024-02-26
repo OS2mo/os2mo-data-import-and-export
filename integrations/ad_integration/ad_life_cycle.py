@@ -27,6 +27,7 @@ from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
+from .ad_sync import AdMoSync
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
 from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
@@ -446,12 +447,6 @@ class AdLifeCycle:
         return self.stats
 
 
-def write_stats(stats: Dict[str, Any]) -> None:
-    logger.info("Stats: {}".format(stats))
-    stats["users"] = "Written in log file"
-    print(stats)
-
-
 def run_preview_command_for_uuid(sync: AdLifeCycle, mo_uuid: str):
     commands = sync.ad_writer._preview_create_command(
         mo_uuid, ad_dump=None, create_manager=False
@@ -535,11 +530,19 @@ def ad_life_cycle(
 
     if create_ad_accounts:
         stats = sync.create_ad_accounts(dry_run)
-        write_stats(stats)
+        logger.info("Stats: {}".format(stats))
+
+    # Trigger writing back from AD to MO to update it-accounts
+    ad_mo_sync = AdMoSync()
+    ad_mo_sync.lc = None
+    for user_uuid in tqdm(
+        stats["users"], desc="Reading users back to OS2MO", unit="user"
+    ):
+        ad_mo_sync.update_single_user(user_uuid)
 
     if disable_ad_accounts:
         stats = sync.disable_ad_accounts(dry_run)
-        write_stats(stats)
+        logger.info("Stats: {}".format(stats))
 
 
 if __name__ == "__main__":
