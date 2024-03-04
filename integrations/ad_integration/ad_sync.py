@@ -629,10 +629,10 @@ class AdMoSync:
             self.stats["users"].add(employee["uuid"])
             return self.helper.update_user(employee["uuid"], user_attrs_changed)
 
-    def _terminate_single_user(self, uuid, ad_object):
-        self._finalize_it_system(uuid)
-        self._finalize_user_addresses(uuid, ad_object)
-        self._edit_engagement(uuid, {})
+    def _terminate_single_user(self, mo_object, ad_object):
+        self._finalize_it_system(mo_object["uuid"])
+        self._finalize_user_addresses(mo_object["uuid"], ad_object)
+        self._edit_engagement(mo_object["uuid"], {})
 
     def _update_single_user(
         self,
@@ -838,8 +838,8 @@ class AdMoSync:
                 # TODO: Convert this function into two seperate phases.
                 # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
                 # 2. Bulk updating of MO using the data from 1.
-                for uuid, ad_object in missing_employees:
-                    self._terminate_single_user(uuid, ad_object)
+                for mo_object, ad_object in missing_employees:
+                    self._terminate_single_user(mo_object, ad_object)
 
             logger.info("Stats: {}".format(self.stats))
             print(self.stats)
