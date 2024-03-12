@@ -842,8 +842,6 @@ class AdMoSync:
                     self._terminate_single_user(uuid, ad_object)
 
             logger.info("Stats: {}".format(self.stats))
-            print(self.stats)
-        self.stats["users"] = "Written in log file"
 
 
 @click.command()
