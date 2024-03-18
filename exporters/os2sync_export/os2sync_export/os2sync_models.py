@@ -69,6 +69,7 @@ class OrgUnit(BaseModel):
     Url: Optional[str] = None
     Landline: Optional[str] = None
     Post: Optional[str] = None
+    PostSecondary: Optional[str] = None
     FOA: Optional[str] = None
     PNR: Optional[str] = None
     SOR: Optional[str] = None
