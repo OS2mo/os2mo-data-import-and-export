@@ -679,6 +679,12 @@ post_backup(){
             move_backup_to_archive $oldbup
         )
     done
+
+    if [ -d "$CRON_BACKUP" ]; then
+        echo removing leftover uncompressed backups
+        rm -f "$CRON_BACKUP"/*.tar
+    fi
+
     echo backup done # do not remove this line
 
     # Report execution of `post_backup`
