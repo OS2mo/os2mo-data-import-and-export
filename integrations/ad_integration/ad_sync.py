@@ -159,7 +159,7 @@ class AddressDecisionList:
         # Filter out addresses with wrong visibility
         return (
             visibility_uuid is None
-            or "visibility" not in address
+            or address.get("visibility") is None
             or self._visibility[visibility_uuid] == address["visibility"]["uuid"]
         )
 
