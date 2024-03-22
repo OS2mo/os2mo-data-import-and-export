@@ -635,81 +635,6 @@ class OpusDiffImport(object):
                 response = self.helper._mo_post("details/create", payload)
                 assert response.status_code == 201
 
-    def update_roller(self, employee):
-        cpr = employee["cpr"]["#text"]
-        mo_user = self.helper.read_user(user_cpr=cpr)
-        logger.info("Check {} for updates in Roller".format(mo_user["uuid"]))
-        if isinstance(employee["function"], dict):
-            opus_roles = [employee["function"]]
-        else:
-            opus_roles = employee["function"]
-        mo_roles = self.helper._mo_lookup(mo_user["uuid"], "e/{}/details/role")
-        for opus_role in opus_roles:
-            opus_end_datetime = datetime.strptime(opus_role["@endDate"], "%Y-%m-%d")
-            if opus_role["@endDate"] == "9999-12-31":
-                opus_role["@endDate"] = None
-
-            found = False
-            for mo_role in mo_roles:
-                if "roleText" in opus_role:
-                    combined_role = "{} - {}".format(
-                        opus_role["artText"], opus_role["roleText"]
-                    )
-                else:
-                    combined_role = opus_role["artText"]
-
-                if (
-                    mo_role["person"]["uuid"] == mo_user["uuid"]
-                    and combined_role == mo_role["role_type"]["name"]
-                ):
-                    found = True
-                    if mo_role["validity"]["to"] is None:
-                        mo_end_datetime = datetime.strptime("9999-12-31", "%Y-%m-%d")
-                    else:
-                        mo_end_datetime = datetime.strptime(
-                            mo_role["validity"]["to"], "%Y-%m-%d"
-                        )
-
-                    # We only compare end dates, it is assumed start-date is not
-                    # changed.
-                    if mo_end_datetime == opus_end_datetime:
-                        logger.info("No edit")
-                    elif opus_end_datetime > mo_end_datetime:
-                        logger.info("Extend role")
-                        validity = {
-                            "from": opus_role["@startDate"],
-                            "to": opus_role["@endDate"],
-                        }
-                        payload = payloads.edit_role(validity, mo_role["uuid"])
-                        logger.debug("Edit role, payload: {}".format(payload))
-                        response = self.helper._mo_post("details/edit", payload)
-                        self._assert(response)
-                    else:  # opus_end_datetime < mo_end_datetime:
-                        logger.info("Terminate role")
-                        self.terminate_detail(
-                            mo_role["uuid"],
-                            detail_type="role",
-                            end_date=opus_end_datetime,
-                        )
-            if not found:
-                logger.info("Create new role: {}".format(opus_role))
-                # TODO: We will fail a if  new role-type surfaces
-                role_name = opus_role["artText"]
-                role_type = self.ensure_class_in_facet("role_type", role_name)
-                payload = payloads.create_role(
-                    employee=employee,
-                    user_uuid=mo_user["uuid"],
-                    unit_uuid=str(opus_helpers.generate_uuid(employee["orgUnit"])),
-                    role_type=str(role_type),
-                    validity={
-                        "from": opus_role["@startDate"],
-                        "to": opus_role["@endDate"],
-                    },
-                )
-                logger.debug("New role, payload: {}".format(payload))
-                response = self.helper._mo_post("details/create", payload)
-                assert response.status_code == 201
-
     def update_employee(self, employee):
         cpr = opus_helpers.read_cpr(employee)
         logger.info("----")
@@ -794,16 +719,6 @@ class OpusDiffImport(object):
         last_changed_str = employee.get("@lastChanged")
         if last_changed_str is not None:  # This is a true employee-object.
             self.update_employee(employee)
-
-            if "function" in employee:
-                self.update_roller(employee)
-            else:
-                # Terminate existing roles
-                mo_user = self.helper.read_user(user_cpr=employee["cpr"]["#text"])
-                role = self.helper.read_user_roller(mo_user["uuid"])
-                if role["person"] == mo_user["uuid"]:
-                    logger.info("Terminating role: {}".format(role))
-                    self.terminate_detail(role["uuid"], detail_type="role")
         else:  # This is an implicit termination.
             # This is a terminated employee, check if engagement is active
             # terminate if it is.
@@ -865,8 +780,6 @@ class OpusDiffImport(object):
 
         for employee in tqdm(employees, desc="Update employees"):
             self.update_employee(employee)
-            if "function" in employee:
-                self.update_roller(employee)
 
         for employee in tqdm(terminated_employees, desc="Terminating employees"):
             # This is a terminated employee, check if engagement is active
