@@ -123,7 +123,6 @@ class GQLLoraCache:
         self.managers: dict = {}
         self.associations: dict = {}
         self.leaves: dict = {}
-        self.roles: dict = {}
         self.itsystems: dict = {}
         self.it_connections: dict = {}
         self.kles: dict = {}
@@ -587,44 +586,6 @@ class GQLLoraCache:
             insert_obj(obj, res)
         return res
 
-    async def _cache_lora_roles(self):
-        obj = await self._fetch_roles()
-        self.roles.update(obj)
-
-    async def _fetch_roles(self, uuid: UUID | None = None) -> dict:
-        logger.info("Caching roles")
-        query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        role_type_uuid
-                        validity {
-                            from
-                            to
-                        }
-            """
-
-        dictionary = {
-            "employee_uuid": "user",
-            "org_unit_uuid": "unit",
-            "role_type_uuid": "role_type",
-        }
-
-        res: dict = {}
-        async for obj in self._execute_query(
-            query=query,
-            query_type="roles",
-            uuid=uuid,
-        ):
-            if obj is None:
-                return {}
-            if not self.full_history:
-                obj = align_current(obj)
-
-            obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, res)
-        return res
-
     async def _cache_lora_leaves(self):
         obj = await self._fetch_leaves()
         self.leaves.update(obj)
@@ -1066,7 +1027,6 @@ class GQLLoraCache:
                 managers_file = "tmp/managers_historic_skip_past.p"
                 associations_file = "tmp/associations_historic_skip_past.p"
                 leaves_file = "tmp/leaves_historic_skip_past.p"
-                roles_file = "tmp/roles_historic_skip_past.p"
                 itsystems_file = "tmp/itsystems_historic_skip_past.p"
                 it_connections_file = "tmp/it_connections_historic_skip_past.p"
                 kles_file = "tmp/kles_historic_skip_past.p"
@@ -1082,7 +1042,6 @@ class GQLLoraCache:
                 managers_file = "tmp/managers_historic.p"
                 associations_file = "tmp/associations_historic.p"
                 leaves_file = "tmp/leaves_historic.p"
-                roles_file = "tmp/roles_historic.p"
                 itsystems_file = "tmp/itsystems_historic.p"
                 it_connections_file = "tmp/it_connections_historic.p"
                 kles_file = "tmp/kles_historic.p"
@@ -1098,7 +1057,6 @@ class GQLLoraCache:
             managers_file = "tmp/managers.p"
             associations_file = "tmp/associations.p"
             leaves_file = "tmp/leaves.p"
-            roles_file = "tmp/roles.p"
             itsystems_file = "tmp/itsystems.p"
             it_connections_file = "tmp/it_connections.p"
             kles_file = "tmp/kles.p"
@@ -1127,8 +1085,6 @@ class GQLLoraCache:
 
             with open(leaves_file, "rb") as f:
                 self.leaves = pickle.load(f)
-            with open(roles_file, "rb") as f:
-                self.roles = pickle.load(f)
             with open(itsystems_file, "rb") as f:
                 self.itsystems = pickle.load(f)
             with open(it_connections_file, "rb") as f:
@@ -1160,7 +1116,6 @@ class GQLLoraCache:
                 if not skip_associations:
                     tasks.append(tg.create_task(self._cache_lora_associations()))
                 tasks.append(tg.create_task(self._cache_lora_leaves()))
-                tasks.append(tg.create_task(self._cache_lora_roles()))
                 tasks.append(tg.create_task(self._cache_lora_itsystems()))
                 tasks.append(tg.create_task(self._cache_lora_it_connections()))
                 tasks.append(tg.create_task(self._cache_lora_kles()))
@@ -1183,7 +1138,6 @@ class GQLLoraCache:
         write_caches(self.leaves, leaves_file, "leaves")
         write_caches(self.addresses, addresses_file, "addresses")
         write_caches(self.dar_cache, dar_file, "dar_addresses")
-        write_caches(self.roles, roles_file, "roles")
         write_caches(self.itsystems, itsystems_file, "itsystems")
         write_caches(self.it_connections, it_connections_file, "it_connections")
         write_caches(self.kles, kles_file, "kles")

@@ -168,26 +168,6 @@ class Engagement(Base, BaseEngagement):
     __tablename__ = "engagementer"
 
 
-class BaseRolle(Compare):
-
-    id = Column(Integer, nullable=False, primary_key=True)
-    uuid = Column(String(36), nullable=False)
-    bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
-    enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
-    rolletype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
-    rolletype_titel = Column(String(250), nullable=False)
-    startdato = Column(String(10))
-    slutdato = Column(String(10))
-
-
-class WRolle(Base, BaseRolle):
-    __tablename__ = "wroller"
-
-
-class Rolle(Base, BaseRolle):
-    __tablename__ = "roller"
-
-
 class BaseTilknytning(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
@@ -387,7 +367,6 @@ sql_type = (
     | Enhed
     | Adresse
     | Engagement
-    | Rolle
     | Tilknytning
     | Orlov
     | ItSystem

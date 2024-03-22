@@ -41,7 +41,6 @@ from .sql_table_defs import Kvittering
 from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
-from .sql_table_defs import Rolle
 from .sql_table_defs import sql_type
 from .sql_table_defs import Tilknytning
 from .sql_table_defs import WAdresse
@@ -58,7 +57,6 @@ from .sql_table_defs import WKLE
 from .sql_table_defs import WLeder
 from .sql_table_defs import WLederAnsvar
 from .sql_table_defs import WOrlov
-from .sql_table_defs import WRolle
 from .sql_table_defs import WTilknytning
 from .sql_url import DatabaseFunction
 from .sql_url import generate_connection_url
@@ -71,7 +69,6 @@ _T_Bruger = TypeVar("_T_Bruger", Bruger, WBruger)
 _T_Enhed = TypeVar("_T_Enhed", Enhed, WEnhed)
 _T_Adresse = TypeVar("_T_Adresse", Adresse, WAdresse)
 _T_Engagement = TypeVar("_T_Engagement", Engagement, WEngagement)
-_T_Rolle = TypeVar("_T_Rolle", Rolle, WRolle)
 _T_Tilknytning = TypeVar("_T_Tilknytning", Tilknytning, WTilknytning)
 _T_Orlov = TypeVar("_T_Orlov", Orlov, WOrlov)
 _T_ItSystem = TypeVar("_T_ItSystem", ItSystem, WItSystem)
@@ -179,7 +176,6 @@ class SqlExport:
             self._add_dar_addresses,
             self._add_engagements,
             self._add_associations,
-            self._add_roles,
             self._add_leaves,
             self._add_managers,
             self._add_it_systems,
@@ -494,28 +490,6 @@ class SqlExport:
                         uuid, association_info, WTilknytning
                     )
                     self.session.add(sql_association)
-            self.session.commit()
-
-    def _generate_sql_role(self, uuid, role_info, model: Type[_T_Rolle]) -> _T_Rolle:
-        return model(
-            uuid=str(uuid),
-            bruger_uuid=role_info["user"],
-            enhed_uuid=role_info["unit"],
-            rolletype_uuid=role_info["role_type"],
-            rolletype_titel=self.lc.classes[role_info["role_type"]]["title"],
-            startdato=role_info["from_date"],
-            slutdato=role_info["to_date"],
-        )
-
-    def _add_roles(self) -> None:
-        logger.info("Add roles")
-
-        roles = tqdm(self.lc.roles.items(), desc="Export role", unit="role")
-        for chunk in ichunked(roles, self.chunk_size):
-            for uuid, role_validity in chunk:
-                for role_info in role_validity:
-                    sql_role = self._generate_sql_role(uuid, role_info, WRolle)
-                    self.session.add(sql_role)
             self.session.commit()
 
     def _generate_sql_leave(self, uuid, leave_info, model: Type[_T_Orlov]) -> _T_Orlov:
