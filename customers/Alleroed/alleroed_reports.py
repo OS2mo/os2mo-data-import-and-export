@@ -27,6 +27,7 @@ from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 from raclients.upload import file_uploader, run_report_and_upload
 from sqlalchemy import or_
+from sqlalchemy import select
 
 from exporters import common_queries as cq
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
@@ -342,69 +343,57 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
                 "Enhedsnavn", "Stillingsbetegnelse")
         ]
     """
-    alle_enheder = set_of_org_units(session, org_name)
 
-    Cellphonenr = (
-        session.query(Adresse.værdi, Adresse.bruger_uuid)
-        .filter(
-            Adresse.adressetype_bvn == "MobilePhoneEmployee",
-            or_(
-                Adresse.synlighed_titel.is_(None),
-                Adresse.synlighed_titel != "Hemmelig",
-            ),
-        )
-        .subquery()
-    )
+    # alle_enheder = set_of_org_units(session, org_name)
 
-    Phonenr = (
-        session.query(Adresse.værdi, Adresse.bruger_uuid)
-        .filter(
-            Adresse.adressetype_scope == "Telefon",
-            or_(
-                Adresse.synlighed_titel.is_(None),
-                Adresse.synlighed_titel != "Hemmelig",
-            ),
-        )
-        .subquery()
-    )
-
-    Afdelinger = session.query(Enhed.navn).subquery()
-
-    query = (
-        session.query(
+    stmt = (
+        select(
+            Bruger.uuid,
             Bruger.fornavn + " " + Bruger.efternavn,
-            Cellphonenr.c.værdi,
-            Phonenr.c.værdi,
-            Afdelinger.c.navn,
+            Enhed.navn,
             Engagement.stillingsbetegnelse_titel,
+            Adresse.adressetype_bvn,
+            Adresse.værdi,
         )
-        .filter(
-            Enhed.uuid == Engagement.enhed_uuid,
-            Engagement.enhed_uuid.in_(alle_enheder),
-            Engagement.bruger_uuid == Bruger.uuid,
+        .join_from(Bruger, Engagement, Bruger.uuid == Engagement.bruger_uuid)
+        .join_from(Engagement, Enhed, Engagement.enhed_uuid == Enhed.uuid)
+        .join_from(
+            Bruger,
+            Adresse,
+            Bruger.uuid == Adresse.bruger_uuid,
         )
-        .join(Cellphonenr, Cellphonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
-        .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
-        .join(Afdelinger, Afdelinger.c.navn == Enhed.navn, isouter=True)
+        .where(
+            or_(
+                Adresse.adressetype_bvn == "MobilePhoneEmployee",
+                Adresse.adressetype_bvn == "PhoneEmployee",
+            ),
+            or_(
+                Adresse.synlighed_titel.is_(None),
+                Adresse.synlighed_titel != "Hemmelig",
+            ),
+            # Engagement.enhed_uuid.in_(alle_enheder),
+        )
         .order_by(Bruger.efternavn)
         .distinct()
     )
-    data = query.all()
-    data_df = pd.DataFrame(
-        data,
-        columns=[
-            "Navn",
-            "Mobil nr.",
-            "Telefon nr.",
-            "Afdeling",
-            "Stillingsbetegnelse",
-        ],
-    )
-    print(data_df.columns)
 
-    # Return data as a list of tuples with columns as the first element
-    parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
-    return parsed_data
+    with session:
+        result = tuple(session.execute(stmt))
+
+    phonebook = dict()
+    for user_uuid, name, unit, prof, addr_type, addr_value in result:
+        key = (user_uuid, name, unit, prof)
+        phone_numbers = phonebook.get(
+            key, {"PhoneEmployee": "", "MobilePhoneEmployee": ""}
+        )
+        phone_numbers[addr_type] = addr_value
+        phonebook[key] = phone_numbers
+
+    rows = [("Navn", "Mobil nr.", "Telefon nr.", "Afdeling", "Stillingsbetegnelse")]
+    return rows + [
+        (key[1], value["MobilePhoneEmployee"], value["PhoneEmployee"], key[2], key[3])
+        for key, value in phonebook.items()
+    ]
 
 
 def list_alleroed_employees(session, org_name: str) -> list:
