@@ -387,6 +387,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
     rows = [("Navn", "Mobil nr.", "Telefon nr.", "Afdeling", "Stillingsbetegnelse")]
     return rows + [
+        # The key tuple contains these values (user_uuid, name, unit, prof)
         (key[1], value["MobilePhoneEmployee"], value["PhoneEmployee"], key[2], key[3])
         for key, value in phonebook.items()
     ]
