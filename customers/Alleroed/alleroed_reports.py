@@ -26,8 +26,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
 from raclients.upload import file_uploader, run_report_and_upload
-from sqlalchemy import or_
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from exporters import common_queries as cq
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
@@ -344,8 +343,6 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
         ]
     """
 
-    # alle_enheder = set_of_org_units(session, org_name)
-
     stmt = (
         select(
             Bruger.uuid,
@@ -371,7 +368,6 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
                 Adresse.synlighed_titel.is_(None),
                 Adresse.synlighed_titel != "Hemmelig",
             ),
-            # Engagement.enhed_uuid.in_(alle_enheder),
         )
         .order_by(Bruger.efternavn)
         .distinct()
