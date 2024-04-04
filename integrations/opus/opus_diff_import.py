@@ -545,8 +545,13 @@ class OpusDiffImport(object):
         return item_datetime
 
     def update_manager_status(self, employee_mo_uuid, employee):
+        user_key = employee["@id"]
         url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
-        manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
+        all_manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
+        # Find relevant manager function which has the opus-id as user_key.
+        manager_functions = list(
+            filter(lambda m: m["user_key"] == user_key, all_manager_functions)
+        )
         logger.debug("Manager functions to update: {}".format(manager_functions))
         if manager_functions:
             logger.debug("Manager functions to update: {}".format(manager_functions))
@@ -583,7 +588,7 @@ class OpusDiffImport(object):
             }
             if manager_functions:
                 logger.info("Attempt manager update of {}:".format(employee_mo_uuid))
-                # Currently Opus supports only a single manager object pr employee
+                # Opus supports only a single manager object pr engagement
                 assert len(manager_functions) == 1
 
                 mf = manager_functions[0]
@@ -630,7 +635,7 @@ class OpusDiffImport(object):
                 logger.info("Turn this person into a manager")
                 # Validity is set to edit=True since the validiy should
                 # calculated as an edit to the engagement
-                payload = payloads.create_manager(user_key=employee["@id"], **args)
+                payload = payloads.create_manager(user_key=user_key, **args)
                 logger.debug("Create manager payload: {}".format(payload))
                 response = self.helper._mo_post("details/create", payload)
                 assert response.status_code == 201
