@@ -38,7 +38,6 @@ from .sql_table_defs import KLE
 from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
-from .sql_table_defs import Rolle
 from .sql_table_defs import Tilknytning
 from .trigger import trigger_router
 
@@ -207,19 +206,6 @@ async def handle_related(
     sql_exporter.update_sql(uuid, related_objects, Enhedssammenkobling)
 
 
-async def handle_role(
-    uuid: PayloadUUID,
-    sql_exporter: SqlExport,
-):
-    result = await sql_exporter.lc._fetch_roles(uuid)
-    roles_objects = [
-        sql_exporter._generate_sql_role(uuid, res, Rolle)
-        for res in result.get(str(uuid), [])
-    ]
-
-    sql_exporter.update_sql(uuid, roles_objects, Rolle)
-
-
 async def handle_org_unit(
     uuid: PayloadUUID,
     sql_exporter: SqlExport,
@@ -258,7 +244,6 @@ handle_function_map = {
     "leave": handle_leave,
     "manager": handle_manager,
     "related": handle_related,
-    "role": handle_role,
     "org_unit": handle_org_unit,
     "person": handle_person,
 }
@@ -275,7 +260,6 @@ handle_function_map = {
 @actualstate_router.register("leave")
 @actualstate_router.register("manager")
 @actualstate_router.register("related")
-@actualstate_router.register("role")
 @actualstate_router.register("org_unit")
 @actualstate_router.register("person")
 async def trigger_actual_state_event(
@@ -299,7 +283,6 @@ async def trigger_actual_state_event(
 @historic_router.register("leave")
 @historic_router.register("manager")
 @historic_router.register("related")
-@historic_router.register("role")
 @historic_router.register("org_unit")
 @historic_router.register("person")
 async def trigger_historic_event(

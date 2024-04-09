@@ -40,7 +40,6 @@ class FakeLC:
     dar_cache: Dict[str, Any] = {}
     engagements: Dict[str, Any] = {}
     associations: Dict[str, Any] = {}
-    roles: Dict[str, Any] = {}
     leaves: Dict[str, Any] = {}
     managers: Dict[str, Any] = {}
     itsystems: Dict[str, Any] = {}
@@ -139,7 +138,6 @@ def test_sql_export_tables():
             "wleder_ansvar",
             "wledere",
             "worlover",
-            "wroller",
             "wtilknytninger",
         ],
     )
@@ -163,7 +161,6 @@ def test_sql_export_tables():
             "leder_ansvar",
             "ledere",
             "orlover",
-            "roller",
             "tilknytninger",
         ],
     )
