@@ -7,6 +7,7 @@ from typing import List
 from typing import Tuple
 from unittest import TestCase
 from unittest.mock import MagicMock
+from unittest.mock import patch
 
 from parameterized import parameterized
 
@@ -1217,21 +1218,52 @@ class TestReadAllMOUsers(TestCase):
         self.assertEqual(employees, [])
 
 
-class TestEditUserAttrsLoraCache:
-    def test_edit_user_attrs_is_idempotent(self):
-        # Invoke `_edit_user_attrs` twice on the same MO user and AD user
-        instance = _TestableAdMoSyncLoraCacheUserAttrs()
-        instance._update_users([instance.mo_user])
+def test_edit_user_attrs_is_idempotent():
+    # Invoke `_edit_user_attrs` twice on the same MO user and AD user
+    instance = _TestableAdMoSyncLoraCacheUserAttrs()
+    instance._update_users([instance.mo_user])
+    instance._update_users([instance.mo_user])
+
+    # Assert that we only issue *one* call to `self.helper.update_user` in
+    # `_edit_user_attrs` as neither the AD user or MO user has changed between the
+    # two update attempts.
+    assert len(instance.helper.update_user_calls) == 1
+
+    # Assert contents of the single update
+    mo_uuid, mo_data = instance.helper.update_user_calls[0]
+    ad_user = instance.mock_ad_reader.read_user()
+    assert mo_uuid == MO_UUID
+    assert mo_data["user_key"] == ad_user["UserPrincipalName"]
+    assert mo_data["validity"] == {"from": today_iso(), "to": None}
+
+
+class MockADParameterReaderNoResponse(MockADParameterReader):
+    def read_user(self, cpr=None, **kwargs):
+        return {}
+
+
+def test_edit_user_missing_in_ad():
+    # Arrange
+    instance = _TestableAdMoSyncLoraCacheUserAttrs()
+
+    instance.settings["integrations.ad"][0]["ad_mo_sync_terminate_missing"] = True
+    instance.settings["integrations.ad"][0][
+        "ad_mo_sync_terminate_missing_require_itsystem"
+    ] = False
+    instance.settings["integrations.ad"][0]["ad_mo_sync_mapping"]["engagements"] = {
+        "Title": "extension_2"
+    }
+    instance._edit_engagement_post_to_mo = MagicMock()
+
+    # Act
+
+    with patch(
+        "integrations.ad_integration.tests.test_ad_sync.MockADParameterReader",
+        return_value=MockADParameterReaderNoResponse(),
+    ):
         instance._update_users([instance.mo_user])
 
-        # Assert that we only issue *one* call to `self.helper.update_user` in
-        # `_edit_user_attrs` as neither the AD user or MO user has changed between the
-        # two update attempts.
-        assert len(instance.helper.update_user_calls) == 1
+    # Assert
+    # Edit engagement
 
-        # Assert contents of the single update
-        mo_uuid, mo_data = instance.helper.update_user_calls[0]
-        ad_user = instance.mock_ad_reader.read_user()
-        assert mo_uuid == MO_UUID
-        assert mo_data["user_key"] == ad_user["UserPrincipalName"]
-        assert mo_data["validity"] == {"from": today_iso(), "to": None}
+    instance._edit_engagement_post_to_mo.assert_called_once()
