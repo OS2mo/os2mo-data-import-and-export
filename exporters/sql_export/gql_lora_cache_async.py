@@ -7,7 +7,6 @@ import time
 from pathlib import Path
 from uuid import UUID
 
-from dateutil.parser import parse as parse_date
 from gql import gql
 from more_itertools import first
 from more_itertools import only
@@ -63,12 +62,16 @@ def convert_dict(
         validity = d.pop("validity")
         if "from" in validity:
             if validity["from"]:
-                d["from_date"] = str(parse_date(validity["from"]).date())
+                d["from_date"] = str(
+                    datetime.datetime.fromisoformat(validity["from"]).date()
+                )
             else:
                 d["from_date"] = str(datetime.datetime(1, 1, 1).date())
         if "to" in validity:
             if validity["to"]:
-                d["to_date"] = str(parse_date(validity["to"]).date())
+                d["to_date"] = str(
+                    datetime.datetime.fromisoformat(validity["to"]).date()
+                )
             else:
                 d["to_date"] = "9999-12-31"
         return d
@@ -462,7 +465,6 @@ class GQLLoraCache:
                             }
                 """
         else:
-
             query = """
                             uuid
                             user_key
