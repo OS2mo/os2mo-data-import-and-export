@@ -14,15 +14,17 @@ from fastapi import FastAPI
 from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
-from ramqp.depends import RateLimit
-from ramqp.mo import MORouter
-from ramqp.mo import MORoutingKey
-from ramqp.mo import PayloadUUID
+from fastramqpi.ramqp.depends import RateLimit
+from fastramqpi.ramqp.mo import MORouter
+from fastramqpi.ramqp.mo import MORoutingKey
+from fastramqpi.ramqp.mo import PayloadUUID
+from raclients.auth import AuthenticatedAsyncHTTPXClient
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
+from .depends import GraphQLClient
 from .gql_lora_cache_async import GQLLoraCache
-from .sql_export import SqlExport as _SqlExport
+from .sql_export import SqlExport as _SqlExport  # type: ignore[attr-defined]
 from .sql_table_defs import Adresse
 from .sql_table_defs import Base
 from .sql_table_defs import Bruger
@@ -315,7 +317,9 @@ def create_app(**kwargs) -> FastAPI:
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
-    fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings.fastramqpi)
+    fastramqpi = FastRAMQPI(
+        application_name="sql-export", settings=settings.fastramqpi, graphql_version=3
+    )
     if settings.eventdriven:
         amqpsystem = fastramqpi.get_amqpsystem()
         amqpsystem.router.registry.update(actualstate_router.registry)
@@ -323,7 +327,20 @@ def create_app(**kwargs) -> FastAPI:
             amqpsystem.router.registry.update(historic_router.registry)
     else:
         fastramqpi.get_app().include_router(trigger_router)
-    fastramqpi.add_context(settings=settings, sql_exporter=None)
+
+    http_client = AuthenticatedAsyncHTTPXClient(
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,
+        token_endpoint=f"{settings.auth_server}/realms/{settings.auth_realm}/protocol/openid-connect/token",
+    )
+    codegen_client = GraphQLClient(
+        url=f"{settings.fastramqpi.mo_url}/graphql/v22",
+        http_client=http_client,
+    )
+
+    fastramqpi.add_context(
+        settings=settings, sql_exporter=None, codegen_client=codegen_client
+    )
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
@@ -335,7 +352,8 @@ def create_app(**kwargs) -> FastAPI:
         lc = GQLLoraCache(
             settings=GqlLoraCacheSettings().to_old_settings(),
             full_history=full_history,
-            graphql_session=context["graphql_session"],
+            graphql_session=context["legacy_graphql_session"],
+            codegen_client=codegen_client,
         )
         await lc._cache_lora_classes()
         await lc._cache_lora_facets()

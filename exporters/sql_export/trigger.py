@@ -12,7 +12,7 @@ from fastapi import Query
 from fastramqpi.metrics import dipex_last_success_timestamp
 
 from .config import DatabaseSettings
-from .sql_export import SqlExport
+from .sql_export import SqlExport  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 trigger_router = APIRouter()

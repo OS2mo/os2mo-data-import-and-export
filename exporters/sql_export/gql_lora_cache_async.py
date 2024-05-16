@@ -19,6 +19,7 @@ from tenacity import wait_exponential
 
 from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
+from .depends import GraphQLClient as CodegenGraphQLClient
 
 RETRY_MAX_TIME = 60 * 5
 
@@ -104,6 +105,7 @@ class GQLLoraCache:
         skip_past: bool = False,
         settings=None,
         graphql_session=None,
+        codegen_client=None,
     ):
         logger.info(
             f"Initialising LoRa cache, {resolve_dar=}, {full_history=}, {skip_past=}"
@@ -133,6 +135,7 @@ class GQLLoraCache:
         self.dar_cache: dict = {}
 
         self.gql_client_session: GraphQLClient = graphql_session
+        self.codegen_client: CodegenGraphQLClient = codegen_client
 
         self.org_uuid = self._get_org_uuid()
 
@@ -521,6 +524,9 @@ class GQLLoraCache:
     async def _cache_lora_engagements(self):
         obj = await self._fetch_engagements()
         self.engagements.update(obj)
+
+    async def _fetch_engagements_codegen(self, uuid: UUID | None = None) -> str:
+        return "DUMMY FOR NOW"
 
     async def _fetch_engagements(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching engagements")
