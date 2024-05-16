@@ -101,7 +101,10 @@ async def handle_engagement(
     uuid: PayloadUUID,
     sql_exporter: SqlExport,
 ):
-    result = await sql_exporter.lc._fetch_engagements(uuid)
+    if sql_exporter.lc.settings.use_codegen:
+        result = await sql_exporter.lc._fetch_engagements_codegen(uuid)
+    else:
+        result = await sql_exporter.lc._fetch_engagements(uuid)
     engagements_objects = [
         sql_exporter._generate_sql_engagements(uuid, res, Engagement)
         for res in result.get(str(uuid), [])

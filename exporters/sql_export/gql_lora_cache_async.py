@@ -549,7 +549,10 @@ class GQLLoraCache:
         return res
 
     async def _cache_lora_engagements(self):
-        obj = await self._fetch_engagements()
+        if self.settings.use_codegen:
+            obj = await self._fetch_engagements_codegen()
+        else:
+            obj = await self._fetch_engagements()
         self.engagements.update(obj)
 
     async def _fetch_engagements_codegen(
