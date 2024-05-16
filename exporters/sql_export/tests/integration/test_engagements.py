@@ -13,7 +13,8 @@ async def test_read_engagements(
     gql_cache = GQLLoraCache(
         graphql_session=legacy_graphql_session, codegen_client=graphql_client
     )
-    engagements_old = await gql_cache._fetch_engagements()
+
     engagements_new = await gql_cache._fetch_engagements_codegen()
+    engagements_old = await gql_cache._fetch_engagements()
 
     assert engagements_old == engagements_new

@@ -1,17 +1,18 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
 
-query QueryEngagements($uuids: [UUID!], $cursor: Cursor = null, $limit: int = null, $to_date: DateTime = null, $from_date: DateTime = null) {
+query QueryEngagements($uuid: [UUID!], $cursor: Cursor = null, $limit: int = null, $to_date: DateTime = null, $from_date: DateTime = null) {
   engagements(
-    filter: {uuids: $uuids, from_date: $from_date, to_date: $to_date}
+    filter: {uuids: $uuid, from_date: $from_date, to_date: $to_date}
     limit: $limit
     cursor: $cursor
   ) {
     objects {
+      uuid
       validities {
         engagement_type {
-          name
           uuid
+          name
           user_key
         }
         org_unit {
@@ -27,7 +28,6 @@ query QueryEngagements($uuids: [UUID!], $cursor: Cursor = null, $limit: int = nu
           to
         }
         extension_1
-        extension_10
         extension_2
         extension_3
         extension_4
@@ -36,6 +36,7 @@ query QueryEngagements($uuids: [UUID!], $cursor: Cursor = null, $limit: int = nu
         extension_7
         extension_8
         extension_9
+        extension_10
         is_primary
         job_function {
           uuid
