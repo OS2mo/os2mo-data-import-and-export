@@ -87,6 +87,8 @@ class BaseEnhed(Compare):
     enhedstype_titel = Column(String(250), nullable=False)
     enhedsniveau_uuid = Column(String(36))  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250))
+    tidsregistrering_uuid = Column(String(36))  # ForeignKey('klasser.uuid'))
+    tidsregistrering_titel = Column(String(250))
     organisatorisk_sti = Column(String(1000))
     leder_uuid = Column(String(36))
     fungerende_leder_uuid = Column(String(36))

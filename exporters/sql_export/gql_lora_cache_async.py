@@ -457,6 +457,7 @@ class GQLLoraCache:
                             name
                             unit_type_uuid
                             org_unit_level_uuid
+                            time_planning_uuid
                             parent_uuid
                             org_unit_hierarchy_uuid: org_unit_hierarchy
                             validity {
@@ -471,6 +472,7 @@ class GQLLoraCache:
                             name
                             unit_type_uuid
                             org_unit_level_uuid
+                            time_planning_uuid
                             parent_uuid
                             org_unit_hierarchy_uuid: org_unit_hierarchy
                             manager_uuid: managers(inherit: false) {
@@ -498,6 +500,7 @@ class GQLLoraCache:
             "org_unit_hierarchy_uuid": "org_unit_hierarchy",
             "parent_uuid": "parent",
             "unit_type_uuid": "unit_type",
+            "time_planning_uuid": "time_planning",
         }
         res: dict = {}
         async for obj in self._execute_query(
