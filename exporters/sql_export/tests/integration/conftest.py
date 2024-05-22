@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from gql.client import AsyncClientSession
 
-from ..main import create_app
+from ...main import create_app
 
 
 @pytest.fixture

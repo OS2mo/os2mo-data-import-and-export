@@ -15,7 +15,7 @@ class GqlLoraCacheSettings(JobSettings):  # type: ignore
     class Config:
         frozen = True
 
-    use_codegen: bool = False
+    use_new_cache: bool = False
     primary_manager_responsibility: str | None = None
     prometheus_pushgateway: str = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
@@ -43,7 +43,7 @@ class GqlLoraCacheSettings(JobSettings):  # type: ignore
                 }
             },
             "exporters.actual_state.manager_responsibility_class": self.primary_manager_responsibility,
-            "use_new_cache": self.use_codegen,
+            "use_new_cache": self.use_new_cache,
         }
 
         return settings
@@ -131,3 +131,8 @@ class DatabaseSettings(JobSettings):
                 }
             )
         return settings
+
+
+if __name__ == "__main__":
+    print(GqlLoraCacheSettings())
+    print(DatabaseSettings())

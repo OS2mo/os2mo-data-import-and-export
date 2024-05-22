@@ -10,11 +10,22 @@ async def test_read_engagements(
     legacy_graphql_session: LegacyGraphQLSession,
     graphql_client: GraphQLClient,
 ) -> None:
+    """Equivalence test which uses the two versions and checks that the result is the same"""
+
     gql_cache = GQLLoraCache(
         graphql_session=legacy_graphql_session, codegen_client=graphql_client
     )
-
-    engagements_new = await gql_cache._fetch_engagements_codegen()
     engagements_old = await gql_cache._fetch_engagements()
+
+    # The settings object is immutable - this seems to be the easiest way to switch the flag
+    settings = gql_cache.settings.dict()
+    settings["use_new_cache"] = True
+
+    gql_cache = GQLLoraCache(
+        graphql_session=legacy_graphql_session,
+        codegen_client=graphql_client,
+        settings=settings,
+    )
+    engagements_new = await gql_cache._fetch_engagements()
 
     assert engagements_old == engagements_new

@@ -549,10 +549,7 @@ class GQLLoraCache:
         return res
 
     async def _cache_lora_engagements(self):
-        if self.settings.use_codegen:
-            obj = await self._fetch_engagements_codegen()
-        else:
-            obj = await self._fetch_engagements()
+        obj = await self._fetch_engagements()
         self.engagements.update(obj)
 
     async def _fetch_engagements_codegen(
@@ -610,6 +607,9 @@ class GQLLoraCache:
 
     async def _fetch_engagements(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching engagements")
+
+        if self.settings.use_new_cache:
+            return await self._fetch_engagements_codegen()
 
         def collect_extensions(d: dict):
             for ext_obj in d["obj"]:
