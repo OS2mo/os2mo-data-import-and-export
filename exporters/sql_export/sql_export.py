@@ -308,6 +308,12 @@ class SqlExport:
         if unit_info["level"]:
             enhedsniveau_titel = self.lc.classes[unit_info["level"]]["title"]
 
+        tidsregistrering_titel = ""
+        if unit_info["time_planning"]:
+            tidsregistrering_titel = self.lc.classes[unit_info["time_planning"]][
+                "title"
+            ]
+
         (
             org_unit_hierarchy_uuid,
             org_unit_hierarchy_class,
@@ -320,11 +326,13 @@ class SqlExport:
             forældreenhed_uuid=unit_info["parent"],
             enhedstype_uuid=unit_type,
             enhedsniveau_uuid=unit_info["level"],
+            tidsregistrering_uuid=unit_info["time_planning"],
             organisatorisk_sti=location,
             leder_uuid=manager_uuid,
             fungerende_leder_uuid=acting_manager_uuid,
             enhedstype_titel=self.lc.classes[unit_type]["title"],
             enhedsniveau_titel=enhedsniveau_titel,
+            tidsregistrering_titel=tidsregistrering_titel,
             opmærkning_uuid=org_unit_hierarchy_uuid,
             opmærkning_titel=org_unit_hierarchy_class["title"],
             startdato=unit_info["from_date"],

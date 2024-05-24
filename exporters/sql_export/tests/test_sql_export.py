@@ -262,6 +262,7 @@ def test_sql_export_writes_org_units():
     # Arrange
     type_cls, type_facet = _mock_lora_class("org_unit_type")
     level_cls, level_facet = _mock_lora_class("org_unit_level")
+    time_planning_cls, time_planning_facet = _mock_lora_class("org_unit_time_planning")
     hierarchy_cls, hierarchy_facet = _mock_lora_class("org_unit_hierarchy")
     unit_uuid = _mk_uuid()
     unit = {
@@ -270,14 +271,17 @@ def test_sql_export_writes_org_units():
         "name": "Enhedsnavn",
         "unit_type": _get_cls_uuid(type_cls),
         "level": _get_cls_uuid(level_cls),
+        "time_planning": _get_cls_uuid(time_planning_cls),
         "parent": _mk_uuid(),
         "org_unit_hierarchy": _get_cls_uuid(hierarchy_cls),
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
     }
     lc_data = {
-        "facets": _join_dicts(type_facet, level_facet, hierarchy_facet),
-        "classes": _join_dicts(type_cls, level_cls, hierarchy_cls),
+        "facets": _join_dicts(
+            type_facet, level_facet, hierarchy_facet, time_planning_facet
+        ),
+        "classes": _join_dicts(type_cls, level_cls, hierarchy_cls, time_planning_cls),
         "units": {unit_uuid: [unit]},
     }
     sql_export = _TestableSqlExport(inject_lc=lc_data)
@@ -299,6 +303,9 @@ def test_sql_export_writes_org_units():
         # org unit level
         enhedsniveau_uuid=unit["level"],
         enhedsniveau_titel=_get_cls_field(level_cls, "title"),
+        # org unit time_planning
+        tidsregistrering_uuid=unit["time_planning"],
+        tidsregistrering_titel=_get_cls_field(time_planning_cls, "title"),
         # org unit hierarchy
         opmærkning_uuid=unit["org_unit_hierarchy"],
         opmærkning_titel=_get_cls_field(hierarchy_cls, "title"),
