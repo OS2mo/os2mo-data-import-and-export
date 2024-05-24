@@ -18,11 +18,9 @@ from fastramqpi.ramqp.depends import RateLimit
 from fastramqpi.ramqp.mo import MORouter
 from fastramqpi.ramqp.mo import MORoutingKey
 from fastramqpi.ramqp.mo import PayloadUUID
-from raclients.auth import AuthenticatedAsyncHTTPXClient
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
-from .depends import GraphQLClient
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport as _SqlExport  # type: ignore[attr-defined]
 from .sql_table_defs import Adresse
@@ -328,20 +326,6 @@ def create_app(**kwargs) -> FastAPI:
     else:
         fastramqpi.get_app().include_router(trigger_router)
 
-    http_client = AuthenticatedAsyncHTTPXClient(
-        client_id=settings.client_id,
-        client_secret=settings.client_secret,
-        token_endpoint=f"{settings.auth_server}/realms/{settings.auth_realm}/protocol/openid-connect/token",
-    )
-    codegen_client = GraphQLClient(
-        url=f"{settings.fastramqpi.mo_url}/graphql/v22",
-        http_client=http_client,
-    )
-
-    fastramqpi.add_context(
-        settings=settings, sql_exporter=None, codegen_client=codegen_client
-    )
-
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
@@ -353,7 +337,6 @@ def create_app(**kwargs) -> FastAPI:
             settings=GqlLoraCacheSettings().to_old_settings(),
             full_history=full_history,
             graphql_session=context["legacy_graphql_session"],
-            codegen_client=codegen_client,
         )
         await lc._cache_lora_classes()
         await lc._cache_lora_facets()
