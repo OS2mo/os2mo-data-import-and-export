@@ -353,6 +353,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         "org": {"uuid": "org_uuid"},
                         "person": {"uuid": mo_values["uuid"]},
                         "type": "address",
+                        "visibility": {"scope": setup.address_type_visibility}
+                        if setup.address_type_visibility
+                        else None,
                         "validity": {"from": today, "to": None},
                         "value": mo_data,
                     }
