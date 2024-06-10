@@ -110,6 +110,7 @@ class BaseAdresse(Compare):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
+    bvn = Column(String(250))
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250))

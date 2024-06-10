@@ -952,6 +952,7 @@ class GQLLoraCache:
                         name
                         value
                         uuid
+                        user_key
                         address_type {
                             scope
                         }

@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from ..sql_export import SqlExport
 from ..sql_export import wrap_export
 from ..sql_table_defs import Base
+from ..sql_table_defs import WAdresse
 from ..sql_table_defs import WBruger
 from ..sql_table_defs import WEnhed
 from ..sql_table_defs import WItForbindelse
@@ -373,6 +374,58 @@ def test_sql_export_writes_associations(assoc_type_present: bool):
         stillingsbetegnelse_uuid=assoc["job_function"],
         stillingsbetegnelse_titel=_get_cls_field(job_function_cls, "title"),
         it_forbindelse_uuid=assoc["it_user"],
+    )
+
+
+def test_sql_export_writes_addresses():
+    # Arrange
+    type_cls, type_facet = _mock_lora_class("address_type")
+    visibility_cls, visibility_facet = _mock_lora_class("visibility")
+    address_uuid = _mk_uuid()
+    address = {
+        "uuid": address_uuid,
+        "user": _mk_uuid(),
+        "unit": _mk_uuid(),
+        "user_key": "Beskrivelse",
+        "value": "Værdi",
+        "dar_uuid": _mk_uuid(),
+        "address_type": _get_cls_uuid(type_cls),
+        "visibility": _get_cls_uuid(visibility_cls),
+        "from_date": "2020-01-01",
+        "to_date": "2020-01-01",
+    }
+    lc_data = {
+        "facets": _join_dicts(type_facet, visibility_facet),
+        "classes": _join_dicts(type_cls, visibility_cls),
+        "addresses": {address_uuid: [address]},
+    }
+    sql_export = _TestableSqlExport(inject_lc=lc_data)
+
+    # Act
+    sql_export.perform_export()
+
+    # Assert
+    _assert_db_session_add(
+        sql_export.session,
+        WAdresse,
+        uuid=address_uuid,
+        bruger_uuid=address["user"],
+        enhed_uuid=address["unit"],
+        bvn=address["user_key"],
+        # address type
+        adressetype_uuid=address["address_type"],
+        adressetype_bvn=_get_cls_field(type_cls, "user_key"),
+        adressetype_scope=_get_cls_field(type_cls, "scope"),
+        adressetype_titel=_get_cls_field(type_cls, "title"),
+        # visibility
+        synlighed_uuid=address["visibility"],
+        synlighed_scope=_get_cls_field(visibility_cls, "scope"),
+        synlighed_titel=_get_cls_field(visibility_cls, "title"),
+        # other fields
+        værdi=address["value"],
+        dar_uuid=address["dar_uuid"],
+        startdato=address["from_date"],
+        slutdato=address["to_date"],
     )
 
 
