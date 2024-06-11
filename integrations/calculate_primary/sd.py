@@ -29,7 +29,6 @@ def get_primary_types(helper):
         {
             "primary": "697c8838-ba0f-4e74-90f8-4e7c31d4e7e7",
             "non_primary": "b9543f90-9511-494b-bbf5-f15678502c2d",
-            "no_salary": "88589e84-5736-4f8c-9c0c-2e29046d7471",
             "fixed_primary": "c95a1999-9f95-4458-a218-e9c96e7ad3db",
         }
         ```
@@ -38,13 +37,11 @@ def get_primary_types(helper):
     # These constants are global in all SD municipalities (because they are created
     # by the SD->MO importer.
     PRIMARY = "Ansat"
-    NO_SALARY = "status0"
     NON_PRIMARY = "non-primary"
     FIXED_PRIMARY = "explicitly-primary"
 
     logger.info("Read primary types")
     primary = None
-    no_salary = None
     non_primary = None
     fixed_primary = None
 
@@ -54,15 +51,12 @@ def get_primary_types(helper):
             primary = primary_type["uuid"]
         if primary_type["user_key"] == NON_PRIMARY:
             non_primary = primary_type["uuid"]
-        if primary_type["user_key"] == NO_SALARY:
-            no_salary = primary_type["uuid"]
         if primary_type["user_key"] == FIXED_PRIMARY:
             fixed_primary = primary_type["uuid"]
 
     type_uuids = {
         "primary": primary,
         "non_primary": non_primary,
-        "no_salary": no_salary,
         "fixed_primary": fixed_primary,
     }
     if None in type_uuids.values():
@@ -81,35 +75,20 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                     return False
             return True
 
-        def remove_no_salary(eng):
-            return not self._predicate_primary_is("no_salary", eng)
-
-        def remove_no_salary_check(user_uuid, eng):
-            return remove_no_salary(eng)
-
-        def remove_no_salary_calculate(user_uuid, no_past, eng):
-            return remove_no_salary(eng)
-
         def remove_missing_user_key(user_uuid, no_past, eng):
             return "user_key" in eng
 
-        self.check_filters = [
-            remove_no_salary_check,
-        ]
-
         self.calculate_filters = [
             remove_past,
-            remove_no_salary_calculate,
             remove_missing_user_key,
         ]
 
     def _find_primary_types(self):
-        # Keys are; fixed_primary, primary, no_salary and non-primary
+        # Keys are; fixed_primary, primary and non-primary
         primary_types = get_primary_types(self.helper)
         primary = [
             primary_types["fixed_primary"],
             primary_types["primary"],
-            primary_types["no_salary"],
         ]
         return primary_types, primary
 
@@ -121,7 +100,6 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 # been filtered out, they must have the wrong primary_type.
                 int(mo_engagement["user_key"])
             except ValueError:
-                self._fixup_status_0(mo_engagement)
                 # Filter it out, as it should have been
                 return False
             return True
@@ -143,20 +121,3 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
             key=lambda eng: (eng.get("fraction") or 0, -int(eng["user_key"])),
         )
         return primary_engagement["uuid"]
-
-    def _fixup_status_0(self, mo_engagement):
-        logger.warning("Engagement type not status0. Will fix.")
-        validity = mo_engagement["validity"]
-        payload = {
-            "type": "engagement",
-            "uuid": mo_engagement["uuid"],
-            "data": {
-                "primary": {"uuid": self.primary_types["no_salary"]},
-                "validity": validity,
-            },
-        }
-        logger.debug("Status0 edit payload: {}".format(payload))
-        if not self.dry_run:
-            response = self.helper._mo_post("details/edit", payload)
-            assert response.status_code == 200
-            logger.info("Status0 fixed")
