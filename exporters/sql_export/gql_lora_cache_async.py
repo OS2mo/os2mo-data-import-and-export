@@ -975,7 +975,7 @@ class GQLLoraCache:
         replace_dict = {
             "employee_uuid": "user",
             "org_unit_uuid": "unit",
-            "address_type_uuid": "adresse_type",
+            "address_type_uuid": "address_type",
             "visibility_uuid": "visibility",
         }
 
