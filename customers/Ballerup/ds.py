@@ -3,7 +3,7 @@ from gql import gql
 
 from customers.Ballerup.graphql import get_mo_client
 
-QUERY = gql("""
+QUERY_OLD = gql("""
     query QueryOrgUnitsManagersEmployees($cursor: Cursor, $limit: int, $email_type: [UUID!]) {
       org_units(limit: $limit, cursor: $cursor) {
         objects {
@@ -40,6 +40,50 @@ QUERY = gql("""
         }
         page_info {
             next_cursor
+        }
+      }
+    }
+    """
+)
+
+QUERY = gql(
+    """
+    query QueryOrgUnitsManagersEmployees($cursor: Cursor, $limit: int, $email_type: [UUID!]) {
+      org_units(limit: $limit, cursor: $cursor) {
+        page_info {
+          next_cursor
+        }
+        objects {
+          current {
+            name
+            uuid
+            parent {
+              name
+              uuid
+            }
+            managers(inherit: true) {
+              person {
+                uuid
+                given_name
+                surname
+                user_key
+                addresses(filter: {address_types: $email_type}) {
+                  name
+                }
+              }
+            }
+            engagements {
+              person {
+                uuid
+                given_name
+                surname
+                user_key
+                addresses(filter: {address_types: $email_type}) {
+                  name
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -91,7 +135,7 @@ def main(
         client_id=client_id,
         client_secret=client_secret,
         mo_base_url=mo_base_url,
-        gql_version=7,
+        gql_version=22,
     )
 
     next_cursor = None
