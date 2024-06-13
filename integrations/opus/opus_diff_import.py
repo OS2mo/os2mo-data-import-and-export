@@ -17,7 +17,6 @@ from requests import Session
 import constants
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
-from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
@@ -104,7 +103,6 @@ class OpusDiffImport(object):
             logger.error(e)
             print(e)
             exit()
-        self.updater = OPUSPrimaryEngagementUpdater()
 
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
@@ -472,7 +470,6 @@ class OpusDiffImport(object):
             unit_uuid=unit_uuid,
             job_function=job_function,
             engagement_type=eng_type,
-            primary=self.updater.primary_types["non_primary"],
             validity=validity,
         )
         logger.debug("Create engagement payload: {}".format(payload))
@@ -700,7 +697,6 @@ class OpusDiffImport(object):
             self.update_engagement(eng, employee)
 
         self.update_manager_status(employee_mo_uuid, employee)
-        self.updater.recalculate_primary(employee_mo_uuid)
 
     def terminate_detail(self, uuid, detail_type="engagement", end_date=None):
         if end_date is None:

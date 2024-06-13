@@ -18,17 +18,11 @@ from integrations.opus.opus_diff_import import OpusDiffImport
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
-    @patch("integrations.calculate_primary.opus.OPUSPrimaryEngagementUpdater")
-    @patch(
-        "integrations.calculate_primary.opus.OPUSPrimaryEngagementUpdater.__init__",
-        return_value=None,
-    )
-    def __init__(self, latest_date, primary_init_mock, mock_primary, *args, **kwargs):
+    def __init__(self, latest_date, *args, **kwargs):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
         self.morahelper_mock._mo_post.return_value.status_code = 201
         self.morahelper_mock.ensure_class_in_facet.return_code = uuid4()
-        mock_primary.primary_types = {"non_primary": "test"}
 
         super().__init__(latest_date, *args, **kwargs)
 
@@ -192,9 +186,6 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         diff.it_systems = {"Opus": "Opus_uuid"}
-        diff.updater.primary_types = {"non_primary": "test"}
-        diff.updater.set_current_person = MagicMock()
-        diff.updater.recalculate_primary = MagicMock()
         diff.ensure_class_in_facet = MagicMock()
         with patch(
             "integrations.opus.opus_diff_import.OpusDiffImport._assert",
@@ -352,15 +343,12 @@ class _GetInstanceMixin:
             "integrations.opus.opus_diff_import.load_settings", return_value=settings
         ):
             with patch("integrations.opus.opus_diff_import.MoraHelper"):
-                with patch(
-                    "integrations.opus.opus_diff_import.OPUSPrimaryEngagementUpdater"
-                ):
-                    instance = OpusDiffImport(
-                        xml_date=self._xml_date,
-                        ad_reader=None,
-                        employee_mapping=object(),
-                    )
-                    return instance
+                instance = OpusDiffImport(
+                    xml_date=self._xml_date,
+                    ad_reader=None,
+                    employee_mapping=object(),
+                )
+                return instance
 
 
 class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):

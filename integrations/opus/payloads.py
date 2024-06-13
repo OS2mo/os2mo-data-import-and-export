@@ -31,14 +31,13 @@ def edit_engagement(data, mo_engagement_uuid):
 
 
 def create_engagement(
-    employee, user_uuid, unit_uuid, job_function, engagement_type, primary, validity
+    employee, user_uuid, unit_uuid, job_function, engagement_type, validity
 ):
     payload = {
         "type": "engagement",
         "org_unit": {"uuid": str(unit_uuid)},
         "person": {"uuid": user_uuid},
         "job_function": {"uuid": job_function},
-        "primary": {"uuid": primary},
         "engagement_type": {"uuid": engagement_type},
         "user_key": employee["@id"],
         "validity": validity,
