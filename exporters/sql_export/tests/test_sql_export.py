@@ -388,8 +388,9 @@ def test_sql_export_writes_addresses():
         "unit": _mk_uuid(),
         "user_key": "Beskrivelse",
         "value": "Værdi",
+        "scope": "DAR",
         "dar_uuid": _mk_uuid(),
-        "address_type": _get_cls_uuid(type_cls),
+        "adresse_type": _get_cls_uuid(type_cls),
         "visibility": _get_cls_uuid(visibility_cls),
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
@@ -413,9 +414,9 @@ def test_sql_export_writes_addresses():
         enhed_uuid=address["unit"],
         bvn=address["user_key"],
         # address type
-        adressetype_uuid=address["address_type"],
+        adressetype_uuid=address["adresse_type"],
         adressetype_bvn=_get_cls_field(type_cls, "user_key"),
-        adressetype_scope=_get_cls_field(type_cls, "scope"),
+        adressetype_scope=address["scope"],
         adressetype_titel=_get_cls_field(type_cls, "title"),
         # visibility
         synlighed_uuid=address["visibility"],
