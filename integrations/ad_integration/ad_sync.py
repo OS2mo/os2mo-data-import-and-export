@@ -140,28 +140,26 @@ class AddressDecisionList:
                 yield (self.TERMINATE, address)
 
     def _mo_and_ad_differs(self, field: str, address: dict) -> bool:
-        return address["value"] != self._ad_object[field]
+        value_differs = address["value"] != self._ad_object[field]
+
+        _, visibility_scope = self._address_mapping[field]
+        current_visibility_scope = (
+            address["visibility"]["scope"] if address.get("visibility") else None
+        )
+        visibility_differs = visibility_scope != current_visibility_scope
+
+        return value_differs or visibility_differs
 
     def _match_address(
         self, address_type_uuid: str, visibility_uuid: str, address: dict
     ) -> bool:
-        return (
-            address is not None
-            and self._match_address_type_uuid(address_type_uuid, address)
-            and self._match_address_visibility(visibility_uuid, address)
+        return address is not None and self._match_address_type_uuid(
+            address_type_uuid, address
         )
 
     def _match_address_type_uuid(self, address_type_uuid, address) -> bool:
         # Filter out addresses with wrong type
         return address["address_type"]["uuid"] == address_type_uuid
-
-    def _match_address_visibility(self, visibility_uuid, address) -> bool:
-        # Filter out addresses with wrong visibility
-        return (
-            visibility_uuid is None
-            or address.get("visibility") is None
-            or self._visibility[visibility_uuid] == address["visibility"]["uuid"]
-        )
 
 
 class AdMoSync:
