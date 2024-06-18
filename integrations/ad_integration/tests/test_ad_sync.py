@@ -8,6 +8,7 @@ from typing import Tuple
 from unittest import TestCase
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from uuid import uuid4
 
 from parameterized import parameterized
 
@@ -345,7 +346,12 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         def seed_mo():
             if mo_data is None:
                 return {"address": []}
-            return {
+            visibility = (
+                {"uuid": uuid4(), "scope": setup.address_type_visibility}
+                if setup.address_type_visibility
+                else {"uuid": None}
+            )
+            return_address = {
                 "address": [
                     {
                         "uuid": "address_uuid",
@@ -353,14 +359,13 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         "org": {"uuid": "org_uuid"},
                         "person": {"uuid": mo_values["uuid"]},
                         "type": "address",
-                        "visibility": {"scope": setup.address_type_visibility}
-                        if setup.address_type_visibility
-                        else None,
+                        "visibility": visibility,
                         "validity": {"from": today, "to": None},
                         "value": mo_data,
                     }
                 ]
             }
+            return return_address
 
         self._setup_admosync(
             transform_settings=lambda _: setup.settings,

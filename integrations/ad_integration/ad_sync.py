@@ -144,7 +144,7 @@ class AddressDecisionList:
 
         _, visibility_scope = self._address_mapping[field]
         current_visibility_scope = (
-            address["visibility"]["scope"] if address.get("visibility") else None
+            address["visibility"].get("scope") if address.get("visibility") else None
         )
         visibility_differs = visibility_scope != current_visibility_scope
 
