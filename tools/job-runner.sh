@@ -170,8 +170,11 @@ imports_sd_changed_at(){
 
 imports_sdtool_plus(){
     echo running imports_sdtool_plus
-    if ! curl -m 1800 -X POST http://localhost:8040/trigger; then
-        return $?
+
+    curl -m 1800 --no-progress-meter -f -X POST "http://localhost:8040/trigger"
+    CURL_STATUS=$?
+    if [[ ${CURL_STATUS} != 0 ]]; then
+        return ${CURL_STATUS}
     fi
 }
 
