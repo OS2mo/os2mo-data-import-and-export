@@ -637,6 +637,9 @@ class OpusDiffImport(object):
         logger.info("----")
         logger.info("Now updating {}".format(employee.get("@id")))
         logger.debug("Available info: {}".format(employee))
+        if employee["position"] is None:
+            logger.warning("Error in opus-file. Missing 'position'")
+            return
         mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}
