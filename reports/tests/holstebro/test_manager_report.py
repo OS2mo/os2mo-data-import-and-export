@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
 from reports.holstebro.manager_report import get_email_addr_type, \
-    get_employees, GET_EMPLOYEE_QUERY
+    get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY
 
 
 def test_get_email_addr_type():
@@ -25,7 +25,7 @@ def test_get_email_addr_type():
 
     # Assert
     assert addr_type_uuid == UUID("f376deb8-4743-4ca6-a047-3241de8fe9d2")
-    # TODO: assert mock called with
+    mock_gql_client.execute.assert_called_once_with(GET_EMAIL_ADDR_TYPE_QUERY)
 
 
 def test_get_employees():
