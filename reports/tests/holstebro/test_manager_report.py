@@ -5,6 +5,62 @@ from reports.holstebro.manager_report import get_email_addr_type, \
     get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY
 
 
+EMPLOYEE_OBJ_BATCH1 = [
+    {
+        "current": {
+            "user_key": "BirgittaD",
+            "given_name": "Birgitta Munk",
+            "name": "Birgitta Munk Duschek",
+            "addresses": [],
+            "manager_roles": [
+                {
+                    "uuid": "f82a969e-9953-40cf-925d-61629ba7139f"
+                }
+            ],
+            "engagements": []
+        }
+    },
+    {
+        "current": {
+            "user_key": "MikkelI",
+            "given_name": "Mikkel",
+            "name": "Mikkel Iversen",
+            "addresses": [],
+            "manager_roles": [],
+            "engagements": []
+        }
+    }
+]
+
+EMPLOYEE_OBJ_BATCH2 = [
+    {
+        "current": {
+            "user_key": "AnnaN",
+            "given_name": "Anna Brink",
+            "name": "Anna Brink Nielsen",
+            "addresses": [
+                {
+                    "name": "annan@kolding.dk"
+                }
+            ],
+            "manager_roles": [],
+            "engagements": [
+                {
+                    "org_unit": [
+                        {
+                            "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+                            "name": "Vamdrup skole",
+                            "user_key": "Vamdrup skole"
+                        }
+                    ],
+                    "is_primary": True
+                }
+            ]
+        }
+    }
+]
+
+
 def test_get_email_addr_type():
     # Arrange
     mock_gql_client = MagicMock()
@@ -32,61 +88,6 @@ def test_get_employees():
     # Arrange
     email_addr_type = uuid4()
 
-    employee_obj_batch1 = [
-        {
-            "current": {
-                "user_key": "BirgittaD",
-                "given_name": "Birgitta Munk",
-                "name": "Birgitta Munk Duschek",
-                "addresses": [],
-                "manager_roles": [
-                    {
-                        "uuid": "f82a969e-9953-40cf-925d-61629ba7139f"
-                    }
-                ],
-                "engagements": []
-            }
-        },
-        {
-            "current": {
-                "user_key": "MikkelI",
-                "given_name": "Mikkel",
-                "name": "Mikkel Iversen",
-                "addresses": [],
-                "manager_roles": [],
-                "engagements": []
-            }
-        }
-    ]
-
-    employee_obj_batch2 = [
-        {
-            "current": {
-                "user_key": "AnnaN",
-                "given_name": "Anna Brink",
-                "name": "Anna Brink Nielsen",
-                "addresses": [
-                    {
-                        "name": "annan@kolding.dk"
-                    }
-                ],
-                "manager_roles": [],
-                "engagements": [
-                    {
-                        "org_unit": [
-                            {
-                                "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
-                                "name": "Vamdrup skole",
-                                "user_key": "Vamdrup skole"
-                            }
-                        ],
-                        "is_primary": True
-                    }
-                ]
-            }
-        }
-    ]
-
     mock_gql_client = MagicMock()
     mock_gql_client.execute.side_effect = [
         {
@@ -94,7 +95,7 @@ def test_get_employees():
                 "page_info": {
                     "next_cursor": "cursor1"
                 },
-                "objects": employee_obj_batch1
+                "objects": EMPLOYEE_OBJ_BATCH1
             }
         },
         {
@@ -102,7 +103,7 @@ def test_get_employees():
                 "page_info": {
                     "next_cursor": "cursor2"
                 },
-                "objects": employee_obj_batch2
+                "objects": EMPLOYEE_OBJ_BATCH2
             }
         },
         {
@@ -119,7 +120,7 @@ def test_get_employees():
     employees = get_employees(mock_gql_client, email_addr_type, limit=2)
 
     # Assert
-    assert employees == employee_obj_batch1 + employee_obj_batch2
+    assert employees == EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2
     assert mock_gql_client.execute.call_args_list == [
         call(
             GET_EMPLOYEE_QUERY,
