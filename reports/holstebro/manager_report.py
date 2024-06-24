@@ -43,22 +43,23 @@ GET_EMPLOYEE_QUERY = gql(
     """
 )
 
-
-def get_email_addr_type(gql_client: GraphQLClient) -> UUID:
-    get_email_addr_type_query = gql(
-        """
-        query GetEmailAddrType {
-          classes(filter: {user_keys: "EmailEmployee"}) {
-            objects {
-              current {
-                uuid
-              }
-            }
+GET_EMAIL_ADDR_TYPE_QUERY = gql(
+    """
+    query GetEmailAddrType {
+      classes(filter: {user_keys: "EmailEmployee"}) {
+        objects {
+          current {
+            uuid
           }
         }
-        """
-    )
-    r = gql_client.execute(get_email_addr_type_query)
+      }
+    }
+    """
+)
+
+
+def get_email_addr_type(gql_client: GraphQLClient) -> UUID:
+    r = gql_client.execute(GET_EMAIL_ADDR_TYPE_QUERY)
     return UUID(one(r["classes"]["objects"])["current"]["uuid"])
 
 
