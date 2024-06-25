@@ -2,7 +2,10 @@ from typing import Any
 from uuid import UUID
 
 from gql import gql
+from more_itertools import first
 from more_itertools import one
+from more_itertools import only
+from pydantic.main import BaseModel
 
 from raclients.graph.client import GraphQLClient
 from ra_utils.job_settings import JobSettings
@@ -27,6 +30,9 @@ GET_EMPLOYEE_QUERY = gql(
             }
             manager_roles {
               uuid
+              org_unit {
+                uuid
+              }
             }
             engagements {
               org_unit {
@@ -58,6 +64,15 @@ GET_EMAIL_ADDR_TYPE_QUERY = gql(
 )
 
 
+class XLSXRow(BaseModel):
+    employment_id: str  # Should be an int, but you never know...
+    first_name: str
+    last_name: str
+    email: str | None
+    org_unit_user_key: str | None
+    is_manager: bool
+
+
 def get_email_addr_type(gql_client: GraphQLClient) -> UUID:
     r = gql_client.execute(GET_EMAIL_ADDR_TYPE_QUERY)
     return UUID(one(r["classes"]["objects"])["current"]["uuid"])
@@ -87,6 +102,40 @@ def get_employees(
     return employees
 
 
+def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
+    def get_last_name(current: dict[str, Any]) -> str:
+        return current["name"][len(current["given_name"]) + 1:]
+
+    def get_org_unit_user_key(engagement: dict[str, Any]) -> str:
+        return one(engagement["org_unit"])["user_key"]
+
+    def is_manager(current: dict[str, Any], eng: dict[str, Any]) -> bool:
+        manager_roles = current["manager_roles"]
+
+        if not manager_roles:
+            return False
+
+        manager_ou_uuids = [
+            only(manager_role["org_unit"], dict()).get("uuid")
+            for manager_role in manager_roles
+        ]
+        eng_ou_uuid = one(eng["org_unit"])["uuid"]
+        return eng_ou_uuid in manager_ou_uuids
+
+    return [
+        XLSXRow(
+            employment_id=emp["current"]["user_key"],
+            first_name=emp["current"]["given_name"],
+            last_name=get_last_name(emp["current"]),
+            email=first(emp["current"]["addresses"], dict()).get("name"),
+            org_unit_user_key=get_org_unit_user_key(eng),
+            is_manager=is_manager(emp["current"], eng),
+        )
+        for emp in employees
+        for eng in emp["current"]["engagements"]
+    ]
+
+
 def main(
     auth_server: str,
     client_id: str,
@@ -104,7 +153,6 @@ def main(
 
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 100)
-
 
 
 if __name__ == "__main__":
