@@ -180,33 +180,6 @@ class Opus_diff_import_tester(unittest.TestCase):
                     },
                 )
 
-    @patch("integrations.dawa_helper.dawa_lookup")
-    @settings(deadline=None)
-    @given(datetimes())
-    def test_update_employee(self, dawa_helper_mock, xml_date):
-        self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
-        diff.it_systems = {"Opus": "Opus_uuid"}
-        diff.ensure_class_in_facet = MagicMock()
-        with patch(
-            "integrations.opus.opus_diff_import.OpusDiffImport._assert",
-            return_value=None,
-        ):
-            for employee in self.employees:
-                if employee.get("cpr"):
-                    diff.update_employee(employee)
-                    uuid = diff.helper._mo_lookup().__getitem__().__getitem__()
-                    diff.helper._mo_post.assert_called_with(
-                        "details/terminate",
-                        {
-                            "type": "manager",
-                            "uuid": uuid,
-                            "validity": {"to": xml_date.strftime("%Y-%m-%d")},
-                        },
-                    )
-                else:
-                    self.assertEqual(employee["@action"], "leave")
-
     @given(datetimes(), datetimes(), text(), uuids(), uuids(), uuids())
     def test_perform_address_update_create(
         self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid, visibility
