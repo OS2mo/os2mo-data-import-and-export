@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from reports.holstebro.manager_report import get_email_addr_type, \
     get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY, \
-    employees_to_xlsx_rows, XLSXRow
+    employees_to_xlsx_rows, XLSXRow, to_xlsx_exporter_format
 
 EMPLOYEE_OBJ_BATCH1 = [
     {
@@ -185,12 +185,12 @@ def test_get_employees():
     ]
 
 
-def test_employees_to_csv_rows():
+def test_employees_to_xlsx_rows():
     # Act
-    csv_rows = employees_to_xlsx_rows(EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2)
+    xlsx_rows = employees_to_xlsx_rows(EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2)
 
     # Assert
-    assert csv_rows == [
+    assert xlsx_rows == [
         XLSXRow(
             employment_id="12345",
             first_name="Birgitta Munk",
@@ -223,4 +223,28 @@ def test_employees_to_csv_rows():
             org_unit_user_key="DIPEX",
             is_manager=False,
         ),
+    ]
+
+
+def test_to_xlsx_exporter_format():
+    # Arrange
+    xlsx_rows = employees_to_xlsx_rows(EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2)
+
+    # Act
+    exporter_data_format = to_xlsx_exporter_format(xlsx_rows)
+
+    # Assert
+    assert exporter_data_format == [
+        [
+            "Medarbejdernummer",
+            "Fornavn",
+            "Efternavn",
+            "Mail",
+            "Afdelingskode",
+            "ErLeder"
+        ],
+        ["12345", "Birgitta Munk", "Duschek", "", "VAMD", "Ja"],
+        ["12345", "Birgitta Munk", "Duschek", "", "DIPEX", "Nej"],
+        ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "VAMD", "Nej"],
+        ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "DIPEX", "Nej"],
     ]
