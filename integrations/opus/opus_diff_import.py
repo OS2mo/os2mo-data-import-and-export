@@ -543,7 +543,13 @@ class OpusDiffImport(object):
 
     def update_manager_status(self, employee_mo_uuid, employee):
         url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
-        manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
+        all_manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
+        manager_functions = [
+            manager_function
+            for manager_function in all_manager_functions
+            if manager_function["user_key"] == employee["@id"]
+        ]
+
         logger.debug("Manager functions to update: {}".format(manager_functions))
         if manager_functions:
             logger.debug("Manager functions to update: {}".format(manager_functions))
@@ -580,7 +586,7 @@ class OpusDiffImport(object):
             }
             if manager_functions:
                 logger.info("Attempt manager update of {}:".format(employee_mo_uuid))
-                # Currently Opus supports only a single manager object pr employee
+                # Opus supports only a single manager object pr engagement
                 assert len(manager_functions) == 1
 
                 mf = manager_functions[0]
