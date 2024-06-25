@@ -6,15 +6,18 @@ from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from pydantic.main import BaseModel
+from structlog import get_logger
 import xlsxwriter.worksheet
 
-from raclients.upload import run_report_and_upload, file_uploader
+from raclients.upload import file_uploader
 from raclients.graph.client import GraphQLClient
-from ra_utils.job_settings import JobSettings
+from ra_utils.job_settings import JobSettings, LogLevel
 
 from reports.holstebro.graphql import get_mo_client
-from reports.query_actualstate import run_report, XLSXExporter
+from reports.query_actualstate import XLSXExporter
 
+
+logger = get_logger()
 
 GET_EMPLOYEE_QUERY = gql(
     """
@@ -99,6 +102,9 @@ def get_employees(
         )
         employees.extend(r["employees"]["objects"])
         next_cursor = r["employees"]["page_info"]["next_cursor"]
+
+        logger.info("Number of employees fetched", n=len(employees))
+
         if next_cursor is None:
             break
 
@@ -186,6 +192,8 @@ def main(
     settings: JobSettings,
     gql_version: int,
 ):
+    logger.info("Program started")
+
     gql_client = get_mo_client(
         auth_server=settings.crontab_AUTH_SERVER,
         client_id=settings.client_id,
@@ -194,15 +202,21 @@ def main(
         gql_version=gql_version,
     )
 
+    logger.info("Get employees from MO - this may take a while...")
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 300)
 
+    logger.info("Convert GraphQL data to the exporter format")
     xlsx_rows = employees_to_xlsx_rows(employees)
     xlsx_exporter_data = to_xlsx_exporter_format(xlsx_rows)
 
+    logger.info("Upload data to MO")
     upload_report(settings, xlsx_exporter_data)
+
+    logger.info("Program finished")
 
 
 if __name__ == "__main__":
-    settings = JobSettings()
+    settings = JobSettings(log_level=LogLevel.INFO)
+    settings.start_logging_based_on_settings()
     main(settings=settings, gql_version=22)
