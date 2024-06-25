@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import uuid4
@@ -262,9 +263,11 @@ class Opus_diff_import_tester(unittest.TestCase):
         date = xml_date.strftime("%Y-%m-%d")
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
-            {"user_key": current_username, "uuid": "dummyuuid"}
-            if current_username
-            else None
+            (
+                {"user_key": current_username, "uuid": "dummyuuid"}
+                if current_username
+                else None
+            )
         ]
 
         if change_type == "details/edit":
@@ -491,6 +494,161 @@ class TestUpdateEmployeeAddress(_GetInstanceMixin):
                         ensure_class.call_args.kwargs
                         == self.expected_address_visibility
                     )
+
+
+class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
+    unit_name = "Testenhed"
+
+    opus_employee = {
+        "@id": "1",
+        "isManager": "true",
+        "leaveDate": None,
+        "entryDate": datetime.now(),
+        "superiorLevel": "ledertype",
+        "subordinateLevel": "niveau 1",
+        "position": "stillingsbetegnelse",
+        "orgUnit": unit_name,
+    }
+    unit_uuid = str(opus_helpers.generate_uuid(opus_employee["orgUnit"]))
+    manager_level = str(uuid4())
+    manager_type = str(uuid4())
+    manager_responsibility = str(uuid4())
+
+    def test_create_manager(self):
+        # Arrange
+        instance = self.get_instance({})
+        instance.helper._mo_lookup = MagicMock(
+            return_value=[
+                # This manager function should be disregarded
+                {
+                    "uuid": "uuid_2",
+                    "user_key": "2",
+                }
+            ]
+        )
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 201
+
+        validity = instance.validity(employee=self.opus_employee, edit=True)
+        with patch.object(instance, "ensure_class_in_facet") as ensure_class:
+            ensure_class.side_effect = [
+                self.manager_level,
+                self.manager_type,
+                self.manager_responsibility,
+            ]
+            # Act
+            instance.update_manager_status("mo_uuid", self.opus_employee)
+
+            # Assert
+            ensure_class.assert_called()
+            assert ensure_class.call_args_list == [
+                call("manager_level", "ledertype.niveau 1"),
+                call("manager_type", "stillingsbetegnelse"),
+                call("responsibility", "Lederansvar"),
+            ]
+            instance.helper._mo_post.assert_called_once_with(
+                "details/create",
+                {
+                    "type": "manager",
+                    "user_key": "1",
+                    "org_unit": {"uuid": self.unit_uuid},
+                    "person": {"uuid": "mo_uuid"},
+                    "manager_type": {"uuid": self.manager_type},
+                    "manager_level": {"uuid": self.manager_level},
+                    "responsibility": [{"uuid": self.manager_responsibility}],
+                    "validity": {"from": validity["from"], "to": None},
+                },
+            )
+
+    def test_update_manager(self):
+        # Arrange
+        instance = self.get_instance({})
+        instance.helper._mo_lookup = MagicMock(
+            return_value=[
+                {
+                    "uuid": "uuid_1",
+                    "user_key": "1",
+                    "person": {"uuid": "mo_uuid"},
+                    "org_unit": {"uuid": self.unit_uuid},
+                    # Manager_level should be changed
+                    "manager_level": {"uuid": str(uuid4())},
+                    "manager_type": {"uuid": self.manager_type},
+                    "responsibility": [{"uuid": self.manager_responsibility}],
+                },
+                # This manager function should be disregarded
+                {
+                    "uuid": "uuid_2",
+                    "user_key": "2",
+                },
+            ]
+        )
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 200
+        validity = instance.validity(employee=self.opus_employee, edit=True)
+        with patch.object(instance, "ensure_class_in_facet") as ensure_class:
+            ensure_class.side_effect = [
+                self.manager_level,
+                self.manager_type,
+                self.manager_responsibility,
+            ]
+            # Act
+            instance.update_manager_status("mo_uuid", self.opus_employee)
+
+            # Assert
+            ensure_class.assert_called()
+            assert ensure_class.call_args_list == [
+                call("manager_level", "ledertype.niveau 1"),
+                call("manager_type", "stillingsbetegnelse"),
+                call("responsibility", "Lederansvar"),
+            ]
+            instance.helper._mo_post.assert_called_once_with(
+                "details/edit",
+                {
+                    "type": "manager",
+                    "uuid": "uuid_1",
+                    "data": {
+                        "org_unit": {"uuid": self.unit_uuid},
+                        "person": {"uuid": "mo_uuid"},
+                        "manager_type": {"uuid": self.manager_type},
+                        "manager_level": {"uuid": self.manager_level},
+                        "responsibility": [{"uuid": self.manager_responsibility}],
+                        "validity": {"from": validity["from"], "to": None},
+                    },
+                },
+            )
+
+    def test_terminate_manager(self):
+        # Arrange
+        self.opus_employee["isManager"] = "false"
+        instance = self.get_instance({})
+        instance.helper._mo_lookup = MagicMock(
+            return_value=[
+                {
+                    "uuid": "uuid_1",
+                    "user_key": "1",
+                },
+                {
+                    "uuid": "uuid_2",
+                    "user_key": "2",
+                },
+            ]
+        )
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 200
+
+        validity = instance.validity(employee=self.opus_employee, edit=True)
+        with patch.object(instance, "ensure_class_in_facet"):
+            instance.update_manager_status("mo_uuid", self.opus_employee)
+
+            # Assert
+            instance.helper._mo_post.assert_called_once_with(
+                "details/terminate",
+                {
+                    "type": "manager",
+                    "uuid": "uuid_1",
+                    "validity": {"to": validity["from"]},
+                },
+            )
 
 
 if __name__ == "__main__":
