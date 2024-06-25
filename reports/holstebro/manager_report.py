@@ -6,11 +6,14 @@ from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from pydantic.main import BaseModel
+import xlsxwriter.worksheet
 
+from raclients.upload import run_report_and_upload, file_uploader
 from raclients.graph.client import GraphQLClient
 from ra_utils.job_settings import JobSettings
 
 from reports.holstebro.graphql import get_mo_client
+from reports.query_actualstate import run_report, XLSXExporter
 
 
 GET_EMPLOYEE_QUERY = gql(
@@ -161,31 +164,38 @@ def to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
     return data
 
 
+def upload_report(
+    settings: JobSettings,
+    xlsx_exporter_data: list[list[str]]
+) -> None:
+    with file_uploader(settings, "Medarbejdere.xlsx") as report_file:
+        workbook = xlsxwriter.Workbook(report_file)
+        excel = XLSXExporter(report_file)
+        excel.add_sheet(workbook, "Medarbejdere", xlsx_exporter_data)
+        workbook.close()
+
+
 def main(
-    auth_server: str,
-    client_id: str,
-    client_secret: str,
-    mo_base_url: str,
+    settings: JobSettings,
     gql_version: int,
 ):
     gql_client = get_mo_client(
-        auth_server=auth_server,
-        client_id=client_id,
-        client_secret=client_secret,  # Careful - this is not a SecretStr
-        mo_base_url=mo_base_url,
+        auth_server=settings.auth_server,
+        client_id=settings.client_id,
+        client_secret=settings.client_secret,  # Careful - this is not a SecretStr
+        mo_base_url=settings.mora_base,
         gql_version=gql_version,
     )
 
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 100)
 
+    xlsx_rows = employees_to_xlsx_rows(employees)
+    xlsx_exporter_data = to_xlsx_exporter_format(xlsx_rows)
+
+    upload_report(settings, xlsx_exporter_data)
+
 
 if __name__ == "__main__":
     settings = JobSettings()
-    main(
-        auth_server=settings.auth_server,
-        client_id=settings.client_id,
-        client_secret=settings.client_secret,  # Careful - this is not a SecretStr
-        mo_base_url=settings.mora_base,
-        gql_version=22,
-    )
+    main(settings=settings, gql_version=22)
