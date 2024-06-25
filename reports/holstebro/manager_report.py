@@ -168,7 +168,14 @@ def upload_report(
     settings: JobSettings,
     xlsx_exporter_data: list[list[str]]
 ) -> None:
-    with file_uploader(settings, "Medarbejdere.xlsx") as report_file:
+    # Hack - we need to convert the JobSettings
+    settings_dict = {
+        "crontab.CLIENT_ID": settings.client_id,
+        "crontab.CLIENT_SECRET": settings.crontab_CLIENT_SECRET,
+        "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
+        "mora.base": settings.mora_base,
+    }
+    with file_uploader(settings_dict, "Medarbejdere.xlsx") as report_file:
         workbook = xlsxwriter.Workbook(report_file)
         excel = XLSXExporter(report_file)
         excel.add_sheet(workbook, "Medarbejdere", xlsx_exporter_data)
@@ -180,15 +187,15 @@ def main(
     gql_version: int,
 ):
     gql_client = get_mo_client(
-        auth_server=settings.auth_server,
+        auth_server=settings.crontab_AUTH_SERVER,
         client_id=settings.client_id,
-        client_secret=settings.client_secret,  # Careful - this is not a SecretStr
+        client_secret=settings.crontab_CLIENT_SECRET,  # Careful - this is not a SecretStr
         mo_base_url=settings.mora_base,
         gql_version=gql_version,
     )
 
     email_addr_type = get_email_addr_type(gql_client)
-    employees = get_employees(gql_client, email_addr_type, 100)
+    employees = get_employees(gql_client, email_addr_type, 300)
 
     xlsx_rows = employees_to_xlsx_rows(employees)
     xlsx_exporter_data = to_xlsx_exporter_format(xlsx_rows)
