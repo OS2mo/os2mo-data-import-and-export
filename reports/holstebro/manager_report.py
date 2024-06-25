@@ -136,6 +136,31 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
     ]
 
 
+def to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
+    data = [
+        [
+            "Medarbejdernummer",
+            "Fornavn",
+            "Efternavn",
+            "Mail",
+            "Afdelingskode",
+            "ErLeder"
+        ]
+    ]
+    for row in xlsx_rows:
+        data.append(
+            [
+                row.employment_id,
+                row.first_name,
+                row.last_name,
+                row.email if row.email is not None else "",
+                row.org_unit_user_key,
+                "Ja" if row.is_manager else "Nej",
+            ]
+        )
+    return data
+
+
 def main(
     auth_server: str,
     client_id: str,
