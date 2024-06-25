@@ -2,27 +2,53 @@ from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
 from reports.holstebro.manager_report import get_email_addr_type, \
-    get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY
-
+    get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY, \
+    employees_to_xlsx_rows, XLSXRow
 
 EMPLOYEE_OBJ_BATCH1 = [
     {
         "current": {
-            "user_key": "BirgittaD",
+            "user_key": "12345",
             "given_name": "Birgitta Munk",
             "name": "Birgitta Munk Duschek",
             "addresses": [],
             "manager_roles": [
                 {
-                    "uuid": "f82a969e-9953-40cf-925d-61629ba7139f"
+                    "uuid": "f82a969e-9953-40cf-925d-61629ba7139f",
+                    "org_unit": [
+                        {
+                            "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b"
+                        }
+                    ]
                 }
             ],
-            "engagements": []
+            "engagements": [
+                {
+                    "org_unit": [
+                        {
+                            "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+                            "name": "Vamdrup skole",
+                            "user_key": "VAMD"
+                        }
+                    ],
+                    "is_primary": True
+                },
+                {
+                    "org_unit": [
+                        {
+                            "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+                            "name": "Magenta DIPEX Department",
+                            "user_key": "DIPEX"
+                        }
+                    ],
+                    "is_primary": False
+                },
+            ]
         }
     },
     {
         "current": {
-            "user_key": "MikkelI",
+            "user_key": "23456",
             "given_name": "Mikkel",
             "name": "Mikkel Iversen",
             "addresses": [],
@@ -35,7 +61,7 @@ EMPLOYEE_OBJ_BATCH1 = [
 EMPLOYEE_OBJ_BATCH2 = [
     {
         "current": {
-            "user_key": "AnnaN",
+            "user_key": "34567",
             "given_name": "Anna Brink",
             "name": "Anna Brink Nielsen",
             "addresses": [
@@ -50,11 +76,21 @@ EMPLOYEE_OBJ_BATCH2 = [
                         {
                             "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
                             "name": "Vamdrup skole",
-                            "user_key": "Vamdrup skole"
+                            "user_key": "VAMD"
                         }
                     ],
                     "is_primary": True
-                }
+                },
+                {
+                    "org_unit": [
+                        {
+                            "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+                            "name": "Magenta DIPEX Department",
+                            "user_key": "DIPEX"
+                        }
+                    ],
+                    "is_primary": False
+                },
             ]
         }
     }
@@ -145,5 +181,46 @@ def test_get_employees():
                 "limit": 2,
                 "email_addr_type": str(email_addr_type)
             }
+        ),
+    ]
+
+
+def test_employees_to_csv_rows():
+    # Act
+    csv_rows = employees_to_xlsx_rows(EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2)
+
+    # Assert
+    assert csv_rows == [
+        XLSXRow(
+            employment_id="12345",
+            first_name="Birgitta Munk",
+            last_name="Duschek",
+            email=None,
+            org_unit_user_key="VAMD",
+            is_manager=True,
+        ),
+        XLSXRow(
+            employment_id="12345",
+            first_name="Birgitta Munk",
+            last_name="Duschek",
+            email=None,
+            org_unit_user_key="DIPEX",
+            is_manager=False,
+        ),
+        XLSXRow(
+            employment_id="34567",
+            first_name="Anna Brink",
+            last_name="Nielsen",
+            email="annan@kolding.dk",
+            org_unit_user_key="VAMD",
+            is_manager=False,
+        ),
+        XLSXRow(
+            employment_id="34567",
+            first_name="Anna Brink",
+            last_name="Nielsen",
+            email="annan@kolding.dk",
+            org_unit_user_key="DIPEX",
+            is_manager=False,
         ),
     ]
