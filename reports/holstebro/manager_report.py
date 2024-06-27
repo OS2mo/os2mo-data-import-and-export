@@ -113,7 +113,7 @@ def get_employees(
 
 def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
     def get_last_name(current: dict[str, Any]) -> str:
-        return current["name"][len(current["given_name"]) + 1:]
+        return current["name"].split()[-1]
 
     def get_org_unit_user_key(engagement: dict[str, Any]) -> str:
         return one(engagement["org_unit"])["user_key"]
