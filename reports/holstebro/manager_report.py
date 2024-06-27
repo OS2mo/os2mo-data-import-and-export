@@ -55,6 +55,26 @@ GET_EMPLOYEE_QUERY = gql(
     """
 )
 
+GET_ORG_UNITS_QUERY = gql(
+    """
+    query GetOrgUnits {
+      org_units {
+        objects {
+          current {
+            name
+            user_key
+            uuid
+            parent {
+              uuid
+              user_key
+            }
+          }
+        }
+      }
+    }
+    """
+)
+
 GET_EMAIL_ADDR_TYPE_QUERY = gql(
     """
     query GetEmailAddrType {
@@ -111,6 +131,11 @@ def get_employees(
     return employees
 
 
+def get_org_units(gql_client: GraphQLClient) -> list[dict[str, Any]]:
+    r = gql_client.execute(GET_ORG_UNITS_QUERY)
+    return r["org_units"]["objects"]
+
+
 def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
     def get_last_name(current: dict[str, Any]) -> str:
         return current["name"].split()[-1]
@@ -145,7 +170,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
     ]
 
 
-def to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
+def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
     data = [
         [
             "Medarbejdernummer",
@@ -170,9 +195,26 @@ def to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
     return data
 
 
+def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[str]]:
+    data = [["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"]]
+    for unit in units:
+        parent_obj = unit["current"]["parent"]
+        parent = parent_obj["user_key"] if parent_obj is not None else ""
+        data.append(
+            [
+                unit["current"]["user_key"],
+                unit["current"]["name"],
+                parent,
+            ]
+        )
+    return data
+
+
 def upload_report(
     settings: JobSettings,
-    xlsx_exporter_data: list[list[str]]
+    xlsx_exporter_data: list[list[str]],
+    filename: str,
+    sheet_name: str,
 ) -> None:
     # Hack - we need to convert the JobSettings
     settings_dict = {
@@ -181,10 +223,10 @@ def upload_report(
         "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
         "mora.base": settings.mora_base,
     }
-    with file_uploader(settings_dict, "Holstebro_medarbejdere_ledere.xlsx") as report_file:
+    with file_uploader(settings_dict, filename) as report_file:
         workbook = xlsxwriter.Workbook(report_file)
         excel = XLSXExporter(report_file)
-        excel.add_sheet(workbook, "Medarbejdere", xlsx_exporter_data)
+        excel.add_sheet(workbook, sheet_name, xlsx_exporter_data)
         workbook.close()
 
 
@@ -202,16 +244,36 @@ def main(
         gql_version=gql_version,
     )
 
+    # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 300)
 
-    logger.info("Convert GraphQL data to the exporter format")
-    xlsx_rows = employees_to_xlsx_rows(employees)
-    xlsx_exporter_data = to_xlsx_exporter_format(xlsx_rows)
+    logger.info("Convert GraphQL employee data to the exporter format")
+    employee_xlsx_rows = employees_to_xlsx_rows(employees)
+    employee_xlsx_exporter_data = employee_to_xlsx_exporter_format(employee_xlsx_rows)
 
-    logger.info("Upload data to MO")
-    upload_report(settings, xlsx_exporter_data)
+    logger.info("Upload employee data to MO")
+    upload_report(
+        settings,
+        employee_xlsx_exporter_data,
+        "Holstebro_medarbejdere_ledere.xlsx",
+        "Ledere"
+    )
+
+    # Report for org units
+    logger.info("Get org units from MO")
+    org_units = get_org_units(gql_client)
+
+    org_unit_xlsx_exporter_data = org_units_to_xlsx_exporter_format(org_units)
+
+    logger.info("Upload org unit data to MO")
+    upload_report(
+        settings,
+        org_unit_xlsx_exporter_data,
+        "Holstebro_org_enheder.xlsx",
+        "Enheder",
+    )
 
     logger.info("Program finished")
 
