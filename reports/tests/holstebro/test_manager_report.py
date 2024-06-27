@@ -3,7 +3,8 @@ from uuid import UUID, uuid4
 
 from reports.holstebro.manager_report import get_email_addr_type, \
     get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY, \
-    employees_to_xlsx_rows, XLSXRow, to_xlsx_exporter_format
+    employees_to_xlsx_rows, XLSXRow, to_xlsx_exporter_format, get_org_units, \
+    GET_ORG_UNITS_QUERY
 
 EMPLOYEE_OBJ_BATCH1 = [
     {
@@ -248,3 +249,43 @@ def test_to_xlsx_exporter_format():
         ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "VAMD", "Nej"],
         ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "DIPEX", "Nej"],
     ]
+
+
+def test_get_org_units():
+    # Arrange
+    OU_BATCH = [
+        {
+            "current": {
+                "user_key": "VIUF",
+                "uuid": "08eaf849-e9f9-53e0-b6b9-3cd45763ecbb",
+                "parent": {
+                    "uuid": "2665d8e0-435b-5bb6-a550-f275692984ef",
+                    "user_key": "Skoler og børnehaver"
+                }
+            }
+        },
+        {
+            "current": {
+                "user_key": "LUND",
+                "uuid": "09c347ef-451f-5919-8d41-02cc989a6d8b",
+                "parent": {
+                    "uuid": "2665d8e0-435b-5bb6-a550-f275692984ef",
+                    "user_key": "Skoler og børnehaver"
+                }
+            }
+        },
+    ]
+
+    mock_gql_client = MagicMock()
+    mock_gql_client.execute.return_value = {
+        "org_units": {
+            "objects": OU_BATCH
+        }
+    }
+
+    # Act
+    org_units = get_org_units(mock_gql_client)
+
+    # Assert
+    assert org_units == OU_BATCH
+    mock_gql_client.execute.assert_called_once_with(GET_ORG_UNITS_QUERY)

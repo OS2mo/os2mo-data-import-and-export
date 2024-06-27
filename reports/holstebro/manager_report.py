@@ -55,6 +55,25 @@ GET_EMPLOYEE_QUERY = gql(
     """
 )
 
+GET_ORG_UNITS_QUERY = gql(
+    """
+    query GetOrgUnits {
+      org_units {
+        objects {
+          current {
+            user_key
+            uuid
+            parent {
+              uuid
+              user_key
+            }
+          }
+        }
+      }
+    }
+    """
+)
+
 GET_EMAIL_ADDR_TYPE_QUERY = gql(
     """
     query GetEmailAddrType {
@@ -109,6 +128,11 @@ def get_employees(
             break
 
     return employees
+
+
+def get_org_units(gql_client: GraphQLClient) -> list[dict[str, Any]]:
+    r = gql_client.execute(GET_ORG_UNITS_QUERY)
+    return r["org_units"]["objects"]
 
 
 def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
