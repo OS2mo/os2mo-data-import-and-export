@@ -197,14 +197,16 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
 
 def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[str]]:
     data = [["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"]]
-    data.extend(
-        [
-            unit["current"]["user_key"],
-            unit["current"]["name"],
-            unit["current"]["parent"]["user_key"],
-        ]
-        for unit in units
-    )
+    for unit in units:
+        parent_obj = unit["current"]["parent"]
+        parent = parent_obj["user_key"] if parent_obj is not None else ""
+        data.append(
+            [
+                unit["current"]["user_key"],
+                unit["current"]["name"],
+                parent,
+            ]
+        )
     return data
 
 
