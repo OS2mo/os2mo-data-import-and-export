@@ -259,6 +259,20 @@ def main(
         "Ledere"
     )
 
+    # Report for org units
+    logger.info("Get org units from MO")
+    org_units = get_org_units(gql_client)
+
+    org_unit_xlsx_exporter_data = org_units_to_xlsx_exporter_format(org_units)
+
+    logger.info("Upload org unit data to MO")
+    upload_report(
+        settings,
+        org_unit_xlsx_exporter_data,
+        "Holstebro_org_enheder.xlsx",
+        "Enheder",
+    )
+
     logger.info("Program finished")
 
 
