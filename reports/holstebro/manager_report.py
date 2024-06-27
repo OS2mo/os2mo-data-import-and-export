@@ -210,7 +210,9 @@ def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[
 
 def upload_report(
     settings: JobSettings,
-    xlsx_exporter_data: list[list[str]]
+    xlsx_exporter_data: list[list[str]],
+    filename: str,
+    sheet_name: str,
 ) -> None:
     # Hack - we need to convert the JobSettings
     settings_dict = {
@@ -219,10 +221,10 @@ def upload_report(
         "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
         "mora.base": settings.mora_base,
     }
-    with file_uploader(settings_dict, "Holstebro_medarbejdere_ledere.xlsx") as report_file:
+    with file_uploader(settings_dict, filename) as report_file:
         workbook = xlsxwriter.Workbook(report_file)
         excel = XLSXExporter(report_file)
-        excel.add_sheet(workbook, "Medarbejdere", xlsx_exporter_data)
+        excel.add_sheet(workbook, sheet_name, xlsx_exporter_data)
         workbook.close()
 
 
@@ -240,6 +242,7 @@ def main(
         gql_version=gql_version,
     )
 
+    # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 300)
@@ -249,7 +252,12 @@ def main(
     employee_xlsx_exporter_data = employee_to_xlsx_exporter_format(employee_xlsx_rows)
 
     logger.info("Upload employee data to MO")
-    upload_report(settings, employee_xlsx_exporter_data)
+    upload_report(
+        settings,
+        employee_xlsx_exporter_data,
+        "Holstebro_medarbejdere_ledere.xlsx",
+        "Ledere"
+    )
 
     logger.info("Program finished")
 
