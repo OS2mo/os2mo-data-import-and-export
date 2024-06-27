@@ -256,6 +256,7 @@ def test_get_org_units():
     OU_BATCH = [
         {
             "current": {
+                "name": "Viuf Skole",
                 "user_key": "VIUF",
                 "uuid": "08eaf849-e9f9-53e0-b6b9-3cd45763ecbb",
                 "parent": {
@@ -266,6 +267,7 @@ def test_get_org_units():
         },
         {
             "current": {
+                "name": "Lunderskov Skole",
                 "user_key": "LUND",
                 "uuid": "09c347ef-451f-5919-8d41-02cc989a6d8b",
                 "parent": {

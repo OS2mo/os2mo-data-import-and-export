@@ -61,6 +61,7 @@ GET_ORG_UNITS_QUERY = gql(
       org_units {
         objects {
           current {
+            name
             user_key
             uuid
             parent {
