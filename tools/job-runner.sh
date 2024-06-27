@@ -354,6 +354,11 @@ reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
 
+reports_managers_and_org_units_holstebro(){
+    echo "Running manager and org unit reports for Holstebro"
+    ${POETRYPATH} run python -m reports.holstebro.manager_report
+}
+
 exports_lc_for_jobs_db(){
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
     [ -z "${actual_db_name}" ] && echo "actual_db_name not specified" && exit 1
@@ -594,6 +599,9 @@ reports(){
         run-job reports_csv &
     fi
 
+    if [ "${RUN_REPORTS_MANAGERS_HOLSTEBRO}" == "true" ]; then
+        run-job reports_managers_and_org_units_holstebro &
+    fi
 }
 
 pre_truncate_logfiles(){
