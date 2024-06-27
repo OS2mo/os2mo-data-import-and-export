@@ -354,7 +354,7 @@ reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
 
-reports_managers_and_org_units(){
+reports_managers_and_org_units_holstebro(){
     echo "Running manager and org unit reports for Holstebro"
     ${POETRYPATH} run python -m reports.holstebro.manager_report
 }
@@ -600,7 +600,7 @@ reports(){
     fi
 
     if [ "${RUN_REPORTS_MANAGERS_HOLSTEBRO}" == "true" ]; then
-        run-job reports_managers_and_org_units &
+        run-job reports_managers_and_org_units_holstebro &
     fi
 }
 
