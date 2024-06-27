@@ -195,6 +195,19 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
     return data
 
 
+def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[str]]:
+    data = [["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"]]
+    data.extend(
+        [
+            unit["current"]["user_key"],
+            unit["current"]["name"],
+            unit["current"]["parent"]["user_key"],
+        ]
+        for unit in units
+    )
+    return data
+
+
 def upload_report(
     settings: JobSettings,
     xlsx_exporter_data: list[list[str]]
