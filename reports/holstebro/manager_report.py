@@ -71,7 +71,7 @@ GET_EMAIL_ADDR_TYPE_QUERY = gql(
 
 
 class XLSXRow(BaseModel):
-    employment_id: str  # Should be an int, but you never know...
+    employment_id: str
     first_name: str
     last_name: str
     email: str | None
