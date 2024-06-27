@@ -169,7 +169,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
     ]
 
 
-def to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
+def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]]:
     data = [
         [
             "Medarbejdernummer",
@@ -230,12 +230,12 @@ def main(
     email_addr_type = get_email_addr_type(gql_client)
     employees = get_employees(gql_client, email_addr_type, 300)
 
-    logger.info("Convert GraphQL data to the exporter format")
-    xlsx_rows = employees_to_xlsx_rows(employees)
-    xlsx_exporter_data = to_xlsx_exporter_format(xlsx_rows)
+    logger.info("Convert GraphQL employee data to the exporter format")
+    employee_xlsx_rows = employees_to_xlsx_rows(employees)
+    employee_xlsx_exporter_data = employee_to_xlsx_exporter_format(employee_xlsx_rows)
 
-    logger.info("Upload data to MO")
-    upload_report(settings, xlsx_exporter_data)
+    logger.info("Upload employee data to MO")
+    upload_report(settings, employee_xlsx_exporter_data)
 
     logger.info("Program finished")
 

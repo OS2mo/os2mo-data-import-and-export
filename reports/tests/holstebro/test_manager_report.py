@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from reports.holstebro.manager_report import get_email_addr_type, \
     get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY, \
-    employees_to_xlsx_rows, XLSXRow, to_xlsx_exporter_format, get_org_units, \
+    employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, get_org_units, \
     GET_ORG_UNITS_QUERY
 
 EMPLOYEE_OBJ_BATCH1 = [
@@ -232,10 +232,10 @@ def test_to_xlsx_exporter_format():
     xlsx_rows = employees_to_xlsx_rows(EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2)
 
     # Act
-    exporter_data_format = to_xlsx_exporter_format(xlsx_rows)
+    employee_exporter_data_format = employee_to_xlsx_exporter_format(xlsx_rows)
 
     # Assert
-    assert exporter_data_format == [
+    assert employee_exporter_data_format == [
         [
             "Medarbejdernummer",
             "Fornavn",
