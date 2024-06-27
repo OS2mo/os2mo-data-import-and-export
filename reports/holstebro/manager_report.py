@@ -181,7 +181,7 @@ def upload_report(
         "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
         "mora.base": settings.mora_base,
     }
-    with file_uploader(settings_dict, "Medarbejdere.xlsx") as report_file:
+    with file_uploader(settings_dict, "Holstebro_medarbejdere_ledere.xlsx") as report_file:
         workbook = xlsxwriter.Workbook(report_file)
         excel = XLSXExporter(report_file)
         excel.add_sheet(workbook, "Medarbejdere", xlsx_exporter_data)
