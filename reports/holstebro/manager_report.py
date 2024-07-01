@@ -58,8 +58,10 @@ GET_EMPLOYEE_QUERY = gql(
 
 GET_ORG_UNITS_QUERY = gql(
     """
-    query GetOrgUnits {
-      org_units {
+    query GetOrgUnits($hierarchy: [UUID!]) {
+      org_units(
+        filter: {hierarchies: $hierarchy}
+      ) {
         objects {
           current {
             name
@@ -136,8 +138,14 @@ def get_employees(
     return employees
 
 
-def get_org_units(gql_client: GraphQLClient) -> list[dict[str, Any]]:
-    r = gql_client.execute(GET_ORG_UNITS_QUERY)
+def get_org_units(
+    gql_client: GraphQLClient,
+    hierarchy: UUID,
+) -> list[dict[str, Any]]:
+    r = gql_client.execute(
+        GET_ORG_UNITS_QUERY,
+        variable_values={"hierarchy": str(hierarchy)}
+    )
     return r["org_units"]["objects"]
 
 
@@ -287,7 +295,8 @@ def main(
 
     # Report for org units
     logger.info("Get org units from MO")
-    org_units = get_org_units(gql_client)
+    line_mgmt_hierarchy = get_class_uuid(gql_client, "linjeorg")
+    org_units = get_org_units(gql_client, line_mgmt_hierarchy)
 
     org_unit_xlsx_exporter_data = org_units_to_xlsx_exporter_format(org_units)
 

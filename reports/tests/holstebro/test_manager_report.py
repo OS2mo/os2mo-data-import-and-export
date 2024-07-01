@@ -324,6 +324,7 @@ def test_to_xlsx_exporter_format():
 
 def test_get_org_units():
     # Arrange
+    line_mgmt_hierarchy = uuid4()
     mock_gql_client = MagicMock()
     mock_gql_client.execute.return_value = {
         "org_units": {
@@ -332,11 +333,14 @@ def test_get_org_units():
     }
 
     # Act
-    org_units = get_org_units(mock_gql_client)
+    org_units = get_org_units(mock_gql_client, line_mgmt_hierarchy)
 
     # Assert
     assert org_units == OU_BATCH
-    mock_gql_client.execute.assert_called_once_with(GET_ORG_UNITS_QUERY)
+    mock_gql_client.execute.assert_called_once_with(
+        GET_ORG_UNITS_QUERY,
+        variable_values={"hierarchy": str(line_mgmt_hierarchy)}
+    )
 
 
 def test_org_units_to_xlsx_exporter_format():
