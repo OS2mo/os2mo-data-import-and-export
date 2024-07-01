@@ -97,7 +97,7 @@ class XLSXRow(BaseModel):
     last_name: str
     email: str | None
     cpr: str | None
-    org_unit_user_key: str | None
+    org_unit_uuid: UUID
     is_manager: bool
 
 
@@ -181,7 +181,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
             last_name=get_last_name(emp["current"]),
             email=get_email(emp["current"]),
             cpr=get_cpr(emp["current"]),
-            org_unit_user_key=get_org_unit_user_key(eng),
+            org_unit_uuid=UUID(one(eng["org_unit"])["uuid"]),
             is_manager=is_manager(emp["current"], eng),
         )
         for emp in employees
@@ -209,7 +209,7 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
                 row.last_name,
                 row.email,
                 row.cpr,
-                row.org_unit_user_key,
+                str(row.org_unit_uuid),
                 "Ja" if row.is_manager else "Nej",
             ]
         )
@@ -220,12 +220,12 @@ def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[
     data = [["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"]]
     for unit in units:
         parent_obj = unit["current"]["parent"]
-        parent = parent_obj["user_key"] if parent_obj is not None else ""
+        parent_uuid = parent_obj["uuid"] if parent_obj is not None else ""
         data.append(
             [
-                unit["current"]["user_key"],
+                unit["current"]["uuid"],
                 unit["current"]["name"],
-                parent,
+                parent_uuid,
             ]
         )
     return data

@@ -229,7 +229,7 @@ def test_employees_to_xlsx_rows():
             last_name="Duschek",
             email="",
             cpr="1212126788",
-            org_unit_user_key="VAMD",
+            org_unit_uuid="5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
             is_manager=True,
         ),
         XLSXRow(
@@ -238,7 +238,7 @@ def test_employees_to_xlsx_rows():
             last_name="Duschek",
             email="",
             cpr="1212126788",
-            org_unit_user_key="DIPEX",
+            org_unit_uuid="4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
             is_manager=False,
         ),
         XLSXRow(
@@ -247,7 +247,7 @@ def test_employees_to_xlsx_rows():
             last_name="Nielsen",
             email="annan@kolding.dk",
             cpr="",
-            org_unit_user_key="VAMD",
+            org_unit_uuid="5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
             is_manager=False,
         ),
         XLSXRow(
@@ -256,7 +256,7 @@ def test_employees_to_xlsx_rows():
             last_name="Nielsen",
             email="annan@kolding.dk",
             cpr="",
-            org_unit_user_key="DIPEX",
+            org_unit_uuid="4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
             is_manager=False,
         ),
     ]
@@ -280,10 +280,42 @@ def test_to_xlsx_exporter_format():
             "Afdelingskode",
             "ErLeder"
         ],
-        ["12345", "Birgitta Munk", "Duschek", "", "1212126788", "VAMD", "Ja"],
-        ["98765", "Birgitta Munk", "Duschek", "", "1212126788", "DIPEX", "Nej"],
-        ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "", "VAMD", "Nej"],
-        ["45678", "Anna Brink", "Nielsen", "annan@kolding.dk", "", "DIPEX", "Nej"],
+        [
+            "12345",
+            "Birgitta Munk",
+            "Duschek",
+            "",
+            "1212126788",
+            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+            "Ja"
+        ],
+        [
+            "98765",
+            "Birgitta Munk",
+            "Duschek",
+            "",
+            "1212126788",
+            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+            "Nej"
+        ],
+        [
+            "34567",
+            "Anna Brink",
+            "Nielsen",
+            "annan@kolding.dk",
+            "",
+            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+            "Nej"
+        ],
+        [
+            "45678",
+            "Anna Brink",
+            "Nielsen",
+            "annan@kolding.dk",
+            "",
+            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+            "Nej"
+        ],
     ]
 
 
@@ -311,6 +343,14 @@ def test_org_units_to_xlsx_exporter_format():
     # Assert
     assert org_unit_exporter_data_format == [
         ["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"],
-        ["VIUF", "Viuf Skole", "SKOL"],
-        ["LUND", "Lunderskov Skole", "SKOL"]
+        [
+            "08eaf849-e9f9-53e0-b6b9-3cd45763ecbb",
+            "Viuf Skole",
+            "2665d8e0-435b-5bb6-a550-f275692984ef"
+        ],
+        [
+            "09c347ef-451f-5919-8d41-02cc989a6d8b",
+            "Lunderskov Skole",
+            "2665d8e0-435b-5bb6-a550-f275692984ef"
+        ]
     ]
