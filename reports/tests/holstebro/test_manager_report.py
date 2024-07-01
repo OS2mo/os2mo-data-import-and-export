@@ -5,7 +5,8 @@ from reports.holstebro.manager_report import get_class_uuid, \
     get_employees, GET_EMPLOYEE_QUERY, GET_CLASS_UUID_QUERY, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
-    GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format
+    GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format, \
+    get_ny_level_org_units
 
 EMPLOYEE_OBJ_BATCH1 = [
     {
@@ -109,6 +110,9 @@ OU_BATCH = [
             "name": "Viuf Skole",
             "user_key": "VIUF",
             "uuid": "08eaf849-e9f9-53e0-b6b9-3cd45763ecbb",
+            "org_unit_level": {
+              "user_key": "NY3-niveau"
+            },
             "parent": {
                 "uuid": "2665d8e0-435b-5bb6-a550-f275692984ef",
                 "user_key": "SKOL"
@@ -120,6 +124,23 @@ OU_BATCH = [
             "name": "Lunderskov Skole",
             "user_key": "LUND",
             "uuid": "09c347ef-451f-5919-8d41-02cc989a6d8b",
+            "org_unit_level": {
+              "user_key": "NY3-niveau"
+            },
+            "parent": {
+                "uuid": "2665d8e0-435b-5bb6-a550-f275692984ef",
+                "user_key": "SKOL"
+            }
+        }
+    },
+    {
+        "current": {
+            "name": "Lunderskov Skole",
+            "user_key": "LUND",
+            "uuid": "09c347ef-451f-5919-8d41-02cc989a6d8b",
+            "org_unit_level": {
+                "user_key": "Afdelings-niveau"
+            },
             "parent": {
                 "uuid": "2665d8e0-435b-5bb6-a550-f275692984ef",
                 "user_key": "SKOL"
@@ -341,6 +362,15 @@ def test_get_org_units():
         GET_ORG_UNITS_QUERY,
         variable_values={"hierarchy": str(line_mgmt_hierarchy)}
     )
+
+
+def test_get_ny_level_org_units():
+    # Act
+    ny_level_units = get_ny_level_org_units(OU_BATCH)
+    print(ny_level_units)
+
+    # Assert
+    assert ny_level_units == OU_BATCH[:-1]
 
 
 def test_org_units_to_xlsx_exporter_format():

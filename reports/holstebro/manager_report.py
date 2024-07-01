@@ -67,6 +67,9 @@ GET_ORG_UNITS_QUERY = gql(
             name
             user_key
             uuid
+            org_unit_level {
+              user_key
+            }
             parent {
               uuid
               user_key
@@ -147,6 +150,18 @@ def get_org_units(
         variable_values={"hierarchy": str(hierarchy)}
     )
     return r["org_units"]["objects"]
+
+
+def get_ny_level_org_units(
+    org_units: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    Select only the NY-level org units.
+    """
+    return [
+        ou for ou in org_units
+        if ou["current"]["org_unit_level"]["user_key"].strip()[:2].upper() == "NY"
+    ]
 
 
 def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
@@ -297,6 +312,7 @@ def main(
     logger.info("Get org units from MO")
     line_mgmt_hierarchy = get_class_uuid(gql_client, "linjeorg")
     org_units = get_org_units(gql_client, line_mgmt_hierarchy)
+    org_units = get_ny_level_org_units(org_units)
 
     org_unit_xlsx_exporter_data = org_units_to_xlsx_exporter_format(org_units)
 
