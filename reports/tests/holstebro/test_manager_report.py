@@ -10,7 +10,6 @@ from reports.holstebro.manager_report import get_email_addr_type, \
 EMPLOYEE_OBJ_BATCH1 = [
     {
         "current": {
-            "user_key": "12345",
             "given_name": "Birgitta Munk",
             "name": "Birgitta Munk Duschek",
             "addresses": [],
@@ -26,6 +25,7 @@ EMPLOYEE_OBJ_BATCH1 = [
             ],
             "engagements": [
                 {
+                    "user_key": "12345",
                     "org_unit": [
                         {
                             "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
@@ -36,6 +36,7 @@ EMPLOYEE_OBJ_BATCH1 = [
                     "is_primary": True
                 },
                 {
+                    "user_key": "98765",
                     "org_unit": [
                         {
                             "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
@@ -63,7 +64,6 @@ EMPLOYEE_OBJ_BATCH1 = [
 EMPLOYEE_OBJ_BATCH2 = [
     {
         "current": {
-            "user_key": "34567",
             "given_name": "Anna Brink",
             "name": "Anna Brink Nielsen",
             "addresses": [
@@ -74,6 +74,7 @@ EMPLOYEE_OBJ_BATCH2 = [
             "manager_roles": [],
             "engagements": [
                 {
+                    "user_key": "34567",
                     "org_unit": [
                         {
                             "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
@@ -84,6 +85,7 @@ EMPLOYEE_OBJ_BATCH2 = [
                     "is_primary": True
                 },
                 {
+                    "user_key": "45678",
                     "org_unit": [
                         {
                             "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
@@ -227,7 +229,7 @@ def test_employees_to_xlsx_rows():
             is_manager=True,
         ),
         XLSXRow(
-            employment_id="12345",
+            employment_id="98765",
             first_name="Birgitta Munk",
             last_name="Duschek",
             email=None,
@@ -243,7 +245,7 @@ def test_employees_to_xlsx_rows():
             is_manager=False,
         ),
         XLSXRow(
-            employment_id="34567",
+            employment_id="45678",
             first_name="Anna Brink",
             last_name="Nielsen",
             email="annan@kolding.dk",
@@ -271,9 +273,9 @@ def test_to_xlsx_exporter_format():
             "ErLeder"
         ],
         ["12345", "Birgitta Munk", "Duschek", "", "VAMD", "Ja"],
-        ["12345", "Birgitta Munk", "Duschek", "", "DIPEX", "Nej"],
+        ["98765", "Birgitta Munk", "Duschek", "", "DIPEX", "Nej"],
         ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "VAMD", "Nej"],
-        ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "DIPEX", "Nej"],
+        ["45678", "Anna Brink", "Nielsen", "annan@kolding.dk", "DIPEX", "Nej"],
     ]
 
 

@@ -28,7 +28,6 @@ GET_EMPLOYEE_QUERY = gql(
         }
         objects {
           current {
-            user_key
             given_name
             name
             addresses(filter: {address_type: {uuids: $email_addr_type}}) {
@@ -41,6 +40,7 @@ GET_EMPLOYEE_QUERY = gql(
               }
             }
             engagements {
+              user_key
               org_unit {
                 uuid
                 name
@@ -158,7 +158,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
 
     return [
         XLSXRow(
-            employment_id=emp["current"]["user_key"],
+            employment_id=eng.get("user_key", ""),
             first_name=emp["current"]["given_name"],
             last_name=get_last_name(emp["current"]),
             email=first(emp["current"]["addresses"], dict()).get("name"),
