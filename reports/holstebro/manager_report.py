@@ -30,6 +30,7 @@ GET_EMPLOYEE_QUERY = gql(
           current {
             given_name
             name
+            cpr_number
             addresses(filter: {address_type: {uuids: $email_addr_type}}) {
               name
             }
@@ -156,12 +157,22 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         eng_ou_uuid = one(eng["org_unit"])["uuid"]
         return eng_ou_uuid in manager_ou_uuids
 
+    def get_email_or_cpr(current: dict[str, Any]) -> str:
+        """
+        Get employee email or fall back to CPR, if the email does
+        not exists.
+        """
+        address = first(current["addresses"], None)
+        if address is not None:
+            return address["name"]
+        return current["cpr_number"]
+
     return [
         XLSXRow(
             employment_id=eng.get("user_key", ""),
             first_name=emp["current"]["given_name"],
             last_name=get_last_name(emp["current"]),
-            email=first(emp["current"]["addresses"], dict()).get("name"),
+            email=get_email_or_cpr(emp["current"]),
             org_unit_user_key=get_org_unit_user_key(eng),
             is_manager=is_manager(emp["current"], eng),
         )

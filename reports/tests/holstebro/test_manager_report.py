@@ -12,6 +12,7 @@ EMPLOYEE_OBJ_BATCH1 = [
         "current": {
             "given_name": "Birgitta Munk",
             "name": "Birgitta Munk Duschek",
+            "cpr_number": "1212126788",
             "addresses": [],
             "manager_roles": [
                 {
@@ -54,6 +55,7 @@ EMPLOYEE_OBJ_BATCH1 = [
             "user_key": "23456",
             "given_name": "Mikkel",
             "name": "Mikkel Iversen",
+            "cpr_number": "2201126789",
             "addresses": [],
             "manager_roles": [],
             "engagements": []
@@ -66,6 +68,7 @@ EMPLOYEE_OBJ_BATCH2 = [
         "current": {
             "given_name": "Anna Brink",
             "name": "Anna Brink Nielsen",
+            "cpr_number": "0505126786",
             "addresses": [
                 {
                     "name": "annan@kolding.dk"
@@ -224,7 +227,7 @@ def test_employees_to_xlsx_rows():
             employment_id="12345",
             first_name="Birgitta Munk",
             last_name="Duschek",
-            email=None,
+            email="1212126788",
             org_unit_user_key="VAMD",
             is_manager=True,
         ),
@@ -232,7 +235,7 @@ def test_employees_to_xlsx_rows():
             employment_id="98765",
             first_name="Birgitta Munk",
             last_name="Duschek",
-            email=None,
+            email="1212126788",
             org_unit_user_key="DIPEX",
             is_manager=False,
         ),
@@ -272,8 +275,8 @@ def test_to_xlsx_exporter_format():
             "Afdelingskode",
             "ErLeder"
         ],
-        ["12345", "Birgitta Munk", "Duschek", "", "VAMD", "Ja"],
-        ["98765", "Birgitta Munk", "Duschek", "", "DIPEX", "Nej"],
+        ["12345", "Birgitta Munk", "Duschek", "1212126788", "VAMD", "Ja"],
+        ["98765", "Birgitta Munk", "Duschek", "1212126788", "DIPEX", "Nej"],
         ["34567", "Anna Brink", "Nielsen", "annan@kolding.dk", "VAMD", "Nej"],
         ["45678", "Anna Brink", "Nielsen", "annan@kolding.dk", "DIPEX", "Nej"],
     ]
