@@ -76,10 +76,10 @@ GET_ORG_UNITS_QUERY = gql(
     """
 )
 
-GET_EMAIL_ADDR_TYPE_QUERY = gql(
+GET_CLASS_UUID_QUERY = gql(
     """
-    query GetEmailAddrType {
-      classes(filter: {user_keys: "EmailEmployee"}) {
+    query GetClassUUID($user_key: [String!]) {
+      classes(filter: {user_keys: $user_key}) {
         objects {
           current {
             uuid
@@ -101,8 +101,11 @@ class XLSXRow(BaseModel):
     is_manager: bool
 
 
-def get_email_addr_type(gql_client: GraphQLClient) -> UUID:
-    r = gql_client.execute(GET_EMAIL_ADDR_TYPE_QUERY)
+def get_class_uuid(gql_client: GraphQLClient, user_key: str) -> UUID:
+    r = gql_client.execute(
+        GET_CLASS_UUID_QUERY,
+        variable_values={"user_key": user_key},
+    )
     return UUID(one(r["classes"]["objects"])["current"]["uuid"])
 
 
@@ -267,7 +270,7 @@ def main(
 
     # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
-    email_addr_type = get_email_addr_type(gql_client)
+    email_addr_type = get_class_uuid(gql_client, "EmailEmployee")
     employees = get_employees(gql_client, email_addr_type, 300)
 
     logger.info("Convert GraphQL employee data to the exporter format")

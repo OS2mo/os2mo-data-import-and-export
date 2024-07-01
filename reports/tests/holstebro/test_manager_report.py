@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, call
 from uuid import UUID, uuid4
 
-from reports.holstebro.manager_report import get_email_addr_type, \
-    get_employees, GET_EMPLOYEE_QUERY, GET_EMAIL_ADDR_TYPE_QUERY, \
+from reports.holstebro.manager_report import get_class_uuid, \
+    get_employees, GET_EMPLOYEE_QUERY, GET_CLASS_UUID_QUERY, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
     GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format
@@ -145,11 +145,14 @@ def test_get_email_addr_type():
     }
 
     # Act
-    addr_type_uuid = get_email_addr_type(mock_gql_client)
+    addr_type_uuid = get_class_uuid(mock_gql_client, "EmailEmployee")
 
     # Assert
     assert addr_type_uuid == UUID("f376deb8-4743-4ca6-a047-3241de8fe9d2")
-    mock_gql_client.execute.assert_called_once_with(GET_EMAIL_ADDR_TYPE_QUERY)
+    mock_gql_client.execute.assert_called_once_with(
+        GET_CLASS_UUID_QUERY,
+        variable_values={"user_key": "EmailEmployee"},
+    )
 
 
 def test_get_employees():
