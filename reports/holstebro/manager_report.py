@@ -46,6 +46,9 @@ GET_EMPLOYEE_QUERY = gql(
                 uuid
                 name
                 user_key
+                org_unit_level {
+                  user_key
+                }
               }
               is_primary
             }
@@ -212,6 +215,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
+        if one(eng["org_unit"])["org_unit_level"]["user_key"].strip()[:2].upper() == "NY"
     ]
 
 
@@ -291,9 +295,11 @@ def main(
         gql_version=gql_version,
     )
 
+    email_addr_type = get_class_uuid(gql_client, "EmailEmployee")
+    line_mgmt_hierarchy = get_class_uuid(gql_client, "linjeorg")
+
     # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
-    email_addr_type = get_class_uuid(gql_client, "EmailEmployee")
     employees = get_employees(gql_client, email_addr_type, 300)
 
     logger.info("Convert GraphQL employee data to the exporter format")
@@ -310,7 +316,6 @@ def main(
 
     # Report for org units
     logger.info("Get org units from MO")
-    line_mgmt_hierarchy = get_class_uuid(gql_client, "linjeorg")
     org_units = get_org_units(gql_client, line_mgmt_hierarchy)
     org_units = get_ny_level_org_units(org_units)
 

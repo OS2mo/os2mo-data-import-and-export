@@ -32,7 +32,10 @@ EMPLOYEE_OBJ_BATCH1 = [
                         {
                             "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
                             "name": "Vamdrup skole",
-                            "user_key": "VAMD"
+                            "user_key": "VAMD",
+                            "org_unit_level": {
+                                "user_key": "NY3½-niveau"
+                            },
                         }
                     ],
                     "is_primary": True
@@ -43,8 +46,25 @@ EMPLOYEE_OBJ_BATCH1 = [
                         {
                             "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
                             "name": "Magenta DIPEX Department",
-                            "user_key": "DIPEX"
-                        }
+                            "user_key": "DIPEX",
+                            "org_unit_level": {
+                                "user_key": "NY3½-niveau"
+                            },
+                        },
+                    ],
+                    "is_primary": False
+                },
+                {
+                    "user_key": "87654",
+                    "org_unit": [
+                        {
+                            "uuid": "ee557412-6ae4-4008-b811-3d2d7a151cd0",
+                            "name": "Another Magenta DIPEX Department",
+                            "user_key": "DIPEX2",
+                            "org_unit_level": {
+                                "user_key": "Afdelings-niveau"
+                            },
+                        },
                     ],
                     "is_primary": False
                 },
@@ -83,7 +103,10 @@ EMPLOYEE_OBJ_BATCH2 = [
                         {
                             "uuid": "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
                             "name": "Vamdrup skole",
-                            "user_key": "VAMD"
+                            "user_key": "VAMD",
+                            "org_unit_level": {
+                                "user_key": "NY3½-niveau"
+                            },
                         }
                     ],
                     "is_primary": True
@@ -94,7 +117,10 @@ EMPLOYEE_OBJ_BATCH2 = [
                         {
                             "uuid": "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
                             "name": "Magenta DIPEX Department",
-                            "user_key": "DIPEX"
+                            "user_key": "DIPEX",
+                            "org_unit_level": {
+                                "user_key": "NY3½-niveau"
+                            },
                         }
                     ],
                     "is_primary": False
@@ -367,7 +393,6 @@ def test_get_org_units():
 def test_get_ny_level_org_units():
     # Act
     ny_level_units = get_ny_level_org_units(OU_BATCH)
-    print(ny_level_units)
 
     # Assert
     assert ny_level_units == OU_BATCH[:-1]
