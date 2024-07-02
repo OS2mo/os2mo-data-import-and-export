@@ -1,10 +1,8 @@
 from unittest.mock import MagicMock, call, patch
-from uuid import UUID, uuid4
+from uuid import uuid4
 
-import xlsxwriter
-
-from reports.holstebro.manager_report import get_class_uuid, \
-    get_employees, GET_EMPLOYEE_QUERY, GET_CLASS_UUID_QUERY, \
+from reports.holstebro.manager_report import get_employees, \
+    GET_EMPLOYEE_QUERY, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
     GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format, \
@@ -227,36 +225,8 @@ EXPECTED_EMPLOYEE_EXPORTER_DATA_FORMAT = [
     ]
 
 
-def test_get_email_addr_type():
-    # Arrange
-    mock_gql_client = MagicMock()
-    mock_gql_client.execute.return_value = {
-        "classes": {
-            "objects": [
-                {
-                    "current": {
-                        "uuid": "f376deb8-4743-4ca6-a047-3241de8fe9d2"
-                    }
-                }
-            ]
-        }
-    }
-
-    # Act
-    addr_type_uuid = get_class_uuid(mock_gql_client, "EmailEmployee")
-
-    # Assert
-    assert addr_type_uuid == UUID("f376deb8-4743-4ca6-a047-3241de8fe9d2")
-    mock_gql_client.execute.assert_called_once_with(
-        GET_CLASS_UUID_QUERY,
-        variable_values={"user_key": "EmailEmployee"},
-    )
-
-
 def test_get_employees():
     # Arrange
-    email_addr_type = uuid4()
-
     mock_gql_client = MagicMock()
     mock_gql_client.execute.side_effect = [
         {
@@ -286,7 +256,7 @@ def test_get_employees():
     ]
 
     # Act
-    employees = get_employees(mock_gql_client, email_addr_type, limit=2)
+    employees = get_employees(mock_gql_client, "EmailEmployee", limit=2)
 
     # Assert
     assert employees == EMPLOYEE_OBJ_BATCH1 + EMPLOYEE_OBJ_BATCH2
@@ -296,7 +266,7 @@ def test_get_employees():
             variable_values={
                 "cursor": None,
                 "limit": 2,
-                "email_addr_type": str(email_addr_type)
+                "email_addr_type_user_key": "EmailEmployee",
             }
         ),
         call(
@@ -304,7 +274,7 @@ def test_get_employees():
             variable_values={
                 "cursor": "cursor1",
                 "limit": 2,
-                "email_addr_type": str(email_addr_type)
+                "email_addr_type_user_key": "EmailEmployee",
             }
         ),
         call(
@@ -312,7 +282,7 @@ def test_get_employees():
             variable_values={
                 "cursor": "cursor2",
                 "limit": 2,
-                "email_addr_type": str(email_addr_type)
+                "email_addr_type_user_key": "EmailEmployee",
             }
         ),
     ]
@@ -452,32 +422,10 @@ def test_main(
     mock_gql_client = MagicMock()
     mock_gql_client.execute.side_effect = [
         {
-            "classes": {
-                "objects": [
-                    {
-                        "current": {
-                            "uuid": "f376deb8-4743-4ca6-a047-3241de8fe9d2"
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "classes": {
-                "objects": [
-                    {
-                        "current": {
-                            "uuid": "d7b3d6b7-1b1d-4346-a191-076ee0841148"
-                        }
-                    }
-                ]
-            }
-        },
-        {
             "employees": {
                 "objects": EMPLOYEE_OBJ_BATCH1,
                 "page_info": {
-                    "next_cursor": "cussor1"
+                    "next_cursor": "cursor1"
                 }
             },
         },

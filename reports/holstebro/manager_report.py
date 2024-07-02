@@ -23,7 +23,11 @@ ny_level_regex = re.compile(r"NY\d.*")
 
 GET_EMPLOYEE_QUERY = gql(
     """
-    query GetEmployees($cursor: Cursor, $limit: int, $email_addr_type: [UUID!]) {
+    query GetEmployees(
+      $cursor: Cursor,
+      $limit: int,
+      $email_addr_type_user_key: [String!]
+    ) {
       employees(cursor: $cursor, limit: $limit) {
         page_info {
           next_cursor
@@ -33,7 +37,13 @@ GET_EMPLOYEE_QUERY = gql(
             given_name
             name
             cpr_number
-            addresses(filter: {address_type: {uuids: $email_addr_type}}) {
+            addresses(
+              filter: {
+                address_type: {
+                  user_keys: $email_addr_type_user_key
+                }
+              }
+            ) {
               name
             }
             manager_roles {
@@ -86,20 +96,6 @@ GET_ORG_UNITS_QUERY = gql(
     """
 )
 
-GET_CLASS_UUID_QUERY = gql(
-    """
-    query GetClassUUID($user_key: [String!]) {
-      classes(filter: {user_keys: $user_key}) {
-        objects {
-          current {
-            uuid
-          }
-        }
-      }
-    }
-    """
-)
-
 
 class XLSXRow(BaseModel):
     employment_id: str
@@ -111,17 +107,9 @@ class XLSXRow(BaseModel):
     is_manager: bool
 
 
-def get_class_uuid(gql_client: GraphQLClient, user_key: str) -> UUID:
-    r = gql_client.execute(
-        GET_CLASS_UUID_QUERY,
-        variable_values={"user_key": user_key},
-    )
-    return UUID(one(r["classes"]["objects"])["current"]["uuid"])
-
-
 def get_employees(
     gql_client: GraphQLClient,
-    email_addr_type: UUID,
+    email_addr_type_user_key: str,
     limit: int
 ) -> list[dict[str, Any]]:
     employees = []
@@ -132,7 +120,7 @@ def get_employees(
             variable_values={
                 "cursor": next_cursor,
                 "limit": limit,
-                "email_addr_type": str(email_addr_type),
+                "email_addr_type_user_key": email_addr_type_user_key,
             }
         )
         employees.extend(r["employees"]["objects"])
@@ -303,11 +291,9 @@ def main(
         gql_version=gql_version,
     )
 
-    email_addr_type = get_class_uuid(gql_client, "EmailEmployee")
-
     # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
-    employees = get_employees(gql_client, email_addr_type, 300)
+    employees = get_employees(gql_client, "EmailEmployee", 300)
 
     logger.info("Convert GraphQL employee data to the exporter format")
     employee_xlsx_rows = employees_to_xlsx_rows(employees)
