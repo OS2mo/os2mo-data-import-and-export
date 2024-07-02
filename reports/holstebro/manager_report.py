@@ -281,6 +281,10 @@ def upload_report(
         workbook.close()
 
 
+def get_settings(*args, **kwargs) -> JobSettings:
+    return JobSettings(*args, **kwargs)
+
+
 def main(
     settings: JobSettings,
     gql_version: int,
@@ -333,6 +337,6 @@ def main(
 
 
 if __name__ == "__main__":
-    settings = JobSettings(log_level=LogLevel.INFO)
+    settings = get_settings(log_level=LogLevel.INFO)
     settings.start_logging_based_on_settings()
     main(settings=settings, gql_version=22)
