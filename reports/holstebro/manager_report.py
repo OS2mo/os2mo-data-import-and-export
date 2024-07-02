@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from uuid import UUID
 
@@ -18,6 +19,7 @@ from reports.query_actualstate import XLSXExporter
 
 
 logger = get_logger()
+ny_level_regex = re.compile(r"NY\d.*")
 
 GET_EMPLOYEE_QUERY = gql(
     """
@@ -163,7 +165,7 @@ def get_ny_level_org_units(
     """
     return [
         ou for ou in org_units
-        if ou["current"]["org_unit_level"]["user_key"].strip()[:2].upper() == "NY"
+        if ny_level_regex.match(ou["current"]["org_unit_level"]["user_key"])
     ]
 
 
@@ -215,7 +217,9 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
-        if one(eng["org_unit"])["org_unit_level"]["user_key"].strip()[:2].upper() == "NY"
+        if ny_level_regex.match(
+            one(eng["org_unit"])["org_unit_level"]["user_key"]
+        )
     ]
 
 

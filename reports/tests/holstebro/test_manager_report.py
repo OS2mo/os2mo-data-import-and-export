@@ -8,7 +8,7 @@ from reports.holstebro.manager_report import get_class_uuid, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
     GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format, \
-    get_ny_level_org_units, main
+    get_ny_level_org_units, main, ny_level_regex
 from reports.query_actualstate import XLSXExporter
 
 EMPLOYEE_OBJ_BATCH1 = [
@@ -524,3 +524,10 @@ def test_main(
             "2665d8e0-435b-5bb6-a550-f275692984ef"
         ],
     ]
+
+
+def test_ny_regex():
+    assert ny_level_regex.match("NY1-niveau")
+    assert ny_level_regex.match("NY3½-niveau")
+    assert not ny_level_regex.match("Afdelings-niveau")
+    assert not ny_level_regex.match("Something else")
