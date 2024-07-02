@@ -1,12 +1,15 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 from uuid import UUID, uuid4
+
+import xlsxwriter
 
 from reports.holstebro.manager_report import get_class_uuid, \
     get_employees, GET_EMPLOYEE_QUERY, GET_CLASS_UUID_QUERY, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
     GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format, \
-    get_ny_level_org_units
+    get_ny_level_org_units, main
+from reports.query_actualstate import XLSXExporter
 
 EMPLOYEE_OBJ_BATCH1 = [
     {
@@ -175,6 +178,54 @@ OU_BATCH = [
     },
 ]
 
+EXPECTED_EMPLOYEE_EXPORTER_DATA_FORMAT = [
+        [
+            "Medarbejdernummer",
+            "Fornavn",
+            "Efternavn",
+            "Mail",
+            "CPR",
+            "Afdelingskode",
+            "ErLeder"
+        ],
+        [
+            "12345",
+            "Birgitta Munk",
+            "Duschek",
+            "",
+            "1212126788",
+            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+            "Ja"
+        ],
+        [
+            "98765",
+            "Birgitta Munk",
+            "Duschek",
+            "",
+            "1212126788",
+            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+            "Nej"
+        ],
+        [
+            "34567",
+            "Anna Brink",
+            "Nielsen",
+            "annan@kolding.dk",
+            "",
+            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
+            "Nej"
+        ],
+        [
+            "45678",
+            "Anna Brink",
+            "Nielsen",
+            "annan@kolding.dk",
+            "",
+            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
+            "Nej"
+        ],
+    ]
+
 
 def test_get_email_addr_type():
     # Arrange
@@ -320,53 +371,7 @@ def test_to_xlsx_exporter_format():
     employee_exporter_data_format = employee_to_xlsx_exporter_format(xlsx_rows)
 
     # Assert
-    assert employee_exporter_data_format == [
-        [
-            "Medarbejdernummer",
-            "Fornavn",
-            "Efternavn",
-            "Mail",
-            "CPR",
-            "Afdelingskode",
-            "ErLeder"
-        ],
-        [
-            "12345",
-            "Birgitta Munk",
-            "Duschek",
-            "",
-            "1212126788",
-            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
-            "Ja"
-        ],
-        [
-            "98765",
-            "Birgitta Munk",
-            "Duschek",
-            "",
-            "1212126788",
-            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
-            "Nej"
-        ],
-        [
-            "34567",
-            "Anna Brink",
-            "Nielsen",
-            "annan@kolding.dk",
-            "",
-            "5cb38a3c-cacd-5d54-9eb3-88eae2baba1b",
-            "Nej"
-        ],
-        [
-            "45678",
-            "Anna Brink",
-            "Nielsen",
-            "annan@kolding.dk",
-            "",
-            "4aa056ef-e6d2-4ae6-8e86-0ed5a2a567fd",
-            "Nej"
-        ],
-    ]
+    assert employee_exporter_data_format == EXPECTED_EMPLOYEE_EXPORTER_DATA_FORMAT
 
 
 def test_get_org_units():
@@ -420,4 +425,102 @@ def test_org_units_to_xlsx_exporter_format():
             'Magenta Skole',
             '2665d8e0-435b-5bb6-a550-f275692984ef',
         ]
+    ]
+
+
+@patch("reports.holstebro.manager_report.xlsxwriter.Workbook")
+@patch("reports.holstebro.manager_report.file_uploader")
+@patch.object(XLSXExporter, "add_sheet")
+@patch(
+    "reports.holstebro.manager_report.get_settings",
+    return_value=MagicMock(
+        crontab_AUTH_SERVER="host",
+        client_id="client",
+        client_secret="secret",
+        mora_base="some url"
+    )
+)
+@patch("reports.holstebro.manager_report.get_mo_client")
+def test_main(
+    mock_get_mo_client: MagicMock,
+    mock_get_settings: MagicMock,
+    mock_add_sheet: MagicMock,
+    mock_file_uploader: MagicMock,
+    mock_workbook: MagicMock,
+):
+    # Arrange
+    mock_gql_client = MagicMock()
+    mock_gql_client.execute.side_effect = [
+        {
+            "classes": {
+                "objects": [
+                    {
+                        "current": {
+                            "uuid": "f376deb8-4743-4ca6-a047-3241de8fe9d2"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "classes": {
+                "objects": [
+                    {
+                        "current": {
+                            "uuid": "d7b3d6b7-1b1d-4346-a191-076ee0841148"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "employees": {
+                "objects": EMPLOYEE_OBJ_BATCH1,
+                "page_info": {
+                    "next_cursor": "cussor1"
+                }
+            },
+        },
+        {
+            "employees": {
+                "objects": EMPLOYEE_OBJ_BATCH2,
+                "page_info": {
+                    "next_cursor": None
+                }
+            }
+        },
+        {
+            "org_units": {"objects": OU_BATCH}
+        }
+    ]
+    mock_get_mo_client.return_value = mock_gql_client
+
+    settings = mock_get_settings()
+
+    # Act
+    main(settings, 22)
+
+    # Assert
+    assert len(mock_add_sheet.call_args_list) == 2
+
+    call1 = mock_add_sheet.call_args_list[0]
+    assert len(call1.args) == 3
+    assert call1.args[1] == "Ledere"
+    assert call1.args[2] == EXPECTED_EMPLOYEE_EXPORTER_DATA_FORMAT
+
+    call2 = mock_add_sheet.call_args_list[1]
+    assert len(call2.args) == 3
+    assert call2.args[1] == "Enheder"
+    assert call2.args[2] == [
+        ["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"],
+        [
+            "08eaf849-e9f9-53e0-b6b9-3cd45763ecbb",
+            "Viuf Skole",
+            "2665d8e0-435b-5bb6-a550-f275692984ef"
+        ],
+        [
+            "09c347ef-451f-5919-8d41-02cc989a6d8b",
+            "Lunderskov Skole",
+            "2665d8e0-435b-5bb6-a550-f275692984ef"
+        ],
     ]
