@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from uuid import UUID
 
@@ -18,10 +19,15 @@ from reports.query_actualstate import XLSXExporter
 
 
 logger = get_logger()
+ny_level_regex = re.compile(r"NY\d.*")
 
 GET_EMPLOYEE_QUERY = gql(
     """
-    query GetEmployees($cursor: Cursor, $limit: int, $email_addr_type: [UUID!]) {
+    query GetEmployees(
+      $cursor: Cursor,
+      $limit: int,
+      $email_addr_type_user_key: [String!]
+    ) {
       employees(cursor: $cursor, limit: $limit) {
         page_info {
           next_cursor
@@ -31,7 +37,13 @@ GET_EMPLOYEE_QUERY = gql(
             given_name
             name
             cpr_number
-            addresses(filter: {address_type: {uuids: $email_addr_type}}) {
+            addresses(
+              filter: {
+                address_type: {
+                  user_keys: $email_addr_type_user_key
+                }
+              }
+            ) {
               name
             }
             manager_roles {
@@ -46,6 +58,9 @@ GET_EMPLOYEE_QUERY = gql(
                 uuid
                 name
                 user_key
+                org_unit_level {
+                  user_key
+                }
               }
               is_primary
             }
@@ -58,31 +73,22 @@ GET_EMPLOYEE_QUERY = gql(
 
 GET_ORG_UNITS_QUERY = gql(
     """
-    query GetOrgUnits {
-      org_units {
+    query GetOrgUnits($hierarchy_user_key: [String!]) {
+      org_units(
+        filter: {hierarchy: {user_keys: $hierarchy_user_key}}
+      ) {
         objects {
           current {
             name
             user_key
             uuid
+            org_unit_level {
+              user_key
+            }
             parent {
               uuid
               user_key
             }
-          }
-        }
-      }
-    }
-    """
-)
-
-GET_EMAIL_ADDR_TYPE_QUERY = gql(
-    """
-    query GetEmailAddrType {
-      classes(filter: {user_keys: "EmailEmployee"}) {
-        objects {
-          current {
-            uuid
           }
         }
       }
@@ -97,18 +103,13 @@ class XLSXRow(BaseModel):
     last_name: str
     email: str | None
     cpr: str | None
-    org_unit_user_key: str | None
+    org_unit_uuid: UUID
     is_manager: bool
-
-
-def get_email_addr_type(gql_client: GraphQLClient) -> UUID:
-    r = gql_client.execute(GET_EMAIL_ADDR_TYPE_QUERY)
-    return UUID(one(r["classes"]["objects"])["current"]["uuid"])
 
 
 def get_employees(
     gql_client: GraphQLClient,
-    email_addr_type: UUID,
+    email_addr_type_user_key: str,
     limit: int
 ) -> list[dict[str, Any]]:
     employees = []
@@ -119,7 +120,7 @@ def get_employees(
             variable_values={
                 "cursor": next_cursor,
                 "limit": limit,
-                "email_addr_type": str(email_addr_type),
+                "email_addr_type_user_key": email_addr_type_user_key,
             }
         )
         employees.extend(r["employees"]["objects"])
@@ -133,9 +134,27 @@ def get_employees(
     return employees
 
 
-def get_org_units(gql_client: GraphQLClient) -> list[dict[str, Any]]:
-    r = gql_client.execute(GET_ORG_UNITS_QUERY)
+def get_org_units(
+    gql_client: GraphQLClient,
+    hierarchy_user_key: str,
+) -> list[dict[str, Any]]:
+    r = gql_client.execute(
+        GET_ORG_UNITS_QUERY,
+        variable_values={"hierarchy_user_key": hierarchy_user_key}
+    )
     return r["org_units"]["objects"]
+
+
+def get_ny_level_org_units(
+    org_units: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """
+    Select only the NY-level org units.
+    """
+    return [
+        ou for ou in org_units
+        if ny_level_regex.match(ou["current"]["org_unit_level"]["user_key"])
+    ]
 
 
 def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
@@ -181,11 +200,14 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
             last_name=get_last_name(emp["current"]),
             email=get_email(emp["current"]),
             cpr=get_cpr(emp["current"]),
-            org_unit_user_key=get_org_unit_user_key(eng),
+            org_unit_uuid=UUID(one(eng["org_unit"])["uuid"]),
             is_manager=is_manager(emp["current"], eng),
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
+        if ny_level_regex.match(
+            one(eng["org_unit"])["org_unit_level"]["user_key"]
+        )
     ]
 
 
@@ -209,7 +231,7 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
                 row.last_name,
                 row.email,
                 row.cpr,
-                row.org_unit_user_key,
+                str(row.org_unit_uuid),
                 "Ja" if row.is_manager else "Nej",
             ]
         )
@@ -220,12 +242,12 @@ def org_units_to_xlsx_exporter_format(units: list[dict[str, Any]]) -> list[list[
     data = [["Afdelingskode", "Afdelingsnavn", "Forældreafdelingskode"]]
     for unit in units:
         parent_obj = unit["current"]["parent"]
-        parent = parent_obj["user_key"] if parent_obj is not None else ""
+        parent_uuid = parent_obj["uuid"] if parent_obj is not None else ""
         data.append(
             [
-                unit["current"]["user_key"],
+                unit["current"]["uuid"],
                 unit["current"]["name"],
-                parent,
+                parent_uuid,
             ]
         )
     return data
@@ -251,6 +273,10 @@ def upload_report(
         workbook.close()
 
 
+def get_settings(*args, **kwargs) -> JobSettings:
+    return JobSettings(*args, **kwargs)
+
+
 def main(
     settings: JobSettings,
     gql_version: int,
@@ -267,8 +293,7 @@ def main(
 
     # Report for employees and managers
     logger.info("Get employees from MO - this may take a while...")
-    email_addr_type = get_email_addr_type(gql_client)
-    employees = get_employees(gql_client, email_addr_type, 300)
+    employees = get_employees(gql_client, "EmailEmployee", 300)
 
     logger.info("Convert GraphQL employee data to the exporter format")
     employee_xlsx_rows = employees_to_xlsx_rows(employees)
@@ -284,7 +309,8 @@ def main(
 
     # Report for org units
     logger.info("Get org units from MO")
-    org_units = get_org_units(gql_client)
+    org_units = get_org_units(gql_client, "linjeorg")
+    org_units = get_ny_level_org_units(org_units)
 
     org_unit_xlsx_exporter_data = org_units_to_xlsx_exporter_format(org_units)
 
@@ -300,6 +326,6 @@ def main(
 
 
 if __name__ == "__main__":
-    settings = JobSettings(log_level=LogLevel.INFO)
+    settings = get_settings(log_level=LogLevel.INFO)
     settings.start_logging_based_on_settings()
     main(settings=settings, gql_version=22)
