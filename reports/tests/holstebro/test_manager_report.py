@@ -161,9 +161,9 @@ OU_BATCH = [
     },
     {
         "current": {
-            "name": "Lunderskov Skole",
-            "user_key": "LUND",
-            "uuid": "09c347ef-451f-5919-8d41-02cc989a6d8b",
+            "name": "Magenta Skole",
+            "user_key": "MAG",
+            "uuid": "c63d891c-aaf2-4243-bdee-2840f4f55b29",
             "org_unit_level": {
                 "user_key": "Afdelings-niveau"
             },
@@ -414,5 +414,10 @@ def test_org_units_to_xlsx_exporter_format():
             "09c347ef-451f-5919-8d41-02cc989a6d8b",
             "Lunderskov Skole",
             "2665d8e0-435b-5bb6-a550-f275692984ef"
+        ],
+        [
+            'c63d891c-aaf2-4243-bdee-2840f4f55b29',
+            'Magenta Skole',
+            '2665d8e0-435b-5bb6-a550-f275692984ef',
         ]
     ]
