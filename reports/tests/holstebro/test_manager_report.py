@@ -385,13 +385,13 @@ def test_get_org_units():
     }
 
     # Act
-    org_units = get_org_units(mock_gql_client, line_mgmt_hierarchy)
+    org_units = get_org_units(mock_gql_client, "linjeorg")
 
     # Assert
     assert org_units == OU_BATCH
     mock_gql_client.execute.assert_called_once_with(
         GET_ORG_UNITS_QUERY,
-        variable_values={"hierarchy": str(line_mgmt_hierarchy)}
+        variable_values={"hierarchy_user_key": "linjeorg"}
     )
 
 
