@@ -96,6 +96,7 @@ class XLSXRow(BaseModel):
     first_name: str
     last_name: str
     email: str | None
+    cpr: str | None
     org_unit_user_key: str | None
     is_manager: bool
 
@@ -157,22 +158,29 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         eng_ou_uuid = one(eng["org_unit"])["uuid"]
         return eng_ou_uuid in manager_ou_uuids
 
-    def get_email_or_cpr(current: dict[str, Any]) -> str:
+    def get_email(current: dict[str, Any]) -> str:
         """
-        Get employee email or fall back to CPR, if the email does
-        not exists.
+        Get employee email (or the empty string if no email is found).
         """
         address = first(current["addresses"], None)
-        if address is not None:
-            return address["name"]
-        return current["cpr_number"]
+        return address["name"] if address is not None else ""
+
+    def get_cpr(current: dict[str, Any]) -> str:
+        """
+        This function only returns the CPR number, if the employee
+        does not have an email address. If an email address exists for
+        the employee, the empty string will be returned.
+        """
+        address = first(current["addresses"], None)
+        return current["cpr_number"] if address is None else ""
 
     return [
         XLSXRow(
             employment_id=eng.get("user_key", ""),
             first_name=emp["current"]["given_name"],
             last_name=get_last_name(emp["current"]),
-            email=get_email_or_cpr(emp["current"]),
+            email=get_email(emp["current"]),
+            cpr=get_cpr(emp["current"]),
             org_unit_user_key=get_org_unit_user_key(eng),
             is_manager=is_manager(emp["current"], eng),
         )
@@ -188,6 +196,7 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
             "Fornavn",
             "Efternavn",
             "Mail",
+            "CPR",
             "Afdelingskode",
             "ErLeder"
         ]
@@ -198,7 +207,8 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
                 row.employment_id,
                 row.first_name,
                 row.last_name,
-                row.email if row.email is not None else "",
+                row.email,
+                row.cpr,
                 row.org_unit_user_key,
                 "Ja" if row.is_manager else "Nej",
             ]
