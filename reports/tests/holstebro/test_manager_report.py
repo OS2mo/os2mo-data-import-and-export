@@ -6,7 +6,7 @@ from reports.holstebro.manager_report import get_employees, \
     employees_to_xlsx_rows, XLSXRow, employee_to_xlsx_exporter_format, \
     get_org_units, \
     GET_ORG_UNITS_QUERY, org_units_to_xlsx_exporter_format, \
-    get_ny_level_org_units, main, ny_level_regex
+    get_ny_level_org_units, main, ny_level_regex, sd_emp_id_regex
 from reports.query_actualstate import XLSXExporter
 
 EMPLOYEE_OBJ_BATCH1 = [
@@ -64,6 +64,20 @@ EMPLOYEE_OBJ_BATCH1 = [
                             "user_key": "DIPEX2",
                             "org_unit_level": {
                                 "user_key": "Afdelings-niveau"
+                            },
+                        },
+                    ],
+                    "is_primary": False
+                },
+                {
+                    "user_key": str(uuid4()),
+                    "org_unit": [
+                        {
+                            "uuid": "5ec16e3d-b08a-4f68-9732-fc5a48a4e887",
+                            "name": "Department for manually created engagments",
+                            "user_key": "MAN",
+                            "org_unit_level": {
+                                "user_key": "NY1-niveau"
                             },
                         },
                     ],
@@ -479,3 +493,14 @@ def test_ny_regex():
     assert ny_level_regex.match("NY3½-niveau")
     assert not ny_level_regex.match("Afdelings-niveau")
     assert not ny_level_regex.match("Something else")
+
+
+def test_sd_emp_id_regex():
+    assert sd_emp_id_regex.match("12345")
+    assert sd_emp_id_regex.match("02345")
+    assert not sd_emp_id_regex.match("1234")
+    assert not sd_emp_id_regex.match("123456")
+    assert not sd_emp_id_regex.match("E2345")
+    assert not sd_emp_id_regex.match("ABCDE")
+    assert not sd_emp_id_regex.match("-")
+    assert not sd_emp_id_regex.match(str(uuid4()))
