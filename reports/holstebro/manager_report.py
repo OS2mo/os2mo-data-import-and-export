@@ -20,6 +20,7 @@ from reports.query_actualstate import XLSXExporter
 
 logger = get_logger()
 ny_level_regex = re.compile(r"NY\d.*")
+sd_emp_id_regex = re.compile(r"^\d{5}$")
 
 GET_EMPLOYEE_QUERY = gql(
     """
@@ -207,7 +208,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         for eng in emp["current"]["engagements"]
         if ny_level_regex.match(
             one(eng["org_unit"])["org_unit_level"]["user_key"]
-        )
+        ) and sd_emp_id_regex.match(eng.get("user_key", ""))
     ]
 
 
