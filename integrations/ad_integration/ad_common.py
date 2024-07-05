@@ -11,6 +11,7 @@ import more_itertools
 
 try:
     from winrm import Session
+    from winrm.exceptions import WinRMOperationTimeoutError
     from winrm.exceptions import WinRMTransportError
     from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
 except ImportError:
@@ -142,7 +143,7 @@ class AD:
 
     def _get_retry_exceptions(self):
         """Tuple of exceptions which should trigger retrying create_session."""
-        return (WinRMTransportError,)
+        return (WinRMOperationTimeoutError, WinRMTransportError)
 
     def _create_session(self):
         """Method to create a session for running powershell scripts.
