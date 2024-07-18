@@ -43,18 +43,6 @@ restore_lora_db(){
     docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql -v ON_ERROR_STOP=1 mox < /database_snapshot/'${SNAPSHOT_LORA##*/}
 }
 
-# restore run-db so import knows where it is at
-restore_sd_run_db(){
-    RUN_DB=$(SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
-    if [ -z "$RUN_DB" ]; then
-        RUN_DB=$(SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
-    fi
-    if [ -z "$RUN_DB" ]; then
-        exit 2
-    fi
-    tar -xOf ${bupfile} ${RUN_DB#/} > $RUN_DB
-}
-
 # restore the map between cpr and uuid
 restore_cpr_mo_ad_map_to_cpr_uuid_map(){
     echo cpr_mo_ad_map.csv is not restored. You are supposed to always use the latest
@@ -70,5 +58,4 @@ restore_cpr_mo_ad_map_to_cpr_uuid_map(){
 
 check_restore_validity || exit 2
 restore_lora_db
-restore_sd_run_db
 restore_cpr_mo_ad_map_to_cpr_uuid_map
