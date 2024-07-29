@@ -420,7 +420,7 @@ class OpusDiffImport(object):
         engagement_type_uuid = self.ensure_class_in_facet("engagement_type", contract)
         return str(job_function_uuid), str(engagement_type_uuid)
 
-    def update_engagement(self, engagement, employee):
+    def update_engagement(self, mo_engagement, opus_employee):
         """
         Update a MO engagement according to opus employee object.
         It often happens that the change that provoked lastChanged to
@@ -430,10 +430,10 @@ class OpusDiffImport(object):
         :param employee: Relevent Opus employee object.
         :return: True if update happended, False if not.
         """
-        job_function, eng_type = self._job_and_engagement_type(employee)
-        unit_uuid = opus_helpers.generate_uuid(employee["orgUnit"])
+        job_function, eng_type = self._job_and_engagement_type(opus_employee)
+        unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
 
-        validity = self.validity(employee, edit=True)
+        validity = self.validity(opus_employee, edit=True)
         data = {
             "engagement_type": {"uuid": eng_type},
             "job_function": {"uuid": job_function},
@@ -447,32 +447,34 @@ class OpusDiffImport(object):
             logger.error(msg.format(unit_uuid))
             raise UnknownOpusUnit
 
-        if engagement["validity"]["to"] is None:
+        if mo_engagement["validity"]["to"] is None:
             old_valid_to = datetime.strptime("9999-12-31", "%Y-%m-%d")
         else:
-            old_valid_to = datetime.strptime(engagement["validity"]["to"], "%Y-%m-%d")
+            old_valid_to = datetime.strptime(
+                mo_engagement["validity"]["to"], "%Y-%m-%d"
+            )
         if validity["to"] is None:
             new_valid_to = datetime.strptime("9999-12-31", "%Y-%m-%d")
         else:
             new_valid_to = datetime.strptime(validity["to"], "%Y-%m-%d")
 
         something_new = not (
-            (engagement["engagement_type"]["uuid"] == eng_type)
-            and (engagement["job_function"]["uuid"] == job_function)
-            and (engagement["org_unit"]["uuid"] == str(unit_uuid))
+            (mo_engagement["engagement_type"]["uuid"] == eng_type)
+            and (mo_engagement["job_function"]["uuid"] == job_function)
+            and (mo_engagement["org_unit"]["uuid"] == str(unit_uuid))
             and (old_valid_to == new_valid_to)
         )
 
         logger.info("Something new? {}".format(something_new))
         if something_new:
-            payload = payloads.edit_engagement(data, engagement["uuid"])
+            payload = payloads.edit_engagement(data, mo_engagement["uuid"])
             logger.debug("Update engagement payload: {}".format(payload))
             response = self.helper._mo_post("details/edit", payload)
             self._assert(response)
 
         if new_valid_to < old_valid_to:
             self.terminate_detail(
-                engagement["uuid"], detail_type="engagement", end_date=new_valid_to
+                mo_engagement["uuid"], detail_type="engagement", end_date=new_valid_to
             )
         return something_new
 
