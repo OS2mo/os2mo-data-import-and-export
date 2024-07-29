@@ -458,11 +458,13 @@ class OpusDiffImport(object):
         else:
             new_valid_to = datetime.strptime(validity["to"], "%Y-%m-%d")
 
-        something_new = not (
-            (mo_engagement["engagement_type"]["uuid"] == eng_type)
-            and (mo_engagement["job_function"]["uuid"] == job_function)
-            and (mo_engagement["org_unit"]["uuid"] == str(unit_uuid))
-            and (old_valid_to == new_valid_to)
+        something_new = any(
+            (
+                (mo_engagement["engagement_type"]["uuid"] != eng_type),
+                (mo_engagement["job_function"]["uuid"] != job_function),
+                (mo_engagement["org_unit"]["uuid"] != str(unit_uuid)),
+                (old_valid_to != new_valid_to),
+            )
         )
 
         logger.info("Something new? {}".format(something_new))
