@@ -489,6 +489,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     manager_type = str(uuid4())
     manager_responsibility = str(uuid4())
 
+    job_function_uuid = "job_function_uuid"
+    engagement_type_uuid = "engagement_type_uuid"
+
     def test_create_manager(self):
         # Arrange
         instance = self.get_instance({})
@@ -642,6 +645,129 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
         # Assert
         assert isinstance(response, MOPostDryRun)
+    def test_update_engagement_noop(self):
+        # Arrange
+        instance = self.get_instance({})
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 200
+
+        start_date = "2000-01-01"
+        self.opus_employee["entryDate"] = start_date
+
+        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        mo_engagement = {
+            "uuid": "engagement_uuid",
+            "validity": {"from": start_date, "to": None},
+            "engagement_type": {"uuid": self.engagement_type_uuid},
+            "job_function": {"uuid": self.job_function_uuid},
+            "org_unit": {"uuid": unit_uuid},
+        }
+
+        with patch.object(
+            instance,
+            "ensure_class_in_facet",
+            side_effect=[self.job_function_uuid, self.engagement_type_uuid],
+        ):
+            instance.update_engagement(mo_engagement, self.opus_employee)
+
+        # Assert
+        instance.helper._mo_post.assert_not_called()
+
+    def test_update_engagement_earlier_start_date_(self):
+        """Set a different start-date in opus to an earlier date and test that it is updated in MO"""
+        # Arrange
+        start_date = "2000-01-01"
+        self.opus_employee["entryDate"] = start_date
+        instance = self.get_instance({})
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 200
+
+        validity = instance.validity(employee=self.opus_employee, edit=True)
+        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        mo_engagement = {
+            "uuid": "engagement_uuid",
+            "validity": {"from": str(datetime.now().date()), "to": None},
+            "engagement_type": {"uuid": self.engagement_type_uuid},
+            "job_function": {"uuid": self.job_function_uuid},
+            "org_unit": {"uuid": unit_uuid},
+        }
+
+        with patch.object(
+            instance,
+            "ensure_class_in_facet",
+            side_effect=[self.job_function_uuid, self.engagement_type_uuid],
+        ):
+            instance.update_engagement(mo_engagement, self.opus_employee)
+
+        # Assert
+        instance.helper._mo_post.assert_called_once_with(
+            "details/edit",
+            {
+                "type": "engagement",
+                "uuid": "engagement_uuid",
+                "data": {
+                    "engagement_type": {"uuid": self.engagement_type_uuid},
+                    "job_function": {"uuid": self.job_function_uuid},
+                    "org_unit": {"uuid": unit_uuid},
+                    "validity": {"from": start_date, "to": validity["to"]},
+                },
+            },
+        )
+
+    def test_update_engagement_later_start_date_(self):
+        """Set a different start-date in opus to an later date and test that it is updated in MO"""
+        # Arrange
+        new_start_date = "2020-03-11"
+        termination_date = "2020-03-10"
+        old_start_date = "2010-03-11"
+        self.opus_employee["entryDate"] = new_start_date
+        instance = self.get_instance({})
+        instance.helper._mo_post = MagicMock()
+        instance.helper._mo_post.return_value.status_code = 200
+
+        validity = instance.validity(employee=self.opus_employee, edit=True)
+        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        mo_engagement = {
+            "uuid": "engagement_uuid",
+            "validity": {"from": old_start_date, "to": None},
+            "engagement_type": {"uuid": self.engagement_type_uuid},
+            "job_function": {"uuid": self.job_function_uuid},
+            "org_unit": {"uuid": unit_uuid},
+        }
+
+        with patch.object(
+            instance,
+            "ensure_class_in_facet",
+            side_effect=[self.job_function_uuid, self.engagement_type_uuid],
+        ):
+            instance.update_engagement(mo_engagement, self.opus_employee)
+
+        # Assert
+
+        assert instance.helper._mo_post.call_count == 2
+        assert instance.helper._mo_post.call_args_list == [
+            call(
+                "details/edit",
+                {
+                    "type": "engagement",
+                    "uuid": "engagement_uuid",
+                    "data": {
+                        "engagement_type": {"uuid": self.engagement_type_uuid},
+                        "job_function": {"uuid": self.job_function_uuid},
+                        "org_unit": {"uuid": unit_uuid},
+                        "validity": {"from": new_start_date, "to": validity["to"]},
+                    },
+                },
+            ),
+            call(
+                "details/terminate",
+                {
+                    "type": "engagement",
+                    "uuid": "engagement_uuid",
+                    "validity": {"from": old_start_date, "to": termination_date},
+                },
+            ),
+        ]
 
 
 if __name__ == "__main__":

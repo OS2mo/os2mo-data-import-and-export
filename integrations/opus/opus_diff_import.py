@@ -1,6 +1,7 @@
 import logging
 import sys
 from datetime import datetime
+from datetime import timedelta
 from operator import itemgetter
 from pathlib import Path
 from typing import Dict
@@ -433,7 +434,12 @@ class OpusDiffImport(object):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
         unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
 
-        validity = self.validity(opus_employee, edit=True)
+        mo_start_date = datetime.fromisoformat(mo_engagement["validity"]["from"])
+        opus_start_date = datetime.fromisoformat(opus_employee["entryDate"])
+        # If the start date is the same in opus and MO we use an edit operation meaning with a start date of current date.
+        # If not we use the start date from opus. This allows setting the start date earlier than it was before in MO.
+        edit = mo_start_date == opus_start_date
+        validity = self.validity(opus_employee, edit=edit)
         data = {
             "engagement_type": {"uuid": eng_type},
             "job_function": {"uuid": job_function},
@@ -463,6 +469,7 @@ class OpusDiffImport(object):
                 (mo_engagement["engagement_type"]["uuid"] != eng_type),
                 (mo_engagement["job_function"]["uuid"] != job_function),
                 (mo_engagement["org_unit"]["uuid"] != str(unit_uuid)),
+                mo_start_date != opus_start_date,
                 (old_valid_to != new_valid_to),
             )
         )
@@ -474,9 +481,23 @@ class OpusDiffImport(object):
             response = self.helper._mo_post("details/edit", payload)
             self._assert(response)
 
+        # Handle shortening engagements:
+        # If an engagement ends earlier than expected we must terminate the engagement
+        # from the new end date.
         if new_valid_to < old_valid_to:
             self.terminate_detail(
                 mo_engagement["uuid"], detail_type="engagement", end_date=new_valid_to
+            )
+        # If an engagement starts later than expected we must terminate the engagement,
+        # but only in the period from the original start date to the new start date.
+        # Also we subtract one day from the end date such that the engagement will have
+        # the correct start day in mo.
+        if opus_start_date > mo_start_date:
+            self.terminate_detail(
+                mo_engagement["uuid"],
+                detail_type="engagement",
+                end_date=opus_start_date - timedelta(days=1),
+                terminate_from_date=mo_start_date,
             )
         return something_new
 
@@ -749,12 +770,18 @@ class OpusDiffImport(object):
                 return
             raise (e)
 
-    def terminate_detail(self, uuid, detail_type="engagement", end_date=None):
+    def terminate_detail(
+        self,
+        uuid,
+        detail_type="engagement",
+        end_date: datetime = None,
+        terminate_from_date: datetime | None = None,
+    ):
         if end_date is None:
             end_date = self.xml_date
 
         payload = payloads.terminate_detail(
-            uuid, end_date.strftime("%Y-%m-%d"), detail_type
+            uuid, end_date, detail_type, terminate_from=terminate_from_date
         )
         logger.debug("Terminate payload: {}".format(payload))
         response = self.helper._mo_post("details/terminate", payload)

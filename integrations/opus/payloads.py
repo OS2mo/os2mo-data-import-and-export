@@ -1,4 +1,5 @@
 # from collections import OrderedDict
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -72,8 +73,19 @@ def edit_org_unit(unit, unit_user_key, unit_uuid, parent, unit_type, from_date):
     return payload
 
 
-def terminate_detail(uuid, terminate_date, detail_type):
-    payload = {"type": detail_type, "uuid": uuid, "validity": {"to": terminate_date}}
+def terminate_detail(
+    uuid: str,
+    terminate_date: datetime,
+    detail_type: str,
+    terminate_from: datetime | None = None,
+):
+    payload = {
+        "type": detail_type,
+        "uuid": uuid,
+        "validity": {"to": terminate_date.strftime("%Y-%m-%d")},
+    }
+    if terminate_from:
+        payload["validity"]["from"] = terminate_from.strftime("%Y-%m-%d")
     return payload
 
 
