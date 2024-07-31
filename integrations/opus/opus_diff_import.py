@@ -76,8 +76,28 @@ predefined_scopes = {
 }
 
 
+class MOPostDryRun:
+    def __init__(self, endpoint, payload) -> None:
+        logger.info(f"dry-run: {endpoint=} {payload=}")
+        self.status_code = 201 if "create" in endpoint else 200
+        self.text = "Dry-run"
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {}
+
+
 class OpusDiffImport(object):
-    def __init__(self, xml_date, ad_reader, employee_mapping={}, filter_ids={}):
+    def __init__(
+        self,
+        xml_date,
+        ad_reader,
+        employee_mapping={},
+        filter_ids={},
+        dry_run: bool = False,
+    ):
         logger.info("Opus diff importer __init__ started")
         self.xml_date = xml_date
         self.ad_reader = ad_reader
@@ -87,11 +107,14 @@ class OpusDiffImport(object):
         self.filter_ids = filter_ids or self.settings.get(
             "integrations.opus.units.filter_ids", []
         )
+        self.dry_run = dry_run
 
         self.session = Session()
         self.helper = self._get_mora_helper(
             hostname=self.settings["mora.base"], use_cache=False
         )
+        if dry_run:
+            self.helper._mo_post = MOPostDryRun
         try:
             self.org_uuid = self.helper.read_organisation()
         except KeyError:
@@ -493,9 +516,18 @@ class OpusDiffImport(object):
 
     def connect_it_system(self, username, it_system, employee, person_uuid):
         it_system_uuid = self.it_systems[it_system]
-        current = self.helper.get_e_itsystems(
-            person_uuid, it_system_uuid=it_system_uuid
-        )
+        try:
+            current = self.helper.get_e_itsystems(
+                person_uuid, it_system_uuid=it_system_uuid
+            )
+        except TypeError as e:
+            if self.dry_run:
+                logger.debug(
+                    f"dry-run. Would connect ituser with {username=} to {it_system=} "
+                )
+                return
+            raise (e)
+
         try:
             current = only(current, default={})
         except ValueError:
@@ -705,7 +737,13 @@ class OpusDiffImport(object):
             logger.info("Validity for {}: {}".format(employee["@id"], eng["validity"]))
             self.update_engagement(eng, employee)
 
-        self.update_manager_status(employee_mo_uuid, employee)
+        try:
+            self.update_manager_status(employee_mo_uuid, employee)
+        except TypeError as e:
+            if self.dry_run:
+                logger.debug("dry-run. Would update manager status for the new user")
+                return
+            raise (e)
 
     def terminate_detail(self, uuid, detail_type="engagement", end_date=None):
         if end_date is None:
@@ -817,6 +855,7 @@ def import_one(
     filter_ids: List[str],
     opus_id: Optional[int] = None,
     rundb_write=True,
+    dry_run=False,
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -835,24 +874,25 @@ def import_one(
     ) = opus_helpers.read_and_transform_data(
         latest_path, xml_path, filter_ids, opus_id=opus_id
     )
-    if rundb_write:
+    if rundb_write and not dry_run:
         opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
 
     diff = OpusDiffImport(
         xml_date,
         ad_reader=ad_reader,
         filter_ids=filter_ids,
+        dry_run=dry_run,
     )
     diff.start_import(units, employees, terminated_employees)
     filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
     diff.handle_filtered_units(filtered_units)
-    if rundb_write:
+    if rundb_write and not dry_run:
         opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()
 
 
-def start_opus_diff(ad_reader=None):
+def start_opus_diff(ad_reader=None, dry_run: bool = False):
     """
     Start an opus update, use the oldest available dump that has not
     already been imported.
@@ -869,7 +909,15 @@ def start_opus_diff(ad_reader=None):
     xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
     while xml_date:
-        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, opus_id=None)
+        import_one(
+            ad_reader,
+            xml_date,
+            latest_date,
+            dumps,
+            filter_ids,
+            opus_id=None,
+            dry_run=dry_run,
+        )
         # Check if there are more files to import
         xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
         logger.info("Ended update")
