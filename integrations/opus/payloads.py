@@ -79,6 +79,17 @@ def terminate_detail(
     detail_type: str,
     terminate_from: datetime | None = None,
 ):
+    """
+    Create a payload for terminating details eg. engagements, manager-roles etc.
+
+    Args:
+        uuid: string representation of the uuid for the object to be terminated
+        terminate_date: the last active date for the object
+        detail_type: eg. engagement, address, manager.
+        terminate_from: optional first date of termination. If this is set the object will be terminated
+        in the interval from terminate_from to terminate_date. This is used to move the startdate of engagements.
+        In this case terminal_date will be the last inactive date for the object.
+    """
     payload = {
         "type": detail_type,
         "uuid": uuid,

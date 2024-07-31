@@ -436,7 +436,7 @@ class OpusDiffImport(object):
 
         mo_start_date = datetime.fromisoformat(mo_engagement["validity"]["from"])
         opus_start_date = datetime.fromisoformat(opus_employee["entryDate"])
-        # If the start date is the same in opus and MO we use an edit operation meaning with a start date of current date.
+        # If the start date is the same in opus and MO we use an edit operation with a start date of current date.
         # If not we use the start date from opus. This allows setting the start date earlier than it was before in MO.
         edit = mo_start_date == opus_start_date
         validity = self.validity(opus_employee, edit=edit)
@@ -466,11 +466,11 @@ class OpusDiffImport(object):
 
         something_new = any(
             (
-                (mo_engagement["engagement_type"]["uuid"] != eng_type),
-                (mo_engagement["job_function"]["uuid"] != job_function),
-                (mo_engagement["org_unit"]["uuid"] != str(unit_uuid)),
+                mo_engagement["engagement_type"]["uuid"] != eng_type,
+                mo_engagement["job_function"]["uuid"] != job_function,
+                mo_engagement["org_unit"]["uuid"] != str(unit_uuid),
                 mo_start_date != opus_start_date,
-                (old_valid_to != new_valid_to),
+                old_valid_to != new_valid_to,
             )
         )
 

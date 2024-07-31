@@ -615,6 +615,8 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
+
+        # Act
         with patch.object(instance, "ensure_class_in_facet"):
             instance.update_manager_status("mo_uuid", self.opus_employee)
 
@@ -645,6 +647,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
         # Assert
         assert isinstance(response, MOPostDryRun)
+
     def test_update_engagement_noop(self):
         # Arrange
         instance = self.get_instance({})
@@ -663,6 +666,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             "org_unit": {"uuid": unit_uuid},
         }
 
+        # Act
         with patch.object(
             instance,
             "ensure_class_in_facet",
@@ -692,6 +696,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             "org_unit": {"uuid": unit_uuid},
         }
 
+        # Act
         with patch.object(
             instance,
             "ensure_class_in_facet",
@@ -735,6 +740,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             "org_unit": {"uuid": unit_uuid},
         }
 
+        # Act
         with patch.object(
             instance,
             "ensure_class_in_facet",
