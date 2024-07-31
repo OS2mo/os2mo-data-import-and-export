@@ -15,6 +15,7 @@ from hypothesis.strategies import uuids
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
+from integrations.opus.opus_diff_import import MOPostDryRun
 from integrations.opus.opus_diff_import import OpusDiffImport
 
 
@@ -313,7 +314,7 @@ class Opus_diff_import_tester(unittest.TestCase):
 class _GetInstanceMixin:
     _xml_date = datetime.now()
 
-    def get_instance(self, settings: dict) -> OpusDiffImport:
+    def get_instance(self, settings: dict, dry_run=False) -> OpusDiffImport:
         settings.setdefault("mora.base", "http://unused.url")
         with patch(
             "integrations.opus.opus_diff_import.load_settings", return_value=settings
@@ -323,6 +324,7 @@ class _GetInstanceMixin:
                     xml_date=self._xml_date,
                     ad_reader=None,
                     employee_mapping=object(),
+                    dry_run=dry_run,
                 )
                 return instance
 
@@ -622,6 +624,24 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                     "validity": {"to": validity["from"]},
                 },
             )
+
+    def test_dry_run(self):
+        """Test that the dry_run flag overwrites the _mo_post function"""
+        # Arrange
+        instance = self.get_instance({}, dry_run=False)
+        # Act
+        response = instance.helper._mo_post("test", payload={"dummy": "payload"})
+
+        # Assert
+        assert isinstance(response, MagicMock)
+
+        # Arrange
+        instance = self.get_instance({}, dry_run=True)
+        # Act
+        response = instance.helper._mo_post("test", payload={"dummy": "payload"})
+
+        # Assert
+        assert isinstance(response, MOPostDryRun)
 
 
 if __name__ == "__main__":
