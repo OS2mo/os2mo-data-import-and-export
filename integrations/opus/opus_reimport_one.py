@@ -59,19 +59,18 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
 
     if delete and uuid and not dry_run:
         delete_object_and_orgfuncs(uuid, mox_base, object_type)
-    if dry_run:
-        click.echo(
-            f"Dry-run: {'Delete and reimport' if delete else 'Reimport'} '{object_type}' with {uuid=}"
-        )
-    else:
-        AD = ad_reader.ADParameterReader() if use_ad else None
-        import_opus(
-            ad_reader=AD,
-            import_all=full_history,
-            import_last=not full_history,
-            opus_id=opus_id,
-            rundb_write=False,
-        )
+    click.echo(
+        f"{'Delete and reimport' if delete else 'Reimport'} '{object_type}' with {uuid=}"
+    )
+    AD = ad_reader.ADParameterReader() if use_ad else None
+    import_opus(
+        ad_reader=AD,
+        import_all=full_history,
+        import_last=not full_history,
+        opus_id=opus_id,
+        rundb_write=False,
+        dry_run=dry_run,
+    )
 
 
 if __name__ == "__main__":

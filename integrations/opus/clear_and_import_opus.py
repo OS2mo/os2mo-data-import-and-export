@@ -50,6 +50,7 @@ def import_opus(
     import_last=False,
     opus_id=None,
     rundb_write: bool = True,
+    dry_run: bool = False,
 ) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
@@ -75,6 +76,7 @@ def import_opus(
             filter_ids,
             opus_id=opus_id,
             rundb_write=rundb_write,
+            dry_run=dry_run,
         )
 
 
@@ -109,6 +111,7 @@ def import_opus(
 )
 @click.option("--new-rundb", is_flag=True, help="Initialize new run-db")
 @click.option("--use-ad", is_flag=True, help="Read from AD")
+@click.option("--dry-run", is_flag=True)
 def clear_and_reload(
     import_all: bool,
     import_last: bool,
@@ -116,6 +119,7 @@ def clear_and_reload(
     new_rundb: bool,
     use_ad: bool,
     connections: int,
+    dry_run: bool,
 ) -> None:
     """Tool for reimporting opus files.
 
@@ -139,7 +143,9 @@ def clear_and_reload(
     if use_ad:
         AD = ad_reader.ADParameterReader()
         AD.cache_all(print_progress=True)
-    import_opus(ad_reader=AD, import_all=import_all, import_last=import_last)
+    import_opus(
+        ad_reader=AD, import_all=import_all, import_last=import_last, dry_run=dry_run
+    )
 
 
 if __name__ == "__main__":
