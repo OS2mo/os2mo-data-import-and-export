@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """Integration entrypoint."""
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated
 from typing import AsyncGenerator
@@ -14,6 +15,7 @@ from fastapi import FastAPI
 from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
+from fastramqpi.metrics import dipex_last_success_timestamp
 from ramqp.depends import RateLimit
 from ramqp.mo import MORouter
 from ramqp.mo import MORoutingKey
@@ -321,6 +323,9 @@ def create_app(**kwargs) -> FastAPI:
         amqpsystem.router.registry.update(actualstate_router.registry)
         if settings.historic_state is not None:
             amqpsystem.router.registry.update(historic_router.registry)
+        # "Disable" last run metric to avoid erroneous alerts; it does not make
+        # sense for an event-driven integration without a rundb.
+        dipex_last_success_timestamp.set_function(time.time)
     else:
         fastramqpi.get_app().include_router(trigger_router)
     fastramqpi.add_context(settings=settings, sql_exporter=None)

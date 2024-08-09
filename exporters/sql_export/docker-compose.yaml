@@ -33,7 +33,7 @@ services:
       USE_NEW_CACHE: "true"
       FULL_HISTORY: "true"
     ports:
-      - 8789:8000/tcp
+      - "127.0.0.1:8789:8000"
     volumes:
       - ./:/opt/sql_export/
     networks:
