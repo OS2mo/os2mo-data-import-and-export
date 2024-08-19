@@ -311,6 +311,11 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
 
+class TestableOpus(OpusDiffImport):
+    def _setup_gql_client(self):
+        return MagicMock()
+
+
 class _GetInstanceMixin:
     _xml_date = datetime.now()
 
@@ -320,7 +325,7 @@ class _GetInstanceMixin:
             "integrations.opus.opus_diff_import.load_settings", return_value=settings
         ):
             with patch("integrations.opus.opus_diff_import.MoraHelper"):
-                instance = OpusDiffImport(
+                instance = TestableOpus(
                     xml_date=self._xml_date,
                     ad_reader=None,
                     employee_mapping=object(),
