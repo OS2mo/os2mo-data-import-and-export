@@ -78,11 +78,11 @@ class test_opus_helpers(TestCase):
 
     @parameterized.expand(
         [
-            ([], [3, 0, 4, 1], None),
-            (["1"], [0, 3, 0, 1], None),
+            ([], [3, 0, 4, 1, 0], None),
+            (["1"], [0, 3, 0, 1, 0], None),
             # Read specific opus_id
-            ([], [1, 0, 0, 0], 1),
-            (["1"], [0, 3, 0, 0], 1),
+            ([], [1, 0, 0, 0, 0], 1),
+            (["1"], [0, 3, 0, 0, 0], 1),
         ]
     )
     def test_full_(self, filter_ids, expected, opus_id):
@@ -93,7 +93,7 @@ class test_opus_helpers(TestCase):
             disable_tqdm=True,
             opus_id=opus_id,
         )
-        # data is a tuple of units, filtered units, employess, terminated employees
+        # data is a tuple of units, filtered units, employess, terminated employees and canceled_employees
         # test that the length of each is as expected
         for i, x in enumerate(data):
             this = list(x)

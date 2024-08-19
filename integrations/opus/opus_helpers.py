@@ -2,7 +2,6 @@ import datetime
 import hashlib
 import logging
 import pathlib
-import re
 import sqlite3
 import uuid
 from functools import lru_cache
@@ -383,39 +382,23 @@ def find_all_filtered_units(inputfile, filter_ids) -> list[dict]:
     return list(all_filtered_units)
 
 
-def include_cancelled(filename: str, employees, cancelled_employees) -> List:
-    """Add cancelled employees to employees list, but set leavedate to date from filename
-
-    >>> include_cancelled('./ZLPE202001010253_delta.xml', [], [{"id":1}])
-    [{'id': 1, 'leaveDate': '2020-01-01'}]
-    """
-
-    filedate = re.search(r"\d{8}", str(filename))  # type: ignore
-    filedatetime = datetime.datetime.strptime(filedate.group(), "%Y%m%d")  # type: ignore
-    filedatestr = filedatetime.strftime("%Y-%m-%d")
-    for empl in cancelled_employees:
-        empl["leaveDate"] = filedatestr
-    employees.extend(cancelled_employees)
-    return employees
-
-
 def read_and_transform_data(
     inputfile1: Optional[str],
     inputfile2: str,
     filter_ids: List[str],
     disable_tqdm=False,
     opus_id: Optional[int] = None,
-) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
-    """Gets the diff of two files and transporms the data based on filter_ids
-    Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
+) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict]]:
+    """Gets the diff of two files and transforms the data based on filter_ids
+    Returns the active units, filtered units, active employees which are not in a filtered unit,
+    terminated employees and canceled employees
     """
     file_diffs = file_diff(
         inputfile1, inputfile2, disable_tqdm=disable_tqdm, opus_id=opus_id
     )
 
-    employees = include_cancelled(
-        inputfile2, file_diffs["employees"], file_diffs["cancelled_employees"]
-    )
+    employees = file_diffs["employees"]
+
     all_filtered_units = find_all_filtered_units(inputfile2, filter_ids)
     _, units = filter_units(file_diffs["units"], filter_ids)
     active_employees, terminated_employees = split_employees_leaves(employees)
@@ -427,6 +410,7 @@ def read_and_transform_data(
         list(all_filtered_units),
         list(filtered_employees),
         list(terminated_employees),
+        file_diffs["cancelled_employees"],
     )
 
 

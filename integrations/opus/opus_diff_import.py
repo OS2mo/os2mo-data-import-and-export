@@ -9,12 +9,13 @@ from typing import List
 from typing import Optional
 
 import requests
+from gql import gql
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
-from requests import Session
 from raclients.graph.client import GraphQLClient
+from requests import Session
 
 import constants
 from integrations import dawa_helper
@@ -858,7 +859,31 @@ class OpusDiffImport(object):
             # TODO: Use actual org_unit terminate endpoint for this.
             self.terminate_detail(uuid, detail_type="org_unit", end_date=self.xml_date)
 
-    def start_import(self, units, employees, terminated_employees):
+    def delete_engagement(self, opus_id: int) -> None:
+        """Find and delete an engagement in MO based on its opus-identifier"""
+        eng_uuid = self._find_engagement(
+            opus_id,
+            "Engagement",
+        )
+        if not eng_uuid:
+            logger.debug("Cancelled engagement is already deleted")
+            return
+        q = gql(
+            """
+        mutation DeleteEngagement($uuid: UUID!) {
+          engagement_delete(uuid: $uuid) {
+            uuid
+          }
+        }
+        """
+        )
+        res = self.gql_client.execute(q, variable_values={"uuid": eng_uuid})
+        assert (
+            res["engagement_delete"]["uuid"] == eng_uuid
+        )  # Just a check that it actually worked as intended
+        logger.debug("Cancelled engagement deleted")
+
+    def start_import(self, units, employees, terminated_employees, cancelled_employees):
         """
         Start an opus import, run the oldest available dump that
         has not already been imported.
@@ -890,6 +915,8 @@ class OpusDiffImport(object):
                 if manager_info:
                     self.terminate_detail(manager_info, detail_type="manager")
 
+        for cancelled in tqdm(cancelled_employees):
+            self.delete_engagement(int(cancelled["@id"]))
         logger.info("Program ended correctly")
 
 
@@ -917,6 +944,7 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
+        cancelled_employees,
     ) = opus_helpers.read_and_transform_data(
         latest_path, xml_path, filter_ids, opus_id=opus_id
     )
@@ -929,7 +957,7 @@ def import_one(
         filter_ids=filter_ids,
         dry_run=dry_run,
     )
-    diff.start_import(units, employees, terminated_employees)
+    diff.start_import(units, employees, terminated_employees, cancelled_employees)
     filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
     diff.handle_filtered_units(filtered_units)
