@@ -89,48 +89,6 @@ sd_changed_at_status(){
     fi
 }
 
-move_backup_to_archive() {
-    if [ -z $1 ]; then
-        # This should never happen, but just in case...
-        echo "Backup file argument must be provided to function"
-        exit 3
-    fi
-
-    echo "Moving $1 to archive"
-
-    local archive=${CRON_BACKUP}/sql_removed
-    if [[ ! -d ${archive} ]]; then
-        mkdir ${archive}
-    fi
-    mv $1 ${archive}
-}
-
-remove_db_from_backup() {
-    if [ -z $1 ]; then
-        # This should never happen, but just in case...
-        echo "Backup file argument must be provided to function"
-        exit 3
-    fi
-
-    echo "Removing database dump from $1"
-
-    local folder=/tmp/dipex-temp-untar-folder
-    rm -rf $folder
-    mkdir $folder
-
-    tar xzf $1 -C "$folder/"
-    rm $folder/opt/docker/os2mo/database_snapshot/os2mo_database.sql
-    rm $1
-
-    cd $folder
-    tar -czf $1 *
-    cd $OLDPWD
-
-    rm -rf $folder
-
-    echo "Database dump removed from $1"
-}
-
 imports_test_ad_connectivity(){
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
@@ -677,18 +635,6 @@ post_backup(){
         else
             printf "not truncating %s\n" "$f"
         fi
-    done
-
-    echo
-    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=60}
-    echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
-    bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
-    for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
-    do
-        [ "${oldbup}" \< "${bupsave}" ] && (
-            remove_db_from_backup $oldbup
-            move_backup_to_archive $oldbup
-        )
     done
 
     if [ -d "$CRON_BACKUP" ]; then
