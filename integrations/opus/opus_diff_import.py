@@ -14,6 +14,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from ra_utils.tqdm_wrapper import tqdm
 from requests import Session
+from raclients.graph.client import GraphQLClient
 
 import constants
 from integrations import dawa_helper
@@ -114,6 +115,7 @@ class OpusDiffImport(object):
         self.helper = self._get_mora_helper(
             hostname=self.settings["mora.base"], use_cache=False
         )
+        self.gql_client = self._setup_gql_client()
         if dry_run:
             self.helper._mo_post = MOPostDryRun
         try:
@@ -132,6 +134,19 @@ class OpusDiffImport(object):
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
 
         logger.info("__init__ done, now ready for import")
+
+    def _setup_gql_client(self) -> GraphQLClient:
+        # TODO: pydantic settings!
+        return GraphQLClient(
+            url=f"{self.settings['mora.base']}/graphql/v22",
+            client_id=self.settings["crontab.CLIENT_ID"],
+            client_secret=self.settings["crontab.CLIENT_SECRET"],
+            auth_realm="mo",
+            auth_server=self.settings["crontab.AUTH_SERVER"],
+            httpx_client_kwargs={"timeout": 300},
+            execute_timeout=300,
+            sync=True,
+        )
 
     def ensure_class_in_facet(self, *args, **kwargs):
         """Helper function to call ensure_class_in_facet from morahelpers with owner"""
