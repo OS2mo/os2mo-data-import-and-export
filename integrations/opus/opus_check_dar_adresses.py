@@ -15,7 +15,7 @@ logger = logging.getLogger("OpusInvalidDar")
 def cli():
     settings = load_settings()
     _, opus_dump = get_latest_dump()
-    org_units, _, _, _ = read_and_transform_data(
+    org_units, _, _, _, _ = read_and_transform_data(
         None,
         opus_dump,
         filter_ids=settings["integrations.opus.units.filter_ids"],

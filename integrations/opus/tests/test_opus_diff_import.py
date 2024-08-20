@@ -31,6 +31,9 @@ class OpusDiffImportTestbase(OpusDiffImport):
     def _get_mora_helper(self, hostname, use_cache):
         return self.morahelper_mock
 
+    def _setup_gql_client(self):
+        return MagicMock()
+
     def _find_classes(self, facet):
         if facet == "engagement_type":
             return ({"Ansat": "eng_type", "Softwaretester": "dummy"}, facet)
@@ -84,6 +87,7 @@ class OpusDiffImportTest_counts(OpusDiffImportTestbase):
         self.update_unit = MagicMock()
         self.terminate_detail = MagicMock()
         self._find_engagement = MagicMock()
+        self.delete_engagement = MagicMock()
 
         super().__init__(*args, **kwargs)
 
@@ -107,8 +111,9 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.file1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
         self.file2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
         self.expected_unit_count = 4
-        self.expected_employee_count = 3
+        self.expected_employee_count = 2
         self.expected_terminations = 1
+        self.expected_cancelled = 1
 
         filter_ids = []
         (
@@ -116,11 +121,13 @@ class Opus_diff_import_tester(unittest.TestCase):
             filtered_units,
             employees,
             terminated_employees,
+            cancelled_employees,
         ) = opus_helpers.read_and_transform_data(self.file1, self.file2, filter_ids)
         self.units = list(units)
         self.filtered_units = list(filtered_units)
         self.employees = list(employees)
         self.terminated_employees = list(terminated_employees)
+        self.cancelled_employees = list(cancelled_employees)
 
     def test_file_diff(self):
         self.assertEqual(len(self.units), self.expected_unit_count)
@@ -130,32 +137,25 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @given(datetimes())
-    def test_import_unit_count(self, xml_date):
+    def test_import_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(
             xml_date, ad_reader=None, employee_mapping="test"
         )
-        diff.start_import(self.units, self.employees, self.terminated_employees)
+        diff.start_import(
+            self.units,
+            self.employees,
+            self.terminated_employees,
+            self.cancelled_employees,
+        )
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
-
-    @given(datetimes())
-    def test_import_employee_count(self, xml_date):
-        self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(
-            xml_date, ad_reader=None, employee_mapping="test"
-        )
-        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
-    @given(datetimes())
-    def test_termination(self, xml_date):
-        self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(
-            xml_date, ad_reader=None, employee_mapping="test"
-        )
-        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(
             diff._find_engagement.call_count, self.expected_terminations * 2
+        )
+        self.assertEqual(
+            diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
 
     @patch("integrations.dawa_helper.dawa_lookup")
@@ -311,6 +311,11 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
 
+class TestableOpus(OpusDiffImport):
+    def _setup_gql_client(self):
+        return MagicMock()
+
+
 class _GetInstanceMixin:
     _xml_date = datetime.now()
 
@@ -320,7 +325,7 @@ class _GetInstanceMixin:
             "integrations.opus.opus_diff_import.load_settings", return_value=settings
         ):
             with patch("integrations.opus.opus_diff_import.MoraHelper"):
-                instance = OpusDiffImport(
+                instance = TestableOpus(
                     xml_date=self._xml_date,
                     ad_reader=None,
                     employee_mapping=object(),
@@ -774,6 +779,21 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 },
             ),
         ]
+
+    def test_delete_canceled(self):
+        # Arrange
+        eng_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "engagement_delete": {"uuid": eng_uuid}
+        }
+
+        # Act
+        with patch.object(instance, "_find_engagement", return_value=eng_uuid):
+            instance.delete_engagement(1)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once()
 
 
 if __name__ == "__main__":
