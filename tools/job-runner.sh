@@ -89,48 +89,6 @@ sd_changed_at_status(){
     fi
 }
 
-move_backup_to_archive() {
-    if [ -z $1 ]; then
-        # This should never happen, but just in case...
-        echo "Backup file argument must be provided to function"
-        exit 3
-    fi
-
-    echo "Moving $1 to archive"
-
-    local archive=${CRON_BACKUP}/sql_removed
-    if [[ ! -d ${archive} ]]; then
-        mkdir ${archive}
-    fi
-    mv $1 ${archive}
-}
-
-remove_db_from_backup() {
-    if [ -z $1 ]; then
-        # This should never happen, but just in case...
-        echo "Backup file argument must be provided to function"
-        exit 3
-    fi
-
-    echo "Removing database dump from $1"
-
-    local folder=/tmp/dipex-temp-untar-folder
-    rm -rf $folder
-    mkdir $folder
-
-    tar xzf $1 -C "$folder/"
-    rm $folder/opt/docker/os2mo/database_snapshot/os2mo_database.sql
-    rm $1
-
-    cd $folder
-    tar -czf $1 *
-    cd $OLDPWD
-
-    rm -rf $folder
-
-    echo "Database dump removed from $1"
-}
-
 imports_test_ad_connectivity(){
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
@@ -686,8 +644,7 @@ post_backup(){
     for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
     do
         [ "${oldbup}" \< "${bupsave}" ] && (
-            remove_db_from_backup $oldbup
-            move_backup_to_archive $oldbup
+            rm -v ${oldbup}
         )
     done
 
