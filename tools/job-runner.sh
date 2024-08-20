@@ -637,6 +637,17 @@ post_backup(){
         fi
     done
 
+    echo
+    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=60}
+    echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
+    bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
+    for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
+    do
+        [ "${oldbup}" \< "${bupsave}" ] && (
+            rm -v ${oldbup}
+        )
+    done
+
     if [ -d "$CRON_BACKUP" ]; then
         echo removing leftover uncompressed backups
         rm -f "$CRON_BACKUP"/*.tar
