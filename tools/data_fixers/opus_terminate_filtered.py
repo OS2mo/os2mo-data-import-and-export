@@ -36,10 +36,7 @@ def terminate_filtered_employees(dry_run):
     )
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
     # Check if any engagements exist that should have been filtered
-    eng_info = [
-        diff._find_engagement(e["@id"], "Engagement", present=False)
-        for e in filtered_employees
-    ]
+    eng_info = [diff._find_engagement(e["@id"]) for e in filtered_employees]
     eng_info = list(filter(lambda x: x is not None, eng_info))
     if dry_run:
         print(

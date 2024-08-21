@@ -151,9 +151,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
-        self.assertEqual(
-            diff._find_engagement.call_count, self.expected_terminations * 2
-        )
+        self.assertEqual(diff._find_engagement.call_count, self.expected_terminations)
         self.assertEqual(
             diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
@@ -794,6 +792,36 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
         # Assert
         instance.gql_client.execute.assert_called_once()
+
+    def test_find_engagement(self):
+        # Arrange
+        eng_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "engagements": {"objects": [{"uuid": eng_uuid}]}
+        }
+
+        # Act
+        res = instance._find_engagement(1)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once()
+        assert res == eng_uuid
+
+    def test_find_manager_role(self):
+        # Arrange
+        manager_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "managers": {"objects": [{"uuid": manager_uuid}]}
+        }
+
+        # Act
+        res = instance._find_manager_role(1)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once()
+        assert res == manager_uuid
 
 
 if __name__ == "__main__":

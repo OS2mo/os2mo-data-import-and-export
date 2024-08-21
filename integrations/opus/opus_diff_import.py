@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Optional
+from uuid import UUID
 
 import requests
 from gql import gql
+from more_itertools import one
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -22,7 +24,6 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
-from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -78,7 +79,13 @@ predefined_scopes = {
     constants.addresses_unit_se: "TEXT",
 }
 
-
+MUTATION_DELETE_ENGAGEMENT = gql("""
+    mutation DeleteEngagement($uuid: UUID!) {
+      engagement_delete(uuid: $uuid) {
+        uuid
+      }
+    }
+    """)
 class MOPostDryRun:
     def __init__(self, endpoint, payload) -> None:
         logger.info(f"dry-run: {endpoint=} {payload=}")
@@ -178,23 +185,62 @@ class OpusDiffImport(object):
             logger.info("Requst had no effect")
         return None
 
-    def _find_engagement(self, bvn, funktionsnavn, present=False):
-        resource = "/organisation/organisationfunktion?bvn={}&funktionsnavn={}".format(
-            bvn, funktionsnavn
+    def _find_engagement(self, opus_id: int, present=False) -> UUID | None:
+        q = (
+            """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+            if present
+            else """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
         )
-        if present:
-            resource += "&gyldighed=Aktiv"
-        response = self.session.get(url=self.settings["mox.base"] + resource)
-        response.raise_for_status()
-        uuids = response.json()["results"][0]
-        if len(uuids) > 1:
-            msg = "Employment ID {} not unique: {}".format(bvn, uuids)
-            logger.error(msg)
-            raise EmploymentIdentifierNotUnique(msg)
+        res = self.gql_client.execute(gql(q), variable_values={"user_key": str(opus_id)})
+        try:
+            return one(res["engagements"]["objects"])["uuid"]
+        except ValueError:
+            return None
 
-        logger.info("bvn: {}, uuid: {}".format(bvn, uuids))
-        if uuids:
-            return uuids[0]
+    def _find_manager_role(self, opus_id: int, present=False):
+        q = (
+            """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+            if present
+            else """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+        )
+        res = self.gql_client.execute(gql(q), variable_values={"user_key": str(opus_id)}
+        )
+        try:
+            return one(res["managers"]["objects"])["uuid"]
+        except ValueError:
+            return None
 
     def validity(self, employee, edit=False):
         """
@@ -780,7 +826,7 @@ class OpusDiffImport(object):
         self,
         uuid,
         detail_type="engagement",
-        end_date: datetime = None,
+        end_date: datetime | None = None,
         terminate_from_date: datetime | None = None,
     ):
         if end_date is None:
@@ -831,21 +877,12 @@ class OpusDiffImport(object):
         """Find and delete an engagement in MO based on its opus-identifier"""
         eng_uuid = self._find_engagement(
             opus_id,
-            "Engagement",
         )
         if not eng_uuid:
             logger.debug("Cancelled engagement is already deleted")
             return
-        q = gql(
-            """
-        mutation DeleteEngagement($uuid: UUID!) {
-          engagement_delete(uuid: $uuid) {
-            uuid
-          }
-        }
-        """
-        )
-        res = self.gql_client.execute(q, variable_values={"uuid": eng_uuid})
+        
+        res = self.gql_client.execute(MUTATION_DELETE_ENGAGEMENT, variable_values={"uuid": eng_uuid})
         assert (
             res["engagement_delete"]["uuid"] == eng_uuid
         )  # Just a check that it actually worked as intended
@@ -871,15 +908,11 @@ class OpusDiffImport(object):
                 logger.error(msg)
                 raise Exception(msg)
 
-            eng_info = self._find_engagement(
-                employee["@id"], "Engagement", present=True
-            )
+            eng_info = self._find_engagement(employee["@id"], present=True)
             if eng_info:
                 logger.info("Terminating: {}".format(eng_info))
                 self.terminate_detail(eng_info)
-                manager_info = self._find_engagement(
-                    employee["@id"], "Leder", present=True
-                )
+                manager_info = self._find_manager_role(employee["@id"], present=True)
                 if manager_info:
                     self.terminate_detail(manager_info, detail_type="manager")
 
