@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Optional
+from uuid import UUID
 
 import requests
 from gql import gql
+from more_itertools import one
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -22,7 +24,6 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
-from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -77,6 +78,62 @@ predefined_scopes = {
     constants.addresses_unit_pnr: "TEXT",
     constants.addresses_unit_se: "TEXT",
 }
+
+MUTATION_DELETE_ENGAGEMENT = gql(
+    """
+    mutation DeleteEngagement($uuid: UUID!) {
+      engagement_delete(uuid: $uuid) {
+        uuid
+      }
+    }
+    """
+)
+
+QUERY_FIND_ENGAGEMENT_PRESENT = gql(
+    """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+QUERY_FIND_ENGAGEMENT = gql(
+    """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+
+QUERY_FIND_MANAGER = gql(
+    """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+QUERY_FIND_MANAGER_PRESENT = gql(
+    """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
 
 
 class MOPostDryRun:
@@ -178,33 +235,22 @@ class OpusDiffImport(object):
             logger.info("Requst had no effect")
         return None
 
-    def _get_organisationfunktion(self, lora_uuid):
-        resource = "/organisation/organisationfunktion/{}"
-        resource = resource.format(lora_uuid)
-        response = self.session.get(url=self.settings["mox.base"] + resource)
-        response.raise_for_status()
-        data = response.json()
-        data = data[lora_uuid][0]["registreringer"][0]
-        # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
-        return data
+    def _find_engagement(self, opus_id: int, present=False) -> UUID | None:
+        q = QUERY_FIND_ENGAGEMENT_PRESENT if present else QUERY_FIND_ENGAGEMENT
 
-    def _find_engagement(self, bvn, funktionsnavn, present=False):
-        resource = "/organisation/organisationfunktion?bvn={}&funktionsnavn={}".format(
-            bvn, funktionsnavn
-        )
-        if present:
-            resource += "&gyldighed=Aktiv"
-        response = self.session.get(url=self.settings["mox.base"] + resource)
-        response.raise_for_status()
-        uuids = response.json()["results"][0]
-        if len(uuids) > 1:
-            msg = "Employment ID {} not unique: {}".format(bvn, uuids)
-            logger.error(msg)
-            raise EmploymentIdentifierNotUnique(msg)
+        res = self.gql_client.execute(q, variable_values={"user_key": str(opus_id)})
+        try:
+            return one(res["engagements"]["objects"])["uuid"]
+        except ValueError:
+            return None
 
-        logger.info("bvn: {}, uuid: {}".format(bvn, uuids))
-        if uuids:
-            return uuids[0]
+    def _find_manager_role(self, opus_id: int, present=False):
+        q = QUERY_FIND_MANAGER_PRESENT if present else QUERY_FIND_MANAGER
+        res = self.gql_client.execute(q, variable_values={"user_key": str(opus_id)})
+        try:
+            return one(res["managers"]["objects"])["uuid"]
+        except ValueError:
+            return None
 
     def validity(self, employee, edit=False):
         """
@@ -790,7 +836,7 @@ class OpusDiffImport(object):
         self,
         uuid,
         detail_type="engagement",
-        end_date: datetime = None,
+        end_date: datetime | None = None,
         terminate_from_date: datetime | None = None,
     ):
         if end_date is None:
@@ -803,28 +849,6 @@ class OpusDiffImport(object):
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Terminate response: {}".format(response.text))
         self._assert(response)
-
-    def import_single_employment(self, employee):
-        # logger.info('Update  employment {} from {}'.format(employment, xml_file))
-        last_changed_str = employee.get("@lastChanged")
-        if last_changed_str is not None:  # This is a true employee-object.
-            self.update_employee(employee)
-        else:  # This is an implicit termination.
-            # This is a terminated employee, check if engagement is active
-            # terminate if it is.
-            if not employee["@action"] == "leave":
-                msg = "Missing date on a non-leave object!"
-                logger.error(msg)
-                raise Exception(msg)
-
-            org_funk_info = self._find_engagement(employee["@id"], present=True)
-            if org_funk_info:
-                logger.info("Terminating: {}".format(org_funk_info))
-                self.terminate_detail(org_funk_info["engagement"])
-                if "manager" in org_funk_info:
-                    self.terminate_detail(
-                        org_funk_info["manager"], detail_type="manager"
-                    )
 
     def find_unterminated_filtered_units(self, units):
         """Check if units are in MO."""
@@ -863,21 +887,14 @@ class OpusDiffImport(object):
         """Find and delete an engagement in MO based on its opus-identifier"""
         eng_uuid = self._find_engagement(
             opus_id,
-            "Engagement",
         )
         if not eng_uuid:
             logger.debug("Cancelled engagement is already deleted")
             return
-        q = gql(
-            """
-        mutation DeleteEngagement($uuid: UUID!) {
-          engagement_delete(uuid: $uuid) {
-            uuid
-          }
-        }
-        """
+
+        res = self.gql_client.execute(
+            MUTATION_DELETE_ENGAGEMENT, variable_values={"uuid": eng_uuid}
         )
-        res = self.gql_client.execute(q, variable_values={"uuid": eng_uuid})
         assert (
             res["engagement_delete"]["uuid"] == eng_uuid
         )  # Just a check that it actually worked as intended
@@ -903,15 +920,11 @@ class OpusDiffImport(object):
                 logger.error(msg)
                 raise Exception(msg)
 
-            eng_info = self._find_engagement(
-                employee["@id"], "Engagement", present=True
-            )
+            eng_info = self._find_engagement(employee["@id"], present=True)
             if eng_info:
                 logger.info("Terminating: {}".format(eng_info))
                 self.terminate_detail(eng_info)
-                manager_info = self._find_engagement(
-                    employee["@id"], "Leder", present=True
-                )
+                manager_info = self._find_manager_role(employee["@id"], present=True)
                 if manager_info:
                     self.terminate_detail(manager_info, detail_type="manager")
 

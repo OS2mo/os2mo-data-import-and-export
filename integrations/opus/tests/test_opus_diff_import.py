@@ -16,7 +16,12 @@ from parameterized import parameterized
 
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import MOPostDryRun
+from integrations.opus.opus_diff_import import MUTATION_DELETE_ENGAGEMENT
 from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT
+from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT_PRESENT
+from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER
+from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER_PRESENT
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
@@ -151,9 +156,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
-        self.assertEqual(
-            diff._find_engagement.call_count, self.expected_terminations * 2
-        )
+        self.assertEqual(diff._find_engagement.call_count, self.expected_terminations)
         self.assertEqual(
             diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
@@ -793,7 +796,81 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             instance.delete_engagement(1)
 
         # Assert
-        instance.gql_client.execute.assert_called_once()
+        instance.gql_client.execute.assert_called_once_with(
+            MUTATION_DELETE_ENGAGEMENT, variable_values={"uuid": eng_uuid}
+        )
+
+    def test_find_engagement(self):
+        # Arrange
+        opus_id = 1234
+        eng_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "engagements": {"objects": [{"uuid": eng_uuid}]}
+        }
+
+        # Act
+        res = instance._find_engagement(opus_id)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once_with(
+            QUERY_FIND_ENGAGEMENT, variable_values={"user_key": str(opus_id)}
+        )
+        assert res == eng_uuid
+
+    def test_find_engagement_present(self):
+        # Arrange
+        opus_id = 1234
+        eng_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "engagements": {"objects": [{"uuid": eng_uuid}]}
+        }
+
+        # Act
+        res = instance._find_engagement(opus_id, present=True)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once_with(
+            QUERY_FIND_ENGAGEMENT_PRESENT, variable_values={"user_key": str(opus_id)}
+        )
+        assert res == eng_uuid
+
+    def test_find_manager_role(self):
+        # Arrange
+        opus_id = 1234
+        manager_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "managers": {"objects": [{"uuid": manager_uuid}]}
+        }
+
+        # Act
+        res = instance._find_manager_role(opus_id)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once_with(
+            QUERY_FIND_MANAGER, variable_values={"user_key": str(opus_id)}
+        )
+        assert res == manager_uuid
+
+    def test_find_manager_role_present(self):
+        # Arrange
+        opus_id = 1234
+        manager_uuid = str(uuid4())
+        instance = self.get_instance({})
+        instance.gql_client.execute.return_value = {
+            "managers": {"objects": [{"uuid": manager_uuid}]}
+        }
+
+        # Act
+        res = instance._find_manager_role(opus_id, present=True)
+
+        # Assert
+        instance.gql_client.execute.assert_called_once_with(
+            QUERY_FIND_MANAGER_PRESENT, variable_values={"user_key": str(opus_id)}
+        )
+        assert res == manager_uuid
 
 
 if __name__ == "__main__":
