@@ -79,13 +79,63 @@ predefined_scopes = {
     constants.addresses_unit_se: "TEXT",
 }
 
-MUTATION_DELETE_ENGAGEMENT = gql("""
+MUTATION_DELETE_ENGAGEMENT = gql(
+    """
     mutation DeleteEngagement($uuid: UUID!) {
       engagement_delete(uuid: $uuid) {
         uuid
       }
     }
-    """)
+    """
+)
+
+QUERY_FIND_ENGAGEMENT_PRESENT = gql(
+    """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+QUERY_FIND_ENGAGEMENT = gql(
+    """
+        query FindEngagement($user_key: String!) {
+          engagements(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+
+QUERY_FIND_MANAGER = gql(
+    """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key]}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+QUERY_FIND_MANAGER_PRESENT = gql(
+    """
+        query FindManager($user_key: String!) {
+          managers(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
+            objects {
+              uuid
+            }
+          }
+        }
+        """
+)
+
+
 class MOPostDryRun:
     def __init__(self, endpoint, payload) -> None:
         logger.info(f"dry-run: {endpoint=} {payload=}")
@@ -186,57 +236,17 @@ class OpusDiffImport(object):
         return None
 
     def _find_engagement(self, opus_id: int, present=False) -> UUID | None:
-        q = (
-            """
-        query FindEngagement($user_key: String!) {
-          engagements(filter: { user_keys: [$user_key]}) {
-            objects {
-              uuid
-            }
-          }
-        }
-        """
-            if present
-            else """
-        query FindEngagement($user_key: String!) {
-          engagements(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
-            objects {
-              uuid
-            }
-          }
-        }
-        """
-        )
-        res = self.gql_client.execute(gql(q), variable_values={"user_key": str(opus_id)})
+        q = QUERY_FIND_ENGAGEMENT_PRESENT if present else QUERY_FIND_ENGAGEMENT
+
+        res = self.gql_client.execute(q, variable_values={"user_key": str(opus_id)})
         try:
             return one(res["engagements"]["objects"])["uuid"]
         except ValueError:
             return None
 
     def _find_manager_role(self, opus_id: int, present=False):
-        q = (
-            """
-        query FindManager($user_key: String!) {
-          managers(filter: { user_keys: [$user_key]}) {
-            objects {
-              uuid
-            }
-          }
-        }
-        """
-            if present
-            else """
-        query FindManager($user_key: String!) {
-          managers(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
-            objects {
-              uuid
-            }
-          }
-        }
-        """
-        )
-        res = self.gql_client.execute(gql(q), variable_values={"user_key": str(opus_id)}
-        )
+        q = QUERY_FIND_MANAGER_PRESENT if present else QUERY_FIND_MANAGER
+        res = self.gql_client.execute(q, variable_values={"user_key": str(opus_id)})
         try:
             return one(res["managers"]["objects"])["uuid"]
         except ValueError:
@@ -881,8 +891,10 @@ class OpusDiffImport(object):
         if not eng_uuid:
             logger.debug("Cancelled engagement is already deleted")
             return
-        
-        res = self.gql_client.execute(MUTATION_DELETE_ENGAGEMENT, variable_values={"uuid": eng_uuid})
+
+        res = self.gql_client.execute(
+            MUTATION_DELETE_ENGAGEMENT, variable_values={"uuid": eng_uuid}
+        )
         assert (
             res["engagement_delete"]["uuid"] == eng_uuid
         )  # Just a check that it actually worked as intended
