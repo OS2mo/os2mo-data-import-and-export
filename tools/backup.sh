@@ -2,8 +2,6 @@
 
 export DIPEXAR=${DIPEXAR:=$(realpath -L $(dirname $(realpath -L "${BASH_SOURCE}"))/..)}
 cd ${DIPEXAR}
-source ${DIPEXAR}/tools/prefixed_settings.sh
-cd ${DIPEXAR}
 
 # read the run-job script et al
 source tools/job-runner.sh
@@ -23,13 +21,8 @@ fi
 
 # Create backup
 DATABASE_NAME=${DATABASE_NAME:-"mox"}
-HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/docker/os2mo/database_snapshot/os2mo_database.sql"}
-DOCKER_SNAPSHOT_DESTINATION=${DOCKER_SNAPSHOT_DESTINATION:-"/database_snapshot/os2mo_database.sql"}
-echo "Snapshotting ${DATABASE_NAME}"
-docker exec -t ${CONTAINER_NAME} \
-    su --shell /bin/bash \
-       --command "pg_dump --data-only ${DATABASE_NAME} -f ${DOCKER_SNAPSHOT_DESTINATION}" \
-       postgres
+HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/docker/os2mo/database_snapshot/backup_mox.pgdump"}
+bash tools/data_dump/backup.sh ${CONTAINER_NAME} ${DATABASE_NAME} "/database_snapshot"
 EXIT_CODE=$?
 
 prometrics-job-end "backup" ${EXIT_CODE}
