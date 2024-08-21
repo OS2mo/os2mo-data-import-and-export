@@ -178,16 +178,6 @@ class OpusDiffImport(object):
             logger.info("Requst had no effect")
         return None
 
-    def _get_organisationfunktion(self, lora_uuid):
-        resource = "/organisation/organisationfunktion/{}"
-        resource = resource.format(lora_uuid)
-        response = self.session.get(url=self.settings["mox.base"] + resource)
-        response.raise_for_status()
-        data = response.json()
-        data = data[lora_uuid][0]["registreringer"][0]
-        # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
-        return data
-
     def _find_engagement(self, bvn, funktionsnavn, present=False):
         resource = "/organisation/organisationfunktion?bvn={}&funktionsnavn={}".format(
             bvn, funktionsnavn
@@ -803,28 +793,6 @@ class OpusDiffImport(object):
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Terminate response: {}".format(response.text))
         self._assert(response)
-
-    def import_single_employment(self, employee):
-        # logger.info('Update  employment {} from {}'.format(employment, xml_file))
-        last_changed_str = employee.get("@lastChanged")
-        if last_changed_str is not None:  # This is a true employee-object.
-            self.update_employee(employee)
-        else:  # This is an implicit termination.
-            # This is a terminated employee, check if engagement is active
-            # terminate if it is.
-            if not employee["@action"] == "leave":
-                msg = "Missing date on a non-leave object!"
-                logger.error(msg)
-                raise Exception(msg)
-
-            org_funk_info = self._find_engagement(employee["@id"], present=True)
-            if org_funk_info:
-                logger.info("Terminating: {}".format(org_funk_info))
-                self.terminate_detail(org_funk_info["engagement"])
-                if "manager" in org_funk_info:
-                    self.terminate_detail(
-                        org_funk_info["manager"], detail_type="manager"
-                    )
 
     def find_unterminated_filtered_units(self, units):
         """Check if units are in MO."""
