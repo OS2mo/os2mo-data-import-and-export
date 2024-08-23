@@ -39,12 +39,6 @@ if [[ $RUN_DB_BACKUP == "true" ]]; then
     BACK_UP_BEFORE_JOBS+=(${SNAPSHOT_LORA})
 fi
 BACK_UP_BEFORE_JOBS+=(
-    $(readlink ${CUSTOMER_SETTINGS})
-    $(
-        SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
-        # backup run_db only if file exists - it will not exist on non-SD customers
-        [ -f ${run_db} ] && echo ${run_db}
-    )
     $(
         SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-OPUS customers
