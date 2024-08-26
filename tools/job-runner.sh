@@ -26,9 +26,7 @@ export PYTHONPATH=$PWD:$PYTHONPATH
 
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
-declare -a BACK_UP_AND_TRUNCATE=(
-    ${DIPEXAR}/mo_integrations.log
-)
+declare -a BACK_UP_AND_TRUNCATE
 
 # files that need to be backed up BEFORE running the jobs
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
