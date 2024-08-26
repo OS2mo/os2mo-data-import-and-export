@@ -24,9 +24,8 @@ RUN_MO_DATA_SANITY_CHECK=${RUN_MO_DATA_SANITY_CHECK:-true}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-# some logfiles can be truncated after backup as a primitive log rotation
-# they should be appended to BACK_UP_AND_TRUNCATE
-declare -a BACK_UP_AND_TRUNCATE
+# files contained in this array is added to the tar backup files
+declare -a FILES_TO_BACKUP
 
 # files that need to be backed up BEFORE running the jobs
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
@@ -599,8 +598,8 @@ post_backup(){
     temp_report=$(mktemp)
     # deduplicate
     BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
-    BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
-    for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
+    FILES_TO_BACKUP=($(printf "%s\n" "${FILES_TO_BACKUP[@]}" | sort -u))
+    for f in ${BACK_UP_AFTER_JOBS[@]} ${FILES_TO_BACKUP[@]}
     do
         FILE_FAILED=false
         # try to append to tar file and report if not found
@@ -619,7 +618,7 @@ post_backup(){
     gzip  ${BUPFILE}
 
     echo truncating backed up logfiles
-    for f in ${BACK_UP_AND_TRUNCATE[@]}
+    for f in ${FILES_TO_BACKUP[@]}
     do
         if [ -f "${f}" ]; then
             printf "truncating %s\n" "$f"
