@@ -246,17 +246,12 @@ exports_queries_alleroed(){
 }
 
 exports_actual_state_export(){
-    # kører en test-kørsel
-    BACK_UP_AND_TRUNCATE+=(sql_export.log)
-
     ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
 
 exports_historic_sql_export(){
-    BACK_UP_AND_TRUNCATE+=(sql_export.log)
-
     ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar --historic
     EXIT_CODE=$?
     return $EXIT_CODE
@@ -553,11 +548,6 @@ reports(){
     fi
 }
 
-pre_truncate_logfiles(){
-    # logfiles are truncated before each run as
-    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log"
-}
-
 pre_backup(){
     prometrics-job-start "pre_backup"
 
@@ -617,18 +607,6 @@ post_backup(){
     tar -tvf ${BUPFILE}
     gzip  ${BUPFILE}
 
-    echo truncating backed up logfiles
-    for f in ${FILES_TO_BACKUP[@]}
-    do
-        if [ -f "${f}" ]; then
-            printf "truncating %s\n" "$f"
-            truncate -s 0 "${f}"
-        else
-            printf "not truncating %s\n" "$f"
-        fi
-    done
-
-    echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=60}
     echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
     bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
