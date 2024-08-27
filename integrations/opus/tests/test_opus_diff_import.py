@@ -442,6 +442,25 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         # If no position is found the function returns early and never calls 'read_user'
         diff.helper.read_user.assert_not_called()
 
+    @patch("integrations.dawa_helper.dawa_lookup")
+    @given(datetimes())
+    def test_skip_user_if_no_entrydate(
+        self,
+        dawa_helper_mock,
+        xml_date,
+    ):
+        # Arrange
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+
+        # Act
+        diff.update_employee(
+            {"entryDate": None, "position": "tester", "cpr": "123456789"}
+        )
+
+        # Assert
+        # If no entryDate is found the function returns early and never calls 'read_user'
+        diff.helper.read_user.assert_not_called()
+
 
 class TestUpdateEmployeeAddress(_GetInstanceMixin):
     """Test `OpusDiffImporter._update_employee_address`"""

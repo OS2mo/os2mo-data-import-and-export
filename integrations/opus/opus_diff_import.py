@@ -765,6 +765,11 @@ class OpusDiffImport(object):
         if employee["position"] is None:
             logger.warning("Error in opus-file. Missing 'position'")
             return
+        if employee["entryDate"] is None:
+            logger.warning(
+                "Error in opus-file. No entryDate for this employee. Skipping."
+            )
+            return
         mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}
