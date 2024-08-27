@@ -24,11 +24,8 @@ RUN_MO_DATA_SANITY_CHECK=${RUN_MO_DATA_SANITY_CHECK:-true}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-# some logfiles can be truncated after backup as a primitive log rotation
-# they should be appended to BACK_UP_AND_TRUNCATE
-declare -a BACK_UP_AND_TRUNCATE=(
-    ${DIPEXAR}/mo_integrations.log
-)
+# files contained in this array is added to the tar backup files
+declare -a FILES_TO_BACKUP
 
 # files that need to be backed up BEFORE running the jobs
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
@@ -249,17 +246,12 @@ exports_queries_alleroed(){
 }
 
 exports_actual_state_export(){
-    # kører en test-kørsel
-    BACK_UP_AND_TRUNCATE+=(sql_export.log)
-
     ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar
     EXIT_CODE=$?
     return $EXIT_CODE
 }
 
 exports_historic_sql_export(){
-    BACK_UP_AND_TRUNCATE+=(sql_export.log)
-
     ${POETRYPATH} run python -m exporters.sql_export.sql_export --resolve-dar --historic
     EXIT_CODE=$?
     return $EXIT_CODE
@@ -556,11 +548,6 @@ reports(){
     fi
 }
 
-pre_truncate_logfiles(){
-    # logfiles are truncated before each run as
-    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log"
-}
-
 pre_backup(){
     prometrics-job-start "pre_backup"
 
@@ -601,8 +588,8 @@ post_backup(){
     temp_report=$(mktemp)
     # deduplicate
     BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
-    BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
-    for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
+    FILES_TO_BACKUP=($(printf "%s\n" "${FILES_TO_BACKUP[@]}" | sort -u))
+    for f in ${BACK_UP_AFTER_JOBS[@]} ${FILES_TO_BACKUP[@]}
     do
         FILE_FAILED=false
         # try to append to tar file and report if not found
@@ -620,18 +607,6 @@ post_backup(){
     tar -tvf ${BUPFILE}
     gzip  ${BUPFILE}
 
-    echo truncating backed up logfiles
-    for f in ${BACK_UP_AND_TRUNCATE[@]}
-    do
-        if [ -f "${f}" ]; then
-            printf "truncating %s\n" "$f"
-            truncate -s 0 "${f}"
-        else
-            printf "not truncating %s\n" "$f"
-        fi
-    done
-
-    echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=60}
     echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
     bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
