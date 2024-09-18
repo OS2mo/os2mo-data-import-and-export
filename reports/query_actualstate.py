@@ -284,6 +284,7 @@ def list_MED_members(session, org_names: dict) -> list:
         .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
         .join(eng_unit, eng_unit.c.bruger_uuid == Bruger.uuid)
         .order_by(Bruger.efternavn)
+        .distinct()
     )
     data = query.all()
     data_df = pd.DataFrame(
