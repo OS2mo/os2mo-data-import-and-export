@@ -308,6 +308,8 @@ def list_MED_members(session, org_names: dict) -> list:
     data_df = merge_dynamic_classes(data_df, association_dynamic_class)
 
     data_df = rearrange(data_df)
+    data_df.drop_duplicates(inplace=True)
+
     # Return data as a list of tuples with columns as the first element
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
 
