@@ -327,7 +327,7 @@ if __name__ == "__main__":
             ballerup = root["uuid"]
         if root["name"] == "9B":
             sd = root["uuid"]
-        if root["name"] == "H-MED Hoved-MED":
+        if root["name"] == "MED-organisationen Hoved-MED":
             udvalg = root["uuid"]
 
     if threaded_speedup:
