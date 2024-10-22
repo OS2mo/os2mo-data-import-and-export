@@ -145,6 +145,7 @@ class AddressDecisionList:
 
         _, visibility_scope = self._address_mapping[field]
         logger.warning(f"{_=}, {visibility_scope=}")
+        logger.warning(f"{address=}")
         current_visibility_scope = (
             address["visibility"].get("scope") if address.get("visibility") else None
         )
