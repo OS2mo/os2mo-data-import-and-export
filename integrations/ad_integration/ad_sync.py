@@ -141,12 +141,16 @@ class AddressDecisionList:
 
     def _mo_and_ad_differs(self, field: str, address: dict) -> bool:
         value_differs = address["value"] != self._ad_object[field]
+        logger.warning(f"{value_differs=}")
 
         _, visibility_scope = self._address_mapping[field]
+        logger.warning(f"{_=}, {visibility_scope=}")
         current_visibility_scope = (
             address["visibility"].get("scope") if address.get("visibility") else None
         )
+        logger.warning(f"{current_visibility_scope=}")
         visibility_differs = visibility_scope != current_visibility_scope
+        logger.warning(f"{visibility_differs=}")
 
         return value_differs or visibility_differs
 
