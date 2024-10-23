@@ -143,10 +143,14 @@ class AddressDecisionList:
         value_differs = address["value"] != self._ad_object[field]
 
         _, visibility_scope = self._address_mapping[field]
-        current_visibility_scope = (
-            address["visibility"].get("scope") if address.get("visibility") else None
+        current_visibility = (
+            address["visibility"]["uuid"] if address.get("visibility") else None
         )
-        visibility_differs = visibility_scope != current_visibility_scope
+        target_visibility_class = (
+            self._visibility[visibility_scope] if visibility_scope is not None else None
+        )
+
+        visibility_differs = current_visibility != target_visibility_class
 
         return value_differs or visibility_differs
 
