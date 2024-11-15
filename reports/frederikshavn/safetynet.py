@@ -2,7 +2,9 @@ from datetime import datetime
 from uuid import UUID
 
 from gql import gql
-from iteration_utilities._iteration_utilities import one
+from more_itertools import first
+from more_itertools import last
+from more_itertools import one
 from pydantic.main import BaseModel
 
 from raclients.graph.client import GraphQLClient
@@ -83,8 +85,78 @@ class AdmUnitRow(BaseModel):
 def process_engagement(
     gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_user_key: str
 ) -> AdmUnitRow:
-    # Implemented in later commits
-    pass
+    engagement = gql_client.execute(
+        GET_ENGAGEMENT,
+        variable_values={
+            "uuid": str(eng_uuid),
+            "to_date": datetime.now().strftime("%Y-%m-%d")
+        }
+    )
+    # Example response
+    #
+    # "engagements": {
+    #     "objects": [
+    #         {
+    #             "validities": [
+    #                 {
+    #                     "validity": {
+    #                         "from": "2021-10-22T00:00:00+02:00",
+    #                         "to": "2023-10-31T00:00:00+01:00"
+    #                     }
+    #                 },
+    #                 {
+    #                     "validity": {
+    #                         "from": "2023-11-01T00:00:00+01:00",
+    #                         "to": "2025-09-30T00:00:00+02:00"
+    #                     }
+    #                 }
+    #             ],
+    #             "current": {
+    #                 "person": [
+    #                     {
+    #                         "cpr_number": "0101011255",
+    #                         "given_name": "Bruce",
+    #                         "surname": "Lee",
+    #                         "addresses": [
+    #                             {
+    #                                 "value": "bruce@kung.fu"
+    #                             }
+    #                         ],
+    #                         "manager_roles": []
+    #                     }
+    #                 ],
+    #                 "job_function": {
+    #                     "name": "Kung Fu Master"
+    #                 }
+    #             }
+    #         }
+    #     ]
+    # }
+
+    obj = one(engagement["engagements"]["objects"])
+
+    eng_start = first(obj["validities"])["validity"]["from"][:10]
+    to = last(obj["validities"])["validity"]["to"]
+    eng_end = to[:10] if to is not None else ""
+
+    current = obj["current"]
+    person = one(current["person"])
+    email = one(person["addresses"])["value"]
+
+    return AdmUnitRow(
+        person_user_key=current["user_key"],
+        cpr=person["cpr_number"],
+        first_name=person["given_name"],
+        last_name=person["surname"],
+        email=email,
+        org_unit=ou_uuid,
+        is_manager=True if person["manager_roles"] else False,
+        eng_start=eng_start,
+        eng_end=eng_end,
+        manager_person_user_key=manager_user_key,
+        username=first(email.split("@")),
+        job_function=current["job_function"]["name"]
+    )
 
 
 def process_adm_unit(
