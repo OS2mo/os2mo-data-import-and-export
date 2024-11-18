@@ -308,7 +308,7 @@ def process_adm_unit(
 def process_association(
     gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
 ) -> MedUnitRow:
-    logger.debug("Processing engagement", uuid=str(ass_uuid))
+    logger.debug("Processing association", uuid=str(ass_uuid))
     to_date = datetime.now() + timedelta(days=1)
 
     engagement = gql_client.execute(
@@ -403,7 +403,7 @@ def process_med_unit(
     # }
     current = one(unit["org_units"]["objects"])["current"]
 
-    assocs = [UUID(ass["uuid"]) for ass in current["engagements"]]
+    assocs = [UUID(ass["uuid"]) for ass in current["associations"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
 
     for ass in assocs:
@@ -442,6 +442,20 @@ def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
     ]
 
 
+def med_unit_rows_to_csv(rows: list[MedUnitRow]) -> list[str]:
+    return [
+        "CPR,"
+        "Afdelingskode,"
+        "Startdato,"
+        "Slutdato,"
+        "Hverv,"
+        "Hovedorganisation\n"
+    ] + [
+        f"{r.cpr},{str(r.org_unit)},{r.ass_start},{r.ass_end},{r.role},{r.main_org}\n"
+        for r in rows
+    ]
+
+
 def write_csv(path: str, lines: list[str]) -> None:
     with open(path, "w") as fp:
         fp.writelines(lines)
@@ -458,7 +472,13 @@ def get_settings(*args, **kwargs) -> JobSettings:
     required=True,
     help="UUID of top level adm unit to process"
 )
-def main(adm_unit_uuid: UUID) -> None:
+@click.option(
+    "--med-unit-uuid",
+    type=click.UUID,
+    required=True,
+    help="UUID of top level med unit to process"
+)
+def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
     logger.info("Started Safetynet report generation")
 
     settings = get_settings()
@@ -473,9 +493,16 @@ def main(adm_unit_uuid: UUID) -> None:
     )
 
     # Adm employee report
+    logger.info("Generating adm employee report")
     adm_unit_rows = process_adm_unit(gql_client, adm_unit_uuid, [])
     csv_lines = adm_unit_rows_to_csv(adm_unit_rows)
     write_csv("/tmp/adm-unit-engagements.csv", csv_lines)
+
+    # Med employee (based on associations) report
+    logger.info("Generating med association report")
+    med_unit_rows = process_med_unit(gql_client, med_unit_uuid, [])
+    csv_lines = med_unit_rows_to_csv(med_unit_rows)
+    write_csv("/tmp/med-unit-associations.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
