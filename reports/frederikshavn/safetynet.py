@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timedelta
 from uuid import UUID
 
 import click
@@ -6,12 +7,14 @@ from gql import gql
 from more_itertools import first
 from more_itertools import last
 from more_itertools import one
+from more_itertools import only
 from pydantic.main import BaseModel
-from structlog import get_logger
+from tools.log import get_logger
+from tools.log import LogLevel
+from tools.log import setup_logging
 
 from raclients.graph.client import GraphQLClient
 from ra_utils.job_settings import JobSettings
-from ra_utils.job_settings import LogLevel
 
 from reports.graphql import get_mo_client
 
@@ -29,8 +32,12 @@ GET_ADM_UNIT = gql(
             children {
               uuid
             }
-            managers {
-              user_key
+            managers(filter: { org_unit: { uuids: $org_unit } }) {
+              person {
+                engagements(filter: { org_unit: { uuids: $org_unit } }) {
+                  user_key
+                }
+              }
             }
           }
         }
@@ -73,6 +80,7 @@ GET_ENGAGEMENT = gql(
     """
 )
 
+setup_logging(LogLevel.DEBUG)
 logger = get_logger()
 
 
@@ -84,21 +92,24 @@ class AdmUnitRow(BaseModel):
     email: str
     org_unit: UUID
     is_manager: bool
-    eng_start: datetime
-    eng_end: datetime
-    manager_person_user_key: str  # User key for person who is manager of the OU
+    eng_start: str
+    eng_end: str
+    manager_eng_user_key: str
     username: str  # AD username
     job_function: str
 
 
 def process_engagement(
-    gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_user_key: str
+    gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_eng_user_key: str
 ) -> AdmUnitRow:
+    logger.debug("Processing engagement", uuid=str(eng_uuid))
+    to_date = datetime.now() + timedelta(days=1)
+
     engagement = gql_client.execute(
         GET_ENGAGEMENT,
         variable_values={
             "uuid": str(eng_uuid),
-            "to_date": datetime.now().strftime(DATE_FORMAT)
+            "to_date": to_date.strftime(DATE_FORMAT)
         }
     )
     # Example response
@@ -150,7 +161,7 @@ def process_engagement(
 
     current = obj["current"]
     person = one(current["person"])
-    email = one(person["addresses"])["value"]
+    email = only(person["addresses"], {}).get("value", "")
 
     return AdmUnitRow(
         person_user_key=current["user_key"],
@@ -162,7 +173,7 @@ def process_engagement(
         is_manager=True if person["manager_roles"] else False,
         eng_start=eng_start,
         eng_end=eng_end,
-        manager_person_user_key=manager_user_key,
+        manager_eng_user_key=manager_eng_user_key,
         username=first(email.split("@")),
         job_function=current["job_function"]["name"]
     )
@@ -171,6 +182,8 @@ def process_engagement(
 def process_adm_unit(
     gql_client: GraphQLClient, org_unit: UUID, adm_unit_rows: list[AdmUnitRow]
 ) -> list[AdmUnitRow]:
+    logger.info("Processing adm unit", uuid=str(org_unit))
+
     unit = gql_client.execute(
         GET_ADM_UNIT, variable_values={"org_unit": str(org_unit)}
     )
@@ -191,9 +204,17 @@ def process_adm_unit(
     #           }
     #         ],
     #         "managers": [
-    #           {
-    #             "user_key": "123456"
-    #           }
+    #             {
+    #                 "person": [
+    #                     {
+    #                         "engagements": [
+    #                             {
+    #                                 "user_key": "54321"
+    #                             }
+    #                         ]
+    #                     }
+    #                 ]
+    #             }
     #         ]
     #       }
     #     }
@@ -204,10 +225,16 @@ def process_adm_unit(
 
     engs = [UUID(eng["uuid"]) for eng in current["engagements"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
-    managers = [manager["user_key"] for manager in current["managers"]]
+
+    manager = only(current["managers"], {})
+    manager_person = manager.get("person", [{}])
+    manager_eng = only(manager_person).get("engagements", [{}])
+    manager_eng_user_key = only(manager_eng, {}).get("user_key", "")
 
     for eng in engs:
-        adm_unit_row = process_engagement(gql_client, eng, org_unit, one(managers))
+        adm_unit_row = process_engagement(
+            gql_client, eng, org_unit, manager_eng_user_key
+        )
         adm_unit_rows.append(adm_unit_row)
 
     for child in children:
@@ -234,8 +261,8 @@ def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
     ] + [
         (
             f"{r.person_user_key},{r.cpr},{r.first_name},{r.last_name},{r.email},"
-            f"{str(r.org_unit)},{str(r.is_manager)},{r.eng_start.strftime(DATE_FORMAT)},"
-            f"{r.eng_end.strftime(DATE_FORMAT)},{r.manager_person_user_key},"
+            f"{str(r.org_unit)},{str(r.is_manager)},{r.eng_start},"
+            f"{r.eng_end},{r.manager_eng_user_key},"
             f"{r.username},{r.job_function},{r.job_function}\n"
         )
         for r in rows
@@ -261,8 +288,7 @@ def get_settings(*args, **kwargs) -> JobSettings:
 def main(adm_unit_uuid: UUID) -> None:
     logger.info("Started Safetynet report generation")
 
-    settings = get_settings(log_level=LogLevel.INFO)
-    settings.start_logging_based_on_settings()
+    settings = get_settings()
 
     gql_client = get_mo_client(
         auth_server=settings.crontab_AUTH_SERVER,
