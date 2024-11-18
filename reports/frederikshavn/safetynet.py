@@ -80,6 +80,59 @@ GET_ENGAGEMENT = gql(
     """
 )
 
+GET_MED_UNIT = gql(
+    """
+    query GetMedUnit($org_unit: [UUID!]) {
+      org_units(filter: { uuids: $org_unit }) {
+        objects {
+          current {
+            associations {
+              uuid
+            }
+            children {
+              uuid
+            }
+          }
+        }
+      }
+    }
+    """
+)
+
+
+GET_ASSOCIATIONS = gql(
+    """
+    query GetAssociation($uuid: [UUID!], $to_date: DateTime) {
+      associations(filter: { uuids: $uuid, to_date: $to_date }) {
+        objects {
+          validities {
+            validity {
+                from
+                to
+            }
+          }
+          current {
+            association_type {
+              name
+              user_key
+              uuid
+            }
+            dynamic_class {
+              full_name
+              name
+              user_key
+              uuid
+            }
+            person {
+              cpr_number
+            }
+          }
+        }
+      }
+    }
+    """
+)
+
 setup_logging(LogLevel.DEBUG)
 logger = get_logger()
 
@@ -97,6 +150,15 @@ class AdmUnitRow(BaseModel):
     manager_eng_user_key: str
     username: str  # AD username
     job_function: str
+
+
+class MedUnitRow(BaseModel):
+    cpr: str
+    org_unit: UUID
+    ass_start: str
+    ass_end: str
+    role: str
+    main_org: str
 
 
 def process_engagement(
@@ -241,6 +303,56 @@ def process_adm_unit(
         process_adm_unit(gql_client, child, adm_unit_rows)
 
     return adm_unit_rows
+
+
+def process_association(
+    gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
+) -> MedUnitRow:
+    # Will be implemented in later commits
+    pass
+
+
+def process_med_unit(
+    gql_client: GraphQLClient, org_unit: UUID, med_unit_rows: list[MedUnitRow]
+) -> list[MedUnitRow]:
+    logger.info("Processing med unit", uuid=str(org_unit))
+
+    unit = gql_client.execute(
+        GET_MED_UNIT, variable_values={"org_unit": str(org_unit)}
+    )
+    # Example response:
+    #
+    # "org_units": {
+    #   "objects": [
+    #     {
+    #       "current": {
+    #         "associations": [
+    #           {
+    #             "uuid": "6c113a45-661f-4ff0-ac92-864f09d707eb"
+    #           }
+    #         ],
+    #         "children": [
+    #           {
+    #             "uuid": "d32a3f1b-0f63-4afe-980e-e04405545925"
+    #           }
+    #         ]
+    #       }
+    #     }
+    #   ]
+    # }
+    current = one(unit["org_units"]["objects"])["current"]
+
+    assocs = [UUID(ass["uuid"]) for ass in current["engagements"]]
+    children = [UUID(child["uuid"]) for child in current["children"]]
+
+    for ass in assocs:
+        med_unit_row = process_association(gql_client, ass, org_unit)
+        med_unit_rows.append(med_unit_row)
+
+    for child in children:
+        process_med_unit(gql_client, child, med_unit_rows)
+
+    return med_unit_rows
 
 
 def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
