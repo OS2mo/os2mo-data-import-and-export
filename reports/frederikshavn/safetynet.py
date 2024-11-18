@@ -10,6 +10,8 @@ from pydantic.main import BaseModel
 from raclients.graph.client import GraphQLClient
 
 
+DATE_FORMAT = "%Y-%m-%d"
+
 GET_ADM_UNIT = gql(
     """
     query GetAdmUnit($org_unit: [UUID!]) {
@@ -89,7 +91,7 @@ def process_engagement(
         GET_ENGAGEMENT,
         variable_values={
             "uuid": str(eng_uuid),
-            "to_date": datetime.now().strftime("%Y-%m-%d")
+            "to_date": datetime.now().strftime(DATE_FORMAT)
         }
     )
     # Example response
@@ -205,3 +207,29 @@ def process_adm_unit(
         process_adm_unit(gql_client, child, adm_unit_rows)
 
     return adm_unit_rows
+
+
+def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
+    return [
+        "Medarbejdernummer,"
+        "CPR,"
+        "Fornavn,"
+        "Efternavn,"
+        "Mail,"
+        "Afdelingskode,"
+        "ErLeder,"
+        "Startdato,"
+        "Slutdato,"
+        "LedersMedarbejdernummer,"
+        "Brugernavn,"
+        "Titel,"
+        "Faggruppe\n"
+    ] + [
+        (
+            f"{r.person_user_key},{r.cpr},{r.first_name},{r.last_name},{r.email},"
+            f"{str(r.org_unit)},{str(r.is_manager)},{r.eng_start.strftime(DATE_FORMAT)},"
+            f"{r.eng_end.strftime(DATE_FORMAT)},{r.manager_person_user_key},"
+            f"{r.username},{r.job_function},{r.job_function}\n"
+        )
+        for r in rows
+    ]
