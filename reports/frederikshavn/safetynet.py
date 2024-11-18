@@ -1,14 +1,19 @@
 from datetime import datetime
 from uuid import UUID
 
+import click
 from gql import gql
 from more_itertools import first
 from more_itertools import last
 from more_itertools import one
 from pydantic.main import BaseModel
+from structlog import get_logger
 
 from raclients.graph.client import GraphQLClient
+from ra_utils.job_settings import JobSettings
+from ra_utils.job_settings import LogLevel
 
+from reports.graphql import get_mo_client
 
 DATE_FORMAT = "%Y-%m-%d"
 
@@ -67,6 +72,8 @@ GET_ENGAGEMENT = gql(
     }
     """
 )
+
+logger = get_logger()
 
 
 class AdmUnitRow(BaseModel):
@@ -233,3 +240,46 @@ def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
         )
         for r in rows
     ]
+
+
+def write_csv(path: str, lines: list[str]) -> None:
+    with open(path, "w") as fp:
+        fp.writelines(lines)
+
+
+def get_settings(*args, **kwargs) -> JobSettings:
+    return JobSettings(*args, **kwargs)
+
+
+@click.command()
+@click.option(
+    "--adm-unit-uuid",
+    type=click.UUID,
+    required=True,
+    help="UUID of top level adm unit to process"
+)
+def main(adm_unit_uuid: UUID) -> None:
+    logger.info("Started Safetynet report generation")
+
+    settings = get_settings(log_level=LogLevel.INFO)
+    settings.start_logging_based_on_settings()
+
+    gql_client = get_mo_client(
+        auth_server=settings.crontab_AUTH_SERVER,
+        client_id=settings.client_id,
+        # Careful - this is not a SecretStr
+        client_secret=settings.crontab_CLIENT_SECRET,
+        mo_base_url=settings.mora_base,
+        gql_version=22,
+    )
+
+    # Adm employee report
+    adm_unit_rows = process_adm_unit(gql_client, adm_unit_uuid, [])
+    csv_lines = adm_unit_rows_to_csv(adm_unit_rows)
+    write_csv("/tmp/adm-unit-engagements.csv", csv_lines)
+
+    logger.info("Finished Safetynet report generation")
+
+
+if __name__ == "__main__":
+    main()
