@@ -100,7 +100,7 @@ GET_MED_UNIT = gql(
 )
 
 
-GET_ASSOCIATIONS = gql(
+GET_ASSOCIATION = gql(
     """
     query GetAssociation($uuid: [UUID!], $to_date: DateTime) {
       associations(filter: { uuids: $uuid, to_date: $to_date }) {
@@ -308,8 +308,69 @@ def process_adm_unit(
 def process_association(
     gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
 ) -> MedUnitRow:
-    # Will be implemented in later commits
-    pass
+    logger.debug("Processing engagement", uuid=str(ass_uuid))
+    to_date = datetime.now() + timedelta(days=1)
+
+    engagement = gql_client.execute(
+        GET_ASSOCIATION,
+        variable_values={
+            "uuid": str(ass_uuid),
+            "to_date": to_date.strftime(DATE_FORMAT)
+        }
+    )
+    # Example response
+    #
+    # "associations": {
+    #   "objects": [
+    #     {
+    #       "validities": [
+    #         {
+    #           "validity": {
+    #             "from": "2022-01-06T00:00:00+01:00",
+    #             "to": null
+    #           }
+    #         }
+    #       ],
+    #       "current": {
+    #         "association_type": {
+    #           "name": "AMR",
+    #           "user_key": "assoc_AMR",
+    #           "uuid": "8146e191-0549-45d4-ba3b-cf9a63d80599"
+    #         },
+    #         "dynamic_class": {
+    #           "full_name": "Ej relevant",
+    #           "name": "Ej relevant",
+    #           "user_key": "na3",
+    #           "uuid": "980c9936-af89-4eac-a772-23d1d09eafc0"
+    #         },
+    #         "person": [
+    #           {
+    #             "cpr_number": "0101011234"
+    #           }
+    #         ]
+    #       }
+    #     }
+    #   ]
+    # }
+
+    obj = one(engagement["associations"]["objects"])
+
+    ass_start = first(obj["validities"])["validity"]["from"][:10]
+    to = last(obj["validities"])["validity"]["to"]
+    ass_end = to[:10] if to is not None else ""
+
+    current = obj["current"]
+    person = only(current["person"], {})
+    cpr = person.get("cpr_number", "")
+
+    return MedUnitRow(
+        cpr=cpr,
+        org_unit=ou_uuid,
+        ass_start=ass_start,
+        ass_end=ass_end,
+        role=current["association_type"]["name"],
+        main_org=current["dynamic_class"]["name"]
+    )
 
 
 def process_med_unit(
