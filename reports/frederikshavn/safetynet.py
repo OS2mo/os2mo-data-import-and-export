@@ -281,10 +281,11 @@ def process_engagement(
     current = obj["current"]
     person = one(current["person"])
     email = only(person["addresses"], {}).get("value", "")
+    cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
     return AdmEngRow(
         person_user_key=current["user_key"],
-        cpr=person["cpr_number"],
+        cpr=cpr,
         first_name=person["given_name"],
         last_name=person["surname"],
         email=email,
@@ -478,7 +479,7 @@ def process_association(
 
     current = obj["current"]
     person = only(current["person"], {})
-    cpr = person.get("cpr_number", "")
+    cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
     return MedAssRow(
         cpr=cpr,
