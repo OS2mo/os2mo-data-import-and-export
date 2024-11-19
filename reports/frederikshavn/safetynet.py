@@ -62,8 +62,8 @@ GET_ADM_UNIT = gql(
 
 GET_ENGAGEMENT = gql(
     """
-    query GetEngagement($uuid: [UUID!], $to_date: DateTime) {
-      engagements(filter: { uuids: $uuid, from_date: null, to_date: $to_date }) {
+    query GetEngagement($uuid: [UUID!]) {
+      engagements(filter: { uuids: $uuid, from_date: null, to_date: null }) {
         objects {
           validities {
             validity {
@@ -121,8 +121,8 @@ GET_MED_UNIT = gql(
 
 GET_ASSOCIATION = gql(
     """
-    query GetAssociation($uuid: [UUID!], $to_date: DateTime) {
-      associations(filter: { uuids: $uuid, to_date: $to_date }) {
+    query GetAssociation($uuid: [UUID!]) {
+      associations(filter: { uuids: $uuid, from_date: null, to_date: null }) {
         objects {
           validities {
             validity {
@@ -221,13 +221,11 @@ def process_engagement(
         Data for the engagement
     """
     logger.debug("Processing engagement", uuid=str(eng_uuid))
-    to_date = datetime.now() + timedelta(days=1)
 
     engagement = gql_client.execute(
         GET_ENGAGEMENT,
         variable_values={
             "uuid": str(eng_uuid),
-            "to_date": to_date.strftime(DATE_FORMAT)
         }
     )
     # Example response
@@ -416,13 +414,11 @@ def process_association(
         Data for the association
     """
     logger.debug("Processing association", uuid=str(ass_uuid))
-    to_date = datetime.now() + timedelta(days=1)
 
     engagement = gql_client.execute(
         GET_ASSOCIATION,
         variable_values={
             "uuid": str(ass_uuid),
-            "to_date": to_date.strftime(DATE_FORMAT)
         }
     )
     # Example response
