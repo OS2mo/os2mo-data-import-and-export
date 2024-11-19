@@ -341,7 +341,7 @@ def process_adm_unit(
         adm_eng_rows.append(adm_eng_row)
 
     for child in children:
-        process_adm_unit(gql_client, child, adm_eng_rows)
+        process_adm_unit(gql_client, child, adm_eng_rows, adm_ou_rows)
 
     return adm_eng_rows, adm_ou_rows
 
@@ -497,6 +497,17 @@ def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
     ]
 
 
+def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
+    return [
+        "Afdelingsnavn,"
+        "Afdelingskode,"
+        "Forældreafdelingskode,"
+        "Pnummer\n"
+    ] + [
+        f"{r.name},{str(r.uuid)},{str(r.parent)},{r.pnumber}\n"
+        for r in rows
+    ]
+
 def write_csv(path: str, lines: list[str]) -> None:
     with open(path, "w") as fp:
         fp.writelines(lines)
@@ -535,15 +546,20 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
 
     # Adm employee report
     logger.info("Generating adm employee report")
-    adm_eng_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])[0]
+    adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
     csv_lines = adm_eng_rows_to_csv(adm_eng_rows)
-    write_csv("/tmp/adm-unit-engagements.csv", csv_lines)
+    write_csv("/tmp/adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows = process_med_unit(gql_client, med_unit_uuid, [])
     csv_lines = med_ass_rows_to_csv(med_ass_rows)
-    write_csv("/tmp/med-unit-associations.csv", csv_lines)
+    write_csv("/tmp/med-associations.csv", csv_lines)
+
+    # Adm OU report
+    logger.info("Generating adm OU report")
+    csv_lines = adm_ou_rows_to_csv(adm_ou_rows)
+    write_csv("/tmp/adm-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
