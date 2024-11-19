@@ -280,7 +280,7 @@ def process_engagement(
 
     current = obj["current"]
     person = one(current["person"])
-    email = only(person["addresses"], {}).get("value", "")
+    email = first(person["addresses"], {}).get("value", "")
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
     return AdmEngRow(
