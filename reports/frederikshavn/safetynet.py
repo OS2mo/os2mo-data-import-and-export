@@ -26,7 +26,12 @@ GET_ADM_UNIT = gql(
       org_units(filter: { uuids: $org_unit }) {
         objects {
           current {
+            name
+            uuid
             engagements {
+              uuid
+            }
+            parent {
               uuid
             }
             children {
@@ -38,6 +43,9 @@ GET_ADM_UNIT = gql(
                   user_key
                 }
               }
+            }
+            addresses(filter: { address_type_user_keys: "Pnummer" }) {
+              value
             }
           }
         }
@@ -152,6 +160,13 @@ class AdmUnitRow(BaseModel):
     job_function: str
 
 
+class AdmOrgUnitRow(BaseModel):
+    name: str
+    uuid: UUID
+    parent: UUID | None
+    pnumber: str
+
+
 class MedUnitRow(BaseModel):
     cpr: str
     org_unit: UUID
@@ -242,8 +257,11 @@ def process_engagement(
 
 
 def process_adm_unit(
-    gql_client: GraphQLClient, org_unit: UUID, adm_unit_rows: list[AdmUnitRow]
-) -> list[AdmUnitRow]:
+    gql_client: GraphQLClient,
+    org_unit: UUID,
+    adm_unit_rows: list[AdmUnitRow],
+    adm_ou_rows: list[AdmOrgUnitRow]
+) -> tuple[list[AdmUnitRow], list[AdmOrgUnitRow]]:
     logger.info("Processing adm unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -255,11 +273,16 @@ def process_adm_unit(
     #   "objects": [
     #     {
     #       "current": {
+    #         "name": "Some name"
+    #         "uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
     #         "engagements": [
     #           {
     #             "uuid": "83483193-c623-4a59-a0c1-ac8887fba72e"
     #           }
     #         ],
+    #         "parent": {
+    #            "uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98"
+    #         }
     #         "children": [
     #           {
     #             "uuid": "dbce9dee-3cad-4713-a5ff-466051108c99"
@@ -278,6 +301,11 @@ def process_adm_unit(
     #                 ]
     #             }
     #         ]
+    #         "addresses": [
+    #           {
+    #             "value": "1234567890"
+    #           }
+    #         ]
     #       }
     #     }
     #   ]
@@ -285,6 +313,7 @@ def process_adm_unit(
 
     current = one(unit["org_units"]["objects"])["current"]
 
+    # Engagement data
     engs = [UUID(eng["uuid"]) for eng in current["engagements"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
 
@@ -292,6 +321,18 @@ def process_adm_unit(
     manager_person = manager.get("person", [{}])
     manager_eng = only(manager_person).get("engagements", [{}])
     manager_eng_user_key = only(manager_eng, {}).get("user_key", "")
+
+    # Org unit data
+    parent_uuid = current.get("parent", {}).get("uuid")
+    pnumber = only(current["addresses"], {}).get("value", "")
+    adm_ou_row = AdmOrgUnitRow(
+        name=current.get("name", ""),
+        uuid=UUID(current["uuid"]),
+        parent=UUID(parent_uuid) if parent_uuid is not None else None,
+        pnumber=pnumber
+    )
+
+    adm_ou_rows.append(adm_ou_row)
 
     for eng in engs:
         adm_unit_row = process_engagement(
@@ -302,7 +343,7 @@ def process_adm_unit(
     for child in children:
         process_adm_unit(gql_client, child, adm_unit_rows)
 
-    return adm_unit_rows
+    return adm_unit_rows, adm_ou_rows
 
 
 def process_association(
