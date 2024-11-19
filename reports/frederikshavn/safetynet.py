@@ -1,3 +1,9 @@
+# This script generates 4 reports (CSV files) and uploads these to
+# Safetynet via SFTP. The reports are
+# 1) An engagements report for the ADM organisation
+# 2) An org unit report for the ADM organisation
+# 3) An association report for the MED organisation
+# 4) An org unit report for the MED organisation
 from datetime import datetime
 from datetime import timedelta
 from uuid import UUID
@@ -151,6 +157,9 @@ logger = get_logger()
 
 
 class AdmEngRow(BaseModel):
+    """
+    Data model for the ADM engagement report
+    """
     person_user_key: str
     cpr: str
     first_name: str
@@ -166,6 +175,9 @@ class AdmEngRow(BaseModel):
 
 
 class AdmOuRow(BaseModel):
+    """
+    Data model for the ADM org unit report
+    """
     name: str
     uuid: UUID
     parent: UUID | None
@@ -173,6 +185,9 @@ class AdmOuRow(BaseModel):
 
 
 class MedAssRow(BaseModel):
+    """
+    Data model for the MED association report
+    """
     cpr: str
     org_unit: UUID
     ass_start: str
@@ -182,6 +197,9 @@ class MedAssRow(BaseModel):
 
 
 class MedOuRow(BaseModel):
+    """
+    Data model for the MED org unit report
+    """
     name: str
     uuid: UUID
     parent: UUID | None
@@ -190,6 +208,18 @@ class MedOuRow(BaseModel):
 def process_engagement(
     gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_eng_user_key: str
 ) -> AdmEngRow:
+    """
+    Process a single engagement from an ADM org unit
+
+    Args:
+        gql_client: the GraphQL client
+        eng_uuid: the UUID of the engagement
+        ou_uuid: the UUID of the org unit
+        manager_eng_user_key: the user key of the engagement of the manager of the OU
+
+    Returns:
+        Data for the engagement
+    """
     logger.debug("Processing engagement", uuid=str(eng_uuid))
     to_date = datetime.now() + timedelta(days=1)
 
@@ -273,6 +303,20 @@ def process_adm_unit(
     adm_eng_rows: list[AdmEngRow],
     adm_ou_rows: list[AdmOuRow]
 ) -> tuple[list[AdmEngRow], list[AdmOuRow]]:
+    """
+    Recursive function for processing the OU data and engagement data in an
+    org unit from the ADM organisation. The function will traverse the entire
+    OU-tree from the provided root node.
+
+    Args:
+        gql_client: the GraphQL client
+        org_unit: the root org unit to process
+        adm_eng_rows: list of engagement data to append new data to
+        adm_ou_rows: list of OU data to append new data to
+
+    Returns:
+        List of engagement data and list of OU data
+    """
     logger.info("Processing adm unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -360,6 +404,17 @@ def process_adm_unit(
 def process_association(
     gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
 ) -> MedAssRow:
+    """
+    Process a single association from an ADM org unit
+
+    Args:
+        gql_client: the GraphQL client
+        ass_uuid: the UUID of the engagement
+        ou_uuid: the UUID of the org unit
+
+    Returns:
+        Data for the association
+    """
     logger.debug("Processing association", uuid=str(ass_uuid))
     to_date = datetime.now() + timedelta(days=1)
 
@@ -431,6 +486,20 @@ def process_med_unit(
     med_ass_rows: list[MedAssRow],
     med_ou_rows: list[MedOuRow]
 ) -> tuple[list[MedAssRow], list[MedOuRow]]:
+    """
+    Recursive function for processing the OU data and engagement data in an
+    org unit from the MED organisation. The function will traverse the entire
+    OU-tree from the provided root node.
+
+    Args:
+        gql_client: the GraphQL client
+        org_unit: the root org unit to process
+        med_ass_rows: list of association data to append new data to
+        med_ou_rows: list of OU data to append new data to
+
+    Returns:
+        List of association data and list of OU data
+    """
     logger.info("Processing med unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -488,6 +557,9 @@ def process_med_unit(
 
 
 def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
+    """
+    Convert ADM engagement data models to CSV
+    """
     return [
         "Medarbejdernummer,"
         "CPR,"
@@ -514,6 +586,9 @@ def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
 
 
 def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
+    """
+    Convert MED association data models to CSV
+    """
     return [
         "CPR,"
         "Afdelingskode,"
@@ -528,6 +603,9 @@ def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
 
 
 def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
+    """
+    Convert ADM org unit data models to CSV
+    """
     return [
         "Afdelingsnavn,"
         "Afdelingskode,"
@@ -545,6 +623,9 @@ def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
 
 
 def med_ou_rows_to_csv(rows: list[MedOuRow]) -> list[str]:
+    """
+    Convert MED org unit data models to CSV
+    """
     return [
         "Afdelingsnavn,"
         "Afdelingskode,"
