@@ -145,7 +145,7 @@ setup_logging(LogLevel.DEBUG)
 logger = get_logger()
 
 
-class AdmUnitRow(BaseModel):
+class AdmEngRow(BaseModel):
     person_user_key: str
     cpr: str
     first_name: str
@@ -160,14 +160,14 @@ class AdmUnitRow(BaseModel):
     job_function: str
 
 
-class AdmOrgUnitRow(BaseModel):
+class AdmOuRow(BaseModel):
     name: str
     uuid: UUID
     parent: UUID | None
     pnumber: str
 
 
-class MedUnitRow(BaseModel):
+class MedAssRow(BaseModel):
     cpr: str
     org_unit: UUID
     ass_start: str
@@ -178,7 +178,7 @@ class MedUnitRow(BaseModel):
 
 def process_engagement(
     gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_eng_user_key: str
-) -> AdmUnitRow:
+) -> AdmEngRow:
     logger.debug("Processing engagement", uuid=str(eng_uuid))
     to_date = datetime.now() + timedelta(days=1)
 
@@ -240,7 +240,7 @@ def process_engagement(
     person = one(current["person"])
     email = only(person["addresses"], {}).get("value", "")
 
-    return AdmUnitRow(
+    return AdmEngRow(
         person_user_key=current["user_key"],
         cpr=person["cpr_number"],
         first_name=person["given_name"],
@@ -259,9 +259,9 @@ def process_engagement(
 def process_adm_unit(
     gql_client: GraphQLClient,
     org_unit: UUID,
-    adm_unit_rows: list[AdmUnitRow],
-    adm_ou_rows: list[AdmOrgUnitRow]
-) -> tuple[list[AdmUnitRow], list[AdmOrgUnitRow]]:
+    adm_eng_rows: list[AdmEngRow],
+    adm_ou_rows: list[AdmOuRow]
+) -> tuple[list[AdmEngRow], list[AdmOuRow]]:
     logger.info("Processing adm unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -325,7 +325,7 @@ def process_adm_unit(
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
     pnumber = only(current["addresses"], {}).get("value", "")
-    adm_ou_row = AdmOrgUnitRow(
+    adm_ou_row = AdmOuRow(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
         parent=UUID(parent_uuid) if parent_uuid is not None else None,
@@ -335,20 +335,20 @@ def process_adm_unit(
     adm_ou_rows.append(adm_ou_row)
 
     for eng in engs:
-        adm_unit_row = process_engagement(
+        adm_eng_row = process_engagement(
             gql_client, eng, org_unit, manager_eng_user_key
         )
-        adm_unit_rows.append(adm_unit_row)
+        adm_eng_rows.append(adm_eng_row)
 
     for child in children:
-        process_adm_unit(gql_client, child, adm_unit_rows)
+        process_adm_unit(gql_client, child, adm_eng_rows)
 
-    return adm_unit_rows, adm_ou_rows
+    return adm_eng_rows, adm_ou_rows
 
 
 def process_association(
     gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
-) -> MedUnitRow:
+) -> MedAssRow:
     logger.debug("Processing association", uuid=str(ass_uuid))
     to_date = datetime.now() + timedelta(days=1)
 
@@ -404,7 +404,7 @@ def process_association(
     person = only(current["person"], {})
     cpr = person.get("cpr_number", "")
 
-    return MedUnitRow(
+    return MedAssRow(
         cpr=cpr,
         org_unit=ou_uuid,
         ass_start=ass_start,
@@ -415,8 +415,8 @@ def process_association(
 
 
 def process_med_unit(
-    gql_client: GraphQLClient, org_unit: UUID, med_unit_rows: list[MedUnitRow]
-) -> list[MedUnitRow]:
+    gql_client: GraphQLClient, org_unit: UUID, med_ass_rows: list[MedAssRow]
+) -> list[MedAssRow]:
     logger.info("Processing med unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -448,16 +448,16 @@ def process_med_unit(
     children = [UUID(child["uuid"]) for child in current["children"]]
 
     for ass in assocs:
-        med_unit_row = process_association(gql_client, ass, org_unit)
-        med_unit_rows.append(med_unit_row)
+        med_ass_row = process_association(gql_client, ass, org_unit)
+        med_ass_rows.append(med_ass_row)
 
     for child in children:
-        process_med_unit(gql_client, child, med_unit_rows)
+        process_med_unit(gql_client, child, med_ass_rows)
 
-    return med_unit_rows
+    return med_ass_rows
 
 
-def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
+def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
     return [
         "Medarbejdernummer,"
         "CPR,"
@@ -483,7 +483,7 @@ def adm_unit_rows_to_csv(rows: list[AdmUnitRow]) -> list[str]:
     ]
 
 
-def med_unit_rows_to_csv(rows: list[MedUnitRow]) -> list[str]:
+def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
     return [
         "CPR,"
         "Afdelingskode,"
@@ -535,14 +535,14 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
 
     # Adm employee report
     logger.info("Generating adm employee report")
-    adm_unit_rows = process_adm_unit(gql_client, adm_unit_uuid, [])
-    csv_lines = adm_unit_rows_to_csv(adm_unit_rows)
+    adm_eng_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])[0]
+    csv_lines = adm_eng_rows_to_csv(adm_eng_rows)
     write_csv("/tmp/adm-unit-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
-    med_unit_rows = process_med_unit(gql_client, med_unit_uuid, [])
-    csv_lines = med_unit_rows_to_csv(med_unit_rows)
+    med_ass_rows = process_med_unit(gql_client, med_unit_uuid, [])
+    csv_lines = med_ass_rows_to_csv(med_ass_rows)
     write_csv("/tmp/med-unit-associations.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
