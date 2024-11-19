@@ -94,7 +94,12 @@ GET_MED_UNIT = gql(
       org_units(filter: { uuids: $org_unit }) {
         objects {
           current {
+            name
+            uuid
             associations {
+              uuid
+            }
+            parent {
               uuid
             }
             children {
@@ -174,6 +179,12 @@ class MedAssRow(BaseModel):
     ass_end: str
     role: str
     main_org: str
+
+
+class MedOuRow(BaseModel):
+    name: str
+    uuid: UUID
+    parent: UUID | None
 
 
 def process_engagement(
@@ -415,8 +426,11 @@ def process_association(
 
 
 def process_med_unit(
-    gql_client: GraphQLClient, org_unit: UUID, med_ass_rows: list[MedAssRow]
-) -> list[MedAssRow]:
+    gql_client: GraphQLClient,
+    org_unit: UUID,
+    med_ass_rows: list[MedAssRow],
+    med_ou_rows: list[MedOuRow]
+) -> tuple[list[MedAssRow], list[MedOuRow]]:
     logger.info("Processing med unit", uuid=str(org_unit))
 
     unit = gql_client.execute(
@@ -428,11 +442,16 @@ def process_med_unit(
     #   "objects": [
     #     {
     #       "current": {
+    #         "name": "Some name",
+    #         "uuid": "a30e42a2-7334-4ffa-bf73-51ed20638511"
     #         "associations": [
     #           {
     #             "uuid": "6c113a45-661f-4ff0-ac92-864f09d707eb"
     #           }
     #         ],
+    #         "parent": {
+    #            "uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98"
+    #         }
     #         "children": [
     #           {
     #             "uuid": "d32a3f1b-0f63-4afe-980e-e04405545925"
@@ -444,17 +463,28 @@ def process_med_unit(
     # }
     current = one(unit["org_units"]["objects"])["current"]
 
+    # Association data
     assocs = [UUID(ass["uuid"]) for ass in current["associations"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
+
+    # Org unit data
+    parent_uuid = current.get("parent", {}).get("uuid")
+    med_ou_row = MedOuRow(
+        name=current.get("name", ""),
+        uuid=UUID(current["uuid"]),
+        parent=UUID(parent_uuid) if parent_uuid is not None else None,
+    )
+
+    med_ou_rows.append(med_ou_row)
 
     for ass in assocs:
         med_ass_row = process_association(gql_client, ass, org_unit)
         med_ass_rows.append(med_ass_row)
 
     for child in children:
-        process_med_unit(gql_client, child, med_ass_rows)
+        process_med_unit(gql_client, child, med_ass_rows, med_ou_rows)
 
-    return med_ass_rows
+    return med_ass_rows, med_ou_rows
 
 
 def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
@@ -504,9 +534,30 @@ def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
         "Forældreafdelingskode,"
         "Pnummer\n"
     ] + [
-        f"{r.name},{str(r.uuid)},{str(r.parent)},{r.pnumber}\n"
+        (
+            f"{r.name},"
+            f"{str(r.uuid)},"
+            f"{str(r.parent) if r.parent is not None else ''},"
+            f"{r.pnumber}\n"
+        )
         for r in rows
     ]
+
+
+def med_ou_rows_to_csv(rows: list[MedOuRow]) -> list[str]:
+    return [
+        "Afdelingsnavn,"
+        "Afdelingskode,"
+        "Forældreafdelingskode\n"
+    ] + [
+        (
+            f"{r.name},"
+            f"{str(r.uuid)},"
+            f"{str(r.parent) if r.parent is not None else ''}\n"
+        )
+        for r in rows
+    ]
+
 
 def write_csv(path: str, lines: list[str]) -> None:
     with open(path, "w") as fp:
@@ -552,7 +603,7 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
-    med_ass_rows = process_med_unit(gql_client, med_unit_uuid, [])
+    med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
     csv_lines = med_ass_rows_to_csv(med_ass_rows)
     write_csv("/tmp/med-associations.csv", csv_lines)
 
@@ -560,6 +611,11 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
     logger.info("Generating adm OU report")
     csv_lines = adm_ou_rows_to_csv(adm_ou_rows)
     write_csv("/tmp/adm-org-units.csv", csv_lines)
+
+    # Med OU report
+    logger.info("Generating MED OU report")
+    csv_lines = med_ou_rows_to_csv(med_ou_rows)
+    write_csv("/tmp/med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
