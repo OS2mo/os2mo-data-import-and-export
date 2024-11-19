@@ -47,6 +47,9 @@ GET_ADM_UNIT = gql(
               person {
                 engagements(filter: { org_unit: { uuids: $org_unit } }) {
                   user_key
+                  job_function {
+                    name
+                  }
                 }
               }
             }
@@ -348,6 +351,9 @@ def process_adm_unit(
     #                         "engagements": [
     #                             {
     #                                 "user_key": "54321"
+    #                                 "job_function": {
+    #                                   "name": "Leder"
+    #                                 }
     #                             }
     #                         ]
     #                     }
@@ -373,7 +379,15 @@ def process_adm_unit(
     manager = only(current["managers"], {})
     manager_person = manager.get("person", [{}])
     manager_eng = only(manager_person).get("engagements", [{}])
-    manager_eng_user_key = only(manager_eng, {}).get("user_key", "")
+    try:
+        manager_eng_user_key = only(manager_eng, {}).get("user_key", "")
+    except ValueError:
+        # The manager has more than one engagement in the same unit
+        manager_eng_user_key = one(
+            eng["user_key"]
+            for eng in manager_eng
+            if "leder" in eng["job_function"]["name"].lower()
+        )
 
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
