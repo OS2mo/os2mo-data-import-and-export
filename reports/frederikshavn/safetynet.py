@@ -5,8 +5,6 @@
 # 3) An association report for the MED organisation
 # 4) An org unit report for the MED organisation
 from contextlib import contextmanager
-from datetime import datetime
-from datetime import timedelta
 from io import StringIO
 from uuid import UUID
 
