@@ -8,6 +8,7 @@ from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
+from pydantic.tools import parse_obj_as
 from ra_utils.job_settings import JobSettings
 
 
@@ -70,8 +71,8 @@ class DatabaseSettings(JobSettings):
         frozen = True
         env_nested_delimiter = "__"
 
-    mora_base: AnyHttpUrl = Field("http://mo-service:5000")
-    mox_base: AnyHttpUrl = Field("http://mo-service:5000/lora")
+    mora_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000")
+    mox_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000/lora")
 
     actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)
     historic_state: DatabaseConfiguration | None
