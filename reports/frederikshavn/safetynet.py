@@ -4,8 +4,10 @@
 # 2) An org unit report for the ADM organisation
 # 3) An association report for the MED organisation
 # 4) An org unit report for the MED organisation
+from contextlib import contextmanager
 from datetime import datetime
 from datetime import timedelta
+from io import StringIO
 from uuid import UUID
 
 import click
@@ -19,6 +21,9 @@ from tools.log import get_logger
 from tools.log import LogLevel
 from tools.log import setup_logging
 
+from paramiko import AutoAddPolicy
+from paramiko import SFTPClient
+from paramiko import SSHClient
 from raclients.graph.client import GraphQLClient
 from ra_utils.job_settings import JobSettings
 
@@ -660,6 +665,39 @@ def get_settings(*args, **kwargs) -> JobSettings:
     return JobSettings(*args, **kwargs)
 
 
+@contextmanager
+def _ssh_client(hostname: str, port: int, username: str, password: str) -> SSHClient:
+    ssh_client = SSHClient()
+    try:
+        ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        ssh_client.connect(
+            hostname=hostname,
+            port=port,
+            username=username,
+            password=password,
+            look_for_keys=False
+        )
+        yield ssh_client
+    finally:
+        ssh_client.close()
+
+
+@contextmanager
+def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPClient:
+    with _ssh_client(hostname, port, username, password) as ssh_client:
+        sftp_client_: SFTPClient = ssh_client.open_sftp()
+        try:
+            yield sftp_client_
+        finally:
+            sftp_client_.close()
+
+
+def upload_csv(sftp_client: SFTPClient, remote_path: str, csv_lines: list[str]) -> None:
+    upload_str = "".join(csv_lines)
+    with sftp_client as client:
+        client.putfo(StringIO(upload_str), remote_path)
+
+
 @click.command()
 @click.option(
     "--adm-unit-uuid",
@@ -687,27 +725,34 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
         gql_version=22,
     )
 
+    safetynet_client = sftp_client(
+        hostname=settings.reports_safetynet_sftp_hostname,
+        port=settings.reports_safetynet_sftp_port,
+        username=settings.reports_safetynet_sftp_username,
+        password=settings.reports_safetynet_sftp_password,
+    )
+
     # Adm employee report
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
     csv_lines = adm_eng_rows_to_csv(adm_eng_rows)
-    write_csv("/tmp/adm-engagements.csv", csv_lines)
+    upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
     csv_lines = med_ass_rows_to_csv(med_ass_rows)
-    write_csv("/tmp/med-associations.csv", csv_lines)
+    upload_csv(safetynet_client, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
     csv_lines = adm_ou_rows_to_csv(adm_ou_rows)
-    write_csv("/tmp/adm-org-units.csv", csv_lines)
+    upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
     csv_lines = med_ou_rows_to_csv(med_ou_rows)
-    write_csv("/tmp/med-org-units.csv", csv_lines)
+    upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
