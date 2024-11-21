@@ -700,13 +700,11 @@ def upload_csv(sftp_client: SFTPClient, remote_path: str, csv_lines: list[str]) 
 @click.option(
     "--adm-unit-uuid",
     type=click.UUID,
-    required=True,
     help="UUID of top level adm unit to process"
 )
 @click.option(
     "--med-unit-uuid",
     type=click.UUID,
-    required=True,
     help="UUID of top level med unit to process"
 )
 @click.option(
@@ -718,6 +716,11 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     logger.info("Started Safetynet report generation")
 
     settings = get_settings()
+
+    if not adm_unit_uuid:
+        adm_unit_uuid = UUID(settings.reports_safetynet_adm_unit_uuid)
+    if not med_unit_uuid:
+        med_unit_uuid = UUID(settings.reports_safetynet_med_unit_uuid)
 
     gql_client = get_mo_client(
         auth_server=settings.crontab_AUTH_SERVER,
