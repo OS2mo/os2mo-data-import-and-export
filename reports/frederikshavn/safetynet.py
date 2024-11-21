@@ -709,7 +709,12 @@ def upload_csv(sftp_client: SFTPClient, remote_path: str, csv_lines: list[str]) 
     required=True,
     help="UUID of top level med unit to process"
 )
-def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
+@click.option(
+    "--skip-upload",
+    is_flag=True,
+    help="Skip SFTP upload (nice for debugging)"
+)
+def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     logger.info("Started Safetynet report generation")
 
     settings = get_settings()
@@ -734,23 +739,27 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID) -> None:
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
     csv_lines = adm_eng_rows_to_csv(adm_eng_rows)
-    upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
+    if not skip_upload:
+        upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
     csv_lines = med_ass_rows_to_csv(med_ass_rows)
-    upload_csv(safetynet_client, "med-associations.csv", csv_lines)
+    if not skip_upload:
+        upload_csv(safetynet_client, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
     csv_lines = adm_ou_rows_to_csv(adm_ou_rows)
-    upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
+    if not skip_upload:
+        upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
     csv_lines = med_ou_rows_to_csv(med_ou_rows)
-    upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
+    if not skip_upload:
+        upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
