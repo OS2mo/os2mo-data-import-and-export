@@ -570,7 +570,7 @@ def process_med_unit(
     return med_ass_rows, med_ou_rows
 
 
-def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
+def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
     """
     Convert ADM engagement data models to CSV
     """
@@ -599,7 +599,7 @@ def adm_eng_rows_to_csv(rows: list[AdmEngRow]) -> list[str]:
     ]
 
 
-def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
+def med_ass_rows_to_csv_lines(rows: list[MedAssRow]) -> list[str]:
     """
     Convert MED association data models to CSV
     """
@@ -616,7 +616,7 @@ def med_ass_rows_to_csv(rows: list[MedAssRow]) -> list[str]:
     ]
 
 
-def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
+def adm_ou_rows_to_csv_lines(rows: list[AdmOuRow]) -> list[str]:
     """
     Convert ADM org unit data models to CSV
     """
@@ -636,7 +636,7 @@ def adm_ou_rows_to_csv(rows: list[AdmOuRow]) -> list[str]:
     ]
 
 
-def med_ou_rows_to_csv(rows: list[MedOuRow]) -> list[str]:
+def med_ou_rows_to_csv_lines(rows: list[MedOuRow]) -> list[str]:
     """
     Convert MED org unit data models to CSV
     """
@@ -741,26 +741,26 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     # Adm employee report
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
-    csv_lines = adm_eng_rows_to_csv(adm_eng_rows)
+    csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows)
     if not skip_upload:
         upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
-    csv_lines = med_ass_rows_to_csv(med_ass_rows)
+    csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
     if not skip_upload:
         upload_csv(safetynet_client, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
-    csv_lines = adm_ou_rows_to_csv(adm_ou_rows)
+    csv_lines = adm_ou_rows_to_csv_lines(adm_ou_rows)
     if not skip_upload:
         upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
-    csv_lines = med_ou_rows_to_csv(med_ou_rows)
+    csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
     if not skip_upload:
         upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
 
