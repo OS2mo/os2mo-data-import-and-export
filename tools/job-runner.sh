@@ -294,6 +294,11 @@ reports_employee_phonebook_for_frederikshavn(){
     fi
 }
 
+reports_safetynet_frederikshavn(){
+  echo "Running Frederikshavn Safetynet reports"
+  ${VENV}/bin/python3 -m reports.frederikshavn.safetynet
+}
+
 reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
@@ -537,6 +542,10 @@ reports(){
 
     if [ "${RUN_EMPLOYEE_PHONEBOOK_FREDERIKSHAVN}" == "true" ]; then
       run-job reports_employee_phonebook_for_frederikshavn &
+    fi
+
+    if [ "${RUN_SAFETYNET_FREDERIKSHAVN}" == "true" ]; then
+      run-job reports_safetynet_frederikshavn &
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
