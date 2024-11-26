@@ -737,26 +737,34 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
     csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/adm-engagements.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
     csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/med-associations.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
     csv_lines = adm_ou_rows_to_csv_lines(adm_ou_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/adm-org-units.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
     csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/med-org-units.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
