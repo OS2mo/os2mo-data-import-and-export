@@ -396,6 +396,8 @@ def list_employees(session, org_name: str) -> list:
         ],
     )
     data_df = expand_org_path(data_df, "Sti")
+    data_df.drop_duplicates(inplace=True)
+
     # Return data as a list of tuples with columns as the first element
     parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
     return parsed_data
