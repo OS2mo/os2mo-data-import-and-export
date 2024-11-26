@@ -731,12 +731,14 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
         gql_version=22,
     )
 
-    safetynet_client = sftp_client(
-        hostname=settings.reports_safetynet_sftp_hostname,
-        port=settings.reports_safetynet_sftp_port,
-        username=settings.reports_safetynet_sftp_username,
-        password=settings.reports_safetynet_sftp_password,
-    )
+    safetynet_client = None
+    if not skip_upload:
+        safetynet_client = sftp_client(
+            hostname=settings.reports_safetynet_sftp_hostname,
+            port=settings.reports_safetynet_sftp_port,
+            username=settings.reports_safetynet_sftp_username,
+            password=settings.reports_safetynet_sftp_password,
+        )
 
     # Adm employee report
     logger.info("Generating adm employee report")
