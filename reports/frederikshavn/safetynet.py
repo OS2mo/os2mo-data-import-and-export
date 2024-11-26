@@ -86,9 +86,6 @@ GET_ENGAGEMENT = gql(
               addresses(filter: { address_type_user_keys: "AD-Email" }) {
                 value
               }
-              manager_roles {
-                uuid
-              }
             }
             job_function {
               name
@@ -172,7 +169,6 @@ class AdmEngRow(BaseModel):
     last_name: str
     email: str
     org_unit: UUID
-    is_manager: bool
     eng_start: str
     eng_end: str
     manager_eng_user_key: str
@@ -263,8 +259,7 @@ def process_engagement(
     #                             {
     #                                 "value": "bruce@kung.fu"
     #                             }
-    #                         ],
-    #                         "manager_roles": []
+    #                         ]
     #                     }
     #                 ],
     #                 "job_function": {
@@ -293,7 +288,6 @@ def process_engagement(
         last_name=person["surname"],
         email=email,
         org_unit=ou_uuid,
-        is_manager=True if person["manager_roles"] else False,
         eng_start=eng_start,
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
@@ -581,7 +575,6 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
         "Efternavn,"
         "Mail,"
         "Afdelingskode,"
-        "ErLeder,"
         "Startdato,"
         "Slutdato,"
         "LedersMedarbejdernummer,"
@@ -591,7 +584,7 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
     ] + [
         (
             f"{r.person_user_key},{r.cpr},{r.first_name},{r.last_name},{r.email},"
-            f"{str(r.org_unit)},{str(r.is_manager)},{r.eng_start},"
+            f"{str(r.org_unit)},{r.eng_start},"
             f"{r.eng_end},{r.manager_eng_user_key},"
             f"{r.username},{r.job_function},{r.job_function}\n"
         )
