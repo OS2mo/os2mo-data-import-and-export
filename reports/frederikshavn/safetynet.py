@@ -86,9 +86,6 @@ GET_ENGAGEMENT = gql(
               addresses(filter: { address_type_user_keys: "AD-Email" }) {
                 value
               }
-              manager_roles {
-                uuid
-              }
             }
             job_function {
               name
@@ -172,7 +169,6 @@ class AdmEngRow(BaseModel):
     last_name: str
     email: str
     org_unit: UUID
-    is_manager: bool
     eng_start: str
     eng_end: str
     manager_eng_user_key: str
@@ -263,8 +259,7 @@ def process_engagement(
     #                             {
     #                                 "value": "bruce@kung.fu"
     #                             }
-    #                         ],
-    #                         "manager_roles": []
+    #                         ]
     #                     }
     #                 ],
     #                 "job_function": {
@@ -293,7 +288,6 @@ def process_engagement(
         last_name=person["surname"],
         email=email,
         org_unit=ou_uuid,
-        is_manager=True if person["manager_roles"] else False,
         eng_start=eng_start,
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
@@ -482,7 +476,10 @@ def process_association(
 
     current = obj["current"]
     person = only(current["person"], {})
-    cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
+    cpr = person.get("cpr_number", "")
+
+    dynamic_class = current.get("dynamic_class", {})
+    main_org = dynamic_class.get("name", "") if dynamic_class is not None else ""
 
     return MedAssRow(
         cpr=cpr,
@@ -490,7 +487,7 @@ def process_association(
         ass_start=ass_start,
         ass_end=ass_end,
         role=current["association_type"]["name"],
-        main_org=current["dynamic_class"]["name"]
+        main_org=main_org
     )
 
 
@@ -581,7 +578,6 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
         "Efternavn,"
         "Mail,"
         "Afdelingskode,"
-        "ErLeder,"
         "Startdato,"
         "Slutdato,"
         "LedersMedarbejdernummer,"
@@ -591,7 +587,7 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
     ] + [
         (
             f"{r.person_user_key},{r.cpr},{r.first_name},{r.last_name},{r.email},"
-            f"{str(r.org_unit)},{str(r.is_manager)},{r.eng_start},"
+            f"{str(r.org_unit)},{r.eng_start},"
             f"{r.eng_end},{r.manager_eng_user_key},"
             f"{r.username},{r.job_function},{r.job_function}\n"
         )
@@ -744,26 +740,34 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
     csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/adm-engagements.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
     med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
     csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/med-associations.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
     csv_lines = adm_ou_rows_to_csv_lines(adm_ou_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/adm-org-units.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
     csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
-    if not skip_upload:
+    if skip_upload:
+        write_csv("/tmp/med-org-units.csv", csv_lines)
+    else:
         upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
