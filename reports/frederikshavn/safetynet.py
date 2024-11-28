@@ -478,13 +478,16 @@ def process_association(
     person = only(current["person"], {})
     cpr = person.get("cpr_number", "")
 
+    dynamic_class = current.get("dynamic_class", {})
+    main_org = dynamic_class.get("name", "") if dynamic_class is not None else ""
+
     return MedAssRow(
         cpr=cpr,
         org_unit=ou_uuid,
         ass_start=ass_start,
         ass_end=ass_end,
         role=current["association_type"]["name"],
-        main_org=current["dynamic_class"]["name"]
+        main_org=main_org
     )
 
 
