@@ -476,7 +476,7 @@ def process_association(
 
     current = obj["current"]
     person = only(current["person"], {})
-    cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
+    cpr = person.get("cpr_number", "")
 
     return MedAssRow(
         cpr=cpr,
