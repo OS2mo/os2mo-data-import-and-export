@@ -689,7 +689,7 @@ def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPC
 def upload_csv(sftp_client: SFTPClient, remote_path: str, csv_lines: list[str]) -> None:
     upload_str = "".join(csv_lines)
     with sftp_client as client:
-        client.putfo(StringIO(upload_str), remote_path)
+        client.putfo(StringIO(upload_str), remote_path, confirm=False)
 
 
 @click.command()
