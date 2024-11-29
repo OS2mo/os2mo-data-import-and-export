@@ -686,9 +686,16 @@ def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPC
             sftp_client_.close()
 
 
-def upload_csv(sftp_client: SFTPClient, remote_path: str, csv_lines: list[str]) -> None:
+def upload_csv(
+    hostname: str,
+    port: int,
+    username: str,
+    password: str,
+    remote_path: str,
+    csv_lines: list[str]
+) -> None:
     upload_str = "".join(csv_lines)
-    with sftp_client as client:
+    with sftp_client(hostname, port, username, password) as client:
         client.putfo(StringIO(upload_str), remote_path, confirm=False)
 
 
@@ -727,14 +734,12 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
         gql_version=22,
     )
 
-    safetynet_client = None
-    if not skip_upload:
-        safetynet_client = sftp_client(
-            hostname=settings.reports_safetynet_sftp_hostname,
-            port=settings.reports_safetynet_sftp_port,
-            username=settings.reports_safetynet_sftp_username,
-            password=settings.reports_safetynet_sftp_password,
-        )
+    sftp_settings = (
+        settings.reports_safetynet_sftp_hostname,
+        settings.reports_safetynet_sftp_port,
+        settings.reports_safetynet_sftp_username,
+        settings.reports_safetynet_sftp_password,
+    )
 
     # Adm employee report
     logger.info("Generating adm employee report")
@@ -743,7 +748,7 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     if skip_upload:
         write_csv("/tmp/adm-engagements.csv", csv_lines)
     else:
-        upload_csv(safetynet_client, "adm-engagements.csv", csv_lines)
+        upload_csv(*sftp_settings, "adm-engagements.csv", csv_lines)
 
     # Med employee (based on associations) report
     logger.info("Generating med association report")
@@ -752,7 +757,7 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     if skip_upload:
         write_csv("/tmp/med-associations.csv", csv_lines)
     else:
-        upload_csv(safetynet_client, "med-associations.csv", csv_lines)
+        upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
@@ -760,7 +765,7 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     if skip_upload:
         write_csv("/tmp/adm-org-units.csv", csv_lines)
     else:
-        upload_csv(safetynet_client, "adm-org-units.csv", csv_lines)
+        upload_csv(*sftp_settings, "adm-org-units.csv", csv_lines)
 
     # Med OU report
     logger.info("Generating MED OU report")
@@ -768,7 +773,7 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     if skip_upload:
         write_csv("/tmp/med-org-units.csv", csv_lines)
     else:
-        upload_csv(safetynet_client, "med-org-units.csv", csv_lines)
+        upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
