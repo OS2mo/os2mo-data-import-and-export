@@ -750,8 +750,7 @@ class OpusDiffImport(object):
                     self._assert(response)
             else:  # No existing manager functions
                 logger.info("Turn this person into a manager")
-                # Validity is set to edit=True since the validiy should
-                # calculated as an edit to the engagement
+                args["validity"] = self.validity(employee, edit=False)
                 payload = payloads.create_manager(user_key=employee["@id"], **args)
                 logger.debug("Create manager payload: {}".format(payload))
                 response = self.helper._mo_post("details/create", payload)

@@ -534,7 +534,6 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         instance.helper._mo_post = MagicMock()
         instance.helper._mo_post.return_value.status_code = 201
 
-        validity = instance.validity(employee=self.opus_employee, edit=True)
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
             ensure_class.side_effect = [
                 self.manager_level,
@@ -561,7 +560,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                     "manager_type": {"uuid": self.manager_type},
                     "manager_level": {"uuid": self.manager_level},
                     "responsibility": [{"uuid": self.manager_responsibility}],
-                    "validity": {"from": validity["from"], "to": None},
+                    "validity": {"from": self.opus_employee["entryDate"], "to": None},
                 },
             )
 
