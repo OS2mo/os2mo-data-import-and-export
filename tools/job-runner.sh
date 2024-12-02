@@ -275,6 +275,10 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
+reports_egedal_manager_cpr(){
+  ${VENV}/bin/python3 -m reports.egedal.manager_cpr
+}
+
 reports_employee_phonebook_for_frederikshavn(){
   echo "Running Employee Phonebook for Frederikshavn now"
     SETTING_PREFIX="ftps" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -547,7 +551,11 @@ reports(){
     if [ "${RUN_SAFETYNET_FREDERIKSHAVN}" == "true" ]; then
       run-job reports_safetynet_frederikshavn &
     fi
-
+    
+    if [ "${RUN_REPORTS_MANAGERS_EGEDAL}" == "true" ]; then
+      run-job reports_egedal_manager_cpr &
+    fi
+    
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
         run-job reports_csv &
     fi
