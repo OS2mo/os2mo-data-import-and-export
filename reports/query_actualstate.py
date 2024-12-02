@@ -122,22 +122,24 @@ class Settings(BaseSettings):
     auth_server: str = "http://localhost:5000/auth"
 
 
-def map_dynamic_class(result: list) -> Dict[str, str]:
+def map_trade_union(result: list) -> Dict[str, str]:
     """Transforms a list of associations from graphql into a dict.
     Uses jmes to search the results for names of classes parent classes.
     If there is a parent output as "parent name / class name"
     """
-    dynamic_classes = jmespath.compile("objects[0].dynamic_class.name")
-    dynamic_class_parents = jmespath.compile("objects[0].dynamic_class.parent.name")
+    dynamic_classes = jmespath.compile("current.trade_union.name")
+    dynamic_class_parents = jmespath.compile("current.trade_union.parent.name")
     return {
-        e["uuid"]: f"{dynamic_class_parents.search(e)} / {dynamic_classes.search(e)}"
-        if dynamic_class_parents.search(e)
-        else dynamic_classes.search(e)
+        e["uuid"]: (
+            f"{dynamic_class_parents.search(e)} / {dynamic_classes.search(e)}"
+            if dynamic_class_parents.search(e)
+            else dynamic_classes.search(e)
+        )
         for e in result
     }
 
 
-def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
+def fetch_trade_union(association_uuids: List[str]) -> Dict[str, str]:
     """Reads dynamic class for the associations with uuids from the given list
 
     Returns a map of association_uuids to dynamic class name
@@ -149,13 +151,15 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {
-          associations(uuids: $uuids) {
-            uuid
+          associations(filter: { uuids: $uuids }) {
             objects {
-              dynamic_class {
-                name
-                parent {
+              uuid
+              current {
+                trade_union {
                   name
+                  parent {
+                    name
+                  }
                 }
               }
             }
@@ -165,7 +169,7 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
     )
 
     with GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
+        url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
@@ -182,11 +186,11 @@ def fetch_dynamic_class(association_uuids: List[str]) -> Dict[str, str]:
             },
         )
 
-    return map_dynamic_class(r["associations"])
+    return map_trade_union(r["associations"]["objects"])
 
 
-def merge_dynamic_classes(
-    data_df: pd.DataFrame, association_dynamic_classes: Dict[str, str]
+def merge_trade_unions(
+    data_df: pd.DataFrame, association_trade_unions: Dict[str, str]
 ) -> pd.DataFrame:
     """Merges information on dynamic classes into the dataframe.
     This creates a new column on the given dataframe data_df called "Hovedorganisation / Faglig organisation".
@@ -195,7 +199,7 @@ def merge_dynamic_classes(
     """
     # Create a new pandas dataframe with uuid on associations and their dynamic class.
     association_df = pd.DataFrame(
-        association_dynamic_classes.items(),
+        association_trade_unions.items(),
         columns=["Tilknytningsuuid", "Hovedorganisation / Faglig organisation"],
     )
     # Merge (left join) on uuids.
@@ -303,9 +307,9 @@ def list_MED_members(session, org_names: dict) -> list:
     )
     data_df = expand_org_path(data_df, "Sti")
     # Add dynamic class info:
-    association_dynamic_class = fetch_dynamic_class(list(data_df.Tilknytningsuuid))
+    association_dynamic_class = fetch_trade_union(list(data_df.Tilknytningsuuid))
 
-    data_df = merge_dynamic_classes(data_df, association_dynamic_class)
+    data_df = merge_trade_unions(data_df, association_dynamic_class)
 
     data_df = rearrange(data_df)
     data_df.drop_duplicates(inplace=True)
