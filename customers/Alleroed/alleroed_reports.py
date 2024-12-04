@@ -72,18 +72,20 @@ def get_managers_for_export(
     graphql_query = gql(
         """
     query FindManagers($org_unit_uuid: [UUID!]) {
-      managers(org_units: $org_unit_uuid) {
+      managers(filter: { org_units: $org_unit_uuid }) {
         objects {
-          responsibilities {
-            full_name
-          }
-          employee {
-            name
-            addresses {
-              address_type {
-                scope
-              }
+          validities {
+            responsibilities {
+              full_name
+            }
+            employee {
               name
+              addresses {
+                address_type {
+                  scope
+                }
+                name
+              }
             }
           }
         }
@@ -95,14 +97,14 @@ def get_managers_for_export(
         graphql_query, variable_values={"org_unit_uuid": org_uuid}
     )
 
-    return response["managers"]
+    return response["managers"]["objects"]
 
 
 def setup_alleroed_gql_client(
     settings: JobSettings,
 ) -> GraphQLClient:
     return GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
+        url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
@@ -183,12 +185,12 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'benth@kolding.dk'"
         """
-        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
+        if employee.get("validities")[0]["employee"] is not None:  # type: ignore
             filtered_email_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
                     == "EMAIL",
-                    one(one(employee["objects"])["employee"])["addresses"],
+                    one(one(employee["validities"])["employee"])["addresses"],
                 )
             )
             if filtered_email_address_object:
@@ -210,12 +212,12 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'67338448'"
         """
-        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
+        if employee.get("validities")[0]["employee"] is not None:  # type: ignore
             filtered_phone_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
                     == "PHONE",
-                    one(one(employee["objects"])["employee"])["addresses"],
+                    one(one(employee["validities"])["employee"])["addresses"],
                 )
             )
             if filtered_phone_address_object:
@@ -237,11 +239,11 @@ def write_multiple_managers_from_graphql_payload(
         "'Bent Lindstrøm Hansen'"
         """
         if (
-            employee.get("objects")
-            and employee["objects"][0].get("employee")
-            and employee["objects"][0]["employee"][0].get("name")
+            employee.get("validities")
+            and employee["validities"][0].get("employee")
+            and employee["validities"][0]["employee"][0].get("name")
         ):
-            return employee["objects"][0]["employee"][0]["name"]
+            return employee["validities"][0]["employee"][0]["name"]
         else:
             return None
 
@@ -268,7 +270,7 @@ def write_multiple_managers_from_graphql_payload(
 
         "'Personale: MUS-kompetence'" if filter was not successful:
         """
-        responsibilities = one(manager_responsibility["objects"])["responsibilities"]
+        responsibilities = one(manager_responsibility["validities"])["responsibilities"]
         filtered_responsibility_object = list(
             filter(
                 lambda primary_responsibility: primary_responsibility["full_name"]

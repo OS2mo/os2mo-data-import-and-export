@@ -60,7 +60,10 @@ def export_all_teams(mh, nodes, filename):
             ou = mh.read_ou(node.name)
             row = {}
             row["Org-UUID"] = ou["uuid"]
-            row["Overordnet UUID"] = ou["parent"]["uuid"]
+            if ou["parent"]:
+                row["Overordnet UUID"] = ou["parent"]["uuid"]
+            else:
+                print("Org unit has no parent, we assume this is the root org.")
             address = mh.read_user_address(uuid, cpr=True)
             row.update(address)  # E-mail, Telefon
             row.update(person)  # Everything else
