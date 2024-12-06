@@ -29,13 +29,15 @@ services:
       HISTORIC_STATE__PASSWORD: mysecretpassword2
 
       FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
-      EVENTDRIVEN: "true"
+      EVENTDRIVEN: "false"
       USE_NEW_CACHE: "true"
       FULL_HISTORY: "true"
     ports:
       - "127.0.0.1:8789:8000"
     volumes:
       - ./:/opt/sql_export/
+      # Pickle-files
+      - /opt/sql_export/tmp/
     networks:
       - os2mo_default
       - sql_export
