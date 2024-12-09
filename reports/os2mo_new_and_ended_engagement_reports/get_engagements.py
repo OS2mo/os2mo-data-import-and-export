@@ -48,17 +48,19 @@ def get_gql_query_validity_to(
 ) -> dict:
     """Returns a GQL payload on engagements with validity till today."""
     graphql_query = gql(
-        """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
-                     engagements(from_date: $engagement_date_to_query_from) {
-                       objects {
-                         employee_uuid
-                         validity {
-                           to
-                         }
-                       }
-                     }
-                   }
-                """
+    """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
+            engagements(filter: { from_date: $engagement_date_to_query_from }) {
+                objects {
+                    validities {
+                        employee_uuid
+                        validity {
+                            to
+                        }
+                    }
+                }
+            }
+        }
+    """
     )
 
     return gql_session.execute(
@@ -73,71 +75,75 @@ def gql_query_persons_details_to_display(
     if show_new_persons:
         return """
         query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
-            employees(uuids: $uuidlist, to_date: null) {
-              objects {
-                cpr_no
-                name
-                uuid
-                addresses(address_types: $email_uuid_list) {
-                  name
-                }
-                engagements {
-                  org_unit {
-                    name
-                    ancestors {
-                      user_key
-                      uuid
-                      name
+            employees(filter: { uuids: $uuidlist, to_date: null }) {
+                objects {
+                    validities {
+                        cpr_number
+                        name
+                        uuid
+                        addresses(filter: { address_types: $email_uuid_list }) {
+                            name
+                        }
+                        engagements {
+                            org_unit {
+                                name
+                                ancestors {
+                                    user_key
+                                    uuid
+                                    name
+                                }
+                            }
+                            validity {
+                                from
+                            }
+                        }
+                        itusers {
+                            user_key
+                            itsystem {
+                                name
+                            }
+                        }
                     }
-                  }
-                  validity {
-                    from
-                  }
                 }
-                itusers {
-                  user_key
-                  itsystem {
-                    name
-                    }
-                  }
-                }
-              }
             }
-       """
+        }
+        """
 
     if show_ended_engagements:
         return """
-            query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
-                employees(uuids: $uuidlist) {
-                  objects {
-                    cpr_no
-                    name
-                    uuid
-                    addresses(address_types: $email_uuid_list) {
-                      name
-                    }
-                    engagements {
-                      org_unit {
+        query PersonEngagementDetails($uuidlist: [UUID!], $email_uuid_list: [UUID!]) {
+            employees(filter: { uuids: $uuidlist }) {
+                objects {
+                    validities {
+                        cpr_number
                         name
-                        ancestors {
-                          user_key
-                          uuid
-                          name
+                        uuid
+                        addresses(filter: { address_types: $email_uuid_list }) {
+                            name
                         }
-                      }
-                      validity {
-                        to
-                      }
+                        engagements {
+                            org_unit {
+                                name
+                                ancestors {
+                                    user_key
+                                    uuid
+                                    name
+                                }
+                            }
+                            validity {
+                                to
+                            }
+                        }
+                        itusers {
+                            user_key
+                            itsystem {
+                                name
+                            }
+                        }
                     }
-                    itusers {
-                      user_key
-                      itsystem {
-                        name
-                      }
-                    }
-                  }
                 }
-              }
+            }
+        }
         """
 
 
@@ -154,21 +160,21 @@ def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[U
 
     def filter_to_today(obj: dict):
         return (
-            datetime.fromisoformat(one(obj["objects"])["validity"]["to"]).replace(
+            datetime.fromisoformat(one(obj["validities"])["validity"]["to"]).replace(
                 tzinfo=None
             )
             == utils.today()
         )
 
     filtered_dates = filter(
-        lambda enddate: one(enddate["objects"])["validity"]["to"],
-        gql_query_response["engagements"],
+        lambda enddate: one(enddate["validities"])["validity"]["to"],
+        gql_query_response["engagements"]["objects"],
     )
 
     filtered_engagements_by_today_date = filter(filter_to_today, filtered_dates)
 
     extracted_uuids = [
-        one(person_uuids["objects"])["employee_uuid"]
+        one(one(person_uuids["objects"])["validities"])["employee_uuid"]
         for person_uuids in filtered_engagements_by_today_date
     ]
 
@@ -188,15 +194,17 @@ def retrieve_address_types_uuids(gql_session: SyncClientSession) -> dict:
     """
     graphql_query = gql(
         """query GetAddressTypes {
-             addresses {
-               objects {
-                 address_type {
-                   scope
-                   uuid
-                 }
-               }
-             }
-           }
+            addresses {
+                objects {
+                    validities {
+                        address_type {
+                            scope
+                            uuid
+                        }
+                    }
+                }
+            }
+        }
         """
     )
 
@@ -216,12 +224,12 @@ def get_email_address_type_uuid_from_gql(gql_query_dict: dict) -> list:
     A list of all uuids with scope of email.
     """
     filtered_email_address_uuids = filter(
-        lambda address_type: one(address_type["objects"])["address_type"]["scope"]
+        lambda address_type: one(address_type["validities"])["address_type"]["scope"]
         == "EMAIL",
-        gql_query_dict["addresses"],
+        gql_query_dict["addresses"]["objects"],
     )
     extracted_email_uuids = [
-        one(obj["objects"])["address_type"]["uuid"]
+        one(obj["validities"])["address_type"]["uuid"]
         for obj in filtered_email_address_uuids
     ]
 
@@ -286,16 +294,18 @@ def gql_get_all_persons_uuids(gql_session: SyncClientSession) -> List[dict]:
     graphql_query = gql(
         """
         query MyQuery {
-          employees(from_date: null, to_date: null) {
-            uuid
-          }
+            employees(filter: { from_date: null, to_date: null }) {
+                objects {
+                    uuid
+                }
+            }
         }
         """
     )
 
     all_persons = gql_session.execute(graphql_query)
     # return {x['uuid'] for x in all_persons}
-    return all_persons["employees"]
+    return all_persons["employees"]["objects"]
 
 
 def write_report_as_json(gql_object: List[dict], path_to_file: str):
@@ -337,7 +347,7 @@ def convert_person_and_engagement_data_to_csv(
 
     def get_ad_it_system_user_key(data_dict: dict) -> str | None:
         """A helper function to extract the user_key of AD It Systems."""
-        for data in data_dict["itusers"]:
+        for data in data_dict:
             if data is not None and data["itsystem"]["name"] == "Active Directory":
                 return data["user_key"]
         return None
@@ -354,8 +364,8 @@ def convert_person_and_engagement_data_to_csv(
 
     out = []
     if persons_data_to_csv:
-        for employee in dict_data["employees"]:
-            for obj in employee["objects"]:
+        for employee in dict_data["employees"]["objects"]:
+            for obj in employee["validities"]:
                 out.append(
                     {
                         "Personens navn": obj["name"],
@@ -371,20 +381,20 @@ def convert_person_and_engagement_data_to_csv(
                         if obj["engagements"]
                         else "Der findes intet fremtidigt engagement for personen",
                         "Oprettelsesdato": date.today().isoformat(),
-                        "CPR": "'{crp}'".format(crp=obj["cpr_no"])
-                        if obj["cpr_no"]
+                        "CPR": "'{cpr}'".format(cpr=obj["cpr_number"])
+                        if obj["cpr_number"]
                         else None,
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj),
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
                         "Organisation": get_org_unit_ancestor(obj),
                     }
                 )
 
     elif ended_engagements_data_to_csv:
-        for employee in dict_data["employees"]:
-            for obj in employee["objects"]:
+        for employee in dict_data["employees"]["objects"]:
+            for obj in employee["validities"]:
                 out.append(
                     {
                         "Personens navn": obj["name"],
@@ -396,7 +406,7 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj),
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
                     }
                 )
 
