@@ -25,9 +25,11 @@ async def test_simple_query():
         simple_query=True,
     )
     expected = """
-            query ($limit: int, $offset: int) {
-                page: engagements(limit: $limit, offset: $offset){
-                    uuid
+            query ($limit: int, $cursor: Cursor) {
+                page: engagements(limit: $limit, cursor: $cursor){
+                    objects {
+                        uuid
+                    }
                 }
             }
 
@@ -46,16 +48,16 @@ async def test_actual_state_query():
         simple_query=False,
     )
     expected = """
-            query ($limit: int, $offset: int) {
-                page: engagements(limit: $limit, offset: $offset){
-                    uuid
+        query ($limit: int, $cursor: Cursor) {
+            page: engagements(limit: $limit, cursor: $cursor) {
+                objects {
                     obj: current {
                         uuid
                     }
                 }
             }
-
-            """
+        }
+        """
     assert gql_obj == expected
     assert variable_values == {}
 
@@ -71,9 +73,8 @@ async def test_historic_query():
         simple_query=False,
     )
     expected = """
-            query ($limit: int, $offset: int, $to_date: DateTime, $from_date: DateTime) {
-                page: engagements(limit: $limit, offset: $offset, from_date: $from_date, to_date: $to_date){
-                    uuid
+            query ($limit: int, $cursor: Cursor, $to_date: DateTime, $from_date: DateTime) {
+                page: engagements(limit: $limit, cursor: $cursor, filter: { from_date: $from_date, to_date: $to_date }){
                     obj: objects {
                         uuid
                     }
@@ -98,8 +99,10 @@ async def test_simple_query_uuid():
     )
     expected = """
             query ($uuids: [UUID!]) {
-                page: engagements(uuids: $uuids){
-                    uuid
+                page: engagements(filter: { uuids: $uuids }){
+                    objects {
+                        uuid
+                    }
                 }
             }
 
@@ -121,8 +124,7 @@ async def test_actual_state_query_uuid():
     )
     expected = """
             query ($uuids: [UUID!]) {
-                page: engagements(uuids: $uuids){
-                    uuid
+                page: engagements(filter: { uuids: $uuids }){
                     obj: current {
                         uuid
                     }
@@ -148,8 +150,7 @@ async def test_historic_query_uuid():
     )
     expected = """
             query ($uuids: [UUID!], $to_date: DateTime, $from_date: DateTime) {
-                page: engagements(uuids: $uuids, from_date: $from_date, to_date: $to_date){
-                    uuid
+                page: engagements(filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }){
                     obj: objects {
                         uuid
                     }
