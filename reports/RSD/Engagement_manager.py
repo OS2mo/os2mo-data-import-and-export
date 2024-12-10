@@ -195,7 +195,9 @@ def main(*args, **kwargs):
     # TODO Transform res to data :ez:
     data = list(extract_list_format(res))
 
-    # TODO: Sort data by unit path
+    # Sort data by unit path
+    for i in range(7)[::-1]:
+        data.sort(key=lambda l: l[i])
 
     logger.info("uploading file to MO reports")
     with file_uploader(settings, "managers.xlsx") as filename:
