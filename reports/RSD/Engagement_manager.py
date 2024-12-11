@@ -3,12 +3,11 @@ import xlsxwriter
 from gql import gql
 from more_itertools import first
 from more_itertools import one
-from more_itertools import only
 from more_itertools import prepend
 from ra_utils.job_settings import JobSettings
 from raclients.upload import file_uploader
 
-from reports.graphql import get_mo_client
+from reports.graphql import get_mo_client, paginated_query
 from reports.query_actualstate import XLSXExporter
 from tools.log import get_logger
 from tools.log import LogLevel
@@ -39,8 +38,9 @@ HEADERS = (
     "E-mail",
     "Stillingskode nuværende",
 )
-query = """query EngagementManagers {
-  engagements(limit: "100") {
+QUERY = """
+query EngagementManagers($limit: int, $cursor: Cursor = null) {
+  engagements(limit: $limit, cursor: $cursor) {
     objects {
       current {
         person {
@@ -50,7 +50,7 @@ query = """query EngagementManagers {
           }
         }
         user_key
-        job_function{
+        job_function {
           name
           user_key
         }
@@ -73,8 +73,12 @@ query = """query EngagementManagers {
         }
       }
     }
+    page_info {
+      next_cursor
+    }
   }
 }
+
 """
 
 
@@ -109,7 +113,7 @@ def extract_manager(managers: dict) -> list:
             r["name"] == responsibility_name for r in manager["responsibilities"]
         )
 
-    manager = only(m for m in managers if has_responsibility(m, "Leder"))
+    manager = first((m for m in managers if has_responsibility(m, "Leder")), default="")
     co_managers = [m for m in managers if has_responsibility(m, "Medleder")]
     co_manager_1 = co_managers[0] if len(co_managers) > 0 else ""
     co_manager_2 = co_managers[1] if len(co_managers) > 1 else ""
@@ -147,9 +151,8 @@ def extract_manager(managers: dict) -> list:
     ]
 
 
-def extract_list_format(res: dict):
+def extract_list_format(engagements: dict):
     """Extract relevant data from Graphql-response and return as a list of tuples"""
-    engagements = res["engagements"]["objects"]
     for e in engagements:
         current = e["current"]
 
@@ -190,9 +193,7 @@ def main(*args, **kwargs):
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
-    # TODO: add pagination
-    res = client.execute(gql(query))
-    # TODO Transform res to data :ez:
+    res = list(paginated_query(graphql_client=client, query=QUERY))
     data = list(extract_list_format(res))
 
     # Sort data by unit path
@@ -204,7 +205,7 @@ def main(*args, **kwargs):
         # write data as excel file
         workbook = xlsxwriter.Workbook(filename)
         excel = XLSXExporter(filename)
-        excel.add_sheet(workbook, "page", list(prepend(HEADERS, data)))
+        excel.add_sheet(workbook, "Engagementer/ledere", list(prepend(HEADERS, data)))
         workbook.close()
 
 
