@@ -1,13 +1,14 @@
+"""Generates a report for RSD containing information on org_units, managers and engagements"""
 import click
 import xlsxwriter
-from gql import gql
 from more_itertools import first
 from more_itertools import one
 from more_itertools import prepend
 from ra_utils.job_settings import JobSettings
 from raclients.upload import file_uploader
 
-from reports.graphql import get_mo_client, paginated_query
+from reports.graphql import get_mo_client
+from reports.graphql import paginated_query
 from reports.query_actualstate import XLSXExporter
 from tools.log import get_logger
 from tools.log import LogLevel
@@ -38,6 +39,7 @@ HEADERS = (
     "E-mail",
     "Stillingskode nuværende",
 )
+
 QUERY = """
 query EngagementManagers($limit: int, $cursor: Cursor = null) {
   engagements(limit: $limit, cursor: $cursor) {
@@ -83,22 +85,21 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
 
 
 def extract_ancestors(
-    ancestors: dict,
+    ancestors: list[dict],
 ) -> list[str]:
     # Reverse ancestors list to start at root
     ancestor_names = [a["name"] for a in ancestors[::-1]]
     # Max level is 7 ancestors.
     # Todo: consider a dynamic number of columns
-    if len(ancestor_names) > 7:
-        ancestor_names = ancestor_names[:7]
+    ancestor_names = ancestor_names[:7]
     # Append empty strings to conform to report schema of up to 7 ancestors
     for _ in range(7 - len(ancestor_names)):
         ancestor_names.append("")
     return ancestor_names
 
 
-def extract_manager(managers: dict) -> list:
-    """extract managers based on responsibility and return for the following:
+def extract_manager(managers: dict) -> list[str]:
+    """extract names of managers based on responsibility and return for the following:
     * "Leder"
     * "Medleder 1"
     * "Medleder 2"
@@ -132,11 +133,11 @@ def extract_manager(managers: dict) -> list:
         default="",
     )
 
-    def extract_manager_name(manager: dict) -> str:
+    def extract_manager_name(manager: dict | str) -> str:
         if not manager:
             return ""
         try:
-            return one(manager["person"])["name"]
+            return one(manager["person"])["name"]  # type: ignore
         except TypeError:
             return ""
 
@@ -151,38 +152,39 @@ def extract_manager(managers: dict) -> list:
     ]
 
 
-def extract_list_format(engagements: dict):
+def extract_list_format(engagement: dict) -> list[str]:
     """Extract relevant data from Graphql-response and return as a list of tuples"""
-    for e in engagements:
-        current = e["current"]
 
-        name = one(current["person"])["name"]
-        org_unit = one(current["org_unit"])
+    name = one(engagement["person"])["name"]
+    org_unit = one(engagement["org_unit"])
 
-        email = first(one(current["person"])["addresses"], default=None)
-        email = email["name"] if email else ""
-        job_function = (
-            f'{current["job_function"]["name"]} ({current["job_function"]["user_key"]})'
-        )
-        yield [
-            *extract_ancestors(org_unit["ancestors"]),
-            org_unit["name"],
-            *extract_manager(org_unit["managers"]),
-            current["user_key"],
-            current["user_key"][3:],
-            name,
-            email,
-            job_function,
-        ]
+    email = first(one(engagement["person"])["addresses"], default=None)
+    email = email["name"] if email else ""
+    job_function = f'{engagement["job_function"]["name"]} ({engagement["job_function"]["user_key"]})'
+    return [
+        *extract_ancestors(org_unit["ancestors"]),
+        org_unit["name"],
+        *extract_manager(org_unit["managers"]),
+        engagement["user_key"],
+        engagement["user_key"][3:],
+        name,
+        email,
+        job_function,
+    ]
+    # Add org_unit name as first ancestor if no ancestors
+    if not row[0]:
+        row[0] = org_unit["name"]
+    return row
+
 
 
 @click.command()
-@click.option("--mora_base", envvar="MORA_BASE", default="http://localhost:5000")
+@click.option("--mora_base", envvar="MORA_BASE", default="http://mo-service:5000")
 @click.option("--client-id", envvar="CLIENT_ID", default="dipex")
 @click.option("--client-secret", envvar="CLIENT_SECRET")
 @click.option("--auth-realm", envvar="AUTH_REALM", default="mo")
 @click.option(
-    "--auth-server", envvar="AUTH_SERVER", default="http://localhost:5000/auth"
+    "--auth-server", envvar="AUTH_SERVER", default="http://keycloak-service:8080/auth"
 )
 def main(*args, **kwargs):
     settings = JobSettings(**kwargs)
@@ -193,11 +195,12 @@ def main(*args, **kwargs):
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
-    res = list(paginated_query(graphql_client=client, query=QUERY))
-    data = list(extract_list_format(res))
+    res = paginated_query(graphql_client=client, query=QUERY)
+    # Extract data from graphql response
+    data = [extract_list_format(e["current"] for e in res)]
 
-    # Sort data by unit path
-    for i in range(7)[::-1]:
+    # Sort data by unit name and path
+    for i in range(7, -1, -1):
         data.sort(key=lambda l: l[i])
 
     logger.info("uploading file to MO reports")
@@ -205,7 +208,7 @@ def main(*args, **kwargs):
         # write data as excel file
         workbook = xlsxwriter.Workbook(filename)
         excel = XLSXExporter(filename)
-        excel.add_sheet(workbook, "Engagementer/ledere", list(prepend(HEADERS, data)))
+        excel.add_sheet(workbook, "ledere", list(prepend(HEADERS, data)))
         workbook.close()
 
 
