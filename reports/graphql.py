@@ -1,8 +1,13 @@
-from gql import gql
+from typing import Iterator
+
 import httpx
+from gql import gql
 from more_itertools import one
 from raclients.graph.client import GraphQLClient
-from tenacity import retry, retry_if_exception_type, stop_after_delay, wait_fixed
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_delay
+from tenacity import wait_fixed
 
 
 def get_mo_client(
@@ -46,13 +51,17 @@ def get_mo_client(
     stop=stop_after_delay(10 * 60),
     retry=retry_if_exception_type(httpx.HTTPError),
 )
-def query_graphql(graphql_client: GraphQLClient, query: str, page_size, cursor):
+def query_graphql(
+    graphql_client: GraphQLClient, query: str, page_size: int | None, cursor: str | None
+) -> dict:
     return graphql_client.execute(
         gql(query), variable_values={"limit": page_size, "cursor": cursor}
     )
 
 
-def paginated_query(graphql_client: GraphQLClient, query, page_size: int = 1000):
+def paginated_query(
+    graphql_client: GraphQLClient, query: str, page_size: int = 1000
+) -> Iterator:
     cursor = None
     while True:
         res = query_graphql(graphql_client, query, page_size, cursor)
