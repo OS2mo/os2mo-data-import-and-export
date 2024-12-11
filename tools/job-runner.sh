@@ -191,7 +191,6 @@ exports_viborg_eksterne(){
     ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
     (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
-        SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
         system_user="${system_user%%@*}"
         [ -z "${system_user}" ] && exit 1
