@@ -572,24 +572,32 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
     Convert ADM engagement data models to CSV
     """
     return [
-        "Medarbejdernummer,"
-        "CPR,"
-        "Fornavn,"
-        "Efternavn,"
-        "Mail,"
-        "Afdelingskode,"
-        "Startdato,"
-        "Slutdato,"
-        "LedersMedarbejdernummer,"
-        "Brugernavn,"
-        "Titel,"
+        "Medarbejdernummer||"
+        "CPR||"
+        "Fornavn||"
+        "Efternavn||"
+        "Mail||"
+        "Afdelingskode||"
+        "Startdato||"
+        "Slutdato||"
+        "LedersMedarbejdernummer||"
+        "Brugernavn||"
+        "Titel||"
         "Faggruppe\n"
     ] + [
         (
-            f"{r.person_user_key},{r.cpr},{r.first_name},{r.last_name},{r.email},"
-            f"{str(r.org_unit)},{r.eng_start},"
-            f"{r.eng_end},{r.manager_eng_user_key},"
-            f"{r.username},{r.job_function},{r.job_function}\n"
+            f"{r.person_user_key}||"
+            f"{r.cpr}||"
+            f"{r.first_name}||"
+            f"{r.last_name}||"
+            f"{r.email}||"
+            f"{str(r.org_unit)}||"
+            f"{r.eng_start}||"
+            f"{r.eng_end}||"
+            f"{r.manager_eng_user_key}||"
+            f"{r.username}||"
+            f"{r.job_function}||"
+            f"{r.job_function}\n"
         )
         for r in rows
     ]
@@ -600,14 +608,21 @@ def med_ass_rows_to_csv_lines(rows: list[MedAssRow]) -> list[str]:
     Convert MED association data models to CSV
     """
     return [
-        "CPR,"
-        "Afdelingskode,"
-        "Startdato,"
-        "Slutdato,"
-        "Hverv,"
+        "CPR||"
+        "Afdelingskode||"
+        "Startdato||"
+        "Slutdato||"
+        "Hverv||"
         "Hovedorganisation\n"
     ] + [
-        f"{r.cpr},{str(r.org_unit)},{r.ass_start},{r.ass_end},{r.role},{r.main_org}\n"
+        (
+            f"{r.cpr}||"
+            f"{str(r.org_unit)}||"
+            f"{r.ass_start}||"
+            f"{r.ass_end}||"
+            f"{r.role}||"
+            f"{r.main_org}\n"
+        )
         for r in rows
     ]
 
@@ -617,15 +632,15 @@ def adm_ou_rows_to_csv_lines(rows: list[AdmOuRow]) -> list[str]:
     Convert ADM org unit data models to CSV
     """
     return [
-        "Afdelingsnavn,"
-        "Afdelingskode,"
-        "Forældreafdelingskode,"
+        "Afdelingsnavn||"
+        "Afdelingskode||"
+        "Forældreafdelingskode||"
         "Pnummer\n"
     ] + [
         (
-            f"{r.name},"
-            f"{str(r.uuid)},"
-            f"{str(r.parent) if r.parent is not None else ''},"
+            f"{r.name}||"
+            f"{str(r.uuid)}||"
+            f"{str(r.parent) if r.parent is not None else ''}||"
             f"{r.pnumber}\n"
         )
         for r in rows
@@ -637,13 +652,13 @@ def med_ou_rows_to_csv_lines(rows: list[MedOuRow]) -> list[str]:
     Convert MED org unit data models to CSV
     """
     return [
-        "Afdelingsnavn,"
-        "Afdelingskode,"
+        "Afdelingsnavn||"
+        "Afdelingskode||"
         "Forældreafdelingskode\n"
     ] + [
         (
-            f"{r.name},"
-            f"{str(r.uuid)},"
+            f"{r.name}||"
+            f"{str(r.uuid)}||"
             f"{str(r.parent) if r.parent is not None else ''}\n"
         )
         for r in rows
