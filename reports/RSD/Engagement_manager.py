@@ -1,4 +1,8 @@
 """Generates a report for RSD containing information on org_units, managers and engagements"""
+
+import datetime
+from dateutil.relativedelta import relativedelta
+from datetime import date
 import click
 import xlsxwriter
 from more_itertools import first
@@ -39,6 +43,28 @@ HEADERS = (
     "E-mail",
     "Stillingskode nuværende",
 )
+HEADERS_2 = [
+    "Niveau 1",
+    "Niveau 2",
+    "Niveau 3",
+    "Niveau 4",
+    "Niveau 5",
+    "Niveau 6",
+    "Niveau 7",
+    "Enhedsnavn",
+    "Enhedstype",
+    "Medarbejder",
+    "Stilling",
+    "Lederbetegnelse",
+    "Lederansvar",
+    "Tjenestenummer",
+    "CPR-nummer",
+    "E-mail",
+    "Alder",
+    "Leder",
+    "BVN (k)",
+]
+
 
 QUERY = """
 query EngagementManagers($limit: int, $cursor: Cursor = null) {
@@ -47,6 +73,7 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
       current {
         person {
           name
+          cpr_number
           addresses(filter: { address_type: { scope: "EMAIL" } }) {
             name
           }
@@ -56,6 +83,7 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
           name
           user_key
         }
+        extension_1
         org_unit {
           name
           managers(inherit: false) {
@@ -70,6 +98,9 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
             }
           }
           ancestors {
+            name
+          }
+          unit_type {
             name
           }
         }
@@ -152,7 +183,7 @@ def extract_manager(managers: dict) -> list[str]:
     ]
 
 
-def extract_list_format(engagement: dict) -> list[str]:
+def extract_list_format_1(engagement: dict) -> list[str]:
     """Extract relevant data from Graphql-response and return as a list of tuples"""
 
     name = one(engagement["person"])["name"]
@@ -161,7 +192,7 @@ def extract_list_format(engagement: dict) -> list[str]:
     email = first(one(engagement["person"])["addresses"], default=None)
     email = email["name"] if email else ""
     job_function = f'{engagement["job_function"]["name"]} ({engagement["job_function"]["user_key"]})'
-    return [
+    row = [
         *extract_ancestors(org_unit["ancestors"]),
         org_unit["name"],
         *extract_manager(org_unit["managers"]),
@@ -176,6 +207,78 @@ def extract_list_format(engagement: dict) -> list[str]:
         row[0] = org_unit["name"]
     return row
 
+
+def get_cpr_birthdate(number: int | str) -> datetime.datetime:
+    """Copied from MO"""
+    if isinstance(number, str):
+        number = int(number)
+
+    rest, code = divmod(number, 10000)
+    rest, year = divmod(rest, 100)
+    rest, month = divmod(rest, 100)
+    rest, day = divmod(rest, 100)
+
+    if rest:
+        raise ValueError(f"invalid CPR number {number}")
+
+    # see https://da.wikipedia.org/wiki/CPR-nummer :(
+    if code < 4000:
+        century = 1900
+    elif code < 5000:
+        century = 2000 if year <= 36 else 1900
+    elif code < 9000:
+        century = 2000 if year <= 57 else 1800
+    else:
+        century = 2000 if year <= 36 else 1900
+
+    try:
+        return datetime.datetime(century + year, month, day)
+    except ValueError:
+        raise ValueError(f"invalid CPR number {number}")
+
+
+def get_age(cpr_number: str) -> int:
+    birthdate = get_cpr_birthdate(cpr_number)
+
+    def calculate_age(birth_date):
+        # From "Approach #5"  https://www.geeksforgeeks.org/python-program-to-calculate-age-in-year/
+
+        today = date.today()
+        age = relativedelta(today, birth_date)
+        return age.years
+
+    return calculate_age(birthdate)
+
+
+def extract_list_format_2(engagement: dict) -> list[str]:
+    """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
+
+    person = one(engagement["person"])
+    org_unit = one(engagement["org_unit"])
+
+    email = first(one(engagement["person"])["addresses"], default=None)
+    email = email["name"] if email else ""
+    # TODO: Add org_unit name as first ancestor if no ancestors
+
+    row = [
+        *extract_ancestors(org_unit["ancestors"]),
+        org_unit["name"],
+        org_unit["unit_type"]["name"],
+        person["name"],
+        engagement["extension_1"],
+        "Lederbetegnelse",
+        "Lederansvar",
+        engagement["user_key"][3:],
+        person["cpr_number"],
+        email,
+        str(get_age(person["cpr_number"])),
+        "Leder",
+        engagement["user_key"],
+    ]
+    # Add org_unit name as first ancestor if no ancestors
+    if not row[0]:
+        row[0] = org_unit["name"]
+    return row
 
 
 @click.command()
@@ -195,20 +298,28 @@ def main(*args, **kwargs):
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
-    res = paginated_query(graphql_client=client, query=QUERY)
+    res = list(paginated_query(graphql_client=client, query=QUERY))
     # Extract data from graphql response
-    data = [extract_list_format(e["current"] for e in res)]
+    data = [extract_list_format_1(e["current"]) for e in res]
+    data_2 = [extract_list_format_2(e["current"]) for e in res]
 
     # Sort data by unit name and path
     for i in range(7, -1, -1):
         data.sort(key=lambda l: l[i])
+        data_2.sort(key=lambda l: l[i])
 
-    logger.info("uploading file to MO reports")
+    logger.info("uploading files to MO reports")
     with file_uploader(settings, "managers.xlsx") as filename:
         # write data as excel file
         workbook = xlsxwriter.Workbook(filename)
         excel = XLSXExporter(filename)
         excel.add_sheet(workbook, "ledere", list(prepend(HEADERS, data)))
+        workbook.close()
+    with file_uploader(settings, "engagements.xlsx") as filename:
+        # write data as excel file
+        workbook = xlsxwriter.Workbook(filename)
+        excel = XLSXExporter(filename)
+        excel.add_sheet(workbook, "engagementer", list(prepend(HEADERS_2, data_2)))
         workbook.close()
 
 
