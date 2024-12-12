@@ -371,6 +371,7 @@ def list_employees(session, org_name: str) -> list:
             Enhed.navn,
             Enhed.organisatorisk_sti,
             Engagement.stillingsbetegnelse_titel,
+            Engagement.bvn,
         )
         .filter(
             Enhed.uuid == Engagement.enhed_uuid,
@@ -393,6 +394,7 @@ def list_employees(session, org_name: str) -> list:
             "Enhed",
             "Sti",
             "Stilling",
+            "MA-nummer",
         ],
     )
     data_df = expand_org_path(data_df, "Sti")
