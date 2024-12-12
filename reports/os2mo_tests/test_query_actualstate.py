@@ -419,6 +419,7 @@ class Tests_db(unittest.TestCase):
                 "AD-Telefonnummer",
                 "Enhed",
                 "Stilling",
+                "MA-nummer",
                 "Enhed 1",
                 "Enhed 2",
             ),
