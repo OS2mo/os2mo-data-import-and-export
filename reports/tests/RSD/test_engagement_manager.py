@@ -8,12 +8,13 @@ from reports.RSD.Engagement_manager import has_responsibility
 
 
 @pytest.mark.parametrize(
-    "cpr_number,expected_age",
-    (("3011671296", 56), ("0112671296", 56), ("0212671296", 55)),
+    "freeze_date,expected_age",
+    (("1970-01-01", 10), ("1991-07-17", 31), ("2045-12-31", 85)),
 )
-def test_get_age(cpr_number, expected_age):
-    with freeze_time("2023-12-01"):
-        assert get_age(cpr_number) == expected_age
+def test_get_age_at_dates(freeze_date, expected_age):
+    cpr = "0101601296"
+    with freeze_time(freeze_date):
+        assert get_age(cpr) == expected_age
 
 
 @pytest.mark.parametrize(
