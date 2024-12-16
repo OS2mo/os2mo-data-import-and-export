@@ -129,7 +129,15 @@ def extract_ancestors(
     return ancestor_names
 
 
-def extract_manager(managers: dict) -> list[str]:
+def find_managers_of_type(managers: list[dict], manager_type: str) -> list[dict]:
+    return [m for m in managers if m["manager_type"]["name"] == manager_type]
+
+
+def has_responsibility(manager: dict, responsibility_name: str) -> bool:
+    return any(r["name"] == responsibility_name for r in manager["responsibilities"])
+
+
+def extract_manager(managers: list[dict]) -> list[str]:
     """extract names of managers based on responsibility and return for the following:
     * "Leder"
     * "Medleder 1"
@@ -140,35 +148,30 @@ def extract_manager(managers: dict) -> list[str]:
     * "Uddannelsesansvarlig"
     """
 
-    def has_responsibility(manager, responsibility_name):
-        return any(
-            r["name"] == responsibility_name for r in manager["responsibilities"]
-        )
-
-    manager = first((m for m in managers if has_responsibility(m, "Leder")), default="")
-    co_managers = [m for m in managers if has_responsibility(m, "Medleder")]
-    co_manager_1 = co_managers[0] if len(co_managers) > 0 else ""
-    co_manager_2 = co_managers[1] if len(co_managers) > 1 else ""
+    manager = first(find_managers_of_type(managers, "Leder"), default=None)
+    co_managers = find_managers_of_type(managers, "Medleder")
+    co_manager_1 = co_managers[0] if len(co_managers) > 0 else None
+    co_manager_2 = co_managers[1] if len(co_managers) > 1 else None
     administrator = first(
-        (m for m in managers if has_responsibility(m, "Administrator")), default=""
+        find_managers_of_type(managers, "Administrator"), default=None
     )
     admin_responsibility = first(
         (m for m in managers if has_responsibility(m, "Administrativ ansvarlig")),
-        default="",
+        default=None,
     )
     personel_management = first(
-        (m for m in managers if has_responsibility(m, "Personaleledelse")), default=""
+        (m for m in managers if has_responsibility(m, "Personaleledelse")), default=None
     )
     udd = first(
         (m for m in managers if has_responsibility(m, "Uddannelsesansvarlig")),
-        default="",
+        default=None,
     )
 
-    def extract_manager_name(manager: dict | str) -> str:
-        if not manager:
+    def extract_manager_name(manager: dict | None) -> str:
+        if manager is None:
             return ""
         try:
-            return one(manager["person"])["name"]  # type: ignore
+            return one(manager["person"])["name"]
         except TypeError:
             return ""
 
