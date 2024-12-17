@@ -5,17 +5,24 @@ import os
 import pickle
 import time
 from pathlib import Path
+from typing import Any
+from typing import AsyncIterator
+from typing import Optional
 from uuid import UUID
 
 from gql import gql
+from gql.client import AsyncClientSession
+from graphql import DocumentNode
 from more_itertools import first
 from more_itertools import only
 from ra_utils.async_to_sync import async_to_sync
 from raclients.graph.client import GraphQLClient
-from raclients.graph.util import execute_paged
 from tenacity import retry
+from tenacity import Retrying
+from tenacity import stop_after_attempt
 from tenacity import stop_after_delay
 from tenacity import wait_exponential
+from tenacity import wait_random_exponential
 
 from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
@@ -24,6 +31,70 @@ RETRY_MAX_TIME = 60 * 5
 
 
 logger = logging.getLogger(__name__)
+
+
+async def execute_paged(
+    gql_session: AsyncClientSession,
+    document: DocumentNode,
+    variable_values: Optional[dict[str, Any]] = None,
+    per_page: int = 100,
+    **kwargs: Any,
+) -> AsyncIterator[dict[str, Any]]:
+    """Execute a paged GraphQL query, yielding objects.
+
+    Args:
+        gql_session: The GQL client session to execute the query on.
+        document: GQL document. The query must be defined with variables `$limit` and
+            `$cursor`, and pass them to the operation, which must be aliased to `page`.
+        variable_values: Optional variable values to be used in the query.
+        per_page: Number of objects to request per page.
+        **kwargs: Additional keyword arguments passed to session.execute()
+
+    Example usage::
+
+        async with GraphQLClient(...) as session:
+            query = gql(
+                '''
+                query PagedQuery($limit: int, $cursor: Cursor, $from_date: DateTime) {
+                    page: employees(limit: $limit, cursor: $cursor, from_date: $from_date) {
+                        objects {
+                            uuid
+                        }
+                    }
+                }
+            '''
+            )
+            variables = {
+                "from_date": "2001-09-11",
+            }
+            async for obj in execute_paged(session, query, variable_values=variables):
+                print(obj)
+
+    Yields: Objects from pages.
+    """
+    next_cursor = None
+    while True:
+        for attempt in Retrying(
+            wait=wait_random_exponential(multiplier=2, max=30),
+            stop=stop_after_attempt(3),
+        ):
+            with attempt:
+                result = await gql_session.execute(
+                    document,
+                    variable_values=dict(
+                        limit=per_page,
+                        cursor=next_cursor,
+                        **(variable_values or {}),
+                    ),
+                    # Return `result` instead of `result.data` so we can access extensions
+                    get_execution_result=True,
+                    **kwargs,
+                )
+        for obj in result.data["page"]["objects"]:
+            yield obj
+        next_cursor = result.data["page"]["page_info"]["next_cursor"]
+        if next_cursor is None:
+            break
 
 
 # used to correctly insert the object into the cache
@@ -93,7 +164,7 @@ def convert_dict(
     if resolve_validity:
         query_res = res_validity(query_res)
 
-    return {uuid: replace(query_res, replace_dict)}
+    return {uuid: replace(query_res["obj"], replace_dict)}
 
 
 class GQLLoraCache:
@@ -138,7 +209,7 @@ class GQLLoraCache:
 
     def _setup_gql_client(self) -> GraphQLClient:
         return GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
+            url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,
             auth_realm=self.settings.auth_realm,
@@ -156,26 +227,42 @@ class GQLLoraCache:
         uuid: UUID | None = None,
     ):
         """Builds graphql queries and returns the gql object and variable values dict."""
+        # TODO: WARNING: NOTE: FIXME: Are you here to fix a bug or extend this function?
+        # PLEASE DONT.
+        # This is such a bad idea. Consider defining a proper query, in full,
+        # for each object type, or reimplement everything with codegen.
+        # Thank you, and sorry.
+
         if variable_values is None:
             variable_values = {}
+
+        query_filters = []
+        filter_content = {}
+        query_variables = []
+
         if uuid:
-            query_filters = ["$uuids: [UUID!]"]
-            query_variables = ["uuids: $uuids"]
+            query_filters.append("$uuids: [UUID!]")
+            filter_content["uuids"] = "$uuids"
             variable_values.update({"uuids": [str(uuid)]})
         else:
-            query_filters = ["$limit: int", "$offset: int"]
-            query_variables = ["limit: $limit", "offset: $offset"]
+            query_filters.extend(["$limit: int", "$cursor: Cursor"])
+            query_variables.extend(["limit: $limit", "cursor: $cursor"])
 
-        query_types_with_no_dates = ["facets", "classes", "itsystems"]
-        obj_type = "objects" if self.full_history else "current"
+        obj_type = "validities" if self.full_history else "current"
 
-        if self.full_history and query_type not in query_types_with_no_dates:
-            query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
-            query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
+        if self.full_history:
+            query_filters.extend(["$from_date: DateTime", "$to_date: DateTime"])
+            filter_content["from_date"] = "$from_date"
+            filter_content["to_date"] = "$to_date"
             variable_values.update({"from_date": None, "to_date": None})
 
         if self.skip_past:
+            filter_content["from_date"] = "$from_date"
             variable_values.update({"from_date": str(datetime.date.today())})
+
+        if filter_content:
+            filter_string = f"filter: {{ {', '.join([f'{key}: {value}' for key, value in filter_content.items()])} }}"
+            query_variables.append(filter_string)
 
         query_filters_string = ", ".join(query_filters)
         query_variables_string = ", ".join(query_variables)
@@ -183,20 +270,24 @@ class GQLLoraCache:
         # account for simple_query differences
         query_contents = (
             f"""uuid
-                    obj: {obj_type} {{
-                        {query_fields}
-                    }}"""
+                        obj: {obj_type} {{
+                            {query_fields}
+                        }}"""
             if not simple_query
             else f"{query_fields}"
         )
 
         full_query = f"""
             query ({query_filters_string}) {{
-                page: {query_type}({query_variables_string}){{
-                    {query_contents}
+                page: {query_type}({query_variables_string}) {{
+                    objects {{
+                        {query_contents}
+                    }}
+                    page_info {{
+                        next_cursor
+                    }}
                 }}
             }}
-
             """
         return full_query, variable_values
 
@@ -257,7 +348,7 @@ class GQLLoraCache:
             """
         )
         with GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
+            url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,
             auth_realm=self.settings.auth_realm,
@@ -285,7 +376,6 @@ class GQLLoraCache:
             query=query,
             query_type="facets",
             uuid=uuid,
-            simple_query=True,
         ):
             if obj is None:
                 return {}
@@ -314,7 +404,6 @@ class GQLLoraCache:
             query=query,
             query_type="classes",
             uuid=uuid,
-            simple_query=True,
         ):
             if obj is None:
                 return {}
@@ -344,7 +433,6 @@ class GQLLoraCache:
             query=query,
             query_type="itsystems",
             uuid=uuid,
-            simple_query=True,
         ):
             if obj is None:
                 return {}
