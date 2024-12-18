@@ -74,6 +74,7 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
         person {
           name
           cpr_number
+          uuid
           addresses(filter: { address_type: { scope: "EMAIL" } }) {
             name
           }
@@ -92,6 +93,7 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
             }
             person {
               name
+              uuid
             }
             manager_type {
               name
@@ -135,6 +137,13 @@ def find_managers_of_type(managers: list[dict], manager_type: str) -> list[dict]
 
 def has_responsibility(manager: dict, responsibility_name: str) -> bool:
     return any(r["name"] == responsibility_name for r in manager["responsibilities"])
+
+
+def find_manager_role_for_person(person: dict, managers: dict) -> dict | None:
+    return first(
+        (e for e in managers if one(e["person"])["uuid"] == person["uuid"]),
+        default=None,
+    )
 
 
 def extract_manager(managers: list[dict]) -> list[str]:
@@ -254,10 +263,19 @@ def extract_list_format_2(engagement: dict) -> list[str]:
 
     person = one(engagement["person"])
     org_unit = one(engagement["org_unit"])
+    managers = org_unit["managers"]
 
     email = first(one(engagement["person"])["addresses"], default=None)
     email = email["name"] if email else ""
-    # TODO: Add org_unit name as first ancestor if no ancestors
+
+    manager_role = find_manager_role_for_person(person, managers)
+    manager_type = manager_role["manager_type"]["name"] if manager_role else ""
+    manager_responsibility = (
+        first(manager_role["responsibility"], default="") if manager_role else ""
+    )
+    manager = first(
+        (m for m in managers if has_responsibility(m, "Leder")), default=None
+    )
 
     row = [
         *extract_ancestors(org_unit["ancestors"]),
@@ -265,13 +283,13 @@ def extract_list_format_2(engagement: dict) -> list[str]:
         org_unit["unit_type"]["name"],
         person["name"],
         engagement["extension_1"],
-        "Lederbetegnelse",
-        "Lederansvar",
+        manager_type,
+        manager_responsibility,
         engagement["user_key"][3:],
         person["cpr_number"],
         email,
         str(get_age(person["cpr_number"])),
-        "Leder",
+        one(manager["person"])["name"] if manager else "",
         engagement["user_key"],
     ]
     # Add org_unit name as first ancestor if no ancestors
