@@ -86,7 +86,6 @@ async def execute_paged(
                         cursor=next_cursor,
                         **(variable_values or {}),
                     ),
-                    # Return `result` instead of `result.data` so we can access extensions
                     get_execution_result=True,
                     **kwargs,
                 )
@@ -113,7 +112,7 @@ def insert_obj(obj: dict, cache: dict) -> None:
 # historic query it is a list of dicts. in order to uniformly process the two states
 # we wrap the current object in a list
 def align_current(item: dict) -> dict:
-    item["obj"] = [item["current"]]
+    item["obj"] = [item.pop("current")]
     return item
 
 
@@ -218,79 +217,6 @@ class GQLLoraCache:
             execute_timeout=300,
         )
 
-    async def construct_query(
-        self,
-        query_type: str,
-        simple_query: bool,
-        query_fields: str,
-        variable_values: dict | None,
-        uuid: UUID | None = None,
-    ):
-        """Builds graphql queries and returns the gql object and variable values dict."""
-        # TODO: WARNING: NOTE: FIXME: Are you here to fix a bug or extend this function?
-        # PLEASE DONT.
-        # This is such a bad idea. Consider defining a proper query, in full,
-        # for each object type, or reimplement everything with codegen.
-        # Thank you, and sorry.
-
-        if variable_values is None:
-            variable_values = {}
-
-        query_filters = []
-        filter_content = {}
-        query_variables = []
-        self.full_history = True
-
-        if uuid:
-            query_filters.append("$uuids: [UUID!]")
-            filter_content["uuids"] = "$uuids"
-            variable_values.update({"uuids": [str(uuid)]})
-        else:
-            query_filters.extend(["$limit: int", "$cursor: Cursor"])
-            query_variables.extend(["limit: $limit", "cursor: $cursor"])
-
-        obj_type = "validities" if self.full_history else "current"
-
-        if self.full_history:
-            query_filters.extend(["$from_date: DateTime", "$to_date: DateTime"])
-            filter_content["from_date"] = "$from_date"
-            filter_content["to_date"] = "$to_date"
-            variable_values.update({"from_date": None, "to_date": None})
-
-        if self.skip_past:
-            filter_content["from_date"] = "$from_date"
-            variable_values.update({"from_date": str(datetime.date.today())})
-
-        if filter_content:
-            filter_string = f"filter: {{ {', '.join([f'{key}: {value}' for key, value in filter_content.items()])} }}"
-            query_variables.append(filter_string)
-
-        query_filters_string = ", ".join(query_filters)
-        query_variables_string = ", ".join(query_variables)
-
-        # account for simple_query differences
-        query_contents = (
-            f"""uuid
-                        obj: {obj_type} {{
-                            {query_fields}
-                        }}"""
-            if not simple_query
-            else f"{query_fields}"
-        )
-
-        full_query = f"""
-            query ({query_filters_string}) {{
-                page: {query_type}({query_variables_string}) {{
-                    objects {{
-                        {query_contents}
-                    }}
-                    page_info {{
-                        next_cursor
-                    }}
-                }}
-            }}
-            """
-        return full_query, variable_values
 
     @retry(
         reraise=True,
@@ -300,22 +226,11 @@ class GQLLoraCache:
     async def _execute_query(
         self,
         query: str,
-        query_type: str | None = None,
         variable_values: dict | None = None,
-        simple_query: bool = False,
         page_size: int | None = None,
         offset: int = 0,
         uuid: UUID | None = None,
     ):
-        gql_query, gql_variable_values = await self.construct_query(
-            query_fields=query,
-            query_type=query_type,
-            variable_values=variable_values,
-            simple_query=simple_query,
-            uuid=uuid,
-        )
-        if query_type:
-            print(gql_query)
         if uuid:
             res = await self.gql_client_session.execute(
                 gql(query), variable_values=variable_values
@@ -483,29 +398,47 @@ class GQLLoraCache:
     async def _fetch_users(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching users")
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: employees(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: employees(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            cpr_no
-                            user_key
-                            name
-                            givenname
-                            surname
-                            nickname
-                            nickname_givenname
-                            nickname_surname
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...EmployeeFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...EmployeeFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment EmployeeFragment on Employee {
+                uuid
+                cpr_no
+                user_key
+                name
+                givenname
+                surname
+                nickname
+                nickname_givenname
+                nickname_surname
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -523,8 +456,8 @@ class GQLLoraCache:
         res: dict = {}
         async for obj in self._execute_query(
             query=query,
-            query_type="employees",
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -586,8 +519,51 @@ class GQLLoraCache:
                     man["location"] = location
             return qr
 
-        if self.full_history:
-            query = """
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: org_units(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            uuid
+                            user_key
+                            name
+                            unit_type_uuid
+                            org_unit_level_uuid
+                            time_planning_uuid
+                            parent_uuid
+                            org_unit_hierarchy_uuid: org_unit_hierarchy
+                            manager_uuid: managers(inherit: false) {
+                                org_unit_uuid
+                                responsibility_uuids
+                                uuid
+                            }
+                            acting_manager_uuid: managers(inherit: true) {
+                                org_unit_uuid
+                                responsibility_uuids
+                                uuid
+                            }
+                            ancestors {
+                                name
+                                uuid
+                            }
+                            validity {
+                                from
+                                to
+                            }
+                        }
+                        obj: validities @skip(if: $current) {
                             uuid
                             user_key
                             name
@@ -600,48 +576,15 @@ class GQLLoraCache:
                                 from
                                 to
                             }
-                """
-        else:
-            query = """
-                query ($limit: int, $cursor: Cursor) {
-                    page: org_units(limit: $limit, cursor: $cursor) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                user_key
-                                name
-                                unit_type_uuid
-                                org_unit_level_uuid
-                                time_planning_uuid
-                                parent_uuid
-                                org_unit_hierarchy_uuid: org_unit_hierarchy
-                                manager_uuid: managers(inherit: false) {
-                                    org_unit_uuid
-                                    responsibility_uuids
-                                    uuid
-                                }
-                                acting_manager_uuid: managers(inherit: true) {
-                                    org_unit_uuid
-                                    responsibility_uuids
-                                    uuid
-                                }
-                                ancestors {
-                                    name
-                                    uuid
-                                }
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
                         }
                     }
+                    page_info {
+                        next_cursor
+                    }
                 }
-            """
+            }
+
+        """
 
         dictionary = {
             "org_unit_level_uuid": "level",
@@ -652,7 +595,7 @@ class GQLLoraCache:
         }
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid
+            query=query, uuid=uuid, variable_values={"current": not self.full_history} 
         ):
             if obj is None:
                 return {}
@@ -689,39 +632,57 @@ class GQLLoraCache:
             return d
 
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: engagements(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: engagements(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            employee_uuid
-                            org_unit_uuid
-                            fraction
-                            user_key
-                            engagement_type_uuid
-                            primary_uuid
-                            is_primary
-                            job_function_uuid
-                            extension_1
-                            extension_2
-                            extension_3
-                            extension_4
-                            extension_5
-                            extension_6
-                            extension_7
-                            extension_8
-                            extension_9
-                            extension_10
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...EngagementFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...EngagementFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment EngagementFragment on Engagement {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                fraction
+                user_key
+                engagement_type_uuid
+                primary_uuid
+                is_primary
+                job_function_uuid
+                extension_1
+                extension_2
+                extension_3
+                extension_4
+                extension_5
+                extension_6
+                extension_7
+                extension_8
+                extension_9
+                extension_10
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -739,6 +700,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -757,25 +719,43 @@ class GQLLoraCache:
     async def _fetch_leaves(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching leaves")
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: leaves(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: leaves(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            employee_uuid
-                            user_key
-                            leave_type_uuid
-                            engagement_uuid
-                            validity  {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...LeaveFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...LeaveFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment LeaveFragment on Leave {
+                uuid
+                employee_uuid
+                user_key
+                leave_type_uuid
+                engagement_uuid
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -790,6 +770,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -820,21 +801,26 @@ class GQLLoraCache:
             return res
 
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: itusers(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: itusers(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            employee_uuid
-                            org_unit_uuid
-                            user_key
-                            itsystem_uuid
-                            primary_uuid
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...ITUserFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...ITUserFragment
                         }
                     }
                     page_info {
@@ -842,6 +828,20 @@ class GQLLoraCache:
                     }
                 }
             }
+
+            fragment ITUserFragment on ITUser {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                user_key
+                itsystem_uuid
+                primary_uuid
+                validity {
+                    from
+                    to
+                }
+            }
+
         """
         dictionary = {
             "employee_uuid": "user",
@@ -854,6 +854,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -889,25 +890,43 @@ class GQLLoraCache:
             return d
 
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: kles(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: kles(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            org_unit_uuid
-                            kle_number_uuid
-                            kle_aspect_uuids
-                            user_key
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...KLEFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...KLEFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment KLEFragment on KLE {
+                uuid
+                org_unit_uuid
+                kle_number_uuid
+                kle_aspect_uuids
+                user_key
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -922,6 +941,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -951,17 +971,26 @@ class GQLLoraCache:
             return d
 
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: related_units(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: related_units(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                            obj: current {
-                            uuid
-                            org_unit_uuids
-                            validity {
-                                from
-                                to
-                            }    
+                        current @include(if: $current) {
+                            ...RelatedUnitFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...RelatedUnitFragment
                         }
                     }
                     page_info {
@@ -969,12 +998,22 @@ class GQLLoraCache:
                     }
                 }
             }
+
+            fragment RelatedUnitFragment on RelatedUnit {
+                uuid
+                org_unit_uuids
+                validity {
+                    from
+                    to
+                }
+            }        
         """
 
         res: dict = {}
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -994,26 +1033,44 @@ class GQLLoraCache:
     async def _fetch_managers(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching managers")
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: managers(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: managers(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            employee_uuid
-                            org_unit_uuid
-                            manager_type_uuid
-                            manager_level_uuid
-                            responsibility_uuids
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...ManagerFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...ManagerFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment ManagerFragment on Manager {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                manager_type_uuid
+                manager_level_uuid
+                responsibility_uuids
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -1030,6 +1087,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1077,35 +1135,53 @@ class GQLLoraCache:
         # TODO job_function_uuid  # Should be None if it_user_uuid is None,
         #  ask Mads why?! #48316 !764 5dc0d245 . Mads is always busy
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: associations(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: associations(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            uuid
-                            employee_uuid
-                            org_unit_uuid
-                            user_key
-                            association_type_uuid
-                            it_user_uuid
-                            job_function_uuid
-                            validity {
-                                from
-                                to
-                            }
-                            primary {
-                                user_key
-                            }
-                            dynamic_class {
-                                name
-                                parent {
-                                name
-                                }
-                            }
+                        current @include(if: $current) {
+                            ...AssociationFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...AssociationFragment
                         }
                     }
                     page_info {
                         next_cursor
+                    }
+                }
+            }
+
+            fragment AssociationFragment on Association {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                user_key
+                association_type_uuid
+                it_user_uuid
+                job_function_uuid
+                validity {
+                    from
+                    to
+                }
+                primary {
+                    user_key
+                }
+                dynamic_class {
+                    name
+                    parent {
+                    name
                     }
                 }
             }
@@ -1124,6 +1200,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1170,31 +1247,49 @@ class GQLLoraCache:
             return d
 
         query = """
-            query ($limit: int, $cursor: Cursor) {
-                page: addresses(limit: $limit, cursor: $cursor) {
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: addresses(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
+                ) {
                     objects {
                         uuid
-                        obj: current {
-                            address_type_uuid
-                            employee_uuid
-                            org_unit_uuid
-                            visibility_uuid
-                            name
-                            value
-                            uuid
-                            user_key
-                            address_type {
-                                scope
-                            }
-                            validity {
-                                from
-                                to
-                            }
+                        current @include(if: $current) {
+                            ...AddressFragment
+                        }
+                        obj: validities @skip(if: $current) {
+                            ...AddressFragment
                         }
                     }
                     page_info {
                         next_cursor
                     }
+                }
+            }
+
+            fragment AddressFragment on Address {
+                address_type_uuid
+                employee_uuid
+                org_unit_uuid
+                visibility_uuid
+                name
+                value
+                uuid
+                user_key
+                address_type {
+                    scope
+                }
+                validity {
+                    from
+                    to
                 }
             }
         """
@@ -1220,6 +1315,7 @@ class GQLLoraCache:
         async for obj in self._execute_query(
             query=query,
             uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1348,20 +1444,20 @@ class GQLLoraCache:
             # only keeps weak references.
             tasks = []
             async with asyncio.TaskGroup() as tg:
-                # tasks.append(tg.create_task(self._cache_lora_address()))
-                # tasks.append(tg.create_task(self._cache_lora_units()))
-                # tasks.append(tg.create_task(self._cache_lora_engagements()))
+                tasks.append(tg.create_task(self._cache_lora_address()))
+                tasks.append(tg.create_task(self._cache_lora_units()))
+                tasks.append(tg.create_task(self._cache_lora_engagements()))
                 tasks.append(tg.create_task(self._cache_lora_facets()))
                 tasks.append(tg.create_task(self._cache_lora_classes()))
                 tasks.append(tg.create_task(self._cache_lora_users()))
-                # tasks.append(tg.create_task(self._cache_lora_managers()))
-                # if not skip_associations:
-                #     tasks.append(tg.create_task(self._cache_lora_associations()))
-                # tasks.append(tg.create_task(self._cache_lora_leaves()))
+                tasks.append(tg.create_task(self._cache_lora_managers()))
+                if not skip_associations:
+                    tasks.append(tg.create_task(self._cache_lora_associations()))
+                tasks.append(tg.create_task(self._cache_lora_leaves()))
                 tasks.append(tg.create_task(self._cache_lora_itsystems()))
-                # tasks.append(tg.create_task(self._cache_lora_it_connections()))
-                # tasks.append(tg.create_task(self._cache_lora_kles()))
-                # tasks.append(tg.create_task(self._cache_lora_related()))
+                tasks.append(tg.create_task(self._cache_lora_it_connections()))
+                tasks.append(tg.create_task(self._cache_lora_kles()))
+                tasks.append(tg.create_task(self._cache_lora_related()))
             del tasks
 
         def write_caches(cache, filename, name):
