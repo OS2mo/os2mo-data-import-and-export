@@ -26,7 +26,7 @@ def get_engagement_settings(*args, **kwargs) -> EngagementSettings:
 def setup_gql_client(settings: EngagementSettings) -> GraphQLClient:
 
     return GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
+        url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
