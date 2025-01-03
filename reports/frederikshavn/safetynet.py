@@ -500,6 +500,7 @@ def process_association(
 
     dynamic_class = current.get("dynamic_class", {})
     main_org = dynamic_class.get("name", "") if dynamic_class is not None else ""
+    roles = [role.strip() for role in current["association_type"]["name"].split(",")]
 
     return [
         MedAssRow(
@@ -507,9 +508,10 @@ def process_association(
             org_unit=ou_uuid,
             ass_start=ass_start,
             ass_end=ass_end,
-            role=current["association_type"]["name"],
+            role=role,
             main_org=main_org
         )
+        for role in roles
     ]
 
 
