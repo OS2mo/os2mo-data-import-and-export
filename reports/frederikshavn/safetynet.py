@@ -433,7 +433,7 @@ def process_adm_unit(
 
 def process_association(
     gql_client: GraphQLClient, ass_uuid: UUID, ou_uuid: UUID
-) -> MedAssRow:
+) -> list[MedAssRow]:
     """
     Process a single association from an ADM org unit
 
@@ -500,15 +500,22 @@ def process_association(
 
     dynamic_class = current.get("dynamic_class", {})
     main_org = dynamic_class.get("name", "") if dynamic_class is not None else ""
+    # There must be two rows (Redmine case #63407) for composite roles, e.g.
+    # "TR, næstformand" will be split into two rows - one for "TR" and one for
+    # "næstformand"
+    roles = [role.strip() for role in current["association_type"]["name"].split(",")]
 
-    return MedAssRow(
-        cpr=cpr,
-        org_unit=ou_uuid,
-        ass_start=ass_start,
-        ass_end=ass_end,
-        role=current["association_type"]["name"],
-        main_org=main_org
-    )
+    return [
+        MedAssRow(
+            cpr=cpr,
+            org_unit=ou_uuid,
+            ass_start=ass_start,
+            ass_end=ass_end,
+            role=role,
+            main_org=main_org
+        )
+        for role in roles
+    ]
 
 
 def process_med_unit(
@@ -578,8 +585,8 @@ def process_med_unit(
     med_ou_rows.append(med_ou_row)
 
     for ass in assocs:
-        med_ass_row = process_association(gql_client, ass, org_unit)
-        med_ass_rows.append(med_ass_row)
+        ass_rows = process_association(gql_client, ass, org_unit)
+        med_ass_rows.extend(ass_rows)
 
     for child in children:
         process_med_unit(gql_client, child, med_ass_rows, med_ou_rows)
