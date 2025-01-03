@@ -148,6 +148,24 @@ GET_ASSOCIATION = gql(
     """
 )
 
+GET_PARENT_UNIT = gql(
+    """
+    query GetParentManager($org_unit: [UUID!]) {
+      org_units(filter: { uuids: $org_unit }) {
+        objects {
+          current {
+            parent {
+              managers(inherit: true) {
+                user_key
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+)
+
 setup_logging(LogLevel.DEBUG)
 logger = get_logger()
 
@@ -274,6 +292,34 @@ def process_engagement(
     person = one(current["person"])
     email = first(person["addresses"], {}).get("value", "")
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
+
+    # If the manager is the employee itself, use the manager of the parent unit
+    if manager_eng_user_key == current.get("user_key", ""):
+        parent_ou_resp = gql_client.execute(
+            GET_PARENT_UNIT,
+            variable_values={"org_unit": str(ou_uuid)}
+        )
+
+        # Example response
+        # "org_units": {
+        #     "objects": [
+        #         {
+        #             "current": {
+        #                 "parent": {
+        #                     "managers": [
+        #                         {
+        #                             "user_key": "54321"
+        #                         }
+        #                     ]
+        #                 }
+        #             }
+        #         }
+        #     ]
+        # }
+
+        parent_ou = one(parent_ou_resp["org_units"]["objects"])
+        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})
+        manager_eng_user_key = parent_manager.get("user_key", "")
 
     return AdmEngRow(
         person_user_key=current["user_key"],
