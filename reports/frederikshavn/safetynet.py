@@ -500,6 +500,9 @@ def process_association(
 
     dynamic_class = current.get("dynamic_class", {})
     main_org = dynamic_class.get("name", "") if dynamic_class is not None else ""
+    # There must be two rows (Redmine case #63407) for composite roles, e.g.
+    # "TR, næstformand" will be split into two rows - one for "TR" and one for
+    # "næstformand"
     roles = [role.strip() for role in current["association_type"]["name"].split(",")]
 
     return [
