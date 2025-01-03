@@ -46,15 +46,8 @@ GET_ADM_UNIT = gql(
             children {
               uuid
             }
-            managers(filter: { org_unit: { uuids: $org_unit } }) {
-              person {
-                engagements(filter: { org_unit: { uuids: $org_unit } }) {
-                  user_key
-                  job_function {
-                    name
-                  }
-                }
-              }
+            managers(filter: { org_unit: { uuids: $org_unit } }, inherit: true) {
+              user_key
             }
             addresses(filter: { address_type_user_keys: "Pnummer" }) {
               value
@@ -250,6 +243,7 @@ def process_engagement(
     #                 }
     #             ],
     #             "current": {
+    #                 "user_key": "12345",
     #                 "person": [
     #                     {
     #                         "cpr_number": "0101011255",
@@ -344,18 +338,7 @@ def process_adm_unit(
     #         ],
     #         "managers": [
     #             {
-    #                 "person": [
-    #                     {
-    #                         "engagements": [
-    #                             {
-    #                                 "user_key": "54321"
-    #                                 "job_function": {
-    #                                   "name": "Leder"
-    #                                 }
-    #                             }
-    #                         ]
-    #                     }
-    #                 ]
+    #                 "user_key": "54321"
     #             }
     #         ]
     #         "addresses": [
@@ -375,17 +358,8 @@ def process_adm_unit(
     children = [UUID(child["uuid"]) for child in current["children"]]
 
     manager = only(current["managers"], {})
-    manager_person = manager.get("person", [{}])
-    manager_eng = only(manager_person).get("engagements", [{}])
-    try:
-        manager_eng_user_key = only(manager_eng, {}).get("user_key", "")
-    except ValueError:
-        # The manager has more than one engagement in the same unit
-        manager_eng_user_key = one(
-            eng["user_key"]
-            for eng in manager_eng
-            if "leder" in eng["job_function"]["name"].lower()
-        )
+    # The manager user_key is the same as the engagement user_key
+    manager_eng_user_key = manager.get("user_key", "")
 
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
