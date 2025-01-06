@@ -25,16 +25,12 @@ async def test_simple_query():
         simple_query=True,
     )
     expected = """
-            query ($limit: int, $cursor: Cursor) {
-                page: engagements(limit: $limit, cursor: $cursor) {
-                    objects {
-                        uuid
-                    }
-                    page_info {
-                        next_cursor
-                    }
+            query ($limit: int, $offset: int) {
+                page: engagements(limit: $limit, offset: $offset){
+                    uuid
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {}
@@ -50,19 +46,15 @@ async def test_actual_state_query():
         simple_query=False,
     )
     expected = """
-            query ($limit: int, $cursor: Cursor) {
-                page: engagements(limit: $limit, cursor: $cursor) {
-                    objects {
+            query ($limit: int, $offset: int) {
+                page: engagements(limit: $limit, offset: $offset){
+                    uuid
+                    obj: current {
                         uuid
-                        obj: current {
-                            uuid
-                        }
-                    }
-                    page_info {
-                        next_cursor
                     }
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {}
@@ -79,19 +71,15 @@ async def test_historic_query():
         simple_query=False,
     )
     expected = """
-            query ($limit: int, $cursor: Cursor, $from_date: DateTime, $to_date: DateTime) {
-                page: engagements(limit: $limit, cursor: $cursor, filter: { from_date: $from_date, to_date: $to_date }) {
-                    objects {
+            query ($limit: int, $offset: int, $to_date: DateTime, $from_date: DateTime) {
+                page: engagements(limit: $limit, offset: $offset, from_date: $from_date, to_date: $to_date){
+                    uuid
+                    obj: objects {
                         uuid
-                        obj: validities {
-                            uuid
-                        }
-                    }
-                    page_info {
-                        next_cursor
                     }
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {"from_date": None, "to_date": None}
@@ -110,15 +98,11 @@ async def test_simple_query_uuid():
     )
     expected = """
             query ($uuids: [UUID!]) {
-                page: engagements(filter: { uuids: $uuids }) {
-                    objects {
-                        uuid
-                    }
-                    page_info {
-                        next_cursor
-                    }
+                page: engagements(uuids: $uuids){
+                    uuid
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {"uuids": [str(uuid)]}
@@ -137,18 +121,14 @@ async def test_actual_state_query_uuid():
     )
     expected = """
             query ($uuids: [UUID!]) {
-                page: engagements(filter: { uuids: $uuids }) {
-                    objects {
+                page: engagements(uuids: $uuids){
+                    uuid
+                    obj: current {
                         uuid
-                        obj: current {
-                            uuid
-                        }
-                    }
-                    page_info {
-                        next_cursor
                     }
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {"uuids": [str(uuid)]}
@@ -167,48 +147,15 @@ async def test_historic_query_uuid():
         uuid=uuid,
     )
     expected = """
-            query ($uuids: [UUID!], $from_date: DateTime, $to_date: DateTime) {
-                page: engagements(filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }) {
-                    objects {
+            query ($uuids: [UUID!], $to_date: DateTime, $from_date: DateTime) {
+                page: engagements(uuids: $uuids, from_date: $from_date, to_date: $to_date){
+                    uuid
+                    obj: objects {
                         uuid
-                        obj: validities {
-                            uuid
-                        }
-                    }
-                    page_info {
-                        next_cursor
                     }
                 }
             }
+
             """
     assert gql_obj == expected
     assert variable_values == {"from_date": None, "to_date": None, "uuids": [str(uuid)]}
-
-
-@async_to_sync
-async def test_facets_query():
-    lc = MockGQLLoraCache()
-    lc.full_history = True
-    gql_obj, variable_values = await lc.construct_query(
-        query_fields="uuid",
-        query_type="facets",
-        variable_values={},
-        simple_query=False,
-    )
-    expected = """
-            query ($limit: int, $cursor: Cursor, $from_date: DateTime, $to_date: DateTime) {
-                page: facets(limit: $limit, cursor: $cursor, filter: { from_date: $from_date, to_date: $to_date }) {
-                    objects {
-                        uuid
-                        obj: validities {
-                            uuid
-                        }
-                    }
-                    page_info {
-                        next_cursor
-                    }
-                }
-            }
-            """
-    assert gql_obj == expected
-    assert variable_values == {"from_date": None, "to_date": None}
