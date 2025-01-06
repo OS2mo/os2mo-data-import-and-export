@@ -27,7 +27,7 @@ from tenacity import wait_random_exponential
 from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
 
-RETRY_MAX_TIME = 1
+RETRY_MAX_TIME = 60 * 5
 
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,7 @@ def insert_obj(obj: dict, cache: dict) -> None:
 # historic query it is a list of dicts. in order to uniformly process the two states
 # we wrap the current object in a list
 def align_current(item: dict) -> dict:
-    item["obj"] = [item["obj"]]
+    item["obj"] = [item.pop("current")]
     return item
 
 
@@ -228,9 +228,9 @@ class GQLLoraCache:
         variable_values: dict | None = None,
         page_size: int | None = None,
         offset: int = 0,
-        page: bool = False,
+        uuid: UUID | None = None,
     ):
-        if page:
+        if uuid:
             res = await self.gql_client_session.execute(
                 gql(query), variable_values=variable_values
             )
@@ -302,7 +302,8 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values={"filter": {"uuids": uuid}}, page=bool(uuid)
+            query=query,
+            uuid=uuid,
         ):
             if obj is None:
                 return {}
@@ -340,7 +341,8 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values={"filter": {"uuids": uuid}}, page=bool(uuid)
+            query=query,
+            uuid=uuid,
         ):
             if obj is None:
                 return {}
@@ -379,7 +381,8 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values={"filter": {"uuids": uuid}}, page=bool(uuid)
+            query=query,
+            uuid=uuid,
         ):
             if obj is None:
                 return {}
@@ -393,86 +396,51 @@ class GQLLoraCache:
 
     async def _fetch_users(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching users")
-        if self.full_history:
-            query = """
-                query (
-                    $filter: EmployeeFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: employees(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: employees(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                cpr_no
-                                user_key
-                                name
-                                givenname
-                                surname
-                                nickname
-                                nickname_givenname
-                                nickname_surname
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...EmployeeFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...EmployeeFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: EmployeeFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: employees(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                cpr_no
-                                user_key
-                                name
-                                givenname
-                                surname
-                                nickname
-                                nickname_givenname
-                                nickname_surname
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment EmployeeFragment on Employee {
+                uuid
+                cpr_no
+                user_key
+                name
+                givenname
+                surname
+                nickname
+                nickname_givenname
+                nickname_surname
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         dictionary = {
             "cpr_no": "cpr",
@@ -485,9 +453,8 @@ class GQLLoraCache:
         }
 
         res: dict = {}
-
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -549,98 +516,71 @@ class GQLLoraCache:
                     man["location"] = location
             return qr
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: OrganisationUnitFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: org_units(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: org_units(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
+                    objects {
+                        uuid
+                        current @include(if: $current) {
                             uuid
-                            obj: validities {
+                            user_key
+                            name
+                            unit_type_uuid
+                            org_unit_level_uuid
+                            time_planning_uuid
+                            parent_uuid
+                            org_unit_hierarchy_uuid: org_unit_hierarchy
+                            manager_uuid: managers(inherit: false) {
+                                org_unit_uuid
+                                responsibility_uuids
                                 uuid
-                                user_key
+                            }
+                            acting_manager_uuid: managers(inherit: true) {
+                                org_unit_uuid
+                                responsibility_uuids
+                                uuid
+                            }
+                            ancestors {
                                 name
-                                unit_type_uuid
-                                org_unit_level_uuid
-                                time_planning_uuid
-                                parent_uuid
-                                org_unit_hierarchy_uuid: org_unit_hierarchy
-                                validity {
-                                    from
-                                    to
-                                }
+                                uuid
+                            }
+                            validity {
+                                from
+                                to
                             }
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            uuid
+                            user_key
+                            name
+                            unit_type_uuid
+                            org_unit_level_uuid
+                            time_planning_uuid
+                            parent_uuid
+                            org_unit_hierarchy_uuid: org_unit_hierarchy
+                            validity {
+                                from
+                                to
+                            }
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: OrganisationUnitFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: org_units(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                user_key
-                                name
-                                unit_type_uuid
-                                org_unit_level_uuid
-                                time_planning_uuid
-                                parent_uuid
-                                org_unit_hierarchy_uuid: org_unit_hierarchy
-                                manager_uuid: managers(inherit: false) {
-                                    org_unit_uuid
-                                    responsibility_uuids
-                                    uuid
-                                }
-                                acting_manager_uuid: managers(inherit: true) {
-                                    org_unit_uuid
-                                    responsibility_uuids
-                                    uuid
-                                }
-                                ancestors {
-                                    name
-                                    uuid
-                                }
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
-                }
-            """
-            variables = {"filter": {"uuids": uuid}}
+        """
 
         dictionary = {
             "org_unit_level_uuid": "level",
@@ -651,7 +591,7 @@ class GQLLoraCache:
         }
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -687,106 +627,61 @@ class GQLLoraCache:
 
             return d
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: EngagementFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: engagements(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: engagements(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                fraction
-                                user_key
-                                engagement_type_uuid
-                                primary_uuid
-                                is_primary
-                                job_function_uuid
-                                extension_1
-                                extension_2
-                                extension_3
-                                extension_4
-                                extension_5
-                                extension_6
-                                extension_7
-                                extension_8
-                                extension_9
-                                extension_10
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...EngagementFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...EngagementFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: EngagementFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: engagements(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                               uuid
-                                employee_uuid
-                                org_unit_uuid
-                                fraction
-                                user_key
-                                engagement_type_uuid
-                                primary_uuid
-                                is_primary
-                                job_function_uuid
-                                extension_1
-                                extension_2
-                                extension_3
-                                extension_4
-                                extension_5
-                                extension_6
-                                extension_7
-                                extension_8
-                                extension_9
-                                extension_10
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment EngagementFragment on Engagement {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                fraction
+                user_key
+                engagement_type_uuid
+                primary_uuid
+                is_primary
+                job_function_uuid
+                extension_1
+                extension_2
+                extension_3
+                extension_4
+                extension_5
+                extension_6
+                extension_7
+                extension_8
+                extension_9
+                extension_10
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         dictionary = {
             "employee_uuid": "user",
@@ -799,7 +694,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -817,78 +712,47 @@ class GQLLoraCache:
 
     async def _fetch_leaves(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching leaves")
-        if self.full_history:
-            query = """
-                query (
-                    $filter: LeaveFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: leaves(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: leaves(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                user_key
-                                leave_type_uuid
-                                engagement_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...LeaveFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...LeaveFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: LeaveFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: leaves(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                employee_uuid
-                                user_key
-                                leave_type_uuid
-                                engagement_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment LeaveFragment on Leave {
+                uuid
+                employee_uuid
+                user_key
+                leave_type_uuid
+                engagement_uuid
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         replace_dictionary = {
             "employee_uuid": "user",
@@ -898,7 +762,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -928,81 +792,49 @@ class GQLLoraCache:
 
             return res
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: ITUserFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: itusers(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: itusers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                itsystem_uuid
-                                primary_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...ITUserFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...ITUserFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: ITUserFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: itusers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                itsystem_uuid
-                                primary_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
-                }
-            """
-            variables = {"filter": {"uuids": uuid}}
 
+            fragment ITUserFragment on ITUser {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                user_key
+                itsystem_uuid
+                primary_uuid
+                validity {
+                    from
+                    to
+                }
+            }
+
+        """
         dictionary = {
             "employee_uuid": "user",
             "itsystem_uuid": "itsystem",
@@ -1012,7 +844,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1047,78 +879,47 @@ class GQLLoraCache:
 
             return d
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: KLEFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: kles(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: kles(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                org_unit_uuid
-                                kle_number_uuid
-                                kle_aspect_uuids
-                                user_key
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...KLEFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...KLEFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: KLEFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: kles(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                org_unit_uuid
-                                kle_number_uuid
-                                kle_aspect_uuids
-                                user_key
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment KLEFragment on KLE {
+                uuid
+                org_unit_uuid
+                kle_number_uuid
+                kle_aspect_uuids
+                user_key
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         dictionary = {
             "kle_aspect_uuid": "kle_aspect",
@@ -1128,7 +929,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1157,76 +958,48 @@ class GQLLoraCache:
 
             return d
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: RelatedUnitFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: related_units(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: related_units(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                org_unit_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...RelatedUnitFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...RelatedUnitFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: RelatedUnitFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: related_units(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                org_unit_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment RelatedUnitFragment on RelatedUnit {
+                uuid
+                org_unit_uuids
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1245,81 +1018,48 @@ class GQLLoraCache:
 
     async def _fetch_managers(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching managers")
-
-        if self.full_history:
-            query = """
-                query (
-                    $filter: ManagerFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: managers(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: managers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                manager_type_uuid
-                                manager_level_uuid
-                                responsibility_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...ManagerFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...ManagerFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: ManagerFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: managers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                manager_type_uuid
-                                manager_level_uuid
-                                responsibility_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
+
+            fragment ManagerFragment on Manager {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                manager_type_uuid
+                manager_level_uuid
+                responsibility_uuids
+                validity {
+                    from
+                    to
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         dictionary = {
             "employee_uuid": "user",
@@ -1331,7 +1071,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1378,100 +1118,58 @@ class GQLLoraCache:
 
         # TODO job_function_uuid  # Should be None if it_user_uuid is None,
         #  ask Mads why?! #48316 !764 5dc0d245 . Mads is always busy
-        if self.full_history:
-            query = """
-                query (
-                    $filter: AssociationFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: associations(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: associations(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                association_type_uuid
-                                it_user_uuid
-                                job_function_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                                primary {
-                                    user_key
-                                }
-                                dynamic_class {
-                                    name
-                                    parent {
-                                    name
-                                    }
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...AssociationFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...AssociationFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: AssociationFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: associations(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                association_type_uuid
-                                it_user_uuid
-                                job_function_uuid
-                                validity {
-                                    from
-                                    to
-                                }
-                                primary {
-                                    user_key
-                                }
-                                dynamic_class {
-                                    name
-                                    parent {
-                                    name
-                                    }
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
+
+            fragment AssociationFragment on Association {
+                uuid
+                employee_uuid
+                org_unit_uuid
+                user_key
+                association_type_uuid
+                it_user_uuid
+                job_function_uuid
+                validity {
+                    from
+                    to
+                }
+                primary {
+                    user_key
+                }
+                dynamic_class {
+                    name
+                    parent {
+                    name
                     }
                 }
-            """
-            variables = {"filter": {"uuids": uuid}}
+            }
+        """
 
         replace_dict = {
             "employee_uuid": "user",
@@ -1484,7 +1182,7 @@ class GQLLoraCache:
         res: dict = {}
 
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1530,91 +1228,53 @@ class GQLLoraCache:
 
             return d
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: AddressFilter
-                    $limit: int
-                    $cursor: Cursor
+        query = """
+            query (
+                $uuids: [UUID!]
+                $from_date: DateTime
+                $to_date: DateTime
+                $limit: int
+                $cursor: Cursor
+                $current: Boolean!
+            ) {
+                page: addresses(
+                    filter: { uuids: $uuids, from_date: $from_date, to_date: $to_date }
+                    limit: $limit
+                    cursor: $cursor
                 ) {
-                    page: addresses(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                address_type_uuid
-                                employee_uuid
-                                org_unit_uuid
-                                visibility_uuid
-                                name
-                                value
-                                uuid
-                                user_key
-                                address_type {
-                                    scope
-                                }
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
+                    objects {
+                        uuid
+                        current @include(if: $current) {
+                            ...AddressFragment
                         }
-                        page_info {
-                            next_cursor
+                        obj: validities @skip(if: $current) {
+                            ...AddressFragment
                         }
                     }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": uuid,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
+                    page_info {
+                        next_cursor
+                    }
                 }
             }
-        else:
-            query = """
-                query (
-                    $filter: AddressFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: addresses(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                address_type_uuid
-                                employee_uuid
-                                org_unit_uuid
-                                visibility_uuid
-                                name
-                                value
-                                uuid
-                                user_key
-                                address_type {
-                                    scope
-                                }
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
-                }
-            """
-            variables = {"filter": {"uuids": uuid}}
 
+            fragment AddressFragment on Address {
+                address_type_uuid
+                employee_uuid
+                org_unit_uuid
+                visibility_uuid
+                name
+                value
+                uuid
+                user_key
+                address_type {
+                    scope
+                }
+                validity {
+                    from
+                    to
+                }
+            }
+        """
         scope_map = {
             "EMAIL": "E-mail",
             "WWW": "Url",
@@ -1635,7 +1295,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, uuid=uuid, variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
