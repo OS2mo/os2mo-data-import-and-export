@@ -13,38 +13,35 @@ class MockGqlLoraCache(GQLLoraCache):
 
 
 gql_response = {
-    "page": {
-        "objects": [
-            {
-                "uuid": "00e96933-91e4-42ac-9881-0fe1738b2e59",
-                "obj": [
-                    {
-                        "employee_uuid": "b81b5097-90b7-4991-8752-c860e1e59fd3",
-                        "engagement_type_uuid": "8acc5743-044b-4c82-9bb9-4e572d82b524",
-                        "extension_1": None,
-                        "extension_10": None,
-                        "extension_2": None,
-                        "extension_3": None,
-                        "extension_4": None,
-                        "extension_5": None,
-                        "extension_6": None,
-                        "extension_7": None,
-                        "extension_8": None,
-                        "extension_9": None,
-                        "fraction": None,
-                        "is_primary": True,
-                        "job_function_uuid": "cf7adae4-22a6-4973-819f-73957eaec265",
-                        "org_unit_uuid": "1c690f27-35c5-5c02-975a-930e6b524805",
-                        "primary_uuid": "0644cd06-b84b-42e0-95fe-ce131c21fbe6",
-                        "user_key": "-",
-                        "uuid": "00e96933-91e4-42ac-9881-0fe1738b2e59",
-                        "validity": {"from": "2000-06-29T00:00:00+02:00", "to": None},
-                    }
-                ],
-            }
-        ],
-        "page_info": {"next_cursor": None},
-    }
+    "page": [
+        {
+            "obj": [
+                {
+                    "employee_uuid": "b81b5097-90b7-4991-8752-c860e1e59fd3",
+                    "engagement_type_uuid": "8acc5743-044b-4c82-9bb9-4e572d82b524",
+                    "extension_1": None,
+                    "extension_10": None,
+                    "extension_2": None,
+                    "extension_3": None,
+                    "extension_4": None,
+                    "extension_5": None,
+                    "extension_6": None,
+                    "extension_7": None,
+                    "extension_8": None,
+                    "extension_9": None,
+                    "fraction": None,
+                    "is_primary": True,
+                    "job_function_uuid": "cf7adae4-22a6-4973-819f-73957eaec265",
+                    "org_unit_uuid": "1c690f27-35c5-5c02-975a-930e6b524805",
+                    "primary_uuid": "0644cd06-b84b-42e0-95fe-ce131c21fbe6",
+                    "user_key": "-",
+                    "uuid": "00e96933-91e4-42ac-9881-0fe1738b2e59",
+                    "validity": {"from": "2000-06-29T00:00:00+02:00", "to": None},
+                }
+            ],
+            "uuid": "00e96933-91e4-42ac-9881-0fe1738b2e59",
+        }
+    ]
 }
 expected = {
     "00e96933-91e4-42ac-9881-0fe1738b2e59": [
