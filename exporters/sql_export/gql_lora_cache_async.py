@@ -217,6 +217,7 @@ class GQLLoraCache:
             execute_timeout=300,
         )
 
+
     @retry(
         reraise=True,
         wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -288,7 +289,7 @@ class GQLLoraCache:
                 page: facets(limit: $limit, cursor: $cursor) {
                     objects {
                         uuid
-                        obj: current {
+                        obj: current {            
                             uuid
                             user_key
                         }
@@ -322,7 +323,7 @@ class GQLLoraCache:
                 page: classes(limit: $limit, cursor: $cursor) {
                     objects {
                         uuid
-                        obj: current {
+                        obj: current {                    
                             uuid
                             user_key
                             name
@@ -369,7 +370,7 @@ class GQLLoraCache:
                         obj: current {
                             uuid
                             user_key
-                            name
+                            name    
                         }
                     }
                     page_info {
@@ -454,7 +455,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -580,6 +583,7 @@ class GQLLoraCache:
                     }
                 }
             }
+
         """
 
         dictionary = {
@@ -591,7 +595,7 @@ class GQLLoraCache:
         }
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query, uuid=uuid, variable_values={"current": not self.full_history} 
         ):
             if obj is None:
                 return {}
@@ -694,7 +698,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -762,7 +768,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -844,7 +852,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -929,7 +939,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -994,12 +1006,14 @@ class GQLLoraCache:
                     from
                     to
                 }
-            }
+            }        
         """
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1071,7 +1085,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1182,7 +1198,9 @@ class GQLLoraCache:
         res: dict = {}
 
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
@@ -1295,7 +1313,9 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, uuid=uuid, variable_values={"current": not self.full_history}
+            query=query,
+            uuid=uuid,
+            variable_values={"current": not self.full_history}
         ):
             if obj is None:
                 return {}
