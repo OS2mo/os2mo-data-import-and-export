@@ -112,7 +112,7 @@ QUERY_FIND_ENGAGEMENT = gql(
         """
 )
 
-QUERY_FIND_MANAGER = gql(
+QUERY_FIND_MANAGER_PRESENT = gql(
     """
         query FindManager($user_key: String!) {
           managers(filter: { user_keys: [$user_key]}) {
@@ -123,7 +123,7 @@ QUERY_FIND_MANAGER = gql(
         }
         """
 )
-QUERY_FIND_MANAGER_PRESENT = gql(
+QUERY_FIND_MANAGER = gql(
     """
         query FindManager($user_key: String!) {
           managers(filter: { user_keys: [$user_key], to_date: null, from_date: null}) {
