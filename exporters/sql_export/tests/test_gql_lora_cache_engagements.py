@@ -8,8 +8,8 @@ from ..gql_lora_cache_async import GQLLoraCache
 
 
 class MockGqlLoraCache(GQLLoraCache):
-    def _get_org_uuid(self):
-        return uuid4()
+    async def _get_org_uuid(self) -> str:
+        return str(uuid4())
 
 
 gql_response = {
@@ -79,11 +79,11 @@ expected = {
 
 @async_to_sync
 async def test_cache_engagements():
-    lc = MockGqlLoraCache(full_history=True)
+    lc = GQLLoraCache(full_history=True)
     lc.gql_client_session = AsyncMock()
-    lc.gql_client_session.execute.side_effect = [
+    lc.gql_client_session.return_value.execute.side_effect = [
         ExecutionResult(data=gql_response, extensions={"__page_out_of_range": True})
     ]
     await lc._cache_lora_engagements()
-    lc.gql_client_session.execute.assert_called_once()
+    lc.gql_client_session.return_value.execute.assert_awaited_once()
     assert lc.engagements == expected

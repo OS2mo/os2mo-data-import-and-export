@@ -333,14 +333,11 @@ def create_app(**kwargs) -> FastAPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
-    context = fastramqpi.get_context()
-
     @asynccontextmanager
     async def sql_exporter(full_history) -> AsyncGenerator[None, None]:
         lc = GQLLoraCache(
             settings=GqlLoraCacheSettings().to_old_settings(),
             full_history=full_history,
-            graphql_session=context["graphql_session"],
         )
         await lc._cache_lora_classes()
         await lc._cache_lora_facets()

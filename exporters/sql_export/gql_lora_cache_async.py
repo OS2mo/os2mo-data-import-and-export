@@ -3,7 +3,6 @@ import datetime
 import logging
 import os
 import pickle
-import time
 from pathlib import Path
 from typing import Any
 from typing import AsyncIterator
@@ -31,69 +30,6 @@ RETRY_MAX_TIME = 60 * 5
 
 
 logger = logging.getLogger(__name__)
-
-
-async def execute_paged(
-    gql_session: AsyncClientSession,
-    document: DocumentNode,
-    variable_values: Optional[dict[str, Any]] = None,
-    per_page: int = 100,
-    **kwargs: Any,
-) -> AsyncIterator[dict[str, Any]]:
-    """Execute a paged GraphQL query, yielding objects.
-
-    Args:
-        gql_session: The GQL client session to execute the query on.
-        document: GQL document. The query must be defined with variables `$limit` and
-            `$cursor`, and pass them to the operation, which must be aliased to `page`.
-        variable_values: Optional variable values to be used in the query.
-        per_page: Number of objects to request per page.
-        **kwargs: Additional keyword arguments passed to session.execute()
-
-    Example usage::
-
-        async with GraphQLClient(...) as session:
-            query = gql(
-                '''
-                query PagedQuery($limit: int, $cursor: Cursor, $from_date: DateTime) {
-                    page: employees(limit: $limit, cursor: $cursor, from_date: $from_date) {
-                        objects {
-                            uuid
-                        }
-                    }
-                }
-            '''
-            )
-            variables = {
-                "from_date": "2001-09-11",
-            }
-            async for obj in execute_paged(session, query, variable_values=variables):
-                print(obj)
-
-    Yields: Objects from pages.
-    """
-    next_cursor = None
-    while True:
-        for attempt in Retrying(
-            wait=wait_random_exponential(multiplier=2, max=30),
-            stop=stop_after_attempt(3),
-        ):
-            with attempt:
-                result = await gql_session.execute(
-                    document,
-                    variable_values=dict(
-                        limit=per_page,
-                        cursor=next_cursor,
-                        **(variable_values or {}),
-                    ),
-                    get_execution_result=True,
-                    **kwargs,
-                )
-        for obj in result.data["page"]["objects"]:
-            yield obj
-        next_cursor = result.data["page"]["page_info"]["next_cursor"]
-        if next_cursor is None:
-            break
 
 
 # used to correctly insert the object into the cache
@@ -173,7 +109,6 @@ class GQLLoraCache:
         full_history: bool = False,
         skip_past: bool = False,
         settings=None,
-        graphql_session=None,
     ):
         logger.info(
             f"Initialising LoRa cache, {resolve_dar=}, {full_history=}, {skip_past=}"
@@ -202,12 +137,12 @@ class GQLLoraCache:
         self.related: dict = {}
         self.dar_cache: dict = {}
 
-        self.gql_client_session: GraphQLClient = graphql_session
+        self._gql_client_session: AsyncClientSession | None = None
 
-        self.org_uuid = self._get_org_uuid()
-
-    def _setup_gql_client(self) -> GraphQLClient:
-        return GraphQLClient(
+    async def gql_client_session(self) -> AsyncClientSession:
+        if (session := self._gql_client_session) is not None:
+            return session
+        client = GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,
@@ -216,6 +151,72 @@ class GQLLoraCache:
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
         )
+        # NOTE: The client is never closed 👍
+        session = self._gql_client_session = await client.__aenter__()
+        return session
+
+    async def _execute_paged(
+        self,
+        session: AsyncClientSession,
+        document: DocumentNode,
+        variable_values: Optional[dict[str, Any]] = None,
+        per_page: int = 100,
+        **kwargs: Any,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Execute a paged GraphQL query, yielding objects.
+
+        Args:
+            session: GraphQL client session.
+            document: GQL document. The query must be defined with variables `$limit` and
+                `$cursor`, and pass them to the operation, which must be aliased to `page`.
+            variable_values: Optional variable values to be used in the query.
+            per_page: Number of objects to request per page.
+            **kwargs: Additional keyword arguments passed to session.execute()
+
+        Example usage::
+
+            async with GraphQLClient(...) as session:
+                query = gql(
+                    '''
+                    query PagedQuery($limit: int, $cursor: Cursor, $from_date: DateTime) {
+                        page: employees(limit: $limit, cursor: $cursor, from_date: $from_date) {
+                            objects {
+                                uuid
+                            }
+                        }
+                    }
+                '''
+                )
+                variables = {
+                    "from_date": "2001-09-11",
+                }
+                async for obj in execute_paged(session, query, variable_values=variables):
+                    print(obj)
+
+        Yields: Objects from pages.
+        """
+        next_cursor = None
+        while True:
+            for attempt in Retrying(
+                wait=wait_random_exponential(multiplier=2, max=30),
+                stop=stop_after_attempt(3),
+            ):
+                with attempt:
+                    result = await session.execute(
+                        document,
+                        variable_values=dict(
+                            limit=per_page,
+                            cursor=next_cursor,
+                            **(variable_values or {}),
+                        ),
+                        get_execution_result=True,
+                        **kwargs,
+                    )
+            for obj in result.data["page"]["objects"]:
+                yield obj
+            next_cursor = result.data["page"]["page_info"]["next_cursor"]
+            if next_cursor is None:
+                break
 
     @retry(
         reraise=True,
@@ -230,15 +231,14 @@ class GQLLoraCache:
         offset: int = 0,
         page: bool = False,
     ):
+        session = await self.gql_client_session()
         if page:
-            res = await self.gql_client_session.execute(
-                gql(query), variable_values=variable_values
-            )
+            res = await session.execute(gql(query), variable_values=variable_values)
             yield only(res["page"])
             return
         try:
-            async for obj in execute_paged(
-                gql_session=self.gql_client_session,
+            async for obj in self._execute_paged(
+                session=session,
                 document=gql(query),
                 variable_values=variable_values,
                 per_page=(page_size or self.std_page_size),
@@ -251,31 +251,19 @@ class GQLLoraCache:
             logger.error(variable_values)
             raise e
 
-    # Used to set a value in the __init__, if this was async, init would have to be
-    # as well, which would mean that the new cache could only be initiated from
-    # async functions
-    def _get_org_uuid(self):
-        query = gql(
+    async def _get_org_uuid(self) -> str:
+        root_org_query = gql(
             """
             query {
-              org {
-                uuid
-              }
+                org {
+                    uuid
+                }
             }
             """
         )
-        with GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v22",
-            client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
-            auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
-            sync=True,
-            httpx_client_kwargs={"timeout": None},
-            execute_timeout=None,
-        ) as session:
-            org = session.execute(query)["org"]["uuid"]
-        return org
+        session = await self.gql_client_session()
+        res = await session.execute(root_org_query)
+        return res["org"]["uuid"]
 
     async def _cache_lora_facets(self):
         obj = await self._fetch_facets()
@@ -523,6 +511,8 @@ class GQLLoraCache:
     async def _fetch_units(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching org units")
 
+        org_uuid = await self._get_org_uuid()
+
         async def format_managers_and_location(qr: dict):
             def find_manager(managers: list[dict]) -> str | None:
                 if not managers:
@@ -681,7 +671,7 @@ class GQLLoraCache:
                 obj = align_current(obj)
 
             for item in obj["obj"]:
-                if item["parent_uuid"] == self.org_uuid:
+                if item["parent_uuid"] == org_uuid:
                     item["parent_uuid"] = None
 
             obj = await format_managers_and_location(obj)
@@ -1808,30 +1798,26 @@ class GQLLoraCache:
                 self.dar_cache = pickle.load(f)
             return
 
-        t = time.time()  # noqa: F841
-        msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
-        async with self._setup_gql_client() as session:
-            self.gql_client_session = session
-            # `tasks` is used to keep strong references. Otherwise, it can be
-            # cleared by the garbage collector mid-execution as the event loop
-            # only keeps weak references.
-            tasks = []
-            async with asyncio.TaskGroup() as tg:
-                tasks.append(tg.create_task(self._cache_lora_address()))
-                tasks.append(tg.create_task(self._cache_lora_units()))
-                tasks.append(tg.create_task(self._cache_lora_engagements()))
-                tasks.append(tg.create_task(self._cache_lora_facets()))
-                tasks.append(tg.create_task(self._cache_lora_classes()))
-                tasks.append(tg.create_task(self._cache_lora_users()))
-                tasks.append(tg.create_task(self._cache_lora_managers()))
-                if not skip_associations:
-                    tasks.append(tg.create_task(self._cache_lora_associations()))
-                tasks.append(tg.create_task(self._cache_lora_leaves()))
-                tasks.append(tg.create_task(self._cache_lora_itsystems()))
-                tasks.append(tg.create_task(self._cache_lora_it_connections()))
-                tasks.append(tg.create_task(self._cache_lora_kles()))
-                tasks.append(tg.create_task(self._cache_lora_related()))
-            del tasks
+        # `tasks` is used to keep strong references. Otherwise, it can be
+        # cleared by the garbage collector mid-execution as the event loop
+        # only keeps weak references.
+        tasks = []
+        async with asyncio.TaskGroup() as tg:
+            tasks.append(tg.create_task(self._cache_lora_address()))
+            tasks.append(tg.create_task(self._cache_lora_units()))
+            tasks.append(tg.create_task(self._cache_lora_engagements()))
+            tasks.append(tg.create_task(self._cache_lora_facets()))
+            tasks.append(tg.create_task(self._cache_lora_classes()))
+            tasks.append(tg.create_task(self._cache_lora_users()))
+            tasks.append(tg.create_task(self._cache_lora_managers()))
+            if not skip_associations:
+                tasks.append(tg.create_task(self._cache_lora_associations()))
+            tasks.append(tg.create_task(self._cache_lora_leaves()))
+            tasks.append(tg.create_task(self._cache_lora_itsystems()))
+            tasks.append(tg.create_task(self._cache_lora_it_connections()))
+            tasks.append(tg.create_task(self._cache_lora_kles()))
+            tasks.append(tg.create_task(self._cache_lora_related()))
+        del tasks
 
         def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")
