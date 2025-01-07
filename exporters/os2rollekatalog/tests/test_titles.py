@@ -33,7 +33,18 @@ def test_read_titles(test_input, expected):
     """Test that titles are processed so user_key is called name and uuids are strings"""
     with patch("exporters.os2rollekatalog.titles.GraphQLClient") as mock_session:
         mock_return = {
-            "facets": [{"user_key": "engagement_job_function", "classes": test_input}]
+            "facets": {
+                "objects": [
+                    {
+                        "validities": [
+                            {
+                                "user_key": "engagement_job_function",
+                                "classes": test_input,
+                            }
+                        ]
+                    }
+                ]
+            }
         }
         mock_session.execute.return_value = mock_return
         t = read_engagement_job_function(mock_session)

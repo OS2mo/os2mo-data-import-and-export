@@ -21,27 +21,23 @@ class Titles(pydantic.BaseModel):
 
 def read_engagement_job_function(session):
     query = gql(
-        """query MyQuery {
-            facets {
-                user_key
-                uuid
-                classes {
-                    user_key
-                    uuid
+        """query {
+            facets(filter: {user_keys: "engagement_job_function"}) {
+                objects {
+                    validities {
+                        classes {
+                            user_key
+                            uuid
+                        }
                     }
                 }
             }
+        }
         """
     )
     r = session.execute(query)
-    facets = r["facets"]
-    # Get engagement_job_function
-    eng_types = one(
-        filter(lambda f: f["user_key"] == "engagement_job_function", facets)
-    )
-
     # load into model
-    titles = Titles(titles=eng_types["classes"])
+    titles = Titles(titles=one(one(r["facets"]["objects"])["validities"])["classes"])
     # Dump model to json and load back to convert uuids to str and "user_key" to "name"
     titles = json.loads(titles.json())
     return titles["titles"]
@@ -93,7 +89,7 @@ def export_titles(
     dry_run: bool,
 ) -> None:
     with GraphQLClient(
-        url=f"{mora_base}/graphql/v3",
+        url=f"{mora_base}/graphql/v22",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
