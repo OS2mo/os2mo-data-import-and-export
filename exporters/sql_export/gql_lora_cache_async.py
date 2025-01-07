@@ -6,27 +6,21 @@ import pickle
 from pathlib import Path
 from typing import Any
 from typing import AsyncIterator
-from typing import Optional
 from uuid import UUID
 
 from gql import gql
 from gql.client import AsyncClientSession
-from graphql import DocumentNode
 from more_itertools import first
-from more_itertools import only
 from ra_utils.async_to_sync import async_to_sync
 from raclients.graph.client import GraphQLClient
-from tenacity import retry
 from tenacity import Retrying
-from tenacity import stop_after_attempt
 from tenacity import stop_after_delay
-from tenacity import wait_exponential
 from tenacity import wait_random_exponential
 
 from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
 
-RETRY_MAX_TIME = 60 * 5
+RETRY_MAX_TIME = 5 * 60
 
 
 logger = logging.getLogger(__name__)
@@ -117,7 +111,7 @@ class GQLLoraCache:
             settings = None
         self.resolve_dar = resolve_dar
         self.settings: GqlLoraCacheSettings = settings or get_gql_cache_settings()
-        self.std_page_size = self.settings.std_page_size
+        self.page_size = self.settings.std_page_size
 
         self.full_history = full_history
         self.skip_past = skip_past
@@ -155,101 +149,41 @@ class GQLLoraCache:
         session = self._gql_client_session = await client.__aenter__()
         return session
 
-    async def _execute_paged(
+    async def _execute_query(
         self,
-        session: AsyncClientSession,
-        document: DocumentNode,
-        variable_values: Optional[dict[str, Any]] = None,
-        per_page: int = 100,
-        **kwargs: Any,
+        query: str,
+        variable_values: dict | None = None,
+        do_paged: bool = True,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Execute a paged GraphQL query, yielding objects.
-
-        Args:
-            session: GraphQL client session.
-            document: GQL document. The query must be defined with variables `$limit` and
-                `$cursor`, and pass them to the operation, which must be aliased to `page`.
-            variable_values: Optional variable values to be used in the query.
-            per_page: Number of objects to request per page.
-            **kwargs: Additional keyword arguments passed to session.execute()
-
-        Example usage::
-
-            async with GraphQLClient(...) as session:
-                query = gql(
-                    '''
-                    query PagedQuery($limit: int, $cursor: Cursor, $from_date: DateTime) {
-                        page: employees(limit: $limit, cursor: $cursor, from_date: $from_date) {
-                            objects {
-                                uuid
-                            }
-                        }
-                    }
-                '''
-                )
-                variables = {
-                    "from_date": "2001-09-11",
-                }
-                async for obj in execute_paged(session, query, variable_values=variables):
-                    print(obj)
-
-        Yields: Objects from pages.
-        """
         next_cursor = None
+        session = await self.gql_client_session()
         while True:
             for attempt in Retrying(
                 wait=wait_random_exponential(multiplier=2, max=30),
-                stop=stop_after_attempt(3),
+                stop=stop_after_delay(RETRY_MAX_TIME),
+                reraise=True,
             ):
                 with attempt:
+                    if do_paged:
+                        limit = self.page_size
+                        cursor = next_cursor
+                    else:
+                        limit = None
+                        cursor = None
                     result = await session.execute(
-                        document,
+                        document=gql(query),
                         variable_values=dict(
-                            limit=per_page,
-                            cursor=next_cursor,
+                            limit=limit,
+                            cursor=cursor,
                             **(variable_values or {}),
                         ),
                         get_execution_result=True,
-                        **kwargs,
                     )
             for obj in result.data["page"]["objects"]:
                 yield obj
             next_cursor = result.data["page"]["page_info"]["next_cursor"]
             if next_cursor is None:
                 break
-
-    @retry(
-        reraise=True,
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-        stop=stop_after_delay(RETRY_MAX_TIME),
-    )
-    async def _execute_query(
-        self,
-        query: str,
-        variable_values: dict | None = None,
-        page_size: int | None = None,
-        offset: int = 0,
-        page: bool = False,
-    ):
-        session = await self.gql_client_session()
-        if page:
-            res = await session.execute(gql(query), variable_values=variable_values)
-            yield only(res["page"])
-            return
-        try:
-            async for obj in self._execute_paged(
-                session=session,
-                document=gql(query),
-                variable_values=variable_values,
-                per_page=(page_size or self.std_page_size),
-            ):
-                yield obj
-        except Exception as e:
-            logger.error(e)
-            logger.error(offset)
-            logger.error(query)
-            logger.error(variable_values)
-            raise e
 
     async def _get_org_uuid(self) -> str:
         root_org_query = gql(
@@ -289,13 +223,13 @@ class GQLLoraCache:
         """
         variables = {
             "filter": {
-                "uuids": uuid,
+                "uuids": str(uuid) if uuid is not None else None,
             },
         }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -330,14 +264,14 @@ class GQLLoraCache:
         """
         variables = {
             "filter": {
-                "uuids": uuid,
+                "uuids": str(uuid) if uuid is not None else None,
             },
         }
         dictionary = {"name": "title", "facet_uuid": "facet"}
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -375,13 +309,13 @@ class GQLLoraCache:
         """
         variables = {
             "filter": {
-                "uuids": uuid,
+                "uuids": str(uuid) if uuid is not None else None,
             },
         }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -433,7 +367,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -476,7 +410,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -493,7 +427,7 @@ class GQLLoraCache:
         res: dict = {}
 
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -594,7 +528,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -650,7 +584,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -663,7 +597,7 @@ class GQLLoraCache:
         }
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -747,7 +681,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -800,7 +734,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -815,7 +749,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -867,7 +801,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -906,7 +840,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -918,7 +852,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -983,7 +917,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1023,7 +957,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -1036,7 +970,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1105,7 +1039,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1144,7 +1078,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -1156,7 +1090,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1216,7 +1150,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1252,13 +1186,13 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1312,7 +1246,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1352,7 +1286,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -1366,7 +1300,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1458,7 +1392,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1508,7 +1442,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -1523,7 +1457,7 @@ class GQLLoraCache:
         res: dict = {}
 
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1609,7 +1543,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                     "from_date": str(datetime.date.today()) if self.skip_past else None,
                     "to_date": None,
                 },
@@ -1654,7 +1588,7 @@ class GQLLoraCache:
             """
             variables = {
                 "filter": {
-                    "uuids": uuid,
+                    "uuids": str(uuid) if uuid is not None else None,
                 },
             }
 
@@ -1678,7 +1612,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, variable_values=variables, page=bool(uuid)
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
