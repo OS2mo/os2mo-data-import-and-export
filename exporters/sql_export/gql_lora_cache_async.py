@@ -3,24 +3,24 @@ import datetime
 import logging
 import os
 import pickle
-import time
 from pathlib import Path
+from typing import Any
+from typing import AsyncIterator
 from uuid import UUID
 
 from gql import gql
+from gql.client import AsyncClientSession
 from more_itertools import first
-from more_itertools import only
 from ra_utils.async_to_sync import async_to_sync
 from raclients.graph.client import GraphQLClient
-from raclients.graph.util import execute_paged
-from tenacity import retry
+from tenacity import Retrying
 from tenacity import stop_after_delay
-from tenacity import wait_exponential
+from tenacity import wait_random_exponential
 
 from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
 
-RETRY_MAX_TIME = 60 * 5
+RETRY_MAX_TIME = 5 * 60
 
 
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def convert_dict(
     if resolve_validity:
         query_res = res_validity(query_res)
 
-    return {uuid: replace(query_res, replace_dict)}
+    return {uuid: replace(query_res["obj"], replace_dict)}
 
 
 class GQLLoraCache:
@@ -103,7 +103,6 @@ class GQLLoraCache:
         full_history: bool = False,
         skip_past: bool = False,
         settings=None,
-        graphql_session=None,
     ):
         logger.info(
             f"Initialising LoRa cache, {resolve_dar=}, {full_history=}, {skip_past=}"
@@ -112,7 +111,7 @@ class GQLLoraCache:
             settings = None
         self.resolve_dar = resolve_dar
         self.settings: GqlLoraCacheSettings = settings or get_gql_cache_settings()
-        self.std_page_size = self.settings.std_page_size
+        self.page_size = self.settings.std_page_size
 
         self.full_history = full_history
         self.skip_past = skip_past
@@ -132,13 +131,13 @@ class GQLLoraCache:
         self.related: dict = {}
         self.dar_cache: dict = {}
 
-        self.gql_client_session: GraphQLClient = graphql_session
+        self._gql_client_session: AsyncClientSession | None = None
 
-        self.org_uuid = self._get_org_uuid()
-
-    def _setup_gql_client(self) -> GraphQLClient:
-        return GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
+    async def gql_client_session(self) -> AsyncClientSession:
+        if (session := self._gql_client_session) is not None:
+            return session
+        client = GraphQLClient(
+            url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,
             auth_realm=self.settings.auth_realm,
@@ -146,128 +145,59 @@ class GQLLoraCache:
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
         )
+        # NOTE: The client is never closed 👍
+        session = self._gql_client_session = await client.__aenter__()
+        return session
 
-    async def construct_query(
-        self,
-        query_type: str,
-        simple_query: bool,
-        query_fields: str,
-        variable_values: dict | None,
-        uuid: UUID | None = None,
-    ):
-        """Builds graphql queries and returns the gql object and variable values dict."""
-        if variable_values is None:
-            variable_values = {}
-        if uuid:
-            query_filters = ["$uuids: [UUID!]"]
-            query_variables = ["uuids: $uuids"]
-            variable_values.update({"uuids": [str(uuid)]})
-        else:
-            query_filters = ["$limit: int", "$offset: int"]
-            query_variables = ["limit: $limit", "offset: $offset"]
-
-        query_types_with_no_dates = ["facets", "classes", "itsystems"]
-        obj_type = "objects" if self.full_history else "current"
-
-        if self.full_history and query_type not in query_types_with_no_dates:
-            query_filters.extend(["$to_date: DateTime", "$from_date: DateTime"])
-            query_variables.extend(["from_date: $from_date", "to_date: $to_date"])
-            variable_values.update({"from_date": None, "to_date": None})
-
-        if self.skip_past:
-            variable_values.update({"from_date": str(datetime.date.today())})
-
-        query_filters_string = ", ".join(query_filters)
-        query_variables_string = ", ".join(query_variables)
-
-        # account for simple_query differences
-        query_contents = (
-            f"""uuid
-                    obj: {obj_type} {{
-                        {query_fields}
-                    }}"""
-            if not simple_query
-            else f"{query_fields}"
-        )
-
-        full_query = f"""
-            query ({query_filters_string}) {{
-                page: {query_type}({query_variables_string}){{
-                    {query_contents}
-                }}
-            }}
-
-            """
-        return full_query, variable_values
-
-    @retry(
-        reraise=True,
-        wait=wait_exponential(multiplier=1, min=4, max=10),
-        stop=stop_after_delay(RETRY_MAX_TIME),
-    )
     async def _execute_query(
         self,
         query: str,
-        query_type: str,
         variable_values: dict | None = None,
-        simple_query: bool = False,
-        page_size: int | None = None,
-        offset: int = 0,
-        uuid: UUID | None = None,
-    ):
-        gql_query, gql_variable_values = await self.construct_query(
-            query_fields=query,
-            query_type=query_type,
-            variable_values=variable_values,
-            simple_query=simple_query,
-            uuid=uuid,
-        )
-        if uuid:
-            res = await self.gql_client_session.execute(
-                gql(gql_query), variable_values=gql_variable_values
-            )
-            yield only(res["page"])
-            return
-        try:
-            async for obj in execute_paged(
-                gql_session=self.gql_client_session,
-                document=gql(gql_query),
-                variable_values=gql_variable_values,
-                per_page=(page_size or self.std_page_size),
+        do_paged: bool = True,
+    ) -> AsyncIterator[dict[str, Any]]:
+        next_cursor = None
+        session = await self.gql_client_session()
+        while True:
+            for attempt in Retrying(
+                wait=wait_random_exponential(multiplier=2, max=30),
+                stop=stop_after_delay(RETRY_MAX_TIME),
+                reraise=True,
             ):
+                with attempt:
+                    if do_paged:
+                        limit = self.page_size
+                        cursor = next_cursor
+                    else:
+                        limit = None
+                        cursor = None
+                    result = await session.execute(
+                        document=gql(query),
+                        variable_values=dict(
+                            limit=limit,
+                            cursor=cursor,
+                            **(variable_values or {}),
+                        ),
+                        get_execution_result=True,
+                    )
+            for obj in result.data["page"]["objects"]:
                 yield obj
-        except Exception as e:
-            logger.error(e)
-            logger.error(offset)
-            logger.error(gql_query)
-            logger.error(gql_variable_values)
-            raise e
+            next_cursor = result.data["page"]["page_info"]["next_cursor"]
+            if next_cursor is None:
+                break
 
-    # Used to set a value in the __init__, if this was async, init would have to be
-    # as well, which would mean that the new cache could only be initiated from
-    # async functions
-    def _get_org_uuid(self):
-        query = gql(
+    async def _get_org_uuid(self) -> str:
+        root_org_query = gql(
             """
             query {
-              org {
-                uuid
-              }
+                org {
+                    uuid
+                }
             }
             """
         )
-        with GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v3",
-            client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
-            auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
-            sync=True,
-            httpx_client_kwargs={"timeout": None},
-            execute_timeout=None,
-        ) as session:
-            org = session.execute(query)["org"]["uuid"]
-        return org
+        session = await self.gql_client_session()
+        res = await session.execute(root_org_query)
+        return res["org"]["uuid"]
 
     async def _cache_lora_facets(self):
         obj = await self._fetch_facets()
@@ -276,16 +206,30 @@ class GQLLoraCache:
     async def _fetch_facets(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching facets")
         query = """
-                uuid
-                user_key
-            """
+            query ($limit: int, $cursor: Cursor) {
+                page: facets(limit: $limit, cursor: $cursor) {
+                    objects {
+                        uuid
+                        obj: current {
+                            uuid
+                            user_key
+                        }
+                    }
+                    page_info {
+                        next_cursor
+                    }
+                }
+            }
+        """
+        variables = {
+            "filter": {
+                "uuids": str(uuid) if uuid is not None else None,
+            },
+        }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="facets",
-            uuid=uuid,
-            simple_query=True,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -300,21 +244,34 @@ class GQLLoraCache:
     async def _fetch_classes(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching classes")
         query = """
-                    uuid
-                    user_key
-                    name
-                    scope
-                    facet_uuid
-            """
-
+            query ($limit: int, $cursor: Cursor) {
+                page: classes(limit: $limit, cursor: $cursor) {
+                    objects {
+                        uuid
+                        obj: current {
+                            uuid
+                            user_key
+                            name
+                            scope
+                            facet_uuid
+                        }
+                    }
+                    page_info {
+                        next_cursor
+                    }
+                }
+            }
+        """
+        variables = {
+            "filter": {
+                "uuids": str(uuid) if uuid is not None else None,
+            },
+        }
         dictionary = {"name": "title", "facet_uuid": "facet"}
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="classes",
-            uuid=uuid,
-            simple_query=True,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -334,17 +291,31 @@ class GQLLoraCache:
     async def _fetch_itsystems(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching it systems")
         query = """
-                    uuid
-                    user_key
-                    name
-            """
+            query ($limit: int, $cursor: Cursor) {
+                page: itsystems(limit: $limit, cursor: $cursor) {
+                    objects {
+                        uuid
+                        obj: current {
+                            uuid
+                            user_key
+                            name
+                        }
+                    }
+                    page_info {
+                        next_cursor
+                    }
+                }
+            }
+        """
+        variables = {
+            "filter": {
+                "uuids": str(uuid) if uuid is not None else None,
+            },
+        }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="itsystems",
-            uuid=uuid,
-            simple_query=True,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -358,21 +329,90 @@ class GQLLoraCache:
 
     async def _fetch_users(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching users")
-        query = """
-                        uuid
-                        cpr_no
-                        user_key
-                        name
-                        givenname
-                        surname
-                        nickname
-                        nickname_givenname
-                        nickname_surname
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: EmployeeFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: employees(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                cpr_no
+                                user_key
+                                name
+                                givenname
+                                surname
+                                nickname
+                                nickname_givenname
+                                nickname_surname
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: EmployeeFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: employees(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                cpr_no
+                                user_key
+                                name
+                                givenname
+                                surname
+                                nickname
+                                nickname_givenname
+                                nickname_surname
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         dictionary = {
             "cpr_no": "cpr",
@@ -385,10 +425,9 @@ class GQLLoraCache:
         }
 
         res: dict = {}
+
         async for obj in self._execute_query(
-            query=query,
-            query_type="employees",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -405,6 +444,8 @@ class GQLLoraCache:
 
     async def _fetch_units(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching org units")
+
+        org_uuid = await self._get_org_uuid()
 
         async def format_managers_and_location(qr: dict):
             def find_manager(managers: list[dict]) -> str | None:
@@ -452,48 +493,100 @@ class GQLLoraCache:
 
         if self.full_history:
             query = """
+                query (
+                    $filter: OrganisationUnitFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: org_units(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
                             uuid
-                            user_key
-                            name
-                            unit_type_uuid
-                            org_unit_level_uuid
-                            time_planning_uuid
-                            parent_uuid
-                            org_unit_hierarchy_uuid: org_unit_hierarchy
-                            validity {
-                                from
-                                to
+                            obj: validities {
+                                uuid
+                                user_key
+                                name
+                                unit_type_uuid
+                                org_unit_level_uuid
+                                time_planning_uuid
+                                parent_uuid
+                                org_unit_hierarchy_uuid: org_unit_hierarchy
+                                validity {
+                                    from
+                                    to
+                                }
                             }
-                """
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
         else:
             query = """
+                query (
+                    $filter: OrganisationUnitFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: org_units(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
                             uuid
-                            user_key
-                            name
-                            unit_type_uuid
-                            org_unit_level_uuid
-                            time_planning_uuid
-                            parent_uuid
-                            org_unit_hierarchy_uuid: org_unit_hierarchy
-                            manager_uuid: managers(inherit: false) {
-                                org_unit_uuid
-                                responsibility_uuids
+                            obj: current {
                                 uuid
-                            }
-                            acting_manager_uuid: managers(inherit: true) {
-                                org_unit_uuid
-                                responsibility_uuids
-                                uuid
-                            }
-                            ancestors {
+                                user_key
                                 name
-                                uuid
+                                unit_type_uuid
+                                org_unit_level_uuid
+                                time_planning_uuid
+                                parent_uuid
+                                org_unit_hierarchy_uuid: org_unit_hierarchy
+                                manager_uuid: managers(inherit: false) {
+                                    org_unit_uuid
+                                    responsibility_uuids
+                                    uuid
+                                }
+                                acting_manager_uuid: managers(inherit: true) {
+                                    org_unit_uuid
+                                    responsibility_uuids
+                                    uuid
+                                }
+                                ancestors {
+                                    name
+                                    uuid
+                                }
+                                validity {
+                                    from
+                                    to
+                                }
                             }
-                            validity {
-                                from
-                                to
-                            }
-                """
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         dictionary = {
             "org_unit_level_uuid": "level",
@@ -504,7 +597,7 @@ class GQLLoraCache:
         }
         res: dict = {}
         async for obj in self._execute_query(
-            query=query, query_type="org_units", uuid=uuid
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -512,7 +605,7 @@ class GQLLoraCache:
                 obj = align_current(obj)
 
             for item in obj["obj"]:
-                if item["parent_uuid"] == self.org_uuid:
+                if item["parent_uuid"] == org_uuid:
                     item["parent_uuid"] = None
 
             obj = await format_managers_and_location(obj)
@@ -540,31 +633,110 @@ class GQLLoraCache:
 
             return d
 
-        query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        fraction
-                        user_key
-                        engagement_type_uuid
-                        primary_uuid
-                        is_primary
-                        job_function_uuid
-                        extension_1
-                        extension_2
-                        extension_3
-                        extension_4
-                        extension_5
-                        extension_6
-                        extension_7
-                        extension_8
-                        extension_9
-                        extension_10
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: EngagementFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: engagements(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                fraction
+                                user_key
+                                engagement_type_uuid
+                                primary_uuid
+                                is_primary
+                                job_function_uuid
+                                extension_1
+                                extension_2
+                                extension_3
+                                extension_4
+                                extension_5
+                                extension_6
+                                extension_7
+                                extension_8
+                                extension_9
+                                extension_10
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: EngagementFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: engagements(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                               uuid
+                                employee_uuid
+                                org_unit_uuid
+                                fraction
+                                user_key
+                                engagement_type_uuid
+                                primary_uuid
+                                is_primary
+                                job_function_uuid
+                                extension_1
+                                extension_2
+                                extension_3
+                                extension_4
+                                extension_5
+                                extension_6
+                                extension_7
+                                extension_8
+                                extension_9
+                                extension_10
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         dictionary = {
             "employee_uuid": "user",
@@ -577,9 +749,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="engagements",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -597,17 +767,82 @@ class GQLLoraCache:
 
     async def _fetch_leaves(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching leaves")
-        query = """
-                        uuid
-                        employee_uuid
-                        user_key
-                        leave_type_uuid
-                        engagement_uuid
-                        validity  {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: LeaveFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: leaves(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                employee_uuid
+                                user_key
+                                leave_type_uuid
+                                engagement_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: LeaveFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: leaves(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                employee_uuid
+                                user_key
+                                leave_type_uuid
+                                engagement_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         replace_dictionary = {
             "employee_uuid": "user",
@@ -617,9 +852,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="leaves",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -649,18 +882,85 @@ class GQLLoraCache:
 
             return res
 
-        query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        user_key
-                        itsystem_uuid
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: ITUserFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: itusers(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                user_key
+                                itsystem_uuid
+                                primary_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
-                        primary_uuid
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: ITUserFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: itusers(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                user_key
+                                itsystem_uuid
+                                primary_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
+
         dictionary = {
             "employee_uuid": "user",
             "itsystem_uuid": "itsystem",
@@ -670,9 +970,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="itusers",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -707,17 +1005,82 @@ class GQLLoraCache:
 
             return d
 
-        query = """
-                        uuid
-                        org_unit_uuid
-                        kle_number_uuid
-                        kle_aspect_uuids
-                        user_key
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: KLEFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: kles(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                org_unit_uuid
+                                kle_number_uuid
+                                kle_aspect_uuids
+                                user_key
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: KLEFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: kles(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                org_unit_uuid
+                                kle_number_uuid
+                                kle_aspect_uuids
+                                user_key
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         dictionary = {
             "kle_aspect_uuid": "kle_aspect",
@@ -727,9 +1090,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="kles",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -758,20 +1119,80 @@ class GQLLoraCache:
 
             return d
 
-        query = """
-                        uuid
-                        org_unit_uuids
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: RelatedUnitFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: related_units(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                org_unit_uuids
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: RelatedUnitFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: related_units(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                org_unit_uuids
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="related_units",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -790,18 +1211,84 @@ class GQLLoraCache:
 
     async def _fetch_managers(self, uuid: UUID | None = None) -> dict:
         logger.info("Caching managers")
-        query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        manager_type_uuid
-                        manager_level_uuid
-                        responsibility_uuids
-                        validity {
-                            from
-                            to
+        if self.full_history:
+            query = """
+                query (
+                    $filter: ManagerFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: managers(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                manager_type_uuid
+                                manager_level_uuid
+                                responsibility_uuids
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: ManagerFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: managers(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                manager_type_uuid
+                                manager_level_uuid
+                                responsibility_uuids
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         dictionary = {
             "employee_uuid": "user",
@@ -813,9 +1300,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="managers",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -862,28 +1347,104 @@ class GQLLoraCache:
 
         # TODO job_function_uuid  # Should be None if it_user_uuid is None,
         #  ask Mads why?! #48316 !764 5dc0d245 . Mads is always busy
-        query = """
-                        uuid
-                        employee_uuid
-                        org_unit_uuid
-                        user_key
-                        association_type_uuid
-                        it_user_uuid
-                        job_function_uuid
-                        validity {
-                            from
-                            to
-                        }
-                        primary {
-                            user_key
-                        }
-                        dynamic_class {
-                            name
-                            parent {
-                              name
+        if self.full_history:
+            query = """
+                query (
+                    $filter: AssociationFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: associations(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                user_key
+                                association_type_uuid
+                                it_user_uuid
+                                job_function_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                                primary {
+                                    user_key
+                                }
+                                dynamic_class {
+                                    name
+                                    parent {
+                                    name
+                                    }
+                                }
                             }
                         }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: AssociationFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: associations(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                uuid
+                                employee_uuid
+                                org_unit_uuid
+                                user_key
+                                association_type_uuid
+                                it_user_uuid
+                                job_function_uuid
+                                validity {
+                                    from
+                                    to
+                                }
+                                primary {
+                                    user_key
+                                }
+                                dynamic_class {
+                                    name
+                                    parent {
+                                    name
+                                    }
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
 
         replace_dict = {
             "employee_uuid": "user",
@@ -896,9 +1457,7 @@ class GQLLoraCache:
         res: dict = {}
 
         async for obj in self._execute_query(
-            query=query,
-            query_type="associations",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -944,23 +1503,95 @@ class GQLLoraCache:
 
             return d
 
-        query = """
-                        address_type_uuid
-                        employee_uuid
-                        org_unit_uuid
-                        visibility_uuid
-                        name
-                        value
-                        uuid
-                        user_key
-                        address_type {
-                            scope
+        if self.full_history:
+            query = """
+                query (
+                    $filter: AddressFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: addresses(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: validities {
+                                address_type_uuid
+                                employee_uuid
+                                org_unit_uuid
+                                visibility_uuid
+                                name
+                                value
+                                uuid
+                                user_key
+                                address_type {
+                                    scope
+                                }
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
                         }
-                        validity {
-                            from
-                            to
+                        page_info {
+                            next_cursor
                         }
+                    }
+                }
             """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                    "from_date": str(datetime.date.today()) if self.skip_past else None,
+                    "to_date": None,
+                },
+            }
+        else:
+            query = """
+                query (
+                    $filter: AddressFilter
+                    $limit: int
+                    $cursor: Cursor
+                ) {
+                    page: addresses(
+                        filter: $filter
+                        limit: $limit
+                        cursor: $cursor
+                    ) {
+                        objects {
+                            uuid
+                            obj: current {
+                                address_type_uuid
+                                employee_uuid
+                                org_unit_uuid
+                                visibility_uuid
+                                name
+                                value
+                                uuid
+                                user_key
+                                address_type {
+                                    scope
+                                }
+                                validity {
+                                    from
+                                    to
+                                }
+                            }
+                        }
+                        page_info {
+                            next_cursor
+                        }
+                    }
+                }
+            """
+            variables = {
+                "filter": {
+                    "uuids": str(uuid) if uuid is not None else None,
+                },
+            }
+
         scope_map = {
             "EMAIL": "E-mail",
             "WWW": "Url",
@@ -981,9 +1612,7 @@ class GQLLoraCache:
 
         res: dict = {}
         async for obj in self._execute_query(
-            query=query,
-            query_type="addresses",
-            uuid=uuid,
+            query=query, variable_values=variables, do_paged=uuid is None
         ):
             if obj is None:
                 return {}
@@ -1103,30 +1732,26 @@ class GQLLoraCache:
                 self.dar_cache = pickle.load(f)
             return
 
-        t = time.time()  # noqa: F841
-        msg = "Kørselstid: {:.1f}s, {} elementer, {:.0f}/s"  # noqa: F841
-        async with self._setup_gql_client() as session:
-            self.gql_client_session = session
-            # `tasks` is used to keep strong references. Otherwise, it can be
-            # cleared by the garbage collector mid-execution as the event loop
-            # only keeps weak references.
-            tasks = []
-            async with asyncio.TaskGroup() as tg:
-                tasks.append(tg.create_task(self._cache_lora_address()))
-                tasks.append(tg.create_task(self._cache_lora_units()))
-                tasks.append(tg.create_task(self._cache_lora_engagements()))
-                tasks.append(tg.create_task(self._cache_lora_facets()))
-                tasks.append(tg.create_task(self._cache_lora_classes()))
-                tasks.append(tg.create_task(self._cache_lora_users()))
-                tasks.append(tg.create_task(self._cache_lora_managers()))
-                if not skip_associations:
-                    tasks.append(tg.create_task(self._cache_lora_associations()))
-                tasks.append(tg.create_task(self._cache_lora_leaves()))
-                tasks.append(tg.create_task(self._cache_lora_itsystems()))
-                tasks.append(tg.create_task(self._cache_lora_it_connections()))
-                tasks.append(tg.create_task(self._cache_lora_kles()))
-                tasks.append(tg.create_task(self._cache_lora_related()))
-            del tasks
+        # `tasks` is used to keep strong references. Otherwise, it can be
+        # cleared by the garbage collector mid-execution as the event loop
+        # only keeps weak references.
+        tasks = []
+        async with asyncio.TaskGroup() as tg:
+            tasks.append(tg.create_task(self._cache_lora_address()))
+            tasks.append(tg.create_task(self._cache_lora_units()))
+            tasks.append(tg.create_task(self._cache_lora_engagements()))
+            tasks.append(tg.create_task(self._cache_lora_facets()))
+            tasks.append(tg.create_task(self._cache_lora_classes()))
+            tasks.append(tg.create_task(self._cache_lora_users()))
+            tasks.append(tg.create_task(self._cache_lora_managers()))
+            if not skip_associations:
+                tasks.append(tg.create_task(self._cache_lora_associations()))
+            tasks.append(tg.create_task(self._cache_lora_leaves()))
+            tasks.append(tg.create_task(self._cache_lora_itsystems()))
+            tasks.append(tg.create_task(self._cache_lora_it_connections()))
+            tasks.append(tg.create_task(self._cache_lora_kles()))
+            tasks.append(tg.create_task(self._cache_lora_related()))
+        del tasks
 
         def write_caches(cache, filename, name):
             logger.debug(f"writing {name}")

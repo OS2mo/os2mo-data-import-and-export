@@ -333,14 +333,11 @@ def create_app(**kwargs) -> FastAPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
-    context = fastramqpi.get_context()
-
     @asynccontextmanager
     async def sql_exporter(full_history) -> AsyncGenerator[None, None]:
         lc = GQLLoraCache(
             settings=GqlLoraCacheSettings().to_old_settings(),
             full_history=full_history,
-            graphql_session=context["graphql_session"],
         )
         await lc._cache_lora_classes()
         await lc._cache_lora_facets()
@@ -369,8 +366,8 @@ def create_app(**kwargs) -> FastAPI:
             fastramqpi.add_context(sql_exporter=sql_exporter)
         yield
 
-    fastramqpi.add_lifespan_manager(sql_exporter(full_history=False), priority=1100)
+    fastramqpi.add_lifespan_manager(sql_exporter(full_history=False), priority=2100)
     if settings.historic_state is not None:
-        fastramqpi.add_lifespan_manager(sql_exporter(full_history=True), priority=1200)
+        fastramqpi.add_lifespan_manager(sql_exporter(full_history=True), priority=2200)
 
     return fastramqpi.get_app()
