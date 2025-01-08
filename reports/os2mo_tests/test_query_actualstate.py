@@ -18,8 +18,8 @@ from reports.query_actualstate import (
     get_engine,
     list_employees,
     list_MED_members,
-    map_dynamic_class,
-    merge_dynamic_classes,
+    map_trade_union,
+    merge_trade_unions,
     rearrange,
     sessionmaker,
     set_of_org_units,
@@ -142,28 +142,24 @@ def test_rearrange():
     assert list(data_df.columns) == columns_after
 
 
-def test_map_dynamic_class():
+def test_map_trade_union():
     returned_data = [
         {
             "uuid": "03d133d8-656a-4c8e-bffe-867b30e088a2",
-            "objects": [
-                {
-                    "dynamic_class": {
-                        "name": "Testorganisation",
-                        "parent": {"name": "Hovedorganisation"},
-                    }
+            "current": {
+                "trade_union": {
+                    "name": "Testorganisation",
+                    "parent": {"name": "Hovedorganisation"},
                 }
-            ],
+            },
         },
         {
             "uuid": "00bffb5f-9975-4b72-a6f2-afb3ff6e5295",
-            "objects": [
-                {"dynamic_class": {"name": "Testorganisation", "parent": None}}
-            ],
+            "current": {"trade_union": {"name": "Testorganisation", "parent": None}},
         },
         {
             "uuid": "022e7717-a023-4577-b6ee-1eec5dee63c1",
-            "objects": [{"dynamic_class": None}],
+            "current": {"trade_union": None},
         },
     ]
     expected = {
@@ -172,11 +168,11 @@ def test_map_dynamic_class():
         "022e7717-a023-4577-b6ee-1eec5dee63c1": None,
     }
 
-    result = map_dynamic_class(returned_data)
+    result = map_trade_union(returned_data)
     assert result == expected
 
 
-def test_merge_dynamic_classes():
+def test_merge_trade_unions():
     data_df = pd.DataFrame(
         [
             (
@@ -206,8 +202,8 @@ def test_merge_dynamic_classes():
         ],
     )
     association_map = {"testuuid": "TestTilknytning"}
-    data_df = merge_dynamic_classes(
-        data_df=data_df, association_dynamic_classes=association_map
+    data_df = merge_trade_unions(
+        data_df=data_df, association_trade_unions=association_map
     )
     assert data_df["Hovedorganisation / Faglig organisation"][0] == "TestTilknytning"
 
@@ -344,7 +340,7 @@ class Tests_db(unittest.TestCase):
 
     # dynamic classes are fetched from graphql, here we just mock the return to check the resulting list.
     @patch(
-        "reports.query_actualstate.fetch_dynamic_class",
+        "reports.query_actualstate.fetch_trade_union",
         return_value={"t1": "Tilknytningsorganisation"},
     )
     def test_MED_data(self, _):
