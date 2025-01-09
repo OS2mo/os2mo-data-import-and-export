@@ -1,5 +1,3 @@
-import logging
-import sys
 from functools import partial
 from operator import methodcaller
 from typing import Any
@@ -13,9 +11,6 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import BaseModel
 from ra_utils.load_settings import load_setting
 from ra_utils.tqdm_wrapper import tqdm
-
-
-logger = logging.getLogger("cpr_uuid")
 
 
 class ExportUser(BaseModel):
@@ -46,7 +41,7 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
         # AD properties will be enriched if available
         cpr = employee.get("cpr_no")
         if not cpr:
-            logger.warning("no 'cpr_no' for MO user %r", employee["uuid"])
+            print("no 'cpr_no' for MO user %r", employee["uuid"])
         return ExportUser(
             cpr=cpr,
             mo_uuid=employee["uuid"],
@@ -80,24 +75,6 @@ def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh._write_csv(fields, employee_dicts, output_file_path)
 
 
-def init_log() -> None:
-    LOG_LEVEL = logging.DEBUG
-
-    # detail_logging = ('AdCommon', 'mora-helper', 'AdReader', 'cpr_uuid')
-    detail_logging = ("mora-helper", "AdReader", "cpr_uuid")
-    for name in logging.root.manager.loggerDict:  # type: ignore
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format="%(levelname)s %(asctime)s %(name)s %(message)s",
-        level=LOG_LEVEL,
-        stream=sys.stdout,
-    )
-
-
 @click.command()
 @click.option(
     "--mora-base",
@@ -119,7 +96,6 @@ def init_log() -> None:
 )
 def cli(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     """MO CPR, MO UUID, AD GUID, AD SAM CSV Exporter."""
-    init_log()
     main(mora_base, use_ad, output_file_path)
 
 
