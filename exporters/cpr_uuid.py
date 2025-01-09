@@ -65,8 +65,8 @@ def create_mapping(helper, use_ad) -> list[ExportUser]:
 def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
-    employees: list[ExportUser] = create_mapping(mh, use_ad)
-    employee_dicts: list[dict] = list(map(methodcaller("dict"), employees))
+    employees = create_mapping(mh, use_ad)
+    employee_dicts = list(map(methodcaller("dict"), employees))
 
     fields = ["cpr", "mo_uuid", "ad_guid", "sam_account_name"]
     mh._write_csv(fields, employee_dicts, output_file_path)
