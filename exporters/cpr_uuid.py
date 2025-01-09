@@ -33,16 +33,6 @@ def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
             user.sam_account_name = ad_info["SamAccountName"]
         return user
 
-    def to_user_dict(employee: dict[str, Any]) -> ExportUser:
-        # AD properties will be enriched if available
-        cpr = employee.get("cpr_no")
-        if not cpr:
-            print("no 'cpr_no' for MO user %r", employee["uuid"])
-        return ExportUser(
-            cpr=cpr,
-            mo_uuid=employee["uuid"],
-        )
-
     print("Fetching all users from MO...")
     employees = helper.read_all_users()
     print("OK")
@@ -51,7 +41,14 @@ def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
 
     print("Processing all...")
     for employee in tqdm(employees):
-        user = to_user_dict(employee)
+        # AD properties will be enriched if available
+        cpr = employee.get("cpr_no")
+        if not cpr:
+            print("no 'cpr_no' for MO user %r", employee["uuid"])
+        user = ExportUser(
+            cpr=cpr,
+            mo_uuid=employee["uuid"],
+        )
 
         if ad_reader:
             user = enrich_user_dict_from_ad(ad_reader, user)
