@@ -1,4 +1,4 @@
-from functools import partial
+from collections.abc import Iterator
 from typing import Any
 from uuid import UUID
 
@@ -16,7 +16,7 @@ class ExportUser(BaseModel):
     sam_account_name: str | None
 
 
-def create_mapping(helper: MoraHelper, use_ad: bool) -> list[ExportUser]:
+def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
     def cache_ad_reader() -> Any:
         from integrations.ad_integration.ad_reader import ADParameterReader
 
@@ -45,26 +45,26 @@ def create_mapping(helper: MoraHelper, use_ad: bool) -> list[ExportUser]:
 
     print("Fetching all users from MO...")
     employees = helper.read_all_users()
-    total = len(employees)
     print("OK")
 
-    employees = map(to_user_dict, employees)
-
-    if use_ad:
-        ad_reader = cache_ad_reader()
-        employees = map(partial(enrich_user_dict_from_ad, ad_reader), employees)
+    ad_reader = cache_ad_reader() if use_ad else None
 
     print("Processing all...")
-    employees = tqdm(employees, total=total)
-    employees = list(employees)
+    for employee in tqdm(employees):
+        user = to_user_dict(employee)
+
+        if ad_reader:
+            user = enrich_user_dict_from_ad(ad_reader, user)
+
+        yield user
+
     print("OK")
-    return employees
 
 
 def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
-    employees = create_mapping(mh, use_ad)
+    employees = list(create_mapping(mh, use_ad))
     employee_dicts = [x.dict() for x in employees]
 
     fields = ["cpr", "mo_uuid", "ad_guid", "sam_account_name"]
