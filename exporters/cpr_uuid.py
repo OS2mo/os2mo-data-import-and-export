@@ -1,9 +1,6 @@
 from functools import partial
 from operator import methodcaller
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 from uuid import UUID
 
 import click
@@ -14,13 +11,13 @@ from ra_utils.tqdm_wrapper import tqdm
 
 
 class ExportUser(BaseModel):
-    cpr: Optional[str]
+    cpr: str | None
     mo_uuid: UUID
-    ad_guid: Optional[UUID]
-    sam_account_name: Optional[str]
+    ad_guid: UUID | None
+    sam_account_name: str | None
 
 
-def create_mapping(helper, use_ad) -> List[ExportUser]:
+def create_mapping(helper, use_ad) -> list[ExportUser]:
     def cache_ad_reader() -> Any:
         from integrations.ad_integration.ad_reader import ADParameterReader
 
@@ -37,7 +34,7 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
             user.sam_account_name = ad_info["SamAccountName"]
         return user
 
-    def to_user_dict(employee: Dict[str, Any]) -> ExportUser:
+    def to_user_dict(employee: dict[str, Any]) -> ExportUser:
         # AD properties will be enriched if available
         cpr = employee.get("cpr_no")
         if not cpr:
@@ -68,8 +65,8 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
 def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
-    employees: List[ExportUser] = create_mapping(mh, use_ad)
-    employee_dicts: List[Dict] = list(map(methodcaller("dict"), employees))
+    employees: list[ExportUser] = create_mapping(mh, use_ad)
+    employee_dicts: list[dict] = list(map(methodcaller("dict"), employees))
 
     fields = ["cpr", "mo_uuid", "ad_guid", "sam_account_name"]
     mh._write_csv(fields, employee_dicts, output_file_path)
