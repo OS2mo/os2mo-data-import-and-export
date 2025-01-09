@@ -10,22 +10,19 @@ Helper class to make a number of pre-defined queries into MO
 """
 import os
 import time
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from uuid import UUID
 
+import common_queries as cq
 from anytree import PreOrderIter
 from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
-from raclients.upload import file_uploader
 from ra_utils.job_settings import JobSettings
 from raclients.graph.client import GraphQLClient
-
-import common_queries as cq
+from raclients.upload import file_uploader
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 
@@ -63,36 +60,38 @@ def get_managers_for_export(
 
     graphql_query = gql(
         """
-    query FindManagers($org_unit_uuid: [UUID!]) {
-      managers(org_units: $org_unit_uuid) {
-        objects {
-          responsibilities {
-            full_name
-          }
-          employee {
-            name
-            addresses {
-              address_type {
-                scope
-              }
-              name
+        query FindManagers($org_unit_uuid: [UUID!]) {
+            managers(filter: { org_units: $org_unit_uuid }) {
+                objects {
+                    validities {
+                        responsibilities {
+                            full_name
+                        }
+                        employee {
+                            name
+                            addresses {
+                                address_type {
+                                    scope
+                                }
+                                name
+                            }
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
-      """
+        """
     )
     response = gql_session.execute(
         graphql_query, variable_values={"org_unit_uuid": org_uuid}
     )
 
-    return response["managers"]
+    return response["managers"]["objects"]
 
 
 def setup_gql_client(settings: JobSettings) -> GraphQLClient:
     return GraphQLClient(
-        url=f"{settings.mora_base}/graphql/v3",
+        url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
@@ -173,12 +172,12 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'benth@kolding.dk'"
         """
-        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
+        if employee.get("validities") and employee["validities"][0].get("employee"):  # type: ignore
             filtered_email_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
                     == "EMAIL",
-                    one(one(employee["objects"])["employee"])["addresses"],
+                    one(one(employee["validities"])["employee"])["addresses"],
                 )
             )
             if filtered_email_address_object:
@@ -200,12 +199,12 @@ def write_multiple_managers_from_graphql_payload(
         :example:
         "'67338448'"
         """
-        if employee.get("objects")[0]["employee"] is not None:  # type: ignore
+        if employee.get("validities") and employee["validities"][0].get("employee"):  # type: ignore
             filtered_phone_address_object = list(
                 filter(
                     lambda address_type: address_type["address_type"]["scope"]
                     == "PHONE",
-                    one(one(employee["objects"])["employee"])["addresses"],
+                    one(one(employee["validities"])["employee"])["addresses"],
                 )
             )
             if filtered_phone_address_object:
@@ -227,11 +226,11 @@ def write_multiple_managers_from_graphql_payload(
         "'Bent Lindstrøm Hansen'"
         """
         if (
-            employee.get("objects")
-            and employee["objects"][0].get("employee")
-            and employee["objects"][0]["employee"][0].get("name")
+            employee.get("validities")
+            and employee["validities"][0].get("employee")
+            and employee["validities"][0]["employee"][0].get("name")
         ):
-            return employee["objects"][0]["employee"][0]["name"]
+            return employee["validities"][0]["employee"][0]["name"]
         else:
             return None
 
@@ -258,7 +257,7 @@ def write_multiple_managers_from_graphql_payload(
 
         "'Personale: MUS-kompetence'" if filter was not successful:
         """
-        responsibilities = one(manager_responsibility["objects"])["responsibilities"]
+        responsibilities = one(manager_responsibility["validities"])["responsibilities"]
         filtered_responsibility_object = list(
             filter(
                 lambda primary_responsibility: primary_responsibility["full_name"]
@@ -323,11 +322,14 @@ if __name__ == "__main__":
     roots = mh.read_top_units(org)
     print(roots)
     for root in roots:
-        if root["name"] == "Ballerup Kommune":
+        # Ballerup Kommune
+        if root["uuid"] == "f414a2f1-5cac-4634-8767-b8d3109d3133":
             ballerup = root["uuid"]
-        if root["name"] == "9B":
+        # 9B
+        if root["uuid"] == "26c9aff3-43a3-49a5-84d9-0d431605a6e5":
             sd = root["uuid"]
-        if root["name"] == "MED-organisationen Hoved-MED":
+        # Med-organisationen Hoved-MED
+        if root["uuid"] == "4b13d0f3-bf8e-31fe-3115-4b5a760a0d2c":
             udvalg = root["uuid"]
 
     if threaded_speedup:
@@ -351,11 +353,15 @@ if __name__ == "__main__":
         cq.export_all_employees(mh, nodes, filename)
     print("AlleBK-stilling-email: {}s".format(time.time() - t))
 
-    with file_uploader(settings, "Ballerup_org_incl-medarbejdere_os2mo.csv") as filename:
+    with file_uploader(
+        settings, "Ballerup_org_incl-medarbejdere_os2mo.csv"
+    ) as filename:
         cq.export_orgs(mh, nodes, filename)
     print("Ballerup org incl medarbejdere: {}s".format(time.time() - t))
 
-    with file_uploader(settings, "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv") as filename:
+    with file_uploader(
+        settings, "Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv"
+    ) as filename:
         cq.export_adm_org(mh, nodes, filename)
     print("Adm-org-incl-start-stop: {}s".format(time.time() - t))
 
