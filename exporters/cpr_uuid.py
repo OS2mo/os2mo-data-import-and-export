@@ -17,7 +17,7 @@ class ExportUser(BaseModel):
     sam_account_name: str | None
 
 
-def create_mapping(helper, use_ad) -> list[ExportUser]:
+def create_mapping(helper: MoraHelper, use_ad: bool) -> list[ExportUser]:
     def cache_ad_reader() -> Any:
         from integrations.ad_integration.ad_reader import ADParameterReader
 
