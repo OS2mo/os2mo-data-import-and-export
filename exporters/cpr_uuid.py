@@ -16,15 +16,17 @@ class ExportUser(BaseModel):
     sam_account_name: str | None
 
 
-def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
-    def cache_ad_reader() -> Any:
-        from integrations.ad_integration.ad_reader import ADParameterReader
+def cache_ad_reader() -> Any:
+    from integrations.ad_integration.ad_reader import ADParameterReader
 
-        print("Caching all users from AD...")
-        ad_reader = ADParameterReader()
-        ad_reader.cache_all(print_progress=True)
-        print("OK")
-        return ad_reader
+    print("Caching all users from AD...")
+    ad_reader = ADParameterReader()
+    ad_reader.cache_all(print_progress=True)
+    print("OK")
+    return ad_reader
+
+
+def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
 
     print("Fetching all users from MO...")
     employees = helper.read_all_users()
