@@ -26,13 +26,6 @@ def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
         print("OK")
         return ad_reader
 
-    def enrich_user_dict_from_ad(ad_reader: Any, user: ExportUser) -> ExportUser:
-        ad_info = ad_reader.read_user(cpr=user.cpr, cache_only=True)
-        if ad_info:
-            user.ad_guid = ad_info["ObjectGuid"]
-            user.sam_account_name = ad_info["SamAccountName"]
-        return user
-
     print("Fetching all users from MO...")
     employees = helper.read_all_users()
     print("OK")
@@ -51,7 +44,10 @@ def create_mapping(helper: MoraHelper, use_ad: bool) -> Iterator[ExportUser]:
         )
 
         if ad_reader:
-            user = enrich_user_dict_from_ad(ad_reader, user)
+            ad_info = ad_reader.read_user(cpr=user.cpr, cache_only=True)
+            if ad_info:
+                user.ad_guid = ad_info["ObjectGuid"]
+                user.sam_account_name = ad_info["SamAccountName"]
 
         yield user
 
