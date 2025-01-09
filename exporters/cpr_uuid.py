@@ -1,5 +1,4 @@
 from functools import partial
-from operator import methodcaller
 from typing import Any
 from uuid import UUID
 
@@ -66,7 +65,7 @@ def main(mora_base: str, use_ad: bool, output_file_path: str) -> None:
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
     employees = create_mapping(mh, use_ad)
-    employee_dicts = list(map(methodcaller("dict"), employees))
+    employee_dicts = [x.dict() for x in employees]
 
     fields = ["cpr", "mo_uuid", "ad_guid", "sam_account_name"]
     mh._write_csv(fields, employee_dicts, output_file_path)
