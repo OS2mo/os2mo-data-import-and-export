@@ -6,7 +6,6 @@ import click
 import pydantic
 import requests
 from gql import gql
-from more_itertools import one
 from raclients.graph.client import GraphQLClient
 
 
@@ -21,27 +20,22 @@ class Titles(pydantic.BaseModel):
 
 def read_engagement_job_function(session):
     query = gql(
-        """query MyQuery {
-            facets {
-                user_key
-                uuid
-                classes {
-                    user_key
-                    uuid
-                    }
-                }
-            }
         """
+      query MyQuery {
+        classes(filter: {facet: {user_keys: "engagement_job_function" }}) {
+          objects {
+            current {
+              uuid
+              user_key
+            }
+          }
+        }
+      }
+    """
     )
     r = session.execute(query)
-    facets = r["facets"]
-    # Get engagement_job_function
-    eng_types = one(
-        filter(lambda f: f["user_key"] == "engagement_job_function", facets)
-    )
-
-    # load into model
-    titles = Titles(titles=eng_types["classes"])
+    eng_types = [obj["current"] for obj in r["classes"]["objects"]]
+    titles = Titles(titles=eng_types)
     # Dump model to json and load back to convert uuids to str and "user_key" to "name"
     titles = json.loads(titles.json())
     return titles["titles"]
@@ -93,7 +87,7 @@ def export_titles(
     dry_run: bool,
 ) -> None:
     with GraphQLClient(
-        url=f"{mora_base}/graphql/v3",
+        url=f"{mora_base}/graphql/v22",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
