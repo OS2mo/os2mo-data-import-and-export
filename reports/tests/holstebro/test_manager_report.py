@@ -331,7 +331,6 @@ def test_to_xlsx_exporter_format():
 
 def test_get_org_units():
     # Arrange
-    line_mgmt_hierarchy = uuid4()
     mock_gql_client = MagicMock()
     mock_gql_client.execute.return_value = {"org_units": {"objects": OU_BATCH}}
 

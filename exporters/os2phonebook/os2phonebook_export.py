@@ -339,7 +339,7 @@ def generate_json():
             .filter(Leder.enhed_uuid == Enhed.uuid)
             .filter(
                 # Filter vacant leders
-                Leder.bruger_uuid != None
+                Leder.bruger_uuid != None  # noqa: E711
             )
             .all()
         )
@@ -379,7 +379,7 @@ def generate_json():
 
     def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
+        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)  # noqa: E711
 
         return address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
@@ -387,7 +387,7 @@ def generate_json():
 
     def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
+        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)  # noqa: E711
 
         return address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
@@ -434,7 +434,7 @@ def generate_json():
             Adresse.adressetype_scope.in_(da_address_types.keys())
         ).filter(
             # Do not include secret addresses
-            or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")
+            or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")  # noqa: E711
         )
         for address in queryset.all():
             process_address(address)
@@ -444,7 +444,7 @@ def generate_json():
         betegnelser = map(attrgetter("betegnelse"), queryset.all())
         betegnelser = filter(lambda x: x is not None, betegnelser)
         for value in betegnelser:
-            for address in dawa_queue[dar_uuid]:
+            for address in dawa_queue[dar_uuid]:  # noqa: F821
                 entry_uuid = address_to_uuid(address)
                 atype = da_address_types[address.adressetype_scope]
 

@@ -197,7 +197,7 @@ def export_bruger_mo(node, used_cprs, mh):
             continue
         user_uuid = employee["Person UUID"]
         name = employee["Navn"]
-        cpr = address["CPR-Nummer"]
+        cpr = address["CPR-Nummer"]  # noqa: F821
         if cpr in used_cprs:
             # print('Skipping user: {} '.format(uuid))
             continue

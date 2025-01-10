@@ -456,9 +456,6 @@ def get_differences_in_uuids(
 
     new_report_json_set = {uuid["uuid"] for uuid in new_report}
 
-    # This might be useful in the future. As of now though, only new entries are needed.
-    previous_uuids_already_in_mo = old_report_json_set.difference(new_report_json_set)
-
     new_uuids_appear_from_today = new_report_json_set.difference(old_report_json_set)
 
     return new_uuids_appear_from_today
