@@ -906,10 +906,10 @@ class TestUserNameCSVFileSubstring(_UserNameCSVFileHelperMixin, unittest.TestCas
         self.assertNotIn("abcd", instance)
 
 
-Base = declarative_base()  # type: Any
+Base = declarative_base()  # type: ignore
 
 
-class MockedUserNameTable(Base):
+class MockedUserNameTable(Base):  # type: ignore
     __tablename__ = "usernames"
 
     uid = Column(Integer, primary_key=True)

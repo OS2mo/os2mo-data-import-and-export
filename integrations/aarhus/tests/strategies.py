@@ -14,7 +14,7 @@ def text_except(*exceptions: str):
             # Exclude surrogate characters because they are invalid in the
             # UTF-8 encoding. See:
             # https://hypothesis.readthedocs.io/en/latest/data.html#hypothesis.strategies.text
-            blacklist_categories=("Cs",),
+            blacklist_categories=("Cs",),  # type: ignore
         )
     )
 

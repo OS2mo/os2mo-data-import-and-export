@@ -293,7 +293,7 @@ def process_engagement(
 
     current = obj["current"]
     person = one(current["person"])
-    email = first(person["addresses"], {}).get("value", "")
+    email = first(person["addresses"], {}).get("value", "")  # type: ignore
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
     # If the manager is the employee itself, use the manager of the parent unit
@@ -320,7 +320,7 @@ def process_engagement(
         # }
 
         parent_ou = one(parent_ou_resp["org_units"]["objects"])
-        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})
+        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
         manager_eng_user_key = parent_manager.get("user_key", "")
 
     return AdmEngRow(
@@ -403,13 +403,13 @@ def process_adm_unit(
     engs = [UUID(eng["uuid"]) for eng in current["engagements"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
 
-    manager = only(current["managers"], {})
+    manager = only(current["managers"], {})  # type: ignore
     # The manager user_key is the same as the engagement user_key
     manager_eng_user_key = manager.get("user_key", "")
 
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
-    pnumber = only(current["addresses"], {}).get("value", "")
+    pnumber = only(current["addresses"], {}).get("value", "")  # type: ignore
     adm_ou_row = AdmOuRow(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
@@ -495,7 +495,7 @@ def process_association(
     ass_end = to[:10] if to is not None else ""
 
     current = obj["current"]
-    person = only(current["person"], {})
+    person = only(current["person"], {})  # type: ignore
     cpr = person.get("cpr_number", "")
 
     dynamic_class = current.get("dynamic_class", {})
@@ -679,8 +679,8 @@ def get_settings(*args, **kwargs) -> JobSettings:
     return JobSettings(*args, **kwargs)
 
 
-@contextmanager
-def _ssh_client(hostname: str, port: int, username: str, password: str) -> SSHClient:
+@contextmanager  # type: ignore
+def _ssh_client(hostname: str, port: int, username: str, password: str) -> SSHClient:  # type: ignore
     ssh_client = SSHClient()
     try:
         ssh_client.set_missing_host_key_policy(AutoAddPolicy())
@@ -691,17 +691,17 @@ def _ssh_client(hostname: str, port: int, username: str, password: str) -> SSHCl
             password=password,
             look_for_keys=False,
         )
-        yield ssh_client
+        yield ssh_client  # type: ignore
     finally:
         ssh_client.close()
 
 
-@contextmanager
-def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPClient:
-    with _ssh_client(hostname, port, username, password) as ssh_client:
+@contextmanager  # type: ignore
+def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPClient:  # type: ignore
+    with _ssh_client(hostname, port, username, password) as ssh_client:  # type: ignore
         sftp_client_: SFTPClient = ssh_client.open_sftp()
         try:
-            yield sftp_client_
+            yield sftp_client_  # type: ignore
         finally:
             sftp_client_.close()
 
@@ -715,7 +715,7 @@ def upload_csv(
     csv_lines: list[str],
 ) -> None:
     upload_str = "".join(csv_lines)
-    with sftp_client(hostname, port, username, password) as client:
+    with sftp_client(hostname, port, username, password) as client:  # type: ignore
         client.putfo(StringIO(upload_str), remote_path, confirm=False)
 
 
@@ -735,24 +735,24 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     settings = get_settings()
 
     if not adm_unit_uuid:
-        adm_unit_uuid = UUID(settings.reports_safetynet_adm_unit_uuid)
+        adm_unit_uuid = UUID(settings.reports_safetynet_adm_unit_uuid)  # type: ignore
     if not med_unit_uuid:
-        med_unit_uuid = UUID(settings.reports_safetynet_med_unit_uuid)
+        med_unit_uuid = UUID(settings.reports_safetynet_med_unit_uuid)  # type: ignore
 
     gql_client = get_mo_client(
-        auth_server=settings.crontab_AUTH_SERVER,
+        auth_server=settings.crontab_AUTH_SERVER,  # type: ignore
         client_id=settings.client_id,
         # Careful - this is not a SecretStr
-        client_secret=settings.crontab_CLIENT_SECRET,
+        client_secret=settings.crontab_CLIENT_SECRET,  # type: ignore
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
 
     sftp_settings = (
-        settings.reports_safetynet_sftp_hostname,
-        settings.reports_safetynet_sftp_port,
-        settings.reports_safetynet_sftp_username,
-        settings.reports_safetynet_sftp_password,
+        settings.reports_safetynet_sftp_hostname,  # type: ignore
+        settings.reports_safetynet_sftp_port,  # type: ignore
+        settings.reports_safetynet_sftp_username,  # type: ignore
+        settings.reports_safetynet_sftp_password,  # type: ignore
     )
 
     # Adm employee report

@@ -96,7 +96,7 @@ def terminate_detail(
         "validity": {"to": terminate_date.strftime("%Y-%m-%d")},
     }
     if terminate_from:
-        payload["validity"]["from"] = terminate_from.strftime("%Y-%m-%d")
+        payload["validity"]["from"] = terminate_from.strftime("%Y-%m-%d")  # type: ignore
     return payload
 
 

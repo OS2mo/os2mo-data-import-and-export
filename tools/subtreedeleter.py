@@ -154,7 +154,7 @@ async def subtreedeleter_helper(
     delete_subtree: bool = False,
     connections: int = 4,
 ) -> None:
-    token_settings = TokenSettings()
+    token_settings = TokenSettings()  # type: ignore
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         session.headers.update(token_settings.get_headers())

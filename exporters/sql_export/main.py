@@ -318,7 +318,9 @@ def create_app(**kwargs) -> FastAPI:
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
-    fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings.fastramqpi)
+    fastramqpi = FastRAMQPI(
+        application_name="sql-export", settings=settings.fastramqpi, graphql_version=22
+    )
     if settings.eventdriven:
         amqpsystem = fastramqpi.get_amqpsystem()
         amqpsystem.router.registry.update(actualstate_router.registry)

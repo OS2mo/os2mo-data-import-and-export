@@ -167,7 +167,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
             return False
 
         manager_ou_uuids = [
-            only(manager_role["org_unit"], dict()).get("uuid")
+            only(manager_role["org_unit"], dict()).get("uuid")  # type: ignore
             for manager_role in manager_roles
         ]
         eng_ou_uuid = one(eng["org_unit"])["uuid"]
@@ -221,13 +221,13 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
     for row in xlsx_rows:
         data.append(
             [
-                row.employment_id,
-                row.first_name,
-                row.last_name,
-                row.email,
-                row.cpr,
-                str(row.org_unit_uuid),
-                "Ja" if row.is_manager else "Nej",
+                row.employment_id,  # type: ignore
+                row.first_name,  # type: ignore
+                row.last_name,  # type: ignore
+                row.email,  # type: ignore
+                row.cpr,  # type: ignore
+                str(row.org_unit_uuid),  # type: ignore
+                "Ja" if row.is_manager else "Nej",  # type: ignore
             ]
         )
     return data
@@ -257,8 +257,8 @@ def upload_report(
     # Hack - we need to convert the JobSettings
     settings_dict = {
         "crontab.CLIENT_ID": settings.client_id,
-        "crontab.CLIENT_SECRET": settings.crontab_CLIENT_SECRET,
-        "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
+        "crontab.CLIENT_SECRET": settings.crontab_CLIENT_SECRET,  # type: ignore
+        "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,  # type: ignore
         "mora.base": settings.mora_base,
     }
     with file_uploader(settings_dict, filename) as report_file:
@@ -279,9 +279,9 @@ def main(
     logger.info("Program started")
 
     gql_client = get_mo_client(
-        auth_server=settings.crontab_AUTH_SERVER,
+        auth_server=settings.crontab_AUTH_SERVER,  # type: ignore
         client_id=settings.client_id,
-        client_secret=settings.crontab_CLIENT_SECRET,  # Careful - this is not a SecretStr
+        client_secret=settings.crontab_CLIENT_SECRET,  # type: ignore
         mo_base_url=settings.mora_base,
         gql_version=gql_version,
     )

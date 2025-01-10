@@ -143,7 +143,7 @@ async def submit_payloads(
     """
     settings = config.get_config()
     base_url = settings.mora_base
-    headers = TokenSettings().get_headers()
+    headers = TokenSettings().get_headers()  # type: ignore
 
     async def submit(data: List[dict]) -> None:
         doc = list(data)

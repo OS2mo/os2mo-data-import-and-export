@@ -94,9 +94,9 @@ def setup_gql_client(settings: JobSettings) -> GraphQLClient:
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )

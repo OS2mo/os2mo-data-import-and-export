@@ -83,7 +83,7 @@ def get_filtered_phone_addresses(
 
     # Sort addresses according to the "adresse_type" placement in priority_list, to only return the address that matches
     # the first element in priority_list.
-    address = first(
+    address = first(  # type: ignore
         sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])),
         default={},
     )

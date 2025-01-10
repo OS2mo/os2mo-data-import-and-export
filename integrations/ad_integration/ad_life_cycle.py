@@ -253,14 +253,14 @@ class AdLifeCycle:
             lazy_engagements: Iterator[LazyDict] = map(LazyDict, engagements)
             enriched_engagements: Iterator[LazyDict] = map(
                 # Enrich engagement_type class
-                partial(make_class_lazy, "engagement_type"),
+                partial(make_class_lazy, "engagement_type"),  # type: ignore
                 map(
                     # Enrich primary_type class
                     partial(make_class_lazy, "primary_type"),
                     map(
                         # Enrich job_function class
                         partial(make_class_lazy, "job_function"),
-                        lazy_engagements,
+                        lazy_engagements,  # type: ignore
                     ),
                 ),
             )
@@ -305,7 +305,7 @@ class AdLifeCycle:
         employees: Iterator[Dict] = map(itemgetter(0), tqdm_employees)
 
         # Enrich with engagements
-        ee_employees: Iterator[Dict] = map(enrich_with_engagements, employees)
+        ee_employees: Iterator[Dict] = map(enrich_with_engagements, employees)  # type: ignore
 
         # Enrich with ad_objects
         ad_employees: Iterator[Tuple[Dict, Dict]] = map(

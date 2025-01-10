@@ -25,7 +25,7 @@ def dawa_lookup(street_name: str, postal_code: str) -> Optional[str]:
         darclient = DARClient()
         with darclient:
             dar_reply = darclient.cleanse_single(combined_address_string)
-            dar_uuid = dar_reply["id"]
+            dar_uuid = dar_reply["id"]  # type: ignore
     except Exception as exp:
         print(exp, " during dawa_lookup")
     return dar_uuid

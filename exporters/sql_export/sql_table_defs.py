@@ -6,7 +6,7 @@ from sqlalchemy import String
 from sqlalchemy.ext.declarative import DeclarativeMeta
 from sqlalchemy.ext.declarative import declarative_base
 
-Base: DeclarativeMeta = declarative_base()
+Base: DeclarativeMeta = declarative_base()  # type: ignore
 
 
 class Compare:
@@ -31,11 +31,11 @@ class BaseFacet(Compare):
     uuid = Column(String(36), nullable=False, primary_key=True)
 
 
-class WFacet(Base, BaseFacet):
+class WFacet(Base, BaseFacet):  # type: ignore
     __tablename__ = "wfacetter"
 
 
-class Facet(Base, BaseFacet):
+class Facet(Base, BaseFacet):  # type: ignore
     __tablename__ = "facetter"
 
 
@@ -47,11 +47,11 @@ class BaseKlasse(Compare):
     facet_bvn = Column(String(250), nullable=False)
 
 
-class WKlasse(Base, BaseKlasse):
+class WKlasse(Base, BaseKlasse):  # type: ignore
     __tablename__ = "wklasser"
 
 
-class Klasse(Base, BaseKlasse):
+class Klasse(Base, BaseKlasse):  # type: ignore
     __tablename__ = "klasser"
 
 
@@ -68,11 +68,11 @@ class BaseBruger(Compare):
     slutdato = Column(String(10))
 
 
-class WBruger(Base, BaseBruger):
+class WBruger(Base, BaseBruger):  # type: ignore
     __tablename__ = "wbrugere"
 
 
-class Bruger(Base, BaseBruger):
+class Bruger(Base, BaseBruger):  # type: ignore
     __tablename__ = "brugere"
 
 
@@ -97,11 +97,11 @@ class BaseEnhed(Compare):
     slutdato = Column(String(10))
 
 
-class WEnhed(Base, BaseEnhed):
+class WEnhed(Base, BaseEnhed):  # type: ignore
     __tablename__ = "wenheder"
 
 
-class Enhed(Base, BaseEnhed):
+class Enhed(Base, BaseEnhed):  # type: ignore
     __tablename__ = "enheder"
 
 
@@ -124,11 +124,11 @@ class BaseAdresse(Compare):
     slutdato = Column(String(10))
 
 
-class WAdresse(Base, BaseAdresse):
+class WAdresse(Base, BaseAdresse):  # type: ignore
     __tablename__ = "wadresser"
 
 
-class Adresse(Base, BaseAdresse):
+class Adresse(Base, BaseAdresse):  # type: ignore
     __tablename__ = "adresser"
 
 
@@ -160,11 +160,11 @@ class BaseEngagement(Compare):
     slutdato = Column(String(10))
 
 
-class WEngagement(Base, BaseEngagement):
+class WEngagement(Base, BaseEngagement):  # type: ignore
     __tablename__ = "wengagementer"
 
 
-class Engagement(Base, BaseEngagement):
+class Engagement(Base, BaseEngagement):  # type: ignore
     __tablename__ = "engagementer"
 
 
@@ -185,11 +185,11 @@ class BaseTilknytning(Compare):
     faglig_organisation = Column(String(250), nullable=True)
 
 
-class WTilknytning(Base, BaseTilknytning):
+class WTilknytning(Base, BaseTilknytning):  # type: ignore
     __tablename__ = "wtilknytninger"
 
 
-class Tilknytning(Base, BaseTilknytning):
+class Tilknytning(Base, BaseTilknytning):  # type: ignore
     __tablename__ = "tilknytninger"
 
 
@@ -205,11 +205,11 @@ class BaseOrlov(Compare):
     slutdato = Column(String(10))
 
 
-class WOrlov(Base, BaseOrlov):
+class WOrlov(Base, BaseOrlov):  # type: ignore
     __tablename__ = "worlover"
 
 
-class Orlov(Base, BaseOrlov):
+class Orlov(Base, BaseOrlov):  # type: ignore
     __tablename__ = "orlover"
 
 
@@ -218,11 +218,11 @@ class BaseItSystem(Compare):
     navn = Column(String(250), nullable=False)
 
 
-class WItSystem(Base, BaseItSystem):
+class WItSystem(Base, BaseItSystem):  # type: ignore
     __tablename__ = "wit_systemer"
 
 
-class ItSystem(Base, BaseItSystem):
+class ItSystem(Base, BaseItSystem):  # type: ignore
     __tablename__ = "it_systemer"
 
 
@@ -238,11 +238,11 @@ class BaseItForbindelse(Compare):
     slutdato = Column(String(10))
 
 
-class WItForbindelse(Base, BaseItForbindelse):
+class WItForbindelse(Base, BaseItForbindelse):  # type: ignore
     __tablename__ = "wit_forbindelser"
 
 
-class ItForbindelse(Base, BaseItForbindelse):
+class ItForbindelse(Base, BaseItForbindelse):  # type: ignore
     __tablename__ = "it_forbindelser"
 
 
@@ -259,11 +259,11 @@ class BaseLeder(Compare):
     slutdato = Column(String(10))
 
 
-class WLeder(Base, BaseLeder):
+class WLeder(Base, BaseLeder):  # type: ignore
     __tablename__ = "wledere"
 
 
-class Leder(Base, BaseLeder):
+class Leder(Base, BaseLeder):  # type: ignore
     __tablename__ = "ledere"
 
 
@@ -276,11 +276,11 @@ class BaseLederAnsvar(Compare):
     slutdato = Column(String(10))
 
 
-class WLederAnsvar(Base, BaseLederAnsvar):
+class WLederAnsvar(Base, BaseLederAnsvar):  # type: ignore
     __tablename__ = "wleder_ansvar"
 
 
-class LederAnsvar(Base, BaseLederAnsvar):
+class LederAnsvar(Base, BaseLederAnsvar):  # type: ignore
     __tablename__ = "leder_ansvar"
 
 
@@ -296,15 +296,15 @@ class BaseKLE(Compare):
     slutdato = Column(String(10))
 
 
-class WKLE(Base, BaseKLE):
+class WKLE(Base, BaseKLE):  # type: ignore
     __tablename__ = "wkle"
 
 
-class KLE(Base, BaseKLE):
+class KLE(Base, BaseKLE):  # type: ignore
     __tablename__ = "kle"
 
 
-class Kvittering(Base):
+class Kvittering(Base):  # type: ignore
     __tablename__ = "kvittering"
 
     id = Column(Integer, nullable=False, primary_key=True)
@@ -322,11 +322,11 @@ class BaseEnhedssammenkobling(Compare):
     slutdato = Column(String(10))
 
 
-class WEnhedssammenkobling(Base, BaseEnhedssammenkobling):
+class WEnhedssammenkobling(Base, BaseEnhedssammenkobling):  # type: ignore
     __tablename__ = "wenhedssammenkobling"
 
 
-class Enhedssammenkobling(Base, BaseEnhedssammenkobling):
+class Enhedssammenkobling(Base, BaseEnhedssammenkobling):  # type: ignore
     __tablename__ = "enhedssammenkobling"
 
 
@@ -345,11 +345,11 @@ class BaseDARAdresse(Compare):
     betegnelse = Column(String(250))
 
 
-class WDARAdresse(Base, BaseDARAdresse):
+class WDARAdresse(Base, BaseDARAdresse):  # type: ignore
     __tablename__ = "wdar_adresser"
 
 
-class DARAdresse(Base, BaseDARAdresse):
+class DARAdresse(Base, BaseDARAdresse):  # type: ignore
     __tablename__ = "dar_adresser"
 
 

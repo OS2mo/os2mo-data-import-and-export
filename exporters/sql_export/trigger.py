@@ -27,7 +27,7 @@ def refresh_db(
 ) -> None:
     try:
         logger.info("*SQL export started*")
-        database_settings = DatabaseSettings()
+        database_settings = DatabaseSettings()  # type: ignore
 
         sql_export = SqlExport(
             force_sqlite=False,
@@ -60,7 +60,7 @@ def trigger(
         lock = lock_actual
     acquired = lock.acquire(blocking=False)
     if not acquired:
-        settings = DatabaseSettings()
+        settings = DatabaseSettings()  # type: ignore
         if settings.log_overlapping_aak:
             sql_export = SqlExport(
                 force_sqlite=False,

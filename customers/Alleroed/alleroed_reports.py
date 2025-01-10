@@ -110,9 +110,9 @@ def setup_alleroed_gql_client(
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )
@@ -379,7 +379,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     with session:
         result = tuple(session.execute(stmt))
 
-    phonebook = dict()
+    phonebook = dict()  # type: ignore
     for user_uuid, name, unit, prof, addr_type, addr_value in result:
         key = (user_uuid, name, unit, prof)
         phone_numbers = phonebook.get(
@@ -480,8 +480,8 @@ if __name__ == "__main__":
         "Medarbejdertelefonbog.xlsx",
         run_report,
         list_employees_for_phonebook,
-        "Medarbejdertelefonbog",
-        "Allerød",
+        "Medarbejdertelefonbog",  # type: ignore
+        "Allerød",  # type: ignore
     )
 
     run_report_and_upload(
@@ -489,8 +489,8 @@ if __name__ == "__main__":
         "Ansatte.xlsx",
         run_report,
         list_alleroed_employees,
-        "Ansatte",
-        "Allerød",
+        "Ansatte",  # type: ignore
+        "Allerød",  # type: ignore
     )
 
     gql_client = setup_alleroed_gql_client(settings=settings)

@@ -29,7 +29,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 sys.path[0:0] = [
     os.environ["OS2MO_SRC_DIR"] + "/backend/tests",
-    pathlib.Path(__file__).parent / "..",
+    pathlib.Path(__file__).parent / "..",  # type: ignore
 ]
 import util  # noqa
 

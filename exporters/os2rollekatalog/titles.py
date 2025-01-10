@@ -91,7 +91,7 @@ def export_titles(
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
-        auth_server=auth_server,
+        auth_server=auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:

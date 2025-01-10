@@ -13,14 +13,14 @@ from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
     get_filtered_engagements_for_ended_today,
 )
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    get_filtered_engagements_for_started_today,
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (  # type: ignore
+    get_filtered_engagements_for_started_today,  # type: ignore
 )
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
     gql_query_persons_details_to_display,
 )
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    gql_query_validity_field,
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (  # type: ignore
+    gql_query_validity_field,  # type: ignore
 )
 
 
@@ -122,10 +122,10 @@ def test_queries_verify_validities_and_engagements_query_string(
     assert gql_query_validity_field() is None
 
     assert query_started_engagements == gql_query_persons_details_to_display(
-        started_engagement=True
+        started_engagement=True  # type: ignore
     )
     assert query_ended_engagements == gql_query_persons_details_to_display(
-        ended_engagement=True
+        ended_engagement=True  # type: ignore
     )
 
     # The call returns None, when no started or ended is provided.
@@ -1095,13 +1095,15 @@ def test_csv_writing_of_all_engagement_details(
 
     assert (
         convert_person_and_engagement_data_to_csv(
-            engagement_started_details_to_write_from, started=True
+            engagement_started_details_to_write_from,
+            started=True,  # type: ignore
         )
         == expected_csv_output_for_started
     )
     assert (
         convert_person_and_engagement_data_to_csv(
-            engagement_ended_details_to_write_from, ended=True
+            engagement_ended_details_to_write_from,
+            ended=True,  # type: ignore
         )
         == expected_csv_output_for_ended
     )

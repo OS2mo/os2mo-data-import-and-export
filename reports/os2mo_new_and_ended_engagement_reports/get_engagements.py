@@ -68,7 +68,7 @@ def get_gql_query_validity_to(
 
 def gql_query_persons_details_to_display(
     show_new_persons: bool = False, show_ended_engagements: bool = False
-) -> str:
+) -> str:  # type: ignore
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if show_new_persons:
         return """
@@ -143,6 +143,8 @@ def gql_query_persons_details_to_display(
             }
         }
         """
+
+    raise AssertionError()
 
 
 def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[UUID]:
@@ -359,6 +361,7 @@ def convert_person_and_engagement_data_to_csv(
             if len(data["org_unit"][0]["ancestors"]) >= 1:
                 return data["org_unit"][0]["ancestors"][-1]["name"]
             return None
+        return None
 
     out = []
     if persons_data_to_csv:
@@ -477,7 +480,7 @@ def main() -> None:
         print("No files found from yesterday")
 
     # Get uuids on all persons.
-    list_of_all_persons = gql_get_all_persons_uuids(gql_session)
+    list_of_all_persons = gql_get_all_persons_uuids(gql_session)  # type: ignore
 
     # Read the report written today with the uuids from all persons.
     todays_report = list_of_all_persons
@@ -489,7 +492,7 @@ def main() -> None:
     )
 
     # Pulling address types so email uuids can be found.
-    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)
+    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)  # type: ignore
 
     # Finding email uuids.
     list_of_email_uuids = get_email_address_type_uuid_from_gql(
@@ -497,7 +500,7 @@ def main() -> None:
     )
 
     # Getting engagements that have an end-date with validity field "to" engagements.
-    payload_of_ended_engagements_objects = get_gql_query_validity_to(gql_session)
+    payload_of_ended_engagements_objects = get_gql_query_validity_to(gql_session)  # type: ignore
 
     # Finding uuids of persons that have ended engagements.
     list_of_person_uuids_ended_engagements = get_filtered_engagements_for_ended_today(
@@ -506,7 +509,7 @@ def main() -> None:
 
     # Finding relevant details on new persons from GraphQL calls.
     details_of_new_persons_established_in_mo = persons_details_from_engagement(
-        gql_session,
+        gql_session,  # type: ignore
         set_of_newly_established_uuids_in_mo,
         list_of_email_uuids,
         person_details=True,
@@ -516,7 +519,7 @@ def main() -> None:
 
     # Finding relevant details on ended engagements from GraphQL calls.
     details_of_ended_engagements = persons_details_from_engagement(
-        gql_session,
+        gql_session,  # type: ignore
         list_of_person_uuids_ended_engagements,
         list_of_email_uuids,
         ended_engagement_details=True,

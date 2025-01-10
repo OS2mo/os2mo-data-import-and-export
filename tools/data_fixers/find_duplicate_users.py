@@ -14,7 +14,7 @@ def check_duplicate_cpr(mora_base: str) -> list:
     cprs = dict(map(itemgetter("uuid", "cpr_no"), users))
     duplicates = [i for i, cnt in Counter(cprs.values()).items() if cnt > 1]
     duplicate_uuids = dict(filter(lambda x: x[1] in duplicates, cprs.items()))
-    return duplicate_uuids
+    return duplicate_uuids  # type: ignore
 
 
 @click.command()

@@ -74,7 +74,7 @@ class DatabaseSettings(JobSettings):
     mora_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000")
     mox_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000/lora")
 
-    actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)
+    actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)  # type: ignore
     historic_state: DatabaseConfiguration | None
     log_overlapping_aak: bool = False
     use_new_cache: bool = False

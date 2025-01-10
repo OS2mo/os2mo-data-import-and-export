@@ -139,9 +139,9 @@ class GQLLoraCache:
         client = GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
+            client_secret=self.settings.client_secret,  # type: ignore
             auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
+            auth_server=self.settings.auth_server,  # type: ignore
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
         )
@@ -179,9 +179,9 @@ class GQLLoraCache:
                         ),
                         get_execution_result=True,
                     )
-            for obj in result.data["page"]["objects"]:
+            for obj in result.data["page"]["objects"]:  # type: ignore
                 yield obj
-            next_cursor = result.data["page"]["page_info"]["next_cursor"]
+            next_cursor = result.data["page"]["page_info"]["next_cursor"]  # type: ignore
             if next_cursor is None:
                 break
 

@@ -6,7 +6,7 @@ from typing import List
 from typing import Match
 from typing import Optional
 
-from jinja2 import contextfilter
+from jinja2 import contextfilter  # type: ignore
 from more_itertools import first
 from unidecode import unidecode
 

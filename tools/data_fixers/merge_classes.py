@@ -67,16 +67,18 @@ def merge_classes(
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
-        auth_server=auth_server,
+        auth_server=auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:
-        keep_uuid = get_class_uuid(session=session, facet_user_key=facet, user_key=keep)
+        keep_uuid = get_class_uuid(session=session, facet_user_key=facet, user_key=keep)  # type: ignore
         if keep_uuid is None:
             click.echo(f"No class with user-key {keep} found in facet {facet}")
             return
         remove_uuid = get_class_uuid(
-            session=session, facet_user_key=facet, user_key=remove
+            session=session,
+            facet_user_key=facet,
+            user_key=remove,  # type: ignore
         )
         if remove_uuid is None:
             click.echo(f"No class with user-key {keep} found in facet {facet}")

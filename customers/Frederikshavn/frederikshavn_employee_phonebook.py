@@ -55,7 +55,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel.in_(settings.sql_phone_number_field_list),
+            Adresse.adressetype_titel.in_(settings.sql_phone_number_field_list),  # type: ignore
             Adresse.synlighed_scope != settings.sql_visibility_scope_field,
             Adresse.synlighed_titel != settings.sql_visibility_title_field,
         )
@@ -111,7 +111,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
 if __name__ == "__main__":
     logger.info("Finding settings")
-    settings = EmployeePhoneBookSettings()
+    settings = EmployeePhoneBookSettings()  # type: ignore
     settings.start_logging_based_on_settings()
     logger.info("Settings in place. Initiating report.")
 

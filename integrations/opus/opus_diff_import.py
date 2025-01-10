@@ -1002,8 +1002,8 @@ def start_opus_diff(ad_reader=None, dry_run: bool = False):
     while xml_date:
         import_one(
             ad_reader,
-            xml_date,
-            latest_date,
+            xml_date,  # type: ignore
+            latest_date,  # type: ignore
             dumps,
             filter_ids,
             opus_id=None,

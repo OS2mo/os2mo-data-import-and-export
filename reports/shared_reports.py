@@ -238,26 +238,26 @@ def main() -> None:
     sd_reports = CustomerReports(host, pay_org)
 
     with file_uploader(settings, "Alle Stillinger OS2mo.csv") as filename:
-        report_to_csv(reports.employees(), filename)
+        report_to_csv(reports.employees(), filename)  # type: ignore
 
     with file_uploader(settings, "Alle Lederfunktioner OS2mo.csv") as filename:
-        report_to_csv(reports.managers(), filename)
+        report_to_csv(reports.managers(), filename)  # type: ignore
 
     with file_uploader(
         settings, "Organisationsstruktur og Stillinger OS2mo.csv"
     ) as filename:
         report_to_csv(
             reports.organisation_employees(),
-            filename,
+            filename,  # type: ignore
         )
 
     with file_uploader(settings, "Organisationsenheder OS2mo.csv") as filename:
-        report_to_csv(reports.organisation_units(), filename)
+        report_to_csv(reports.organisation_units(), filename)  # type: ignore
 
     with file_uploader(settings, "SDLønorganisation og P-Nummer OS2mo.csv") as filename:
         report_to_csv(
             sd_reports.organisation_overview(),
-            filename,
+            filename,  # type: ignore
         )
 
 

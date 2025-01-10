@@ -69,11 +69,11 @@ class MetaCLI(click.MultiCommand):
         # TODO: Remove this.
         self._add_to_sys_path()
 
-    def list_commands(self, ctx: click.Context) -> List[click.Command]:
+    def list_commands(self, ctx: click.Context) -> List[click.Command]:  # type: ignore
         commands = self._build_command_map(ctx)
         return sorted(commands)
 
-    def get_command(self, ctx: click.Context, name: str) -> click.Command:
+    def get_command(self, ctx: click.Context, name: str) -> click.Command:  # type: ignore
         commands = self._build_command_map(ctx)
         if name in commands:
             return commands[name]
@@ -81,9 +81,9 @@ class MetaCLI(click.MultiCommand):
 
     def _build_command_map(self, ctx: click.Context):
         if hasattr(ctx, "_command_map"):
-            return ctx._command_map
+            return ctx._command_map  # type: ignore
         else:
-            ctx._command_map = {}
+            ctx._command_map = {}  # type: ignore
 
         def gen_root_and_file(it):
             for root, files in it:
@@ -115,21 +115,21 @@ class MetaCLI(click.MultiCommand):
 
         # At this point, we only have Python files outside of the virtualenv
         modules = map(apply(self._get_module_path), root_and_file)
-        modules = filter(None.__ne__, modules)
+        modules = filter(None.__ne__, modules)  # type: ignore
 
         # Add one or more Click commands from each matching Python module to
         # the command map.
-        for modname, modpath in modules:
-            self._add_module_commands(ctx._command_map, modname, modpath)
+        for modname, modpath in modules:  # type: ignore
+            self._add_module_commands(ctx._command_map, modname, modpath)  # type: ignore
 
-        return ctx._command_map
+        return ctx._command_map  # type: ignore
 
     def _get_module_path(self, root: str, name: str) -> Optional[Tuple[str, str]]:
         path = os.path.join(root, name)
         with open(path) as contents:
             # Skip any file not matching 'click.command' and 'cli.command'.
             if ".command" not in contents.read():
-                return
+                return None
             # Otherwise, turn filesystem path into a Python module path.
             # E.g. '/path/project/foo/bar.py' is turned into 'foo.bar'.
             pypath = root.replace(ROOT_FOLDER + "/", "")

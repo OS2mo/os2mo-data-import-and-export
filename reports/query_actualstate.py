@@ -148,7 +148,7 @@ def fetch_trade_union(association_uuids: List[str]) -> Dict[str, str]:
 
     """
 
-    settings = Settings()
+    settings = Settings()  # type: ignore
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {
@@ -174,7 +174,7 @@ def fetch_trade_union(association_uuids: List[str]) -> Dict[str, str]:
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:

@@ -49,7 +49,7 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
         return ExportUser(
             cpr=cpr,
             mo_uuid=employee["uuid"],
-        )
+        )  # type: ignore
 
     print("Fetching all users from MO...")
     employees = helper.read_all_users()

@@ -29,16 +29,16 @@ if __name__ == "__main__":
         "MED_medlemmer.xlsx",
         run_report,
         list_MED_members,
-        "MED",
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
+        "MED",  # type: ignore
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
     )
     run_report_and_upload(
         settings,
         "Ansatte.xlsx",
         run_report,
         list_employees,
-        "Ansatte",
-        "Frederikshavn Kommune",
+        "Ansatte",  # type: ignore
+        "Frederikshavn Kommune",  # type: ignore
     )
 
     logger.debug("Employee report done.")
