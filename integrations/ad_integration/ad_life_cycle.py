@@ -14,14 +14,14 @@ from typing import Tuple
 
 import click
 import sentry_sdk
-from ra_utils.apply import apply
-from ra_utils.catchtime import catchtime
-from ra_utils.jinja_filter import create_filters
-from ra_utils.lazy_dict import LazyDict
-from ra_utils.lazy_dict import LazyEval
-from ra_utils.lazy_dict import LazyEvalBare
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.apply import apply
+from fastramqpi.ra_utils.catchtime import catchtime
+from fastramqpi.ra_utils.jinja_filter import create_filters
+from fastramqpi.ra_utils.lazy_dict import LazyDict
+from fastramqpi.ra_utils.lazy_dict import LazyEval
+from fastramqpi.ra_utils.lazy_dict import LazyEvalBare
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException

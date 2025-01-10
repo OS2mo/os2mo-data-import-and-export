@@ -14,7 +14,7 @@ import json
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.utils.priority_by_class import choose_public_address
-from raclients.upload import file_uploader
+from fastramqpi.raclients.upload import file_uploader
 
 
 """

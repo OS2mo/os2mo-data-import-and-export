@@ -10,8 +10,8 @@ from datetime import date
 
 import pandas as pd
 from anytree import PreOrderIter
-from ra_utils.load_settings import load_settings
-from raclients.upload import file_uploader
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import file_uploader
 
 from reports.shared_reports import CustomerReports
 

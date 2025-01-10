@@ -9,7 +9,7 @@ import click
 import fs
 from google.cloud import storage
 from more_itertools import one
-from ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.load_settings import load_settings
 from retrying import retry
 
 

@@ -4,7 +4,7 @@ from typing import Any
 
 import click
 from gql import gql
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 from more_itertools import one
 
 

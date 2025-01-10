@@ -1,8 +1,8 @@
 import logging
 import sys
 
-from ra_utils.load_settings import load_settings
-from raclients.upload import run_report_and_upload
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import run_report_and_upload
 
 from reports.query_actualstate import list_employees, list_MED_members, run_report
 

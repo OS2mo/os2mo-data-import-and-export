@@ -6,7 +6,7 @@ import click
 import pydantic
 import requests
 from gql import gql
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 class Title(pydantic.BaseModel):

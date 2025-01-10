@@ -20,9 +20,9 @@ from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
-from raclients.upload import file_uploader
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.upload import file_uploader
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 

@@ -2,7 +2,7 @@ from json import dumps
 
 import click
 from gql import gql
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 from tools.log import LogLevel
 from tools.log import setup_logging

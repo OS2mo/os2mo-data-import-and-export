@@ -1,4 +1,4 @@
-from ra_utils.generate_uuid import uuid_generator
+from fastramqpi.ra_utils.generate_uuid import uuid_generator
 
 uuid_gen = uuid_generator("aarhus-los")
 

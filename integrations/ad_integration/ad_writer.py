@@ -24,10 +24,10 @@ from jinja2 import Undefined
 from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.lazy_dict import LazyDict
-from ra_utils.lazy_dict import LazyEval
-from ra_utils.lazy_dict import LazyEvalDerived
-from raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.lazy_dict import LazyDict
+from fastramqpi.ra_utils.lazy_dict import LazyEval
+from fastramqpi.ra_utils.lazy_dict import LazyEvalDerived
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 from . import ad_templates
 from .ad_common import AD

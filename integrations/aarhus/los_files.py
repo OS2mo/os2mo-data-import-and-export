@@ -24,7 +24,7 @@ from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
 from pydantic import BaseModel
 from pydantic import parse_obj_as
-from ra_utils.apply import apply
+from fastramqpi.ra_utils.apply import apply
 
 T = TypeVar("T")
 

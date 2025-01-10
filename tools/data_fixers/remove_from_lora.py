@@ -1,6 +1,6 @@
 import click
 import httpx
-from ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.load_settings import load_setting
 
 
 def delete_object_and_orgfuncs(

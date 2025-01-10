@@ -3,7 +3,7 @@ import shutil
 
 import pandas as pd
 from more_itertools import prepend
-from raclients.upload import file_uploader
+from fastramqpi.raclients.upload import file_uploader
 from sqlalchemy import and_, or_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings

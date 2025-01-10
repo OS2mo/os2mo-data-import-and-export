@@ -7,7 +7,7 @@ import logging
 import sys
 
 import click
-from ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 
 from .sql_export import SqlExport

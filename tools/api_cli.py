@@ -2,7 +2,7 @@ import json
 
 import click
 import requests
-from ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.headers import TokenSettings
 
 
 @click.command()

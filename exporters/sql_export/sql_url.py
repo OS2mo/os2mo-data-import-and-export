@@ -7,7 +7,7 @@ from typing import Dict
 from typing import Optional
 from typing import Tuple
 
-from ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.load_settings import load_settings
 
 
 logger = logging.getLogger("SqlExport")

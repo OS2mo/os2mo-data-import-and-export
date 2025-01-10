@@ -10,7 +10,7 @@ from aiohttp import ClientSession
 from aiohttp import TCPConnector
 from more_itertools import chunked
 from more_itertools import unzip
-from ra_utils.async_to_sync import async_to_sync
+from fastramqpi.ra_utils.async_to_sync import async_to_sync
 
 
 def ensure_session(func):

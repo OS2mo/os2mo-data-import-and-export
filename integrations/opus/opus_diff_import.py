@@ -14,9 +14,9 @@ from gql import gql
 from more_itertools import one
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
-from raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.raclients.graph.client import GraphQLClient
 from requests import Session
 
 import constants

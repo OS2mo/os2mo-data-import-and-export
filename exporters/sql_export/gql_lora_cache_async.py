@@ -11,8 +11,8 @@ from uuid import UUID
 from gql import gql
 from gql.client import AsyncClientSession
 from more_itertools import first
-from ra_utils.async_to_sync import async_to_sync
-from raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.async_to_sync import async_to_sync
+from fastramqpi.raclients.graph.client import GraphQLClient
 from tenacity import Retrying
 from tenacity import stop_after_delay
 from tenacity import wait_random_exponential

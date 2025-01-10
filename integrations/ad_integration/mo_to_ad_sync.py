@@ -7,8 +7,8 @@ from typing import Tuple
 
 import click
 import sentry_sdk
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from .ad_exceptions import CprNotFoundInADException
 from .ad_exceptions import CprNotNotUnique

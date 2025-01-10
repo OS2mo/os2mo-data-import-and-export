@@ -23,9 +23,9 @@ from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first, one, prepend
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
-from raclients.upload import file_uploader, run_report_and_upload
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.upload import file_uploader, run_report_and_upload
 from sqlalchemy import or_, select
 
 from exporters import common_queries as cq

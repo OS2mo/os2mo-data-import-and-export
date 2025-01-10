@@ -7,7 +7,7 @@ from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
 from more_itertools import pairwise
 from more_itertools import prepend
-from ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.load_settings import load_settings
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers

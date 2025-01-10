@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from os2mo_dar_client import DARClient
+from fastramqpi.os2mo_dar_client import DARClient
 
 
 @lru_cache(maxsize=None)

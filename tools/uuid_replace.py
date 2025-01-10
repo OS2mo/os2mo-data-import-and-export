@@ -5,7 +5,7 @@ from uuid import UUID
 
 import click
 from more_itertools import flatten
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 
 # TODO: Consider moving this to exporters/utils/uuid_test.py

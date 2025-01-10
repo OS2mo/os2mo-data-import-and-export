@@ -13,10 +13,10 @@ import sentry_sdk
 from more_itertools import only
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.apply import apply
-from ra_utils.jinja_filter import create_filters
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.apply import apply
+from fastramqpi.ra_utils.jinja_filter import create_filters
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader

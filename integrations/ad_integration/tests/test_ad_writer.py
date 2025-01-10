@@ -15,7 +15,7 @@ from more_itertools import first_true
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
-from ra_utils.lazy_dict import LazyDict
+from fastramqpi.ra_utils.lazy_dict import LazyDict
 
 from ..ad_exceptions import CommandFailure
 from ..ad_exceptions import CprNotFoundInADException

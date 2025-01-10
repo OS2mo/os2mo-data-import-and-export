@@ -17,10 +17,10 @@ from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
 from mox_helpers.mox_util import ensure_class_value_helper
-from ra_utils.load_settings import load_setting
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
-from ra_utils.transpose_dict import transpose_dict
+from fastramqpi.ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.transpose_dict import transpose_dict
 
 jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"

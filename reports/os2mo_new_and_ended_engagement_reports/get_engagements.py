@@ -13,7 +13,7 @@ from gql.client import SyncClientSession
 
 import pandas as pd
 
-from raclients.upload import file_uploader
+from fastramqpi.raclients.upload import file_uploader
 
 from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 from reports.os2mo_new_and_ended_engagement_reports.config import EngagementSettings

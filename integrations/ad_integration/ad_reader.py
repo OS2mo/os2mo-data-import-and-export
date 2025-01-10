@@ -3,7 +3,7 @@ import random
 import time
 from operator import itemgetter
 
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from .ad_common import AD
 

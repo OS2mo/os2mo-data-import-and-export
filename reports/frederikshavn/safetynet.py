@@ -22,8 +22,8 @@ from tools.log import setup_logging
 from paramiko import AutoAddPolicy
 from paramiko import SFTPClient
 from paramiko import SSHClient
-from raclients.graph.client import GraphQLClient
-from ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.job_settings import JobSettings
 
 from reports.graphql import get_mo_client
 

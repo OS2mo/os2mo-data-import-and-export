@@ -5,8 +5,8 @@ import logging
 import payloads
 import requests
 import xmltodict
-from ra_utils.headers import TokenSettings
-from ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.job_settings import JobSettings
 
 
 logger = logging.getLogger(__name__)

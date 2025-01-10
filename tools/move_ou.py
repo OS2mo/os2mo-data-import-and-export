@@ -5,7 +5,7 @@ import click
 from gql import gql
 import requests
 
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 def _move(

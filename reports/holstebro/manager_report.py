@@ -10,9 +10,9 @@ from pydantic.main import BaseModel
 from structlog import get_logger
 import xlsxwriter.worksheet
 
-from raclients.upload import file_uploader
-from raclients.graph.client import GraphQLClient
-from ra_utils.job_settings import JobSettings, LogLevel
+from fastramqpi.raclients.upload import file_uploader
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.job_settings import JobSettings, LogLevel
 
 from reports.graphql import get_mo_client
 from reports.query_actualstate import XLSXExporter

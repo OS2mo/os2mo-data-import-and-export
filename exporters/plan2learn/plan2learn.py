@@ -19,8 +19,8 @@ from anytree import PreOrderIter
 from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
-from raclients.upload import file_uploader
-from ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import file_uploader
+from fastramqpi.ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address

@@ -6,9 +6,9 @@ from enum import Enum
 import requests
 from gql import gql
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.headers import TokenSettings
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 

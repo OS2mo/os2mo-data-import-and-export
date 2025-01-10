@@ -10,10 +10,10 @@ import time
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
-from raclients.upload import file_uploader
-from ra_utils.load_settings import load_settings
-from ra_utils.deprecation import deprecated
-from raclients.upload import file_uploader
+from fastramqpi.raclients.upload import file_uploader
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.deprecation import deprecated
+from fastramqpi.raclients.upload import file_uploader
 
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 import exporters.sql_export.lora_cache

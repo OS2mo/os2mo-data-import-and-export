@@ -6,7 +6,7 @@ from textwrap import dedent
 
 import click
 from gql import gql
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 class JSONParamType(click.ParamType):

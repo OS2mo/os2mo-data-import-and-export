@@ -12,10 +12,10 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from more_itertools import ichunked
 from more_itertools import one
-from ra_utils.ensure_single_run import ensure_single_run
-from ra_utils.job_settings import JobSettings
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.ensure_single_run import ensure_single_run
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from sqlalchemy import create_engine
 from sqlalchemy import select
 from sqlalchemy.engine import Engine

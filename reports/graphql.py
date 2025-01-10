@@ -1,4 +1,4 @@
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 def get_mo_client(

@@ -36,11 +36,11 @@ from fastapi.encoders import jsonable_encoder
 from gql import gql
 from more_itertools import one
 from more_itertools import partition
-from ra_utils.job_settings import JobSettings
-from ra_utils.load_settings import load_setting
-from ra_utils.tqdm_wrapper import tqdm
-from raclients.graph.client import GraphQLClient
-from raclients.graph.client import SyncClientSession
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import SyncClientSession
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay

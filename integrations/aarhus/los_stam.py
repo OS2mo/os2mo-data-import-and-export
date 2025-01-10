@@ -21,7 +21,7 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
 from os2mo_data_import.mox_data_types import Facet
 from pydantic import Field
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 

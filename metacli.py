@@ -42,7 +42,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import click
 
-from ra_utils.apply import apply
+from fastramqpi.ra_utils.apply import apply
 
 
 ROOT_FOLDER = os.path.abspath(os.path.dirname(__file__))

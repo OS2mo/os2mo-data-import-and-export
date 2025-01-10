@@ -15,8 +15,8 @@ from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from more_itertools import one
 from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 import constants
 from . import payloads

@@ -26,7 +26,7 @@ import click
 import requests
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.load_settings import load_setting
 
 from .config import RollekatalogSettings
 from .titles import export_titles

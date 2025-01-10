@@ -2,8 +2,8 @@ import click
 import httpx
 from gql import gql
 from more_itertools import only
-from raclients.graph.client import GraphQLClient
-from raclients.graph.client import SyncClientSession
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import SyncClientSession
 
 from tools.data_fixers.class_tools import delete_class
 from tools.data_fixers.class_tools import move_class_helper

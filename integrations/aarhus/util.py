@@ -21,8 +21,8 @@ from more_itertools import chunked
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.headers import TokenSettings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_attempt

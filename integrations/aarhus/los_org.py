@@ -31,7 +31,7 @@ from more_itertools import split_when
 from more_itertools import unzip
 from pydantic import Field
 from pydantic import validator
-from ra_utils.generate_uuid import uuid_generator
+from fastramqpi.ra_utils.generate_uuid import uuid_generator
 
 logger = logging.getLogger(__name__)
 

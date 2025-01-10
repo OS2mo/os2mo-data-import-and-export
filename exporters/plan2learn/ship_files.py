@@ -8,8 +8,8 @@ import more_itertools
 from ftplib import FTP_TLS
 from gql import gql
 
-from raclients.graph.client import GraphQLClient
-from ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.load_settings import load_settings
 
 
 def start_ftpes_connection(timeout=30):

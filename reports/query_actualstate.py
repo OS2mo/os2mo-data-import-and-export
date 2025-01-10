@@ -16,7 +16,7 @@ import xlsxwriter.worksheet
 from gql import gql
 from more_itertools import prepend
 from pydantic import BaseSettings
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 

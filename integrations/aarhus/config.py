@@ -5,9 +5,9 @@ from uuid import UUID
 
 import uuids
 from pydantic import BaseSettings
-from ra_utils.job_settings import JobSettings
-from ra_utils.load_settings import load_settings
-from raclients.graph.client import GraphQLClient
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore
