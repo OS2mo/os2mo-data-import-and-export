@@ -4,13 +4,9 @@ from uuid import uuid4
 
 import los_files
 import los_leder
-from .helpers import mock_config
-from unittest import mock
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
-from los_files import FileSet
-
 
 from .helpers import HelperMixin
 from .strategies import csv_buf_from_model
@@ -61,7 +57,9 @@ class TestManagerImporter(HelperMixin):
 
     @given(st.builds(los_leder.ManagerCreate), st.datetimes())
     def test_handle_create(
-        self, instance: los_leder.ManagerCreate, filedate: datetime  # type: ignore
+        self,
+        instance: los_leder.ManagerCreate,
+        filedate: datetime,  # type: ignore
     ):
         importer, mock_csv, mock_session = self._setup(instance)
         with mock_csv, mock_session:
@@ -80,7 +78,9 @@ class TestManagerImporter(HelperMixin):
 
     @given(st.builds(los_leder.ManagerEdit), st.datetimes())
     def test_handle_edit_creates_new_detail(
-        self, instance: los_leder.ManagerEdit, filedate: datetime  # type: ignore
+        self,
+        instance: los_leder.ManagerEdit,
+        filedate: datetime,  # type: ignore
     ):
         importer, mock_csv, mock_session = self._setup(instance)
         with mock_csv, mock_session:
@@ -105,7 +105,9 @@ class TestManagerImporter(HelperMixin):
 
     @given(st.builds(los_leder.ManagerEdit), st.datetimes())
     def test_handle_edit_updates_existing_detail(
-        self, instance: los_leder.ManagerEdit, filedate: datetime  # type: ignore
+        self,
+        instance: los_leder.ManagerEdit,
+        filedate: datetime,  # type: ignore
     ):
         importer, mock_csv, mock_session = self._setup(instance)
         with mock_csv, mock_session:
@@ -147,7 +149,9 @@ class TestManagerImporter(HelperMixin):
 
     @given(st.builds(los_leder.ManagerTerminate), st.datetimes())
     def test_handle_terminate(
-        self, instance: los_leder.ManagerTerminate, filedate: datetime  # type: ignore
+        self,
+        instance: los_leder.ManagerTerminate,
+        filedate: datetime,  # type: ignore
     ):
         importer, mock_csv, mock_session = self._setup(instance)
         with mock_csv, mock_session:

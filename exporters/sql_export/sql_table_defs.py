@@ -3,8 +3,8 @@ from sqlalchemy import Column
 from sqlalchemy import DateTime
 from sqlalchemy import Integer
 from sqlalchemy import String
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import DeclarativeMeta
+from sqlalchemy.ext.declarative import declarative_base
 
 Base: DeclarativeMeta = declarative_base()
 
@@ -77,7 +77,6 @@ class Bruger(Base, BaseBruger):
 
 
 class BaseEnhed(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     navn = Column(String(250), nullable=False)
@@ -107,7 +106,6 @@ class Enhed(Base, BaseEnhed):
 
 
 class BaseAdresse(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bvn = Column(String(250))
@@ -135,7 +133,6 @@ class Adresse(Base, BaseAdresse):
 
 
 class BaseEngagement(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
@@ -172,7 +169,6 @@ class Engagement(Base, BaseEngagement):
 
 
 class BaseTilknytning(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bvn = Column(String(250), nullable=False)
@@ -218,7 +214,6 @@ class Orlov(Base, BaseOrlov):
 
 
 class BaseItSystem(Compare):
-
     uuid = Column(String(36), nullable=False, primary_key=True)
     navn = Column(String(250), nullable=False)
 
@@ -232,7 +227,6 @@ class ItSystem(Base, BaseItSystem):
 
 
 class BaseItForbindelse(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     it_system_uuid = Column(String(36))  # , ForeignKey('it_systemer.uuid'))
@@ -274,7 +268,6 @@ class Leder(Base, BaseLeder):
 
 
 class BaseLederAnsvar(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String(36))  # , ForeignKey('ledere.uuid'))
     lederansvar_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
@@ -292,7 +285,6 @@ class LederAnsvar(Base, BaseLederAnsvar):
 
 
 class BaseKLE(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
@@ -322,7 +314,6 @@ class Kvittering(Base):
 
 
 class BaseEnhedssammenkobling(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     enhed1_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
@@ -340,7 +331,6 @@ class Enhedssammenkobling(Base, BaseEnhedssammenkobling):
 
 
 class BaseDARAdresse(Compare):
-
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     vejkode = Column(String(8))

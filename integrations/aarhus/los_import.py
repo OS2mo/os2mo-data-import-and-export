@@ -13,7 +13,6 @@ from los_org import OrgUnitImporter
 from los_pers import PersonImporter
 from los_stam import StamImporter
 
-
 logger = logging.getLogger(__name__)
 
 

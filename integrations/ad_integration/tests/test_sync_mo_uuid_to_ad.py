@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from logging import ERROR
-from unittest import mock
 from unittest import TestCase
+from unittest import mock
 
 import pytest
 from parameterized import parameterized
@@ -11,10 +11,10 @@ from .. import sync_mo_uuid_to_ad
 from ..ad_exceptions import ImproperlyConfigured
 from .mocks import AD_UUID_FIELD
 from .mocks import MO_UUID
+from .mocks import UNKNOWN_CPR_NO
 from .mocks import MockADParameterReader
 from .mocks import MockMoraHelper
 from .mocks import MockUnknownCPRADParameterReader
-from .mocks import UNKNOWN_CPR_NO
 
 
 class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):

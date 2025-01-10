@@ -20,6 +20,7 @@ In the second mode, the engagement end dates are split into two:
       present.
     - the "future" end date is the first end date occurring in the future.
 """
+
 import datetime
 import logging
 from dataclasses import dataclass
@@ -33,14 +34,14 @@ import httpx
 import sentry_sdk
 from dateutil import tz
 from fastapi.encoders import jsonable_encoder
-from gql import gql
-from more_itertools import one
-from more_itertools import partition
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.ra_utils.load_settings import load_setting
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from fastramqpi.raclients.graph.client import GraphQLClient
 from fastramqpi.raclients.graph.client import SyncClientSession
+from gql import gql
+from more_itertools import one
+from more_itertools import partition
 from tenacity import retry
 from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
@@ -49,7 +50,6 @@ from tenacity import wait_fixed
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
 from integrations.ad_integration.ad_template_engine import render_update_by_mo_uuid_cmd
-
 
 logger = logging.getLogger(__name__)
 

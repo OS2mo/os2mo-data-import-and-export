@@ -6,11 +6,11 @@ from typing import List
 
 import config
 import uuids
-from initial_classes import Class
 from initial_classes import CLASSES
+from initial_classes import Class
 from mox_helpers import payloads as mox_payloads
-from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
+from mox_helpers.mox_helper import create_mox_helper
 from os2mo_data_import import ImportHelper  # type: ignore
 from os2mo_data_import.mox_data_types import Itsystem
 

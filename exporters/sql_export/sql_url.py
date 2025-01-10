@@ -9,7 +9,6 @@ from typing import Tuple
 
 from fastramqpi.ra_utils.load_settings import load_settings
 
-
 logger = logging.getLogger("SqlExport")
 
 

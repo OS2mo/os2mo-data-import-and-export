@@ -9,11 +9,10 @@ from typing import Optional
 from uuid import UUID
 
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
-from pydantic import BaseModel
 from fastramqpi.ra_utils.load_settings import load_setting
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
-
+from os2mo_helpers.mora_helpers import MoraHelper
+from pydantic import BaseModel
 
 logger = logging.getLogger("cpr_uuid")
 

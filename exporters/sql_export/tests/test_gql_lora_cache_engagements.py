@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
-from graphql import ExecutionResult
 from fastramqpi.ra_utils.async_to_sync import async_to_sync
+from graphql import ExecutionResult
 
 from ..gql_lora_cache_async import GQLLoraCache
 

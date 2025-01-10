@@ -38,16 +38,19 @@ import logging
 import os
 import sys
 from operator import itemgetter
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import click
-
 from fastramqpi.ra_utils.apply import apply
-
 
 ROOT_FOLDER = os.path.abspath(os.path.dirname(__file__))
 
 logger = logging.getLogger(__name__)
+
 
 class MetaCLI(click.MultiCommand):
     def __init__(self, *args, **kwargs):
@@ -74,10 +77,10 @@ class MetaCLI(click.MultiCommand):
         commands = self._build_command_map(ctx)
         if name in commands:
             return commands[name]
-        raise click.ClickException('unknown subcommand %r' % name)
+        raise click.ClickException("unknown subcommand %r" % name)
 
     def _build_command_map(self, ctx: click.Context):
-        if hasattr(ctx, '_command_map'):
+        if hasattr(ctx, "_command_map"):
             return ctx._command_map
         else:
             ctx._command_map = {}
@@ -89,15 +92,15 @@ class MetaCLI(click.MultiCommand):
 
         @apply
         def skip_virtualenv(root, filename):
-            return 'venv' not in root
+            return "venv" not in root
 
         @apply
         def skip_ourselves(root, filename):
-            return 'metacli' not in filename
+            return "metacli" not in filename
 
         @apply
         def skip_non_python(root, filename):
-            return filename.endswith('.py')
+            return filename.endswith(".py")
 
         # Generator of tuples of root and list of filenames
         root_and_files = map(itemgetter(0, 2), os.walk(ROOT_FOLDER))
@@ -125,14 +128,14 @@ class MetaCLI(click.MultiCommand):
         path = os.path.join(root, name)
         with open(path) as contents:
             # Skip any file not matching 'click.command' and 'cli.command'.
-            if '.command' not in contents.read():
+            if ".command" not in contents.read():
                 return
             # Otherwise, turn filesystem path into a Python module path.
             # E.g. '/path/project/foo/bar.py' is turned into 'foo.bar'.
-            pypath = root.replace(ROOT_FOLDER + '/', '')
-            pypath = pypath.replace('/', '.')
-            modname = name.replace('.py', '')
-            modpath = f'{pypath}.{modname}'
+            pypath = root.replace(ROOT_FOLDER + "/", "")
+            pypath = pypath.replace("/", ".")
+            modname = name.replace(".py", "")
+            modpath = f"{pypath}.{modname}"
             return modname, modpath
 
     def _add_module_commands(
@@ -149,7 +152,7 @@ class MetaCLI(click.MultiCommand):
             if modname in command_map:
                 # The command name is already in use.
                 # Construct a new name by appending `.1`, etc.
-                cmdname = '%s.%d' % (modname, self._counter)
+                cmdname = "%s.%d" % (modname, self._counter)
                 self._counter += 1
             cmd = cmds[0][1]
             cmd.name = cmdname  # set name for autocomplete
@@ -159,22 +162,21 @@ class MetaCLI(click.MultiCommand):
             # Command 'fixup_all' in 'sd_fixup' module is made available as
             # subcommand 'sd_fixup.fixup_all', etc.
             for funcname, cmd in cmds:
-                cmdname = '%s.%s' % (modname, funcname)
+                cmdname = "%s.%s" % (modname, funcname)
                 cmd.name = cmdname  # set name for autocomplete
                 command_map[cmdname] = cmd
 
     def _get_module_commands(self, modpath: str) -> List[Tuple[str, click.Command]]:
         @apply
         def is_click_command(name: str, member: Callable) -> bool:
-            return (
-                isinstance(member, click.Command)
-                and not isinstance(member, click.Group)
+            return isinstance(member, click.Command) and not isinstance(
+                member, click.Group
             )
 
         try:
             module = importlib.import_module(modpath)
         except Exception as e:
-            logger.error('failed to import %s (exception: %r)', modpath, e)
+            logger.error("failed to import %s (exception: %r)", modpath, e)
             return []
         else:
             return list(filter(is_click_command, inspect.getmembers(module)))
@@ -185,9 +187,9 @@ class MetaCLI(click.MultiCommand):
         # PYTHONPATH.
         additional_paths = [
             # for local imports in 'ad_integration',
-            './integrations/ad_integration',
+            "./integrations/ad_integration",
             # for code importing 'common_queries'
-            './exporters',
+            "./exporters",
         ]
         for path in additional_paths:
             sys.path.append(path)
@@ -196,5 +198,5 @@ class MetaCLI(click.MultiCommand):
 cli = MetaCLI(help=__doc__)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

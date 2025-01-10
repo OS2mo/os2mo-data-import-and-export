@@ -10,6 +10,8 @@ import sentry_sdk
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
+from exporters.sql_export.lora_cache import fetch_loracache
+
 from .ad_exceptions import CprNotFoundInADException
 from .ad_exceptions import CprNotNotUnique
 from .ad_exceptions import ManagerNotUniqueFromCprException
@@ -17,8 +19,6 @@ from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
-from exporters.sql_export.lora_cache import fetch_loracache
-
 
 logger = logging.getLogger("MoAdSync")
 export_logger = logging.getLogger("export")

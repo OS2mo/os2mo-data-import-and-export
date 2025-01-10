@@ -19,8 +19,8 @@ from .mocks import MockADParameterReader
 from .mocks import MockLoraCache
 from .mocks import MockLoraCacheEmptyEmployee
 from .mocks import MockMoraHelper
-from .test_utils import dict_modifier
 from .test_utils import TestADMoSyncMixin
+from .test_utils import dict_modifier
 
 
 def iso_date(date):
@@ -1040,12 +1040,12 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     def test_disabled_filter(self, prefilters, terminate_disabled, expected):
         def add_terminate_filter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
-            settings["integrations.ad"][0][
-                "ad_mo_sync_terminate_disabled"
-            ] = terminate_disabled
-            settings["integrations.ad"][0][
-                "ad_mo_sync_terminate_disabled_filters"
-            ] = prefilters
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = (
+                terminate_disabled
+            )
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled_filters"] = (
+                prefilters
+            )
             return settings
 
         # Helper functions to seed admosync mock
@@ -1080,9 +1080,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     def test_finalize_missing_ad_user(self, terminate_missing, expected):
         def add_terminate_filter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
-            settings["integrations.ad"][0][
-                "ad_mo_sync_terminate_missing"
-            ] = terminate_missing
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_missing"] = (
+                terminate_missing
+            )
             settings["integrations.ad"][0][
                 "ad_mo_sync_terminate_missing_require_itsystem"
             ] = False

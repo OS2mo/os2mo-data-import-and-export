@@ -4,11 +4,11 @@ from abc import abstractmethod
 from enum import Enum
 
 import requests
-from gql import gql
-from os2mo_helpers.mora_helpers import MoraHelper
 from fastramqpi.ra_utils.headers import TokenSettings
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.raclients.graph.client import GraphQLClient
+from gql import gql
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,6 @@ class KLEAnnotationIntegration(ABC):
     # something like a Strategy here. However, maybe YAGNI.
 
     def __init__(self):
-
         self.settings = Settings()
         self.settings.start_logging_based_on_settings()
 

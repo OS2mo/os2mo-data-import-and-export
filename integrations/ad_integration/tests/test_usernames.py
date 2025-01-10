@@ -1,14 +1,13 @@
 import unittest
-from typing import Any
 from unittest import mock
 
 from hypothesis import given
 from hypothesis import strategies as st
 from parameterized import parameterized
 from sqlalchemy import Column
-from sqlalchemy import create_engine
 from sqlalchemy import Integer
 from sqlalchemy import String
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import session
 from sqlalchemy.orm import sessionmaker
@@ -944,7 +943,6 @@ class TestUserNameSetInDatabase(unittest.TestCase):
         with mock.patch.object(
             UserNameSetInDatabase, "_get_session", return_value=self.session
         ) as sql_mock:
-
             instance = UserNameSetInDatabase()
             assert sql_mock.call_count == 1
             assert instance._usernames == {"Alice", "Bob"}

@@ -4,12 +4,12 @@
 from functools import lru_cache
 from typing import Any
 
+from fastramqpi.ra_utils.job_settings import JobSettings
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
 from pydantic.tools import parse_obj_as
-from fastramqpi.ra_utils.job_settings import JobSettings
 
 
 class GqlLoraCacheSettings(JobSettings):  # type: ignore

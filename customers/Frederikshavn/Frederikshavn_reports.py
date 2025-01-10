@@ -4,7 +4,9 @@ import sys
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.raclients.upload import run_report_and_upload
 
-from reports.query_actualstate import list_employees, list_MED_members, run_report
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import run_report
 
 LOG_LEVEL = logging.DEBUG
 

@@ -1,12 +1,10 @@
 import requests
-
 from fastramqpi.ra_utils.load_settings import load_settings
-from tools.data_fixers.find_duplicate_users import check_duplicate_cpr
+
 from tools.data_fixers.class_tools import find_duplicates_classes
-from tools.data_fixers.opus_terminate_filtered import (
-    terminate_filtered_units,
-    terminate_filtered_employees
-)
+from tools.data_fixers.find_duplicate_users import check_duplicate_cpr
+from tools.data_fixers.opus_terminate_filtered import terminate_filtered_employees
+from tools.data_fixers.opus_terminate_filtered import terminate_filtered_units
 
 
 def main():
@@ -26,11 +24,14 @@ def main():
 
     if settings.get("crontab.RUN_OPUS_DIFF_IMPORT"):
         unfiltered_units = list(terminate_filtered_units(dry_run=True))
-        assert not unfiltered_units, f"Found {len(unfiltered_units)} unit(s) that should have been filtered."
+        assert not unfiltered_units, (
+            f"Found {len(unfiltered_units)} unit(s) that should have been filtered."
+        )
 
         unfiltered_employees = terminate_filtered_employees(dry_run=True)
-        assert not unfiltered_employees, f"Found {len(unfiltered_employees)} engagements that should have been filtered"
-
+        assert not unfiltered_employees, (
+            f"Found {len(unfiltered_employees)} engagements that should have been filtered"
+        )
 
 
 if __name__ == "__main__":

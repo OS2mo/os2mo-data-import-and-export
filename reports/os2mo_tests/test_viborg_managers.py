@@ -16,21 +16,21 @@ in order to record a test result use this temporarily in a test,
 adapted to Your test: self.cache_new_result(x=1, y=2)
 """
 
-import sys
+import json
 import os
 import pathlib
-import viborg_managers
-import requests
-from os2mo_helpers.mora_helpers import MoraHelper
-import mock
-from freezegun import freeze_time
-import json
+import sys
 
+import mock
+import requests
+import viborg_managers
+from freezegun import freeze_time
+from os2mo_helpers.mora_helpers import MoraHelper
 
 sys.path[0:0] = [
     os.environ["OS2MO_SRC_DIR"] + "/backend/tests",
-    pathlib.Path(__file__).parent / ".."
-    ]
+    pathlib.Path(__file__).parent / "..",
+]
 import util  # noqa
 
 
@@ -71,11 +71,12 @@ class Tests(util.LoRATestCase):
             requests._orgget = requests.get
             requests.get = self.get
         self._test_data_result = str(
-            testdata / (
-                pathlib.Path(__file__).stem +
-                "_" +
-                self._testMethodName +
-                "_result.json"
+            testdata
+            / (
+                pathlib.Path(__file__).stem
+                + "_"
+                + self._testMethodName
+                + "_result.json"
             )
         )
 
@@ -86,9 +87,7 @@ class Tests(util.LoRATestCase):
 
     def run_report(self):
         self.mh.read_organisation()
-        root_uuid = viborg_managers.get_root_org_unit_uuid(
-            self.mh, "Hjørring Kommune"
-        )
+        root_uuid = viborg_managers.get_root_org_unit_uuid(self.mh, "Hjørring Kommune")
         nodes = self.mh.read_ou_tree(root_uuid)
         viborg_managers.find_people(self.mh, nodes)
         fieldnames, rows = viborg_managers.prepare_report(self.mh, nodes)
@@ -115,41 +114,47 @@ class Tests(util.LoRATestCase):
         # Edith Højlund Rasmussen i Renovation
         # Kai Juul Svendsen, Park og vej
         # are stripped of manager roles
-        for_termination = [{
-            "type": "manager",
-            "uuid": "7f61490f-2fc4-41ce-9a67-668969702d50",
-            "validity": {"to": "2019-08-25"},
-            "force": True
-        }, {
-            "type": "manager",
-            "uuid": "d5916fa5-96b1-4640-a71c-a6d7e69d3980",
-            "validity": {"to": "2019-08-25"},
-            "force": True
-        }]
+        for_termination = [
+            {
+                "type": "manager",
+                "uuid": "7f61490f-2fc4-41ce-9a67-668969702d50",
+                "validity": {"to": "2019-08-25"},
+                "force": True,
+            },
+            {
+                "type": "manager",
+                "uuid": "d5916fa5-96b1-4640-a71c-a6d7e69d3980",
+                "validity": {"to": "2019-08-25"},
+                "force": True,
+            },
+        ]
         for t in for_termination:
             self.assertRequest("/service/details/terminate", json=t)
 
         # Axel Krumbæk Dam from IT-support is now
         # boss in the other two depts too
-        for_adding = [{
-            "type": "manager",
-            "person": {"uuid": "d53a3cce-2054-4002-9099-980ea5bd6129"},
-            "responsibility": [{"uuid": "cf08cacb-7c7d-49f2-8b4e-d7c4b8ab233c"}],
-            "validity": {"from": "2019-08-01", "to": None},
-            "manager_type": {"uuid": "d4c5983b-c4cd-43f2-b18a-653387172b08"},
-            "manager_level": {"uuid": "049fb201-fc32-40e3-80c7-4cd7cb89a9a3"},
-            "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
-            "org_unit": {"uuid": "dac3b1ef-3d36-4464-9839-f611a4215cb5"}
-        }, {
-            "type": "manager",
-            "person": {"uuid": "d53a3cce-2054-4002-9099-980ea5bd6129"},
-            "responsibility": [{"uuid": "cf08cacb-7c7d-49f2-8b4e-d7c4b8ab233c"}],
-            "validity": {"from": "2019-08-01", "to": None},
-            "manager_type": {"uuid": "d4c5983b-c4cd-43f2-b18a-653387172b08"},
-            "manager_level": {"uuid": "049fb201-fc32-40e3-80c7-4cd7cb89a9a3"},
-            "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
-            "org_unit": {"uuid": "1a477478-41b4-4806-ac3a-e220760a0c89"}
-        }]
+        for_adding = [
+            {
+                "type": "manager",
+                "person": {"uuid": "d53a3cce-2054-4002-9099-980ea5bd6129"},
+                "responsibility": [{"uuid": "cf08cacb-7c7d-49f2-8b4e-d7c4b8ab233c"}],
+                "validity": {"from": "2019-08-01", "to": None},
+                "manager_type": {"uuid": "d4c5983b-c4cd-43f2-b18a-653387172b08"},
+                "manager_level": {"uuid": "049fb201-fc32-40e3-80c7-4cd7cb89a9a3"},
+                "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
+                "org_unit": {"uuid": "dac3b1ef-3d36-4464-9839-f611a4215cb5"},
+            },
+            {
+                "type": "manager",
+                "person": {"uuid": "d53a3cce-2054-4002-9099-980ea5bd6129"},
+                "responsibility": [{"uuid": "cf08cacb-7c7d-49f2-8b4e-d7c4b8ab233c"}],
+                "validity": {"from": "2019-08-01", "to": None},
+                "manager_type": {"uuid": "d4c5983b-c4cd-43f2-b18a-653387172b08"},
+                "manager_level": {"uuid": "049fb201-fc32-40e3-80c7-4cd7cb89a9a3"},
+                "org": {"uuid": "c5395419-4c76-417f-9939-5a4bf81648d8"},
+                "org_unit": {"uuid": "1a477478-41b4-4806-ac3a-e220760a0c89"},
+            },
+        ]
         for a in for_adding:
             self.assertRequest("/service/details/create", json=a)
 

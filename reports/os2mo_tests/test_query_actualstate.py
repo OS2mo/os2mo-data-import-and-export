@@ -13,17 +13,15 @@ from exporters.sql_export.sql_table_defs import WBruger as Bruger
 from exporters.sql_export.sql_table_defs import WEngagement as Engagement
 from exporters.sql_export.sql_table_defs import WEnhed as Enhed
 from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
-from reports.query_actualstate import (
-    XLSXExporter,
-    get_engine,
-    list_employees,
-    list_MED_members,
-    map_trade_union,
-    merge_trade_unions,
-    rearrange,
-    sessionmaker,
-    set_of_org_units,
-)
+from reports.query_actualstate import XLSXExporter
+from reports.query_actualstate import get_engine
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import map_trade_union
+from reports.query_actualstate import merge_trade_unions
+from reports.query_actualstate import rearrange
+from reports.query_actualstate import sessionmaker
+from reports.query_actualstate import set_of_org_units
 
 
 class Tests_xlxs(unittest.TestCase):

@@ -12,28 +12,32 @@ Employee phonebook report - from customers/Frederikshavn/frederikshavn_employee_
 
 import os
 import time
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import pandas as pd
 from anytree import PreOrderIter
-from gql import gql
-from gql.client import SyncClientSession
-from more_itertools import first, one, prepend
-from os2mo_helpers.mora_helpers import MoraHelper
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.raclients.graph.client import GraphQLClient
-from fastramqpi.raclients.upload import file_uploader, run_report_and_upload
-from sqlalchemy import or_, select
+from fastramqpi.raclients.upload import file_uploader
+from fastramqpi.raclients.upload import run_report_and_upload
+from gql import gql
+from gql.client import SyncClientSession
+from more_itertools import first
+from more_itertools import one
+from more_itertools import prepend
+from os2mo_helpers.mora_helpers import MoraHelper
+from sqlalchemy import or_
+from sqlalchemy import select
 
 from exporters import common_queries as cq
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
 from exporters.sql_export.sql_table_defs import WBruger as Bruger
 from exporters.sql_export.sql_table_defs import WEngagement as Engagement
 from exporters.sql_export.sql_table_defs import WEnhed as Enhed
-from reports.query_actualstate import expand_org_path, run_report, set_of_org_units
+from reports.query_actualstate import expand_org_path
+from reports.query_actualstate import run_report
+from reports.query_actualstate import set_of_org_units
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 

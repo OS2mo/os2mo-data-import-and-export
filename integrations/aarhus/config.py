@@ -4,10 +4,10 @@ from typing import Optional
 from uuid import UUID
 
 import uuids
-from pydantic import BaseSettings
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.raclients.graph.client import GraphQLClient
+from pydantic import BaseSettings
 
 
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore

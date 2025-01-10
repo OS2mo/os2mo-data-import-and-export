@@ -4,10 +4,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from exporters.os2rollekatalog.titles import check_update_titles
-from exporters.os2rollekatalog.titles import read_engagement_job_function
 from exporters.os2rollekatalog.titles import Title
 from exporters.os2rollekatalog.titles import Titles
+from exporters.os2rollekatalog.titles import check_update_titles
+from exporters.os2rollekatalog.titles import read_engagement_job_function
 
 
 @given(st.uuids(), st.text())
@@ -24,7 +24,14 @@ def test_title_class(uuid, user_key):
     [
         ([], []),
         (
-            [{"current": {"uuid": "5d4be2a1-e977-44f0-ae27-d7b0bebf1ae7", "user_key": "1"}}],
+            [
+                {
+                    "current": {
+                        "uuid": "5d4be2a1-e977-44f0-ae27-d7b0bebf1ae7",
+                        "user_key": "1",
+                    }
+                }
+            ],
             [{"uuid": "5d4be2a1-e977-44f0-ae27-d7b0bebf1ae7", "name": "1"}],
         ),
     ],
@@ -33,9 +40,9 @@ def test_read_titles(test_input, expected):
     """Test that titles are processed so user_key is called name and uuids are strings"""
     with patch("exporters.os2rollekatalog.titles.GraphQLClient") as mock_session:
         mock_return = {
-          "classes": {
-            "objects": test_input,
-          }
+            "classes": {
+                "objects": test_input,
+            }
         }
         mock_session.execute.return_value = mock_return
         t = read_engagement_job_function(mock_session)

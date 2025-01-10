@@ -1,25 +1,23 @@
-from uuid import UUID
-from datetime import datetime, date
-from typing import List
-
 import csv
 import json
-from dateutil import utils
-from more_itertools import one
-from fastapi.encoders import jsonable_encoder
-
-from gql import gql
-from gql.client import SyncClientSession
+from datetime import date
+from datetime import datetime
+from typing import List
+from uuid import UUID
 
 import pandas as pd
-
+from dateutil import utils
+from fastapi.encoders import jsonable_encoder
 from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from gql.client import SyncClientSession
+from more_itertools import one
 
-from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 from reports.os2mo_new_and_ended_engagement_reports.config import EngagementSettings
 from reports.os2mo_new_and_ended_engagement_reports.config import (
     get_engagement_settings,
 )
+from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 
 
 def read_report_as_json(path_to_file: str) -> List[dict[str, str]]:
@@ -48,7 +46,7 @@ def get_gql_query_validity_to(
 ) -> dict:
     """Returns a GQL payload on engagements with validity till today."""
     graphql_query = gql(
-    """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
+        """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
             engagements(filter: { from_date: $engagement_date_to_query_from }) {
                 objects {
                     validities {
@@ -387,7 +385,9 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"])
+                        if obj["itusers"] is not None
+                        else None,
                         "Organisation": get_org_unit_ancestor(obj),
                     }
                 )
@@ -406,7 +406,9 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"])
+                        if obj["itusers"] is not None
+                        else None,
                     }
                 )
 

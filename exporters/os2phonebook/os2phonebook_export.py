@@ -19,15 +19,14 @@ from tenacity import stop_after_attempt
 from tenacity import wait_exponential
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_table_defs import WKLE as KLE
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
 from exporters.sql_export.sql_table_defs import WBruger as Bruger
 from exporters.sql_export.sql_table_defs import WDARAdresse as DARAdresse
 from exporters.sql_export.sql_table_defs import WEngagement as Engagement
 from exporters.sql_export.sql_table_defs import WEnhed as Enhed
-from exporters.sql_export.sql_table_defs import WKLE as KLE
 from exporters.sql_export.sql_table_defs import WLeder as Leder
 from exporters.sql_export.sql_table_defs import WTilknytning as Tilknytning
-
 
 LOG_LEVEL = logging.DEBUG
 
@@ -340,8 +339,7 @@ def generate_json():
             .filter(Leder.enhed_uuid == Enhed.uuid)
             .filter(
                 # Filter vacant leders
-                Leder.bruger_uuid
-                != None
+                Leder.bruger_uuid != None
             )
             .all()
         )

@@ -1,25 +1,26 @@
-from uuid import UUID
 from typing import List
+from uuid import UUID
+
 import freezegun
 import pytest
 
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    gql_query_validity_field,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    gql_query_persons_details_to_display,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    get_filtered_engagements_for_started_today,
-)
-from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    get_filtered_engagements_for_ended_today,
+    convert_person_and_engagement_data_to_csv,
 )
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
     get_email_address_type_uuid_from_gql,
 )
 from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
-    convert_person_and_engagement_data_to_csv,
+    get_filtered_engagements_for_ended_today,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    get_filtered_engagements_for_started_today,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    gql_query_persons_details_to_display,
+)
+from reports.os2mo_new_and_ended_engagement_reports.get_engagements import (
+    gql_query_validity_field,
 )
 
 
@@ -695,7 +696,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0102892332",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-02-15T00:00:00+01:00"
                                         },
@@ -704,7 +705,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "itusers": [
                                     {"itsystem": {"name": "Plone"}, "user_key": "12"},
                                     {
-                                        "itsystem": {"name": "Active " "Directory"},
+                                        "itsystem": {"name": "Active Directory"},
                                         "user_key": "AD-konti",
                                     },
                                     {
@@ -724,7 +725,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0902874312",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-02-15T00:00:00+01:00"
                                         },
@@ -745,7 +746,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "2103782143",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-02-15T00:00:00+01:00"
                                         },
@@ -764,7 +765,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0102884312",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-02-15T00:00:00+01:00"
                                         },
@@ -776,7 +777,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         "user_key": "43",
                                     },
                                     {
-                                        "itsystem": {"name": "Active " "Directory"},
+                                        "itsystem": {"name": "Active Directory"},
                                         "user_key": "AD-kontioooo",
                                     },
                                 ],
@@ -795,14 +796,14 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [{"name": "1@2.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
                                 "itusers": [
                                     {"itsystem": {"name": "Plone"}, "user_key": "12"},
                                     {
-                                        "itsystem": {"name": "Active " "Directory"},
+                                        "itsystem": {"name": "Active Directory"},
                                         "user_key": "AD-konti",
                                     },
                                     {
@@ -821,7 +822,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [{"name": "45@1.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
@@ -839,7 +840,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [{"name": "45@0.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
@@ -855,7 +856,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {"to": "2023-02-15T00:00:00+01:00"},
                                     }
                                 ],
@@ -865,7 +866,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                         "user_key": "43",
                                     },
                                     {
-                                        "itsystem": {"name": "Active " "Directory"},
+                                        "itsystem": {"name": "Active Directory"},
                                         "user_key": "AD-kontioooo",
                                     },
                                 ],
@@ -912,7 +913,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0102893211",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Kolding Kommune"}],
                                         "validity": {
                                             "from": "2023-01-11T00:00:00+01:00"
                                         },
@@ -931,7 +932,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0401873211",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-01-11T00:00:00+01:00"
                                         },
@@ -950,7 +951,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": "0301674212",
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {
                                             "from": "2023-01-11T00:00:00+01:00"
                                         },
@@ -972,9 +973,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [{"name": "lolol@kekek.dk"}],
                                 "engagements": [
                                     {
-                                        "org_unit": [
-                                            {"name": "Budget og " "Planlægning"}
-                                        ],
+                                        "org_unit": [{"name": "Budget og Planlægning"}],
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
@@ -990,7 +989,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Social og " "sundhed"}],
+                                        "org_unit": [{"name": "Social og sundhed"}],
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
@@ -1017,7 +1016,7 @@ def test_filtering_email_address_type_uuids_from_payload(
             (
                 '"Personens navn";"Personens '
                 'UUID";"Ansættelsessted";"Ansættelsesudløbsdato";"Email";"Shortname"\n'
-                ''
+                ""
                 '"Malou Johansen";"8b227cf7-cb67-4023-8efc-b01c2a3632d1";'
                 '"Budget og Planlægning";"2023-01-11T00:00:00+01:00";"lolol@kekek.dk";'
                 '""\n'
@@ -1036,7 +1035,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "cpr_no": None,
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Kolding Kommune"}],
                                         "validity": {
                                             "from": "2023-01-11T00:00:00+01:00"
                                         },
@@ -1058,7 +1057,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                                 "addresses": [],
                                 "engagements": [
                                     {
-                                        "org_unit": [{"name": "Kolding " "Kommune"}],
+                                        "org_unit": [{"name": "Kolding Kommune"}],
                                         "validity": {"to": "2023-01-11T00:00:00+01:00"},
                                     }
                                 ],
@@ -1071,7 +1070,7 @@ def test_filtering_email_address_type_uuids_from_payload(
                 ]
             },
             (
-                 '"Personens navn";"Personens '
+                '"Personens navn";"Personens '
                 'UUID";"Ansættelsessted";"Ansættelsesdato";"CPR";"Email";"Shortname"\n'
                 '"TESTFORNAVN";"77e0da12-6cbf-4cef-b2bb-ceff19944643";"Kolding '
                 'Kommune";"2023-01-11T00:00:00+01:00";"";"";""\n'

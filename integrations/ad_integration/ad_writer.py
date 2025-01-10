@@ -15,8 +15,12 @@ from functools import partial
 from operator import itemgetter
 
 import click
-from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from click_option_group import optgroup
+from fastramqpi.ra_utils.lazy_dict import LazyDict
+from fastramqpi.ra_utils.lazy_dict import LazyEval
+from fastramqpi.ra_utils.lazy_dict import LazyEvalDerived
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from jinja2 import Environment
 from jinja2 import StrictUndefined
@@ -24,10 +28,6 @@ from jinja2 import Undefined
 from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
-from fastramqpi.ra_utils.lazy_dict import LazyDict
-from fastramqpi.ra_utils.lazy_dict import LazyEval
-from fastramqpi.ra_utils.lazy_dict import LazyEvalDerived
-from fastramqpi.raclients.graph.client import GraphQLClient
 
 from . import ad_templates
 from .ad_common import AD
@@ -52,7 +52,6 @@ from .utils import dict_exclude
 from .utils import dict_map
 from .utils import dict_subset
 from .utils import lower_list
-
 
 logger = logging.getLogger("AdWriter")
 
@@ -875,7 +874,7 @@ class ADWriter(AD):
         """
         ps_script = self._get_add_manager_command(user_sam, manager_sam)
         response = self._run_ps_script(ps_script)
-        return response is {}
+        return response == {}
 
     def _get_add_manager_command(self, user_sam, manager_sam):
         format_rules = {"user_sam": user_sam, "manager_sam": manager_sam}

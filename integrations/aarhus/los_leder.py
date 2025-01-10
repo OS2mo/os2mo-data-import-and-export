@@ -11,11 +11,10 @@ from typing import Union
 import los_files
 import payloads as mo_payloads
 import util
+from fastramqpi.ra_utils.generate_uuid import uuid_generator
 from more_itertools import partition
 from pydantic import BaseModel
 from pydantic import Field
-from fastramqpi.ra_utils.generate_uuid import uuid_generator
-
 
 logger = logging.getLogger(__name__)
 

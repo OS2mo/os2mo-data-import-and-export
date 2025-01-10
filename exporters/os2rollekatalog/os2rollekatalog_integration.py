@@ -24,13 +24,12 @@ from uuid import UUID
 
 import click
 import requests
+from fastramqpi.ra_utils.load_settings import load_setting
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
-from fastramqpi.ra_utils.load_settings import load_setting
 
 from .config import RollekatalogSettings
 from .titles import export_titles
-
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +70,6 @@ def get_employee_from_map(
 def get_parent_org_unit_uuid(
     ou: dict, ou_filter: bool, mo_root_org_unit: UUID
 ) -> Optional[str]:
-
     if UUID(ou["uuid"]) == mo_root_org_unit:
         # This is the root, there are no parents
         return None
@@ -99,14 +97,12 @@ def get_org_units(
 
     converted_org_units = {}
     for org_unit in org_units:
-
         org_unit_uuid = org_unit["uuid"]
         # Fetch the OU again, as the 'parent' field is missing in the data
         # when listing all org units
         ou = mh.read_ou(org_unit_uuid)
 
         def get_manager(org_unit_uuid, mh: MoraHelper):
-
             present = mh._mo_lookup(
                 org_unit_uuid, "ou/{}/details/manager?validity=present"
             )

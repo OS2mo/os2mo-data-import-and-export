@@ -10,12 +10,12 @@ import click
 import ra_utils.ensure_single_run
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from more_itertools import ichunked
-from more_itertools import one
 from fastramqpi.ra_utils.ensure_single_run import ensure_single_run
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from more_itertools import ichunked
+from more_itertools import one
 from sqlalchemy import create_engine
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
@@ -25,6 +25,8 @@ from sqlalchemy.orm import sessionmaker
 
 from .gql_lora_cache_async import GQLLoraCache
 from .lora_cache import get_cache as LoraCache
+from .sql_table_defs import KLE
+from .sql_table_defs import WKLE
 from .sql_table_defs import Adresse
 from .sql_table_defs import Base
 from .sql_table_defs import Bruger
@@ -36,12 +38,10 @@ from .sql_table_defs import Facet
 from .sql_table_defs import ItForbindelse
 from .sql_table_defs import ItSystem
 from .sql_table_defs import Klasse
-from .sql_table_defs import KLE
 from .sql_table_defs import Kvittering
 from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
-from .sql_table_defs import sql_type
 from .sql_table_defs import Tilknytning
 from .sql_table_defs import WAdresse
 from .sql_table_defs import WBruger
@@ -53,15 +53,14 @@ from .sql_table_defs import WFacet
 from .sql_table_defs import WItForbindelse
 from .sql_table_defs import WItSystem
 from .sql_table_defs import WKlasse
-from .sql_table_defs import WKLE
 from .sql_table_defs import WLeder
 from .sql_table_defs import WLederAnsvar
 from .sql_table_defs import WOrlov
 from .sql_table_defs import WTilknytning
+from .sql_table_defs import sql_type
 from .sql_url import DatabaseFunction
 from .sql_url import generate_connection_url
 from .sql_url import generate_engine_settings
-
 
 _T_Facet = TypeVar("_T_Facet", Facet, WFacet)
 _T_Klasse = TypeVar("_T_Klasse", Klasse, WKlasse)
@@ -727,9 +726,9 @@ class SqlExport:
             self.session.add(n)
 
         # Check that the result is the expected amount of rows in sql.
-        assert len(objects) == len(unchanged) + len(
-            new
-        ), f"expected {len(objects)=} to be equal to {len(unchanged)=} + {len(new)=}"
+        assert len(objects) == len(unchanged) + len(new), (
+            f"expected {len(objects)=} to be equal to {len(unchanged)=} + {len(new)=}"
+        )
 
         self.session.commit()
 

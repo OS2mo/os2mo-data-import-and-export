@@ -3,8 +3,8 @@ import uuid
 from typing import Callable
 from typing import Dict
 from typing import Optional
-from unittest import mock
 from unittest import TestCase
+from unittest import mock
 from uuid import uuid4
 
 from more_itertools import first_true
@@ -23,7 +23,6 @@ from .mocks import MockLoraCacheExtended
 from .mocks import MockLoraCacheParentChildUnit
 from .mocks import MockLoraCacheParentUnitUnset
 from .test_utils import TestADWriterMixin
-
 
 BASE_SETTINGS = {"integrations.ad.write.create_user_trees": [MO_ROOT_ORG_UNIT_UUID]}
 

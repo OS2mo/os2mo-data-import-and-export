@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import structlog
 
-
 CPR_REGEX = re.compile("[0-9]{10}")
 
 # Unique log context for this application

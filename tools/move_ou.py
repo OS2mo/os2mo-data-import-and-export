@@ -2,10 +2,9 @@ from datetime import datetime
 from uuid import UUID
 
 import click
-from gql import gql
 import requests
-
 from fastramqpi.raclients.graph.client import GraphQLClient
+from gql import gql
 
 
 def _move(
@@ -15,7 +14,7 @@ def _move(
     auth_server: str,
     auth_realm: str,
     client_id: str,
-    client_secret: str
+    client_secret: str,
 ) -> None:
     assert uuid != parent_uuid
 
@@ -27,7 +26,7 @@ def _move(
     token_payload = {
         "grant_type": "client_credentials",
         "client_id": client_id,
-        "client_secret": client_secret
+        "client_secret": client_secret,
     }
 
     r = requests.post(token_url, data=token_payload)
@@ -42,7 +41,7 @@ def _move(
             "parent": {"uuid": str(parent_uuid)},
             "uuid": str(uuid),
             "clamp": True,
-            "validity": {"from": datetime.now().strftime("%Y-%m-%d")}
+            "validity": {"from": datetime.now().strftime("%Y-%m-%d")},
         },
     }
 
@@ -50,42 +49,20 @@ def _move(
         f"{base_url}/service/details/edit",
         headers=headers,
         json=payload,
-        params={"force": True}
+        params={"force": True},
     )
     click.echo(f"{r.status_code} {r.url}")
 
 
 @click.group()
+@click.option("--parent-uuid", type=click.UUID, required=click.UUID)
+@click.option("--base-url", type=click.STRING, default="http://mo-service:5000")
 @click.option(
-    "--parent-uuid",
-    type=click.UUID,
-    required=click.UUID
+    "--auth-server", type=click.STRING, default="http://keycloak-service:8080/auth"
 )
-@click.option(
-    "--base-url",
-    type=click.STRING,
-    default="http://mo-service:5000"
-)
-@click.option(
-    "--auth-server",
-    type=click.STRING,
-    default="http://keycloak-service:8080/auth"
-)
-@click.option(
-    "--auth-realm",
-    type=click.STRING,
-    default="mo"
-)
-@click.option(
-    "--client-id",
-    type=click.STRING,
-    default="dipex"
-)
-@click.option(
-    "--client-secret",
-    type=click.STRING,
-    required=True
-)
+@click.option("--auth-realm", type=click.STRING, default="mo")
+@click.option("--client-id", type=click.STRING, default="dipex")
+@click.option("--client-secret", type=click.STRING, required=True)
 @click.pass_context
 def cli(
     ctx,
@@ -106,11 +83,7 @@ def cli(
 
 
 @cli.command()
-@click.option(
-    "--uuid",
-    type=click.UUID,
-    required=True
-)
+@click.option("--uuid", type=click.UUID, required=True)
 @click.pass_context
 def move(
     ctx,
@@ -122,9 +95,9 @@ def move(
     _move(
         uuid,
         ctx.obj["PARENT_UUID"],
-        ctx.obj['BASE_URL'],
+        ctx.obj["BASE_URL"],
         ctx.obj["AUTH_SERVER"],
-        ctx.obj['AUTH_REALM'],
+        ctx.obj["AUTH_REALM"],
         ctx.obj["CLIENT_ID"],
         ctx.obj["CLIENT_SECRET"],
     )
@@ -150,7 +123,7 @@ def move_all_to_new_parent(ctx, new_parent):
         client_id=ctx.obj["CLIENT_ID"],
         client_secret=ctx.obj["CLIENT_SECRET"],
         auth_server=ctx.obj["AUTH_SERVER"],
-        auth_realm=ctx.obj["AUTH_REALM"]
+        auth_realm=ctx.obj["AUTH_REALM"],
     )
 
     with client as session:
@@ -165,10 +138,12 @@ def move_all_to_new_parent(ctx, new_parent):
         )
         r = session.execute(query)
 
-    org_units_uuids_including_new_parent = map(lambda ou: UUID(ou["uuid"]), r["org_units"])
+    org_units_uuids_including_new_parent = map(
+        lambda ou: UUID(ou["uuid"]), r["org_units"]
+    )
     org_units_uuid = filter(
         lambda _uuid: _uuid != ctx.obj["PARENT_UUID"],
-        org_units_uuids_including_new_parent
+        org_units_uuids_including_new_parent,
     )
     for _uuid in org_units_uuid:
         click.echo(f"Moving org unit: {str(_uuid)}")

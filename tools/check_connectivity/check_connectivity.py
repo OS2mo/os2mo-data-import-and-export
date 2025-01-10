@@ -1,6 +1,6 @@
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
 from fastramqpi.ra_utils.load_settings import load_setting
+from os2mo_helpers.mora_helpers import MoraHelper
 
 
 @click.command()
@@ -15,5 +15,5 @@ def test_credentials(mora_base):
     print("Organisation UUID: " + mh.read_organisation())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_credentials()

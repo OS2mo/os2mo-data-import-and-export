@@ -19,12 +19,12 @@ from typing import Union
 import config
 import paramiko
 import pydantic
+from fastramqpi.ra_utils.apply import apply
 from more_itertools import one
 from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
 from pydantic import BaseModel
 from pydantic import parse_obj_as
-from fastramqpi.ra_utils.apply import apply
 
 T = TypeVar("T")
 

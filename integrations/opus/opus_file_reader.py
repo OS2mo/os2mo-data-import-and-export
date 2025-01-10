@@ -7,9 +7,9 @@ from typing import Optional
 
 import click
 import fs
+from fastramqpi.ra_utils.load_settings import load_settings
 from google.cloud import storage
 from more_itertools import one
-from fastramqpi.ra_utils.load_settings import load_settings
 from retrying import retry
 
 

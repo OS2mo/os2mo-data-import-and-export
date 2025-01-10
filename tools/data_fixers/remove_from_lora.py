@@ -42,7 +42,7 @@ def cli(uuid, mox_base, object_type, dry_run):
         dry_run=dry_run,
     )
     if dry_run:
-        click.echo(f"Dry-run - would delete {len(org_funcs)+1} objects in lora")
+        click.echo(f"Dry-run - would delete {len(org_funcs) + 1} objects in lora")
 
 
 if __name__ == "__main__":

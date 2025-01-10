@@ -8,7 +8,6 @@ import xmltodict
 from fastramqpi.ra_utils.headers import TokenSettings
 from fastramqpi.ra_utils.job_settings import JobSettings
 
-
 logger = logging.getLogger(__name__)
 
 # Facetter

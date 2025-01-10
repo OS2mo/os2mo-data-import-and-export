@@ -1,12 +1,12 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
 import json
-from typing import Any
 from textwrap import dedent
+from typing import Any
 
 import click
-from gql import gql
 from fastramqpi.raclients.graph.client import GraphQLClient
+from gql import gql
 
 
 class JSONParamType(click.ParamType):

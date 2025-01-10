@@ -3,12 +3,11 @@ from operator import itemgetter
 
 import click
 import requests
-from os2mo_helpers.mora_helpers import MoraHelper
 from fastramqpi.ra_utils.load_settings import load_settings
+from os2mo_helpers.mora_helpers import MoraHelper
 
 
 def check_duplicate_cpr(mora_base: str) -> list:
-
     helper = MoraHelper(hostname=mora_base)
     users = helper.read_all_users()
     users = filter(lambda u: u.get("cpr_no"), users)

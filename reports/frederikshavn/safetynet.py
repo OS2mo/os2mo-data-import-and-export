@@ -9,23 +9,22 @@ from io import StringIO
 from uuid import UUID
 
 import click
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import first
 from more_itertools import last
 from more_itertools import one
 from more_itertools import only
-from pydantic.main import BaseModel
-from tools.log import get_logger
-from tools.log import LogLevel
-from tools.log import setup_logging
-
 from paramiko import AutoAddPolicy
 from paramiko import SFTPClient
 from paramiko import SSHClient
-from fastramqpi.raclients.graph.client import GraphQLClient
-from fastramqpi.ra_utils.job_settings import JobSettings
+from pydantic.main import BaseModel
 
 from reports.graphql import get_mo_client
+from tools.log import LogLevel
+from tools.log import get_logger
+from tools.log import setup_logging
 
 DATE_FORMAT = "%Y-%m-%d"
 
@@ -174,6 +173,7 @@ class AdmEngRow(BaseModel):
     """
     Data model for the ADM engagement report
     """
+
     person_user_key: str
     cpr: str
     first_name: str
@@ -191,6 +191,7 @@ class AdmOuRow(BaseModel):
     """
     Data model for the ADM org unit report
     """
+
     name: str
     uuid: UUID
     parent: UUID | None
@@ -201,6 +202,7 @@ class MedAssRow(BaseModel):
     """
     Data model for the MED association report
     """
+
     cpr: str
     org_unit: UUID
     ass_start: str
@@ -213,6 +215,7 @@ class MedOuRow(BaseModel):
     """
     Data model for the MED org unit report
     """
+
     name: str
     uuid: UUID
     parent: UUID | None
@@ -239,7 +242,7 @@ def process_engagement(
         GET_ENGAGEMENT,
         variable_values={
             "uuid": str(eng_uuid),
-        }
+        },
     )
     # Example response
     #
@@ -296,8 +299,7 @@ def process_engagement(
     # If the manager is the employee itself, use the manager of the parent unit
     if manager_eng_user_key == current.get("user_key", ""):
         parent_ou_resp = gql_client.execute(
-            GET_PARENT_UNIT,
-            variable_values={"org_unit": str(ou_uuid)}
+            GET_PARENT_UNIT, variable_values={"org_unit": str(ou_uuid)}
         )
 
         # Example response
@@ -332,7 +334,7 @@ def process_engagement(
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
         username=first(email.split("@")),
-        job_function=current["job_function"]["name"]
+        job_function=current["job_function"]["name"],
     )
 
 
@@ -340,7 +342,7 @@ def process_adm_unit(
     gql_client: GraphQLClient,
     org_unit: UUID,
     adm_eng_rows: list[AdmEngRow],
-    adm_ou_rows: list[AdmOuRow]
+    adm_ou_rows: list[AdmOuRow],
 ) -> tuple[list[AdmEngRow], list[AdmOuRow]]:
     """
     Recursive function for processing the OU data and engagement data in an
@@ -358,9 +360,7 @@ def process_adm_unit(
     """
     logger.info("Processing adm unit", uuid=str(org_unit))
 
-    unit = gql_client.execute(
-        GET_ADM_UNIT, variable_values={"org_unit": str(org_unit)}
-    )
+    unit = gql_client.execute(GET_ADM_UNIT, variable_values={"org_unit": str(org_unit)})
     # Example response:
     #
     # "org_units": {
@@ -414,7 +414,7 @@ def process_adm_unit(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
         parent=UUID(parent_uuid) if parent_uuid is not None else None,
-        pnumber=pnumber
+        pnumber=pnumber,
     )
 
     adm_ou_rows.append(adm_ou_row)
@@ -451,7 +451,7 @@ def process_association(
         GET_ASSOCIATION,
         variable_values={
             "uuid": str(ass_uuid),
-        }
+        },
     )
     # Example response
     #
@@ -512,7 +512,7 @@ def process_association(
             ass_start=ass_start,
             ass_end=ass_end,
             role=role,
-            main_org=main_org
+            main_org=main_org,
         )
         for role in roles
     ]
@@ -522,7 +522,7 @@ def process_med_unit(
     gql_client: GraphQLClient,
     org_unit: UUID,
     med_ass_rows: list[MedAssRow],
-    med_ou_rows: list[MedOuRow]
+    med_ou_rows: list[MedOuRow],
 ) -> tuple[list[MedAssRow], list[MedOuRow]]:
     """
     Recursive function for processing the OU data and engagement data in an
@@ -540,9 +540,7 @@ def process_med_unit(
     """
     logger.info("Processing med unit", uuid=str(org_unit))
 
-    unit = gql_client.execute(
-        GET_MED_UNIT, variable_values={"org_unit": str(org_unit)}
-    )
+    unit = gql_client.execute(GET_MED_UNIT, variable_values={"org_unit": str(org_unit)})
     # Example response:
     #
     # "org_units": {
@@ -634,14 +632,7 @@ def med_ass_rows_to_csv_lines(rows: list[MedAssRow]) -> list[str]:
     """
     Convert MED association data models to CSV
     """
-    return [
-        "CPR||"
-        "Afdelingskode||"
-        "Startdato||"
-        "Slutdato||"
-        "Hverv||"
-        "Hovedorganisation\n"
-    ] + [
+    return ["CPR||Afdelingskode||Startdato||Slutdato||Hverv||Hovedorganisation\n"] + [
         (
             f"{r.cpr}||"
             f"{str(r.org_unit)}||"
@@ -658,12 +649,7 @@ def adm_ou_rows_to_csv_lines(rows: list[AdmOuRow]) -> list[str]:
     """
     Convert ADM org unit data models to CSV
     """
-    return [
-        "Afdelingsnavn||"
-        "Afdelingskode||"
-        "Forældreafdelingskode||"
-        "Pnummer\n"
-    ] + [
+    return ["Afdelingsnavn||Afdelingskode||Forældreafdelingskode||Pnummer\n"] + [
         (
             f"{r.name}||"
             f"{str(r.uuid)}||"
@@ -678,16 +664,8 @@ def med_ou_rows_to_csv_lines(rows: list[MedOuRow]) -> list[str]:
     """
     Convert MED org unit data models to CSV
     """
-    return [
-        "Afdelingsnavn||"
-        "Afdelingskode||"
-        "Forældreafdelingskode\n"
-    ] + [
-        (
-            f"{r.name}||"
-            f"{str(r.uuid)}||"
-            f"{str(r.parent) if r.parent is not None else ''}\n"
-        )
+    return ["Afdelingsnavn||Afdelingskode||Forældreafdelingskode\n"] + [
+        (f"{r.name}||{str(r.uuid)}||{str(r.parent) if r.parent is not None else ''}\n")
         for r in rows
     ]
 
@@ -711,7 +689,7 @@ def _ssh_client(hostname: str, port: int, username: str, password: str) -> SSHCl
             port=port,
             username=username,
             password=password,
-            look_for_keys=False
+            look_for_keys=False,
         )
         yield ssh_client
     finally:
@@ -734,7 +712,7 @@ def upload_csv(
     username: str,
     password: str,
     remote_path: str,
-    csv_lines: list[str]
+    csv_lines: list[str],
 ) -> None:
     upload_str = "".join(csv_lines)
     with sftp_client(hostname, port, username, password) as client:
@@ -743,19 +721,13 @@ def upload_csv(
 
 @click.command()
 @click.option(
-    "--adm-unit-uuid",
-    type=click.UUID,
-    help="UUID of top level adm unit to process"
+    "--adm-unit-uuid", type=click.UUID, help="UUID of top level adm unit to process"
 )
 @click.option(
-    "--med-unit-uuid",
-    type=click.UUID,
-    help="UUID of top level med unit to process"
+    "--med-unit-uuid", type=click.UUID, help="UUID of top level med unit to process"
 )
 @click.option(
-    "--skip-upload",
-    is_flag=True,
-    help="Skip SFTP upload (nice for debugging)"
+    "--skip-upload", is_flag=True, help="Skip SFTP upload (nice for debugging)"
 )
 def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     logger.info("Started Safetynet report generation")

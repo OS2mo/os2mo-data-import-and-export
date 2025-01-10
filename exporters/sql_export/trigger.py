@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Integration endpoints."""
+
 import logging
 from threading import Lock
 

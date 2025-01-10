@@ -1,15 +1,15 @@
 import csv
 
-from gql import gql
-from more_itertools import first
-from more_itertools import one
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.raclients.graph.client import GraphQLClient
 from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from more_itertools import first
+from more_itertools import one
 
 from reports.graphql import get_mo_client
-from tools.log import get_logger
 from tools.log import LogLevel
+from tools.log import get_logger
 from tools.log import setup_logging
 
 CPR_QUERY = """

@@ -22,6 +22,7 @@ import payloads as mo_payloads
 import pydantic
 import util
 import uuids
+from fastramqpi.ra_utils.generate_uuid import uuid_generator
 from more_itertools import bucket
 from more_itertools import first
 from more_itertools import flatten
@@ -31,7 +32,6 @@ from more_itertools import split_when
 from more_itertools import unzip
 from pydantic import Field
 from pydantic import validator
-from fastramqpi.ra_utils.generate_uuid import uuid_generator
 
 logger = logging.getLogger(__name__)
 

@@ -370,7 +370,6 @@ class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
 
 
 class MockLoraCacheUnitAddress(MockLoraCacheExtended):
-
     _job_function_class_uuid = "job_function_class_uuid"
 
     def __init__(self, address_value):

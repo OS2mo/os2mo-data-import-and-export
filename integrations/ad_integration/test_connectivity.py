@@ -3,8 +3,8 @@ import logging
 import click
 import requests
 import requests_kerberos
-from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from click_option_group import optgroup
 from fastramqpi.ra_utils.load_settings import load_settings
 from winrm.exceptions import InvalidCredentialsError
 
@@ -12,7 +12,6 @@ from .ad_common import AD
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .read_ad_conf_settings import read_settings
-
 
 SETTINGS = load_settings()
 

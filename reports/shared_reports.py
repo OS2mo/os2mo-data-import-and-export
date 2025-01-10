@@ -10,11 +10,10 @@ from typing import List
 
 import pandas as pd
 from anytree import PreOrderIter
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import file_uploader
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
-from fastramqpi.raclients.upload import file_uploader
-from fastramqpi.ra_utils.load_settings import load_settings
-
 
 # --------------------------------------------------------------------------------------
 # CustomerReports class
@@ -244,16 +243,16 @@ def main() -> None:
     with file_uploader(settings, "Alle Lederfunktioner OS2mo.csv") as filename:
         report_to_csv(reports.managers(), filename)
 
-    with file_uploader(settings, "Organisationsstruktur og Stillinger OS2mo.csv") as filename:
+    with file_uploader(
+        settings, "Organisationsstruktur og Stillinger OS2mo.csv"
+    ) as filename:
         report_to_csv(
             reports.organisation_employees(),
             filename,
         )
 
     with file_uploader(settings, "Organisationsenheder OS2mo.csv") as filename:
-        report_to_csv(
-            reports.organisation_units(), filename
-        )
+        report_to_csv(reports.organisation_units(), filename)
 
     with file_uploader(settings, "SDLønorganisation og P-Nummer OS2mo.csv") as filename:
         report_to_csv(

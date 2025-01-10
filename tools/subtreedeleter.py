@@ -6,11 +6,11 @@ from typing import Optional
 
 import aiohttp
 import click
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import flatten
 from more_itertools import one
 from mox_helpers.utils import async_to_sync
-from fastramqpi.ra_utils.headers import TokenSettings
-from fastramqpi.ra_utils.load_settings import load_settings
 from tqdm.asyncio import tqdm
 
 all_functionnames = [

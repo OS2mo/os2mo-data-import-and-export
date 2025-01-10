@@ -23,6 +23,9 @@ from fastramqpi.ra_utils.lazy_dict import LazyEvalBare
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
+from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
+
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_logger import start_logging
@@ -30,8 +33,6 @@ from .ad_reader import ADParameterReader
 from .ad_sync import AdMoSync
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
-from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
-from exporters.sql_export.lora_cache import get_cache as LoraCache
 
 logger = logging.getLogger("CreateAdUsers")
 export_logger = logging.getLogger("export")
@@ -247,9 +248,7 @@ class AdLifeCycle:
                 )
                 return mo_engagement
 
-            lc_engagements: List[
-                List[Dict]
-            ] = self.lc.engagements.values()  # type:ignore
+            lc_engagements: List[List[Dict]] = self.lc.engagements.values()  # type:ignore
             engagements: Iterator[Dict] = map(itemgetter(0), lc_engagements)
             lazy_engagements: Iterator[LazyDict] = map(LazyDict, engagements)
             enriched_engagements: Iterator[LazyDict] = map(

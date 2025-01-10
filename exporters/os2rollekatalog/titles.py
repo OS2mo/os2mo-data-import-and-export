@@ -5,8 +5,8 @@ from uuid import UUID
 import click
 import pydantic
 import requests
-from gql import gql
 from fastramqpi.raclients.graph.client import GraphQLClient
+from gql import gql
 
 
 class Title(pydantic.BaseModel):

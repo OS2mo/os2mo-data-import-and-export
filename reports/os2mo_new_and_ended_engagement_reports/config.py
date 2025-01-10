@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.raclients.graph.client import GraphQLClient
 
@@ -24,7 +25,6 @@ def get_engagement_settings(*args, **kwargs) -> EngagementSettings:
 
 
 def setup_gql_client(settings: EngagementSettings) -> GraphQLClient:
-
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,

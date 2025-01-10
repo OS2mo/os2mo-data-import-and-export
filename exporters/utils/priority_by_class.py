@@ -1,6 +1,3 @@
-from more_itertools import first
-
-
 def choose_public_address_helper(
     candidates, prioritized_classes, scope_getter, address_type_getter, uuid_getter
 ):

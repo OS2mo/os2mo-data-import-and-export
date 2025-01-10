@@ -1,13 +1,12 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
 """Utility CLI for OS2mo via GraphQL."""
+
 import logging
 from typing import Any
 
-import structlog
-
 import click
-
+import structlog
 from handlers.purge_addresses import purge_addresses
 from handlers.purge_itusers import purge_itusers
 from handlers.refresher import refresher

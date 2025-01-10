@@ -213,6 +213,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     Returns:
         dict: A jinja_map which has been extended with settings based values.
     """
+
     # Build settings-based templates
     def _get_setting_type(settings, key):
         # TODO: Currently we ignore school
@@ -229,9 +230,9 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     primary_settings = _get_setting_type(settings, "primary")
 
     if write_settings.get("level2orgunit_field"):
-        jinja_map[
-            write_settings["level2orgunit_field"]
-        ] = "{{ mo_values['level2orgunit'] }}"
+        jinja_map[write_settings["level2orgunit_field"]] = (
+            "{{ mo_values['level2orgunit'] }}"
+        )
 
     jinja_map[write_settings["org_field"]] = "{{ mo_values['location'] }}"
 
@@ -334,7 +335,6 @@ def partition_templates(cmd, jinja_map):
 
 
 def filter_illegal(cmd, parameters, other_attributes):
-
     # Drop all illegal parameters and attributes
     # Parameters
     for parameter in illegal_parameters[cmd]:

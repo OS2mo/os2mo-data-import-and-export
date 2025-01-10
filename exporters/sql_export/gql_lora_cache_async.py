@@ -8,17 +8,17 @@ from typing import Any
 from typing import AsyncIterator
 from uuid import UUID
 
+from fastramqpi.ra_utils.async_to_sync import async_to_sync
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from gql.client import AsyncClientSession
 from more_itertools import first
-from fastramqpi.ra_utils.async_to_sync import async_to_sync
-from fastramqpi.raclients.graph.client import GraphQLClient
 from tenacity import Retrying
 from tenacity import stop_after_delay
 from tenacity import wait_random_exponential
 
-from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
+from .config import get_gql_cache_settings
 
 RETRY_MAX_TIME = 5 * 60
 

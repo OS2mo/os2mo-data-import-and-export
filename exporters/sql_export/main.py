@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Integration entrypoint."""
+
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -25,6 +26,7 @@ from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport as _SqlExport
+from .sql_table_defs import KLE
 from .sql_table_defs import Adresse
 from .sql_table_defs import Base
 from .sql_table_defs import Bruger
@@ -36,7 +38,6 @@ from .sql_table_defs import Facet
 from .sql_table_defs import ItForbindelse
 from .sql_table_defs import ItSystem
 from .sql_table_defs import Klasse
-from .sql_table_defs import KLE
 from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
