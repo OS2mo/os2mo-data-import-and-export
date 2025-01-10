@@ -56,6 +56,7 @@ sphinxcontrib-websupport = "^1.1.0"
 pytz = "^2021.3"
 XlsxWriter = "^3.0.2"
 pandas = "^1"
+numpy = "^1"  # pandas doesn't properly pin to numpy==1
 xmltodict = "^0.13.0"
 asciitree = "^0.3.3"
 mimesis = "^5.3.0"
