@@ -35,7 +35,7 @@ def dir_list():
 def read_file(settings: dict[str, Any], filename: str) -> str:
     """Return the content of *filename* from OS2mo."""
     client = GraphQLClient(
-        url=f"{settings['mora.base']}/graphql/v17",
+        url=f"{settings['mora.base']}/graphql/v22",
         client_id=settings["crontab.CLIENT_ID"],
         client_secret=settings["crontab.CLIENT_SECRET"],
         auth_server=settings["crontab.AUTH_SERVER"],
