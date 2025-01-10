@@ -17,10 +17,10 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
 from fastramqpi.metrics import dipex_last_success_timestamp
-from ramqp.depends import RateLimit
-from ramqp.mo import MORouter
-from ramqp.mo import MORoutingKey
-from ramqp.mo import PayloadUUID
+from fastramqpi.ramqp.depends import RateLimit
+from fastramqpi.ramqp.mo import MORouter
+from fastramqpi.ramqp.mo import MORoutingKey
+from fastramqpi.ramqp.mo import PayloadUUID
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings

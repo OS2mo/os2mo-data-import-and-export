@@ -466,7 +466,7 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
 
 
 class TestEnsureSingleRun(unittest.TestCase):
-    @patch("ra_utils.load_settings.load_settings")
+    @patch("fastramqpi.ra_utils.load_settings.load_settings")
     @patch.object(SqlExport, "_get_engine")
     @patch.object(SqlExport, "export")
     @given(

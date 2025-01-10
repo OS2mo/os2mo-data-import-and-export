@@ -7,10 +7,9 @@ from typing import TypeVar
 from uuid import UUID
 
 import click
-import ra_utils.ensure_single_run
+import fastramqpi.ra_utils.ensure_single_run
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from fastramqpi.ra_utils.ensure_single_run import ensure_single_run
 from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
@@ -745,14 +744,14 @@ def wrap_export(args: dict, settings: dict) -> None:
         if args["historic"]:
             lock_name = "sql_export_historic"
 
-        ensure_single_run(
+        fastramqpi.ra_utils.ensure_single_run.ensure_single_run(
             func=sql_export.export,
             lock_name=lock_name,
             resolve_dar=args["resolve_dar"],
             use_pickle=args["read_from_cache"],
         )
 
-    except ra_utils.ensure_single_run.LockTaken as name_of_lock:
+    except fastramqpi.ra_utils.ensure_single_run.LockTaken as name_of_lock:
         logger.warning(f"Lock {name_of_lock} taken, aborting export")
         if "log_overlapping_aak" in settings and settings.get("log_overlapping_aak"):
             sql_export.log_overlapping_runs_aak()
