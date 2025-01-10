@@ -262,7 +262,7 @@ handle_function_map = {
 @actualstate_router.register("kle")
 @actualstate_router.register("leave")
 @actualstate_router.register("manager")
-@actualstate_router.register("related")
+@actualstate_router.register("related")  # type: ignore
 @actualstate_router.register("org_unit")
 @actualstate_router.register("person")
 async def trigger_actual_state_event(
@@ -285,7 +285,7 @@ async def trigger_actual_state_event(
 @historic_router.register("kle")
 @historic_router.register("leave")
 @historic_router.register("manager")
-@historic_router.register("related")
+@historic_router.register("related")  # type: ignore
 @historic_router.register("org_unit")
 @historic_router.register("person")
 async def trigger_historic_event(
