@@ -8,6 +8,7 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
+
 import os
 import time
 from typing import Any
@@ -15,14 +16,14 @@ from uuid import UUID
 
 import common_queries as cq
 from anytree import PreOrderIter
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.upload import file_uploader
 from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
-from raclients.upload import file_uploader
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 
@@ -93,9 +94,9 @@ def setup_gql_client(settings: JobSettings) -> GraphQLClient:
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )

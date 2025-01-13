@@ -9,7 +9,6 @@ from parameterized import parameterized
 
 from integrations.opus import opus_helpers
 
-
 testfile1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
 testfile2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
 
@@ -97,9 +96,9 @@ class test_opus_helpers(TestCase):
         # test that the length of each is as expected
         for i, x in enumerate(data):
             this = list(x)
-            assert (
-                len(this) == expected[i]
-            ), f"Expected {expected[i]} objects, got {len(this) }\n{this}"
+            assert len(this) == expected[i], (
+                f"Expected {expected[i]} objects, got {len(this)}\n{this}"
+            )
 
     def test_find_changed_parent(self):
         org1, _ = opus_helpers.parser(testfile1)
@@ -110,9 +109,9 @@ class test_opus_helpers(TestCase):
 
     def test_find_cancelled(self):
         file_diffs = opus_helpers.file_diff(testfile1, testfile2, disable_tqdm=True)
-        assert (
-            len(file_diffs["cancelled_employees"]) == 1
-        ), "Expected to find 1 cancelled employee"
+        assert len(file_diffs["cancelled_employees"]) == 1, (
+            "Expected to find 1 cancelled employee"
+        )
 
 
 if __name__ == "__main__":

@@ -1,15 +1,13 @@
+from ftplib import FTP_TLS
 from io import BytesIO
 from socket import timeout  # Used to handle exception
 from typing import Any
 
 import click
 import more_itertools
-
-from ftplib import FTP_TLS
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
-
-from raclients.graph.client import GraphQLClient
-from ra_utils.load_settings import load_settings
 
 
 def start_ftpes_connection(timeout=30):
@@ -66,7 +64,6 @@ SETTINGS = load_settings()
 def main():
     print("Directory listing before upload:")
     dir_list()
-
 
     filenames = [
         "bruger.csv",

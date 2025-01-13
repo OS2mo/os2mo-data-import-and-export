@@ -14,7 +14,6 @@ from ..ad_writer import ADWriter
 from .mocks import MO_UUID
 from .mocks import MockMORESTSourcePreview
 
-
 _base_settings = {
     "primary": {"cpr_separator": ""},
     "primary_write": {

@@ -1,7 +1,7 @@
 import logging
 
 import click
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from integrations import dawa_helper
 from integrations.opus.opus_helpers import get_latest_dump

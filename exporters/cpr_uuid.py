@@ -9,11 +9,10 @@ from typing import Optional
 from uuid import UUID
 
 import click
+from fastramqpi.ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import BaseModel
-from ra_utils.load_settings import load_setting
-from ra_utils.tqdm_wrapper import tqdm
-
 
 logger = logging.getLogger("cpr_uuid")
 
@@ -50,7 +49,7 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
         return ExportUser(
             cpr=cpr,
             mo_uuid=employee["uuid"],
-        )
+        )  # type: ignore
 
     print("Fetching all users from MO...")
     employees = helper.read_all_users()

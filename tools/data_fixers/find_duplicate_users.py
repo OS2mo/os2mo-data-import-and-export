@@ -3,19 +3,18 @@ from operator import itemgetter
 
 import click
 import requests
+from fastramqpi.ra_utils.load_settings import load_settings
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
 
 
 def check_duplicate_cpr(mora_base: str) -> list:
-
     helper = MoraHelper(hostname=mora_base)
     users = helper.read_all_users()
     users = filter(lambda u: u.get("cpr_no"), users)
     cprs = dict(map(itemgetter("uuid", "cpr_no"), users))
     duplicates = [i for i, cnt in Counter(cprs.values()).items() if cnt > 1]
     duplicate_uuids = dict(filter(lambda x: x[1] in duplicates, cprs.items()))
-    return duplicate_uuids
+    return duplicate_uuids  # type: ignore
 
 
 @click.command()

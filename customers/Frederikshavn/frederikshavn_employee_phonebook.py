@@ -2,16 +2,19 @@ import logging
 import shutil
 
 import pandas as pd
+from fastramqpi.raclients.upload import file_uploader
 from more_itertools import prepend
-from raclients.upload import file_uploader
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
+from sqlalchemy import or_
 
 from customers.Frederikshavn.config import EmployeePhoneBookSettings
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
 from exporters.sql_export.sql_table_defs import WBruger as Bruger
 from exporters.sql_export.sql_table_defs import WEngagement as Engagement
 from exporters.sql_export.sql_table_defs import WEnhed as Enhed
-from reports.query_actualstate import run_report, run_report_as_csv, set_of_org_units
+from reports.query_actualstate import run_report
+from reports.query_actualstate import run_report_as_csv
+from reports.query_actualstate import set_of_org_units
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +55,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel.in_(settings.sql_phone_number_field_list),
+            Adresse.adressetype_titel.in_(settings.sql_phone_number_field_list),  # type: ignore
             Adresse.synlighed_scope != settings.sql_visibility_scope_field,
             Adresse.synlighed_titel != settings.sql_visibility_title_field,
         )
@@ -108,7 +111,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
 
 if __name__ == "__main__":
     logger.info("Finding settings")
-    settings = EmployeePhoneBookSettings()
+    settings = EmployeePhoneBookSettings()  # type: ignore
     settings.start_logging_based_on_settings()
     logger.info("Settings in place. Initiating report.")
 

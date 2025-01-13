@@ -1,5 +1,5 @@
-from unittest import mock
 from unittest import TestCase
+from unittest import mock
 
 from parameterized import parameterized
 
@@ -12,8 +12,8 @@ from .mocks import MockADParameterReaderWithManager
 from .mocks import MockADWriterContext
 from .mocks import MockLoraCacheExtended
 from .mocks import MockLoraCacheWithManager
-from .test_utils import dict_modifier
 from .test_utils import TestADWriterMixin
+from .test_utils import dict_modifier
 
 
 @mock.patch("time.sleep")

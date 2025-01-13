@@ -8,8 +8,8 @@ from operator import itemgetter
 from typing import List
 from typing import Tuple
 
+from fastramqpi.ra_utils.load_settings import load_setting
 from more_itertools import flatten
-from ra_utils.load_settings import load_setting
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import column

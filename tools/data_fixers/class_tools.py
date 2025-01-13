@@ -12,15 +12,15 @@ import click
 import jmespath
 import requests
 from aiohttp.client_exceptions import ClientResponseError
+from fastramqpi.ra_utils.load_settings import load_setting
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.transpose_dict import transpose_dict
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
 from mox_helpers.mox_util import ensure_class_value_helper
-from ra_utils.load_settings import load_setting
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
-from ra_utils.transpose_dict import transpose_dict
 
 jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
@@ -68,12 +68,13 @@ def switch_class(
     Given an object payload and an uuid this function wil switch the class that an object is related to.
     Only switches class if it is in the set uuid_set.
     """
-    object_uuid = UUID(payload["id"])
-    payload = payload["registreringer"][0]
+    object_uuid = UUID(payload["id"])  # type: ignore
+    payload = payload["registreringer"][0]  # type: ignore
     # Drop data we don't need to post
     payload = {
-        item: payload.get(item) for item in ("attributter", "relationer", "tilstande")
-    }
+        item: payload.get(item)  # type: ignore
+        for item in ("attributter", "relationer", "tilstande")  # type: ignore
+    }  # type: ignore
 
     # Change all uuids from uuid_set to new_uuid.
     p_string = json.dumps(payload)
@@ -136,13 +137,13 @@ def filter_duplicates(
     # Find alle the duplicates
     duplicate_bvn_facet = filter(
         lambda x: x[1] in dup_bvn_facets, bvn_map_lower.items()
-    )
-    duplicate_bvn_facet = dict(duplicate_bvn_facet)
+    )  # type: ignore
+    duplicate_bvn_facet = dict(duplicate_bvn_facet)  # type: ignore
 
     # Transpose the dict to be able to iterate over duplicates
-    transposed = transpose_dict(duplicate_bvn_facet)
+    transposed = transpose_dict(duplicate_bvn_facet)  # type: ignore
 
-    return transposed
+    return transposed  # type: ignore
 
 
 def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str]]]:
@@ -175,7 +176,7 @@ def cli():
     type=click.STRING,
     default=lambda: load_settings().get("mox.base", "http://localhost:5000/lora/"),
 )
-def remove_dup_classes(delete: bool, mox_base: click.STRING):
+def remove_dup_classes(delete: bool, mox_base: click.STRING):  # type: ignore
     """Tool to help remove classes from MO that are duplicates.
 
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
@@ -194,7 +195,8 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
         return
 
     for dup_class in tqdm(
-        duplicate_bvn_facet.values(), desc="Deleting duplicate classes"
+        duplicate_bvn_facet.values(),  # type: ignore
+        desc="Deleting duplicate classes",  # type: ignore
     ):
         uuids, titles = unzip(dup_class)
         uuid_set = set(uuids)
@@ -220,8 +222,8 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
 
 
 def move_class_helper(
-    old_uuid: click.UUID,
-    new_uuid: click.UUID,
+    old_uuid: click.UUID,  # type: ignore
+    new_uuid: click.UUID,  # type: ignore
     copy: bool,
     mox_base: str,
     relation_type: str = "organisation/organisationfunktion",
@@ -270,7 +272,7 @@ def move_class_helper(
     type=click.STRING,
     default=lambda: load_settings().get("mox.base", "http://localhost:5000/lora/"),
 )
-def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str):
+def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str):  # type: ignore
     """Switches class, or copies to a new class for all objects using this class given two UUIDs.
     if --copy is supplied a new UUID will be generated for each object so that no objects are moved, only copied.
     """
@@ -335,7 +337,7 @@ def ensure_single_owner(mox_base, dry_run):
     # Read all classes (historic)
     for c in read_classes(session, mox_base, historic=True):
         # Read `one` registration which can include more than one "klasseegenskaber"
-        owners = only(c["registreringer"])["relationer"].get("ejer")
+        owners = only(c["registreringer"])["relationer"].get("ejer")  # type: ignore
         if (not owners) or len(owners) <= 1:
             continue
 

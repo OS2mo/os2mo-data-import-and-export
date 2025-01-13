@@ -1,13 +1,14 @@
-""" This program makes an actual state sqlite-database for use by
+"""This program makes an actual state sqlite-database for use by
 jobs run under job-runner as opposed to the actual state used
 by customers. It is meant to be run just after the nightly imports
 to be used as a speed up in comparison with hitting MO's rest interface.
 """
+
 import logging
 import sys
 
 import click
-from ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 
 from .sql_export import SqlExport
@@ -38,7 +39,6 @@ def cli():
 @cli.command()
 @click.option("--resolve-dar/--no-resolve-dar", default=True)
 def sql_export(resolve_dar):
-
     # Load settings file
     settings = load_settings()
 

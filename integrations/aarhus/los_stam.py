@@ -16,12 +16,12 @@ import pydantic
 import uuids
 from aiohttp import ClientResponseError
 from aiohttp.http_exceptions import HttpBadRequest
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
-from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
+from mox_helpers.mox_helper import create_mox_helper
 from os2mo_data_import.mox_data_types import Facet
 from pydantic import Field
-from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 

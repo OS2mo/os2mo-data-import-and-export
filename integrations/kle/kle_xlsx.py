@@ -3,8 +3,8 @@ from abc import ABC
 import click
 import pandas as pd
 import xlsxwriter.worksheet
-from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from click_option_group import optgroup
 
 from integrations.kle.kle_import_export import ASPECT_MAP
 from integrations.kle.kle_import_export import Aspects
@@ -27,7 +27,6 @@ class KLEXLSXExporter(KLEXLSXIntegration):
 
     @staticmethod
     def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
-
         for index, row in enumerate(data):
             worksheet.write_row(index, 0, row)
 
@@ -191,7 +190,6 @@ class KLEXLSXImporter(KLEXLSXIntegration):
             org_unit.setdefault(kle_uuid, set()).add(kle_aspect)
 
     def run(self):
-
         # Read sheet
         xlsx_file = pd.ExcelFile(self.xlsx_file)
 
@@ -246,7 +244,6 @@ class KLEXLSXImporter(KLEXLSXIntegration):
         payloads = []
         for unit, info in data.items():
             for kle_uuid, aspects in info.items():
-
                 aspect_uuids = [aspect_map[aspect] for aspect in aspects]
 
                 payload = {

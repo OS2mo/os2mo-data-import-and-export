@@ -10,19 +10,19 @@ from uuid import UUID
 
 import click
 import sentry_sdk
-from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from click_option_group import optgroup
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import one
 from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
 
 import constants
+
 from . import payloads
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
-
 
 logger = logging.getLogger("ImportADGroup")
 

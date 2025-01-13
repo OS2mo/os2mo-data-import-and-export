@@ -2,21 +2,20 @@ import re
 from typing import Any
 from uuid import UUID
 
+import xlsxwriter.worksheet
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.job_settings import LogLevel
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.upload import file_uploader
 from gql import gql
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from pydantic.main import BaseModel
 from structlog import get_logger
-import xlsxwriter.worksheet
-
-from raclients.upload import file_uploader
-from raclients.graph.client import GraphQLClient
-from ra_utils.job_settings import JobSettings, LogLevel
 
 from reports.graphql import get_mo_client
 from reports.query_actualstate import XLSXExporter
-
 
 logger = get_logger()
 ny_level_regex = re.compile(r"NY\d.*")
@@ -109,9 +108,7 @@ class XLSXRow(BaseModel):
 
 
 def get_employees(
-    gql_client: GraphQLClient,
-    email_addr_type_user_key: str,
-    limit: int
+    gql_client: GraphQLClient, email_addr_type_user_key: str, limit: int
 ) -> list[dict[str, Any]]:
     employees = []
     next_cursor = None
@@ -122,7 +119,7 @@ def get_employees(
                 "cursor": next_cursor,
                 "limit": limit,
                 "email_addr_type_user_key": email_addr_type_user_key,
-            }
+            },
         )
         employees.extend(r["employees"]["objects"])
         next_cursor = r["employees"]["page_info"]["next_cursor"]
@@ -140,20 +137,18 @@ def get_org_units(
     hierarchy_user_key: str,
 ) -> list[dict[str, Any]]:
     r = gql_client.execute(
-        GET_ORG_UNITS_QUERY,
-        variable_values={"hierarchy_user_key": hierarchy_user_key}
+        GET_ORG_UNITS_QUERY, variable_values={"hierarchy_user_key": hierarchy_user_key}
     )
     return r["org_units"]["objects"]
 
 
-def get_ny_level_org_units(
-    org_units: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def get_ny_level_org_units(org_units: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     Select only the NY-level org units.
     """
     return [
-        ou for ou in org_units
+        ou
+        for ou in org_units
         if ny_level_regex.match(ou["current"]["org_unit_level"]["user_key"])
     ]
 
@@ -172,7 +167,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
             return False
 
         manager_ou_uuids = [
-            only(manager_role["org_unit"], dict()).get("uuid")
+            only(manager_role["org_unit"], dict()).get("uuid")  # type: ignore
             for manager_role in manager_roles
         ]
         eng_ou_uuid = one(eng["org_unit"])["uuid"]
@@ -206,9 +201,8 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
-        if ny_level_regex.match(
-            one(eng["org_unit"])["org_unit_level"]["user_key"]
-        ) and sd_emp_id_regex.match(eng.get("user_key", ""))
+        if ny_level_regex.match(one(eng["org_unit"])["org_unit_level"]["user_key"])
+        and sd_emp_id_regex.match(eng.get("user_key", ""))
     ]
 
 
@@ -221,19 +215,19 @@ def employee_to_xlsx_exporter_format(xlsx_rows: list[XLSXRow]) -> list[list[str]
             "Mail",
             "CPR",
             "Afdelingskode",
-            "ErLeder"
+            "ErLeder",
         ]
     ]
     for row in xlsx_rows:
         data.append(
             [
-                row.employment_id,
-                row.first_name,
-                row.last_name,
-                row.email,
-                row.cpr,
-                str(row.org_unit_uuid),
-                "Ja" if row.is_manager else "Nej",
+                row.employment_id,  # type: ignore
+                row.first_name,  # type: ignore
+                row.last_name,  # type: ignore
+                row.email,  # type: ignore
+                row.cpr,  # type: ignore
+                str(row.org_unit_uuid),  # type: ignore
+                "Ja" if row.is_manager else "Nej",  # type: ignore
             ]
         )
     return data
@@ -263,8 +257,8 @@ def upload_report(
     # Hack - we need to convert the JobSettings
     settings_dict = {
         "crontab.CLIENT_ID": settings.client_id,
-        "crontab.CLIENT_SECRET": settings.crontab_CLIENT_SECRET,
-        "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,
+        "crontab.CLIENT_SECRET": settings.crontab_CLIENT_SECRET,  # type: ignore
+        "crontab.AUTH_SERVER": settings.crontab_AUTH_SERVER,  # type: ignore
         "mora.base": settings.mora_base,
     }
     with file_uploader(settings_dict, filename) as report_file:
@@ -285,9 +279,9 @@ def main(
     logger.info("Program started")
 
     gql_client = get_mo_client(
-        auth_server=settings.crontab_AUTH_SERVER,
+        auth_server=settings.crontab_AUTH_SERVER,  # type: ignore
         client_id=settings.client_id,
-        client_secret=settings.crontab_CLIENT_SECRET,  # Careful - this is not a SecretStr
+        client_secret=settings.crontab_CLIENT_SECRET,  # type: ignore
         mo_base_url=settings.mora_base,
         gql_version=gql_version,
     )
@@ -305,7 +299,7 @@ def main(
         settings,
         employee_xlsx_exporter_data,
         "Holstebro_medarbejdere_ledere.xlsx",
-        "Ledere"
+        "Ledere",
     )
 
     # Report for org units

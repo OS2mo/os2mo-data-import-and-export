@@ -23,15 +23,6 @@ variables:
   PRODUCT: os2mo
   COMPONENT: sqlexport
 
-Lint SQL Exporter:
-  stage: lint
-  needs: []
-  image: python:3.11
-  script:
-    - cd exporters/sql_export
-    - pip install pre-commit types-aiofiles
-    - pre-commit run --files tests/*.py *.py
-
 # Build
 ########
 Build SQL Exporter image:

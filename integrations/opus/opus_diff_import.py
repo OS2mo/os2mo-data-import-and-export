@@ -10,13 +10,13 @@ from typing import Optional
 from uuid import UUID
 
 import requests
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import one
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
-from raclients.graph.client import GraphQLClient
 from requests import Session
 
 import constants
@@ -229,9 +229,9 @@ class OpusDiffImport(object):
         assert response.status_code in (200, 400, 404)
         if response.status_code == 400:
             # Check actual response
-            assert (
-                "not give raise to a new registration" in response.text
-            ), response.text
+            assert "not give raise to a new registration" in response.text, (
+                response.text
+            )
             logger.info("Requst had no effect")
         return None
 
@@ -1002,8 +1002,8 @@ def start_opus_diff(ad_reader=None, dry_run: bool = False):
     while xml_date:
         import_one(
             ad_reader,
-            xml_date,
-            latest_date,
+            xml_date,  # type: ignore
+            latest_date,  # type: ignore
             dumps,
             filter_ids,
             opus_id=None,

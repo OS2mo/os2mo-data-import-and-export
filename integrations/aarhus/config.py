@@ -4,10 +4,10 @@ from typing import Optional
 from uuid import UUID
 
 import uuids
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from pydantic import BaseSettings
-from ra_utils.job_settings import JobSettings
-from ra_utils.load_settings import load_settings
-from raclients.graph.client import GraphQLClient
 
 
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:  # type: ignore
@@ -102,9 +102,9 @@ def setup_gql_client(settings: Settings) -> GraphQLClient:
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v3",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )

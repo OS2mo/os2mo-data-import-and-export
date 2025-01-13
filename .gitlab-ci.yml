@@ -20,6 +20,8 @@ stages:
   - deploy
 
 variables:
+  PRECOMMIT_USE_POETRY: "true"
+
   # Project variables
   RELEASE_REGISTRY: docker.io
   RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/dipex
@@ -53,20 +55,16 @@ workflow:
 
 include:
   - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/conventional-commits.v1.yml'
-  - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/docker-build-meta.v2.yml'
-  - project: 'labs/salt-automation'
-    file: '/gitlab-ci-templates/common/docker-release.v1.yml'
-  - project: "labs/salt-automation"
-    file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
-  - project: "labs/salt-automation"
-    file: "/gitlab-ci-templates/common/rules.v1.yml"
-  - project: 'labs/salt-automation'
-    file: "/gitlab-ci-templates/common/no-interrupt.v1.yml"
-  - project: 'labs/salt-automation'
-    file: "/gitlab-ci-templates/python/pypi-meta.v1.yml"
-  - local: "exporters/sql_export/.gitlab-ci.yml"
+    file:
+      - gitlab-ci-templates/common/no-interrupt.v1.yml
+      - gitlab-ci-templates/common/pre-commit.v1.yml
+      - gitlab-ci-templates/common/conventional-commits.v1.yml
+      - gitlab-ci-templates/common/docker-build-meta.v2.yml
+      - gitlab-ci-templates/common/docker-release.v1.yml
+      - gitlab-ci-templates/common/rules.v1.yml
+      - gitlab-ci-templates/python/pypi-meta.v1.yml
+      - gitlab-ci-templates/common/config-updater-meta.v1.yml
+  - local: exporters/sql_export/.gitlab-ci.yml
 
 
 .manual-rules: &manual-rules
@@ -90,84 +88,6 @@ include:
   script:
     - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
 
-
-.lint-python:
-  stage: lint
-  needs: []
-  image: python:3.11
-  services: []
-  before_script:
-    - pip install -r integrations/requirements/lint.txt
-
-Lint Customers files:
-  extends: .lint-python
-  script:
-    - python -m black --diff --check customers/
-    - python -m isort --profile black --diff --check-only customers/
-
-Lint AD Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/ad_integration/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-freezegun types-python-dateutil
-    - pre-commit run --files tests/*.py *.py
-
-Lint Opus Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/opus/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files tests/*.py *.py
-
-Lint Rollekatalog Exporter:
-  extends: .lint-python
-  script:
-    - cd exporters/os2rollekatalog/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files *.py
-
-Lint CPR UUID Exporter:
-  extends: .lint-python
-  script:
-    - cd exporters/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
-    - pre-commit run --files cpr_uuid.py
-
-Lint OPUS Org Tree Print:
-  extends: .lint-python
-  script:
-    - cd integrations/opus/org_tree_print/
-    - python -m black --diff --check *.py
-    - python -m isort --diff --check-only *.py
-
-Lint AAK LOS Integration:
-  extends: .lint-python
-  script:
-    - cd integrations/aarhus/
-    - pip install mypy pre-commit types-python-dateutil
-    - pre-commit run --files *.py
-
-Lint Reports:
-  extends: .lint-python
-  script:
-    - python -m black --diff --check --verbose reports/query_actualstate.py reports/os2mo_tests/test_query_actualstate.py
-    - python -m isort --profile black --check-only reports/query_actualstate.py reports/os2mo_tests/test_query_actualstate.py
-
-Lint Exporter Utils:
-  extends: .lint-python
-  script:
-    - python -m isort --profile black --diff --check-only exporters/utils/*.py exporters/utils/tests/*.py
-    - cd exporters/utils/
-    - python -m black --diff --check *.py tests/*.py
-
-Lint Tools:
-  extends: .lint-python
-  script:
-    - cd tools/
-    - python -m black --diff --line-length 85 --check uuid_replace.py
-    - python -m isort --diff --check-only uuid_replace.py
-    - python -m black --diff --check data_fixers
-    - python -m isort --profile black --diff --check-only --force-single-line-imports data_fixers
 
 # Build stage
 #############

@@ -2,7 +2,7 @@ import csv
 from operator import itemgetter
 
 
-def employee_mapper(filename:str) -> dict:
+def employee_mapper(filename: str) -> dict:
     """
     >>> import tempfile
     >>> with tempfile.NamedTemporaryFile('w', encoding='utf-8') as tmpfile:
@@ -18,5 +18,5 @@ def employee_mapper(filename:str) -> dict:
     True
     """
     with open(filename) as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=';')
-        return dict(map(itemgetter('cpr', 'mo_uuid'), reader))  # type: ignore
+        reader = csv.DictReader(csvfile, delimiter=";")
+        return dict(map(itemgetter("cpr", "mo_uuid"), reader))  # type: ignore

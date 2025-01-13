@@ -1,18 +1,18 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
 import json
-from typing import Any
 from textwrap import dedent
+from typing import Any
 
 import click
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
-from raclients.graph.client import GraphQLClient
 
 
 class JSONParamType(click.ParamType):
     name = "json"
 
-    def convert(self, value: Any, _1, _2) -> dict[Any, Any]:
+    def convert(self, value: Any, _1, _2) -> dict[Any, Any]:  # type: ignore
         return json.loads(value)
 
 
@@ -120,12 +120,12 @@ def refresher(
         counter = 0
         while cursor is not None:
             result = session.execute(gql_query, variable_values=params)
-            cursor = result[mutator_name]["page_info"]["next_cursor"]
+            cursor = result[mutator_name]["page_info"]["next_cursor"]  # type: ignore
             if print_uuids:
-                uuids = result[mutator_name]["objects"]
+                uuids = result[mutator_name]["objects"]  # type: ignore
                 for uuid in uuids:
                     click.echo(uuid)
-            params["cursor"] = cursor
+            params["cursor"] = cursor  # type: ignore
             counter += limit
             if verbosity > 0:
                 click.echo(counter)

@@ -1,4 +1,4 @@
-from raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 def get_mo_client(
@@ -28,7 +28,7 @@ def get_mo_client(
         url=f"{mo_base_url}/graphql/v{str(gql_version)}",
         client_id=client_id,
         client_secret=client_secret,
-        auth_server=auth_server,
+        auth_server=auth_server,  # type: ignore
         auth_realm="mo",
         execute_timeout=timeout,
         httpx_client_kwargs={"timeout": timeout},

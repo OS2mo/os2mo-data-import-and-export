@@ -7,6 +7,7 @@
 #
 import queue
 import threading
+
 from anytree import PreOrderIter
 
 
@@ -116,8 +117,8 @@ def export_managers(mh, nodes, filename):
             path_dict = mh._create_path_dict(fieldnames, node)
             address = mh.read_user_address(manager["uuid"])
             row.update(path_dict)  # Path
-            row.update(manager)    # Navn, Ansvar
-            row.update(address)    # E-mail, Telefon
+            row.update(manager)  # Navn, Ansvar
+            row.update(address)  # E-mail, Telefon
             rows.append(row)
 
     mh._write_csv(fieldnames, rows, filename)

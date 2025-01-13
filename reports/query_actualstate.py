@@ -7,16 +7,17 @@
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
 import csv
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import jmespath
 import numpy as np
 import pandas as pd
 import xlsxwriter.worksheet
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import prepend
 from pydantic import BaseSettings
-from raclients.graph.client import GraphQLClient
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
@@ -72,7 +73,7 @@ class XLSXExporter:
 def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
     # Create new dataframe with organisational path as columns
     org_paths = df[path_col].str.split("\\", expand=True)
-    new_cols = [f"Enhed {column+1}" for column in org_paths.columns]
+    new_cols = [f"Enhed {column + 1}" for column in org_paths.columns]
     org_paths.columns = new_cols
 
     # Remove the path column and join org_paths instead
@@ -147,7 +148,7 @@ def fetch_trade_union(association_uuids: List[str]) -> Dict[str, str]:
 
     """
 
-    settings = Settings()
+    settings = Settings()  # type: ignore
     query = gql(
         """
         query employeeDynamicClasses($uuids: [UUID!]) {
@@ -173,11 +174,10 @@ def fetch_trade_union(association_uuids: List[str]) -> Dict[str, str]:
         client_id=settings.client_id,
         client_secret=settings.client_secret,
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:
-
         r = session.execute(
             query,
             variable_values={
@@ -410,7 +410,6 @@ def list_employees(session, org_name: str) -> list:
 
 
 def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
-
     # Make a sqlalchemy session - Name of database is read from settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
 
@@ -425,7 +424,6 @@ def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
 
 
 def run_report_as_csv(reporttype, org_name: str, file_name: str):
-
     # Make a sqlalchemy session - Name of database is read from settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
 

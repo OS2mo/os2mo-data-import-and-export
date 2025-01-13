@@ -14,14 +14,17 @@ from typing import Tuple
 
 import click
 import sentry_sdk
-from ra_utils.apply import apply
-from ra_utils.catchtime import catchtime
-from ra_utils.jinja_filter import create_filters
-from ra_utils.lazy_dict import LazyDict
-from ra_utils.lazy_dict import LazyEval
-from ra_utils.lazy_dict import LazyEvalBare
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
+from fastramqpi.ra_utils.apply import apply
+from fastramqpi.ra_utils.catchtime import catchtime
+from fastramqpi.ra_utils.jinja_filter import create_filters
+from fastramqpi.ra_utils.lazy_dict import LazyDict
+from fastramqpi.ra_utils.lazy_dict import LazyEval
+from fastramqpi.ra_utils.lazy_dict import LazyEvalBare
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
+
+from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
+from exporters.sql_export.lora_cache import get_cache as LoraCache
 
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
@@ -30,8 +33,6 @@ from .ad_reader import ADParameterReader
 from .ad_sync import AdMoSync
 from .ad_writer import ADWriter
 from .read_ad_conf_settings import injected_settings
-from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
-from exporters.sql_export.lora_cache import get_cache as LoraCache
 
 logger = logging.getLogger("CreateAdUsers")
 export_logger = logging.getLogger("export")
@@ -247,21 +248,19 @@ class AdLifeCycle:
                 )
                 return mo_engagement
 
-            lc_engagements: List[
-                List[Dict]
-            ] = self.lc.engagements.values()  # type:ignore
+            lc_engagements: List[List[Dict]] = self.lc.engagements.values()  # type:ignore
             engagements: Iterator[Dict] = map(itemgetter(0), lc_engagements)
             lazy_engagements: Iterator[LazyDict] = map(LazyDict, engagements)
             enriched_engagements: Iterator[LazyDict] = map(
                 # Enrich engagement_type class
-                partial(make_class_lazy, "engagement_type"),
+                partial(make_class_lazy, "engagement_type"),  # type: ignore
                 map(
                     # Enrich primary_type class
                     partial(make_class_lazy, "primary_type"),
                     map(
                         # Enrich job_function class
                         partial(make_class_lazy, "job_function"),
-                        lazy_engagements,
+                        lazy_engagements,  # type: ignore
                     ),
                 ),
             )
@@ -306,7 +305,7 @@ class AdLifeCycle:
         employees: Iterator[Dict] = map(itemgetter(0), tqdm_employees)
 
         # Enrich with engagements
-        ee_employees: Iterator[Dict] = map(enrich_with_engagements, employees)
+        ee_employees: Iterator[Dict] = map(enrich_with_engagements, employees)  # type: ignore
 
         # Enrich with ad_objects
         ad_employees: Iterator[Tuple[Dict, Dict]] = map(

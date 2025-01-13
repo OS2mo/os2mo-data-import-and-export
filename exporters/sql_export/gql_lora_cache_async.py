@@ -8,17 +8,17 @@ from typing import Any
 from typing import AsyncIterator
 from uuid import UUID
 
+from fastramqpi.ra_utils.async_to_sync import async_to_sync
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from gql.client import AsyncClientSession
 from more_itertools import first
-from ra_utils.async_to_sync import async_to_sync
-from raclients.graph.client import GraphQLClient
 from tenacity import Retrying
 from tenacity import stop_after_delay
 from tenacity import wait_random_exponential
 
-from .config import get_gql_cache_settings
 from .config import GqlLoraCacheSettings
+from .config import get_gql_cache_settings
 
 RETRY_MAX_TIME = 5 * 60
 
@@ -139,9 +139,9 @@ class GQLLoraCache:
         client = GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
+            client_secret=self.settings.client_secret,  # type: ignore
             auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
+            auth_server=self.settings.auth_server,  # type: ignore
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
         )
@@ -179,9 +179,9 @@ class GQLLoraCache:
                         ),
                         get_execution_result=True,
                     )
-            for obj in result.data["page"]["objects"]:
+            for obj in result.data["page"]["objects"]:  # type: ignore
                 yield obj
-            next_cursor = result.data["page"]["page_info"]["next_cursor"]
+            next_cursor = result.data["page"]["page_info"]["next_cursor"]  # type: ignore
             if next_cursor is None:
                 break
 

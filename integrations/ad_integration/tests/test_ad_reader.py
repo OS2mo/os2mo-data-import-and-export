@@ -1,7 +1,7 @@
 from contextlib import nullcontext
 from operator import itemgetter
-from unittest import mock
 from unittest import TestCase
+from unittest import mock
 
 from hypothesis import given
 from hypothesis import settings
@@ -10,7 +10,6 @@ from more_itertools import unique_everseen
 
 from ..ad_reader import ADParameterReader
 from .mocks import MockAD
-
 
 AD_SAM_ACCOUNT_NAME = "SamAccountName"
 AD_CPR_FIELD_NAME = "CprFieldName"

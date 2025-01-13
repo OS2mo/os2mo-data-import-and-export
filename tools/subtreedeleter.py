@@ -6,11 +6,11 @@ from typing import Optional
 
 import aiohttp
 import click
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import flatten
 from more_itertools import one
 from mox_helpers.utils import async_to_sync
-from ra_utils.headers import TokenSettings
-from ra_utils.load_settings import load_settings
 from tqdm.asyncio import tqdm
 
 all_functionnames = [
@@ -154,7 +154,7 @@ async def subtreedeleter_helper(
     delete_subtree: bool = False,
     connections: int = 4,
 ) -> None:
-    token_settings = TokenSettings()
+    token_settings = TokenSettings()  # type: ignore
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         session.headers.update(token_settings.get_headers())

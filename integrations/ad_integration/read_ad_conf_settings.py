@@ -4,9 +4,8 @@ from typing import Dict
 from typing import Optional
 
 import click
+from fastramqpi.ra_utils.load_settings import load_settings
 from glom import assign
-from ra_utils.load_settings import load_settings
-
 
 logger = logging.getLogger("AdReader")
 
@@ -63,7 +62,6 @@ def _read_primary_ad_settings(top_settings, index=0):
         index
     ].get("discriminator.field")
     if primary_settings["discriminator.field"] is not None:
-
         # if we have a field we MUST have .values and .function
         primary_settings["discriminator.values"] = top_settings["integrations.ad"][
             index
@@ -77,7 +75,7 @@ def _read_primary_ad_settings(top_settings, index=0):
         if primary_settings["discriminator.function"] is None:
             missing.append("discriminator.function")
 
-        if not primary_settings["discriminator.function"] in ["include", "exclude"]:
+        if primary_settings["discriminator.function"] not in ["include", "exclude"]:
             raise ValueError(
                 "'ad.discriminator.function'"
                 + " must be 'include' or 'exclude' for AD %d" % index
@@ -99,9 +97,9 @@ def _read_primary_ad_settings(top_settings, index=0):
     primary_settings["ad_mo_sync_terminate_missing"] = index_settings.get(
         "ad_mo_sync_terminate_missing", False
     )
-    primary_settings[
-        "ad_mo_sync_terminate_missing_require_itsystem"
-    ] = index_settings.get("ad_mo_sync_terminate_missing_require_itsystem", True)
+    primary_settings["ad_mo_sync_terminate_missing_require_itsystem"] = (
+        index_settings.get("ad_mo_sync_terminate_missing_require_itsystem", True)
+    )
     primary_settings["ad_mo_sync_terminate_disabled"] = index_settings.get(
         "ad_mo_sync_terminate_disabled"
     )

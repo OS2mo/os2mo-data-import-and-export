@@ -108,7 +108,7 @@ def test_missing_properties(tup):
                     "unit_postal_code": "postalCode",
                 },
                 "org_field": "Department",
-                "template_to_ad_fields": {"description": "{{" " sync_timestamp " "}}"},
+                "template_to_ad_fields": {"description": "{{ sync_timestamp }}"},
             },
         }
         new_settings = {

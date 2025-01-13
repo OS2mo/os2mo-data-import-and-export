@@ -4,11 +4,11 @@ from abc import abstractmethod
 from enum import Enum
 
 import requests
+from fastramqpi.ra_utils.headers import TokenSettings
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.headers import TokenSettings
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,7 @@ class KLEAnnotationIntegration(ABC):
     # something like a Strategy here. However, maybe YAGNI.
 
     def __init__(self):
-
-        self.settings = Settings()
+        self.settings = Settings()  # type: ignore
         self.settings.start_logging_based_on_settings()
 
         self.mora_base = self.settings.mora_base
@@ -58,15 +57,15 @@ class KLEAnnotationIntegration(ABC):
         self.gql_client = GraphQLClient(
             url=f"{self.mora_base}/graphql/v7",
             client_id=self.settings.client_id,
-            client_secret=self.settings.client_secret,
+            client_secret=self.settings.client_secret,  # type: ignore
             auth_realm=self.settings.auth_realm,
-            auth_server=self.settings.auth_server,
+            auth_server=self.settings.auth_server,  # type: ignore
             sync=True,
         )
 
     def _get_mora_session(self) -> requests.Session:
         s = requests.Session()
-        session_headers = TokenSettings().get_headers()
+        session_headers = TokenSettings().get_headers()  # type: ignore
 
         if session_headers:
             s.headers.update(session_headers)

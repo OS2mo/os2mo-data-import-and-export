@@ -1,25 +1,23 @@
-from uuid import UUID
-from datetime import datetime, date
-from typing import List
-
 import csv
 import json
-from dateutil import utils
-from more_itertools import one
-from fastapi.encoders import jsonable_encoder
-
-from gql import gql
-from gql.client import SyncClientSession
+from datetime import date
+from datetime import datetime
+from typing import List
+from uuid import UUID
 
 import pandas as pd
+from dateutil import utils
+from fastapi.encoders import jsonable_encoder
+from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from gql.client import SyncClientSession
+from more_itertools import one
 
-from raclients.upload import file_uploader
-
-from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 from reports.os2mo_new_and_ended_engagement_reports.config import EngagementSettings
 from reports.os2mo_new_and_ended_engagement_reports.config import (
     get_engagement_settings,
 )
+from reports.os2mo_new_and_ended_engagement_reports.config import setup_gql_client
 
 
 def read_report_as_json(path_to_file: str) -> List[dict[str, str]]:
@@ -48,7 +46,7 @@ def get_gql_query_validity_to(
 ) -> dict:
     """Returns a GQL payload on engagements with validity till today."""
     graphql_query = gql(
-    """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
+        """query EstablishedEngagements ($engagement_date_to_query_from: DateTime) {
             engagements(filter: { from_date: $engagement_date_to_query_from }) {
                 objects {
                     validities {
@@ -70,7 +68,7 @@ def get_gql_query_validity_to(
 
 def gql_query_persons_details_to_display(
     show_new_persons: bool = False, show_ended_engagements: bool = False
-) -> str:
+) -> str:  # type: ignore
     """GQL query to return to use as input, depending on what type of engagement is wanted."""
     if show_new_persons:
         return """
@@ -145,6 +143,8 @@ def gql_query_persons_details_to_display(
             }
         }
         """
+
+    raise AssertionError()
 
 
 def get_filtered_engagements_for_ended_today(gql_query_response: dict) -> List[UUID]:
@@ -361,6 +361,7 @@ def convert_person_and_engagement_data_to_csv(
             if len(data["org_unit"][0]["ancestors"]) >= 1:
                 return data["org_unit"][0]["ancestors"][-1]["name"]
             return None
+        return None
 
     out = []
     if persons_data_to_csv:
@@ -387,7 +388,9 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"])
+                        if obj["itusers"] is not None
+                        else None,
                         "Organisation": get_org_unit_ancestor(obj),
                     }
                 )
@@ -406,7 +409,9 @@ def convert_person_and_engagement_data_to_csv(
                         "Email": obj["addresses"][0]["name"]
                         if obj["addresses"]
                         else None,
-                        "Shortname": get_ad_it_system_user_key(obj["itusers"]) if obj["itusers"] is not None else None,
+                        "Shortname": get_ad_it_system_user_key(obj["itusers"])
+                        if obj["itusers"] is not None
+                        else None,
                     }
                 )
 
@@ -454,9 +459,6 @@ def get_differences_in_uuids(
 
     new_report_json_set = {uuid["uuid"] for uuid in new_report}
 
-    # This might be useful in the future. As of now though, only new entries are needed.
-    previous_uuids_already_in_mo = old_report_json_set.difference(new_report_json_set)
-
     new_uuids_appear_from_today = new_report_json_set.difference(old_report_json_set)
 
     return new_uuids_appear_from_today
@@ -478,7 +480,7 @@ def main() -> None:
         print("No files found from yesterday")
 
     # Get uuids on all persons.
-    list_of_all_persons = gql_get_all_persons_uuids(gql_session)
+    list_of_all_persons = gql_get_all_persons_uuids(gql_session)  # type: ignore
 
     # Read the report written today with the uuids from all persons.
     todays_report = list_of_all_persons
@@ -490,7 +492,7 @@ def main() -> None:
     )
 
     # Pulling address types so email uuids can be found.
-    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)
+    address_type_uuids_and_scopes = retrieve_address_types_uuids(gql_session)  # type: ignore
 
     # Finding email uuids.
     list_of_email_uuids = get_email_address_type_uuid_from_gql(
@@ -498,7 +500,7 @@ def main() -> None:
     )
 
     # Getting engagements that have an end-date with validity field "to" engagements.
-    payload_of_ended_engagements_objects = get_gql_query_validity_to(gql_session)
+    payload_of_ended_engagements_objects = get_gql_query_validity_to(gql_session)  # type: ignore
 
     # Finding uuids of persons that have ended engagements.
     list_of_person_uuids_ended_engagements = get_filtered_engagements_for_ended_today(
@@ -507,7 +509,7 @@ def main() -> None:
 
     # Finding relevant details on new persons from GraphQL calls.
     details_of_new_persons_established_in_mo = persons_details_from_engagement(
-        gql_session,
+        gql_session,  # type: ignore
         set_of_newly_established_uuids_in_mo,
         list_of_email_uuids,
         person_details=True,
@@ -517,7 +519,7 @@ def main() -> None:
 
     # Finding relevant details on ended engagements from GraphQL calls.
     details_of_ended_engagements = persons_details_from_engagement(
-        gql_session,
+        gql_session,  # type: ignore
         list_of_person_uuids_ended_engagements,
         list_of_email_uuids,
         ended_engagement_details=True,

@@ -6,8 +6,8 @@ import click
 import sentry_sdk
 from dateutil import tz
 
-from .gql_lora_cache_async import get_gql_cache_settings
 from .gql_lora_cache_async import GQLLoraCache
+from .gql_lora_cache_async import get_gql_cache_settings
 
 logger = logging.getLogger(__name__)
 
@@ -75,5 +75,4 @@ def cli(historic, skip_past, resolve_dar, read_from_cache):
 
 
 if __name__ == "__main__":
-
     cli()

@@ -4,12 +4,12 @@
 from functools import lru_cache
 from typing import Any
 
+from fastramqpi.ra_utils.job_settings import JobSettings
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
 from pydantic.tools import parse_obj_as
-from ra_utils.job_settings import JobSettings
 
 
 class GqlLoraCacheSettings(JobSettings):  # type: ignore
@@ -74,7 +74,7 @@ class DatabaseSettings(JobSettings):
     mora_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000")
     mox_base: AnyHttpUrl = parse_obj_as(AnyHttpUrl, "http://mo-service:5000/lora")
 
-    actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)
+    actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)  # type: ignore
     historic_state: DatabaseConfiguration | None
     log_overlapping_aak: bool = False
     use_new_cache: bool = False

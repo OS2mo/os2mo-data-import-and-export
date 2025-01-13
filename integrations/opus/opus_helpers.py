@@ -14,10 +14,10 @@ from typing import Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
 from more_itertools import partition
-from ra_utils.load_settings import load_settings
-from ra_utils.tqdm_wrapper import tqdm
 
 from integrations import cpr_mapper
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted

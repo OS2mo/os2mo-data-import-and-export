@@ -3,8 +3,8 @@
 from typing import Any
 
 import click
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
-from raclients.graph.client import GraphQLClient
 from more_itertools import one
 
 

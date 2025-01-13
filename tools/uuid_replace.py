@@ -1,11 +1,12 @@
 import json
-from functools import partial, reduce
+from functools import partial
+from functools import reduce
 from itertools import filterfalse
 from uuid import UUID
 
 import click
+from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import flatten
-from ra_utils.tqdm_wrapper import tqdm
 
 
 # TODO: Consider moving this to exporters/utils/uuid_test.py
@@ -72,9 +73,7 @@ def transform(input, jsonmap, output):
 
         This version runs faster than the regex version, which is why it is used.
         """
-        return reduce(
-            lambda text, change: text.replace(*change), changes.items(), line
-        )
+        return reduce(lambda text, change: text.replace(*change), changes.items(), line)
 
     click.echo("Starting multistring replacement and output writing...")
     input_lines = tqdm(input_lines)

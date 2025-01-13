@@ -6,7 +6,6 @@ from hypothesis import strategies as st
 class TestConvertCreateToEdit:
     @given(st.dictionaries(keys=st.text(), values=st.text()), st.text(), st.text())
     def test_convert_no_from_date(self, payload, uuid_arg, type_arg):
-
         payload["uuid"] = uuid_arg
         payload["type"] = type_arg
 
@@ -23,7 +22,6 @@ class TestConvertCreateToEdit:
         st.text(min_size=1),
     )
     def test_convert_with_from_date(self, payload, uuid_arg, type_arg, from_date):
-
         payload["uuid"] = uuid_arg
         payload["type"] = type_arg
 

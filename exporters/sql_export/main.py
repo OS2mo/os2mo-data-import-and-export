@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Integration entrypoint."""
+
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -16,15 +17,16 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.main import FastRAMQPI
 from fastramqpi.metrics import dipex_last_success_timestamp
-from ramqp.depends import RateLimit
-from ramqp.mo import MORouter
-from ramqp.mo import MORoutingKey
-from ramqp.mo import PayloadUUID
+from fastramqpi.ramqp.depends import RateLimit
+from fastramqpi.ramqp.mo import MORouter
+from fastramqpi.ramqp.mo import MORoutingKey
+from fastramqpi.ramqp.mo import PayloadUUID
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
 from .gql_lora_cache_async import GQLLoraCache
 from .sql_export import SqlExport as _SqlExport
+from .sql_table_defs import KLE
 from .sql_table_defs import Adresse
 from .sql_table_defs import Base
 from .sql_table_defs import Bruger
@@ -36,7 +38,6 @@ from .sql_table_defs import Facet
 from .sql_table_defs import ItForbindelse
 from .sql_table_defs import ItSystem
 from .sql_table_defs import Klasse
-from .sql_table_defs import KLE
 from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
@@ -261,7 +262,7 @@ handle_function_map = {
 @actualstate_router.register("kle")
 @actualstate_router.register("leave")
 @actualstate_router.register("manager")
-@actualstate_router.register("related")
+@actualstate_router.register("related")  # type: ignore
 @actualstate_router.register("org_unit")
 @actualstate_router.register("person")
 async def trigger_actual_state_event(
@@ -284,7 +285,7 @@ async def trigger_actual_state_event(
 @historic_router.register("kle")
 @historic_router.register("leave")
 @historic_router.register("manager")
-@historic_router.register("related")
+@historic_router.register("related")  # type: ignore
 @historic_router.register("org_unit")
 @historic_router.register("person")
 async def trigger_historic_event(
@@ -317,7 +318,9 @@ def create_app(**kwargs) -> FastAPI:
     if settings.sentry_dsn:
         sentry_sdk.init(dsn=settings.sentry_dsn)
 
-    fastramqpi = FastRAMQPI(application_name="sql-export", settings=settings.fastramqpi)
+    fastramqpi = FastRAMQPI(
+        application_name="sql-export", settings=settings.fastramqpi, graphql_version=22
+    )
     if settings.eventdriven:
         amqpsystem = fastramqpi.get_amqpsystem()
         amqpsystem.router.registry.update(actualstate_router.registry)

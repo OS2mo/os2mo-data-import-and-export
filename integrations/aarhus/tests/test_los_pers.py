@@ -13,7 +13,6 @@ from hypothesis import strategies as st
 from .helpers import HelperMixin
 from .helpers import mock_config
 
-
 _azid_it_system_uuid = uuid4()
 _mock_config = mock_config(azid_it_system_uuid=_azid_it_system_uuid)
 _primary_strategy = st.one_of(st.just("Ja"), st.just("Nej"))

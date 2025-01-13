@@ -5,6 +5,7 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
+
 import datetime
 import logging
 import sys
@@ -16,11 +17,11 @@ from uuid import UUID
 
 import click
 from anytree import PreOrderIter
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import file_uploader
 from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
-from raclients.upload import file_uploader
-from ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
@@ -82,7 +83,7 @@ def get_filtered_phone_addresses(
 
     # Sort addresses according to the "adresse_type" placement in priority_list, to only return the address that matches
     # the first element in priority_list.
-    address = first(
+    address = first(  # type: ignore
         sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])),
         default={},
     )
@@ -196,7 +197,7 @@ def export_bruger_mo(node, used_cprs, mh):
             continue
         user_uuid = employee["Person UUID"]
         name = employee["Navn"]
-        cpr = address["CPR-Nummer"]
+        cpr = address["CPR-Nummer"]  # noqa: F821
         if cpr in used_cprs:
             # print('Skipping user: {} '.format(uuid))
             continue

@@ -65,7 +65,7 @@ class FakeLC:
 
 
 class FakeLCSqlExport(SqlExport):
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_lora_cache(self, resolve_dar, use_pickle):  # type: ignore
         return FakeLC()
 
 
@@ -85,7 +85,7 @@ class _TestableSqlExport(SqlExport):
     def _get_export_cpr_setting(self) -> bool:
         return True
 
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_lora_cache(self, resolve_dar, use_pickle):  # type: ignore
         lc = FakeLC()
         if self.inject_lc:
             for key, values in self.inject_lc.items():
@@ -196,7 +196,7 @@ def _join_dicts(*dicts: dict) -> ChainMap:
     return ChainMap(*dicts)
 
 
-def _assert_db_session_add(session: MagicMock, cls: Base, **expected: Any) -> None:
+def _assert_db_session_add(session: MagicMock, cls: Base, **expected: Any) -> None:  # type: ignore
     session_add_calls = [
         call
         for call in session.method_calls
@@ -245,7 +245,7 @@ def test_sql_export_writes_users(cpr: Optional[str]):
 
     # Assert
     _assert_db_session_add(
-        sql_export.session,
+        sql_export.session,  # type: ignore
         WBruger,
         uuid=user_uuid,
         cpr=cpr,
@@ -292,7 +292,7 @@ def test_sql_export_writes_org_units():
 
     # Assert
     _assert_db_session_add(
-        sql_export.session,
+        sql_export.session,  # type: ignore
         WEnhed,
         uuid=unit_uuid,
         navn=unit["name"],
@@ -357,7 +357,7 @@ def test_sql_export_writes_associations(assoc_type_present: bool):
 
     # Assert
     _assert_db_session_add(
-        sql_export.session,
+        sql_export.session,  # type: ignore
         WTilknytning,
         uuid=assoc_uuid,
         bruger_uuid=assoc["user"],
@@ -407,7 +407,7 @@ def test_sql_export_writes_addresses():
 
     # Assert
     _assert_db_session_add(
-        sql_export.session,
+        sql_export.session,  # type: ignore
         WAdresse,
         uuid=address_uuid,
         bruger_uuid=address["user"],
@@ -452,7 +452,7 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
 
     # Assert
     _assert_db_session_add(
-        sql_export.session,
+        sql_export.session,  # type: ignore
         WItForbindelse,
         uuid=it_user_uuid,
         it_system_uuid=it_user["itsystem"],
@@ -466,7 +466,7 @@ def test_sql_export_writes_it_users(primary_boolean: Optional[bool]):
 
 
 class TestEnsureSingleRun(unittest.TestCase):
-    @patch("ra_utils.load_settings.load_settings")
+    @patch("fastramqpi.ra_utils.load_settings.load_settings")
     @patch.object(SqlExport, "_get_engine")
     @patch.object(SqlExport, "export")
     @given(

@@ -1,10 +1,12 @@
 import logging
 import sys
 
-from ra_utils.load_settings import load_settings
-from raclients.upload import run_report_and_upload
+from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.upload import run_report_and_upload
 
-from reports.query_actualstate import list_employees, list_MED_members, run_report
+from reports.query_actualstate import list_employees
+from reports.query_actualstate import list_MED_members
+from reports.query_actualstate import run_report
 
 LOG_LEVEL = logging.DEBUG
 
@@ -27,16 +29,16 @@ if __name__ == "__main__":
         "MED_medlemmer.xlsx",
         run_report,
         list_MED_members,
-        "MED",
-        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
+        "MED",  # type: ignore
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},  # type: ignore
     )
     run_report_and_upload(
         settings,
         "Ansatte.xlsx",
         run_report,
         list_employees,
-        "Ansatte",
-        "Frederikshavn Kommune",
+        "Ansatte",  # type: ignore
+        "Frederikshavn Kommune",  # type: ignore
     )
 
     logger.debug("Employee report done.")

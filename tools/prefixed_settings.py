@@ -7,8 +7,8 @@
 #
 # replace possibly sick jq-script - whoich I accuse of making big swap-files
 
-import os
 import json
+import os
 import pathlib
 
 
@@ -21,11 +21,9 @@ def extract_prefixed_envvars(settings, prefix):
     environment = []
     prefixlen = len(prefix)
     for k, v in settings.items():
-        if (
-            k.startswith(prefix) and k.count(".") == prefix.count(".")
-        ):
+        if k.startswith(prefix) and k.count(".") == prefix.count("."):
             if isinstance(v, str):
-                environment.append("export %s=\"%s\"" % (k[prefixlen:], v))
+                environment.append('export %s="%s"' % (k[prefixlen:], v))
             elif isinstance(v, bool):
                 environment.append("export %s=%s" % (k[prefixlen:], str(v).lower()))
             elif isinstance(v, float):
@@ -35,7 +33,7 @@ def extract_prefixed_envvars(settings, prefix):
     return environment
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     customer_settings_path = pathlib.Path(os.environ["CUSTOMER_SETTINGS"])
     prefix = os.environ["SETTING_PREFIX"]
     settings = json.loads(customer_settings_path.read_text())

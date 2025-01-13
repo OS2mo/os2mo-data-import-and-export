@@ -12,28 +12,32 @@ Employee phonebook report - from customers/Frederikshavn/frederikshavn_employee_
 
 import os
 import time
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import pandas as pd
 from anytree import PreOrderIter
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
+from fastramqpi.raclients.upload import file_uploader
+from fastramqpi.raclients.upload import run_report_and_upload
 from gql import gql
 from gql.client import SyncClientSession
-from more_itertools import first, one, prepend
+from more_itertools import first
+from more_itertools import one
+from more_itertools import prepend
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
-from raclients.upload import file_uploader, run_report_and_upload
-from sqlalchemy import or_, select
+from sqlalchemy import or_
+from sqlalchemy import select
 
 from exporters import common_queries as cq
 from exporters.sql_export.sql_table_defs import WAdresse as Adresse
 from exporters.sql_export.sql_table_defs import WBruger as Bruger
 from exporters.sql_export.sql_table_defs import WEngagement as Engagement
 from exporters.sql_export.sql_table_defs import WEnhed as Enhed
-from reports.query_actualstate import expand_org_path, run_report, set_of_org_units
+from reports.query_actualstate import expand_org_path
+from reports.query_actualstate import run_report
+from reports.query_actualstate import set_of_org_units
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")
 
@@ -106,9 +110,9 @@ def setup_alleroed_gql_client(
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )
@@ -375,7 +379,7 @@ def list_employees_for_phonebook(session, org_name: str) -> list:
     with session:
         result = tuple(session.execute(stmt))
 
-    phonebook = dict()
+    phonebook = dict()  # type: ignore
     for user_uuid, name, unit, prof, addr_type, addr_value in result:
         key = (user_uuid, name, unit, prof)
         phone_numbers = phonebook.get(
@@ -476,8 +480,8 @@ if __name__ == "__main__":
         "Medarbejdertelefonbog.xlsx",
         run_report,
         list_employees_for_phonebook,
-        "Medarbejdertelefonbog",
-        "Allerød",
+        "Medarbejdertelefonbog",  # type: ignore
+        "Allerød",  # type: ignore
     )
 
     run_report_and_upload(
@@ -485,8 +489,8 @@ if __name__ == "__main__":
         "Ansatte.xlsx",
         run_report,
         list_alleroed_employees,
-        "Ansatte",
-        "Allerød",
+        "Ansatte",  # type: ignore
+        "Allerød",  # type: ignore
     )
 
     gql_client = setup_alleroed_gql_client(settings=settings)

@@ -1,8 +1,8 @@
 from json import dumps
 
 import click
+from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
-from raclients.graph.client import GraphQLClient
 
 from tools.log import LogLevel
 from tools.log import setup_logging
@@ -39,11 +39,10 @@ def gql_cli(
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
-        auth_server=auth_server,
+        auth_server=auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     ) as session:
-
         r = session.execute(q)
 
     if json:

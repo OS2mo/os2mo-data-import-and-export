@@ -1,7 +1,8 @@
 from functools import lru_cache
 from pathlib import Path
-from ra_utils.job_settings import JobSettings
-from raclients.graph.client import GraphQLClient
+
+from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.raclients.graph.client import GraphQLClient
 
 
 class EngagementSettings(JobSettings):
@@ -24,13 +25,12 @@ def get_engagement_settings(*args, **kwargs) -> EngagementSettings:
 
 
 def setup_gql_client(settings: EngagementSettings) -> GraphQLClient:
-
     return GraphQLClient(
         url=f"{settings.mora_base}/graphql/v22",
         client_id=settings.client_id,
-        client_secret=settings.client_secret,
+        client_secret=settings.client_secret,  # type: ignore
         auth_realm=settings.auth_realm,
-        auth_server=settings.auth_server,
+        auth_server=settings.auth_server,  # type: ignore
         sync=True,
         httpx_client_kwargs={"timeout": None},
     )

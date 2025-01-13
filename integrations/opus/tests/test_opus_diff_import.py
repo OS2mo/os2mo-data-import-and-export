@@ -2,8 +2,8 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from unittest.mock import call
 from unittest.mock import MagicMock
+from unittest.mock import call
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -15,13 +15,13 @@ from hypothesis.strategies import uuids
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import MOPostDryRun
 from integrations.opus.opus_diff_import import MUTATION_DELETE_ENGAGEMENT
-from integrations.opus.opus_diff_import import OpusDiffImport
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT_PRESENT
 from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER
 from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER_PRESENT
+from integrations.opus.opus_diff_import import MOPostDryRun
+from integrations.opus.opus_diff_import import OpusDiffImport
 
 
 class OpusDiffImportTestbase(OpusDiffImport):

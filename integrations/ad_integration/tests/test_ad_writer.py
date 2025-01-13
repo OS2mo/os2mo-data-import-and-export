@@ -3,10 +3,11 @@ import inspect
 import logging
 import re
 from datetime import datetime
-from unittest import mock
 from unittest import TestCase
+from unittest import mock
 from unittest.mock import MagicMock
 
+from fastramqpi.ra_utils.lazy_dict import LazyDict
 from freezegun import freeze_time
 from hypothesis import given
 from hypothesis import strategies as st
@@ -15,15 +16,14 @@ from more_itertools import first_true
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
-from ra_utils.lazy_dict import LazyDict
 
 from ..ad_exceptions import CommandFailure
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
 from ..ad_exceptions import NoPrimaryEngagementException
 from ..ad_exceptions import SamAccountNameNotUnique
-from ..ad_template_engine import illegal_parameters
 from ..ad_template_engine import INVALID
+from ..ad_template_engine import illegal_parameters
 from ..ad_writer import ADWriter
 from ..ad_writer import LoraCacheSource
 from ..user_names import UserNameSetInAD
@@ -41,10 +41,9 @@ from .mocks import MockLoraCacheUnitAddress
 from .mocks import MockLoraCacheWithManager
 from .mocks import MockMOGraphqlSource
 from .mocks import MockMORESTSource
+from .test_utils import TestADWriterMixin
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
-from .test_utils import TestADWriterMixin
-
 
 JOB_TITLE_AD_FIELD_NAME = "titel"
 JOB_TITLE_TEMPLATE = "{{ ad_values.get('titel') or mo_values['title'] }}"
