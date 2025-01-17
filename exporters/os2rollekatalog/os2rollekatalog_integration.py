@@ -414,7 +414,7 @@ def main(
             dry_run=dry_run,
         )
 
-    mh = MoraHelper(hostname=mora_base, export_ansi=False)
+    mh = MoraHelper(hostname=mora_base)
 
     try:
         logger.info("Reading organisation")
