@@ -317,7 +317,7 @@ if __name__ == "__main__":
     threaded_speedup = False
     t = time.time()
 
-    mh = MoraHelper(hostname=MORA_BASE, export_ansi=False)
+    mh = MoraHelper(hostname=MORA_BASE)
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)

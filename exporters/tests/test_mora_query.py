@@ -24,7 +24,7 @@ PATH_TO_TEST_FILE = os.environ.get(
 class QueryTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.morah = MoraHelper(hostname=MORA_BASE, export_ansi=False)
+        self.morah = MoraHelper(hostname=MORA_BASE)
         org = self.morah.read_organisation()
         # This assumes a single top-unit. Tests will fail if we have more.
         roots = self.morah.read_top_units(org)

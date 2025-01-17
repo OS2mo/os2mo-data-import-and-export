@@ -583,7 +583,7 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
 def main(speedup, dry_run=None):
     t = time.time()
 
-    mh = MoraHelper(hostname=SETTINGS["mora.base"], export_ansi=False)
+    mh = MoraHelper(hostname=SETTINGS["mora.base"])
 
     root_unit = SETTINGS["exporters.plan2learn.root_unit"]
 

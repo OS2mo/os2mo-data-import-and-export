@@ -184,7 +184,7 @@ async def lookup_organisationfunktion():
 def lookup_employees():
     """Helper function for fetching all available 'employee' objects."""
     settings = config.get_config()
-    mh = MoraHelper(hostname=settings.mora_base, export_ansi=True)
+    mh = MoraHelper(hostname=settings.mora_base)
     return mh.read_all_users()
 
 

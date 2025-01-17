@@ -66,7 +66,7 @@ class ViborgEksterne:
         logger.info("writing to file %s", outfile_name)
 
         t = time.time()
-        mh = MoraHelper(hostname=mora_base, export_ansi=False)
+        mh = MoraHelper(hostname=mora_base)
 
         if speedup:
             # Here we should activate read-only mode, actual state and
