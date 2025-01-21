@@ -69,7 +69,7 @@ def query_graphql(
 
 def paginated_query(
     graphql_client: GraphQLClient, query: str, page_size: int = 1000
-) -> Iterator:
+) -> Iterator[list[dict]]:
     cursor = None
     i = 0
     while True:
@@ -82,5 +82,5 @@ def paginated_query(
         if cursor is None:
             break
         logger.debug(
-            f"Paginated query. Now reading {i * page_size - page_size + 1}-{i * page_size}"
+            f"Paginated query. Now reading {(i - 1) * page_size + 1}-{i * page_size}"
         )

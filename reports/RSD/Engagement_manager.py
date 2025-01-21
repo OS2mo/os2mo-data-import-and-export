@@ -68,7 +68,8 @@ HEADERS_2 = [
     "BVN (k)",
 ]
 
-
+# Query to find engagements and managers in all administrative org_units.
+# The administrative organisation means all units below "Region Syddanmark" which is why the uuid  "00923955-db6e-49fc-a191-ec36ff151ec7" can be hardcoded into the filter
 QUERY = """
 query EngagementManagers($limit: int, $cursor: Cursor = null) {
   org_units(limit: $limit, cursor: $cursor, filter: { ancestor: { uuids: "00923955-db6e-49fc-a191-ec36ff151ec7" } }) {
@@ -126,8 +127,7 @@ def extract_ancestors(
 ) -> list[str]:
     # Reverse ancestors list to start at root
     ancestor_names = [a["name"] for a in ancestors[::-1]]
-    # Max level is 7 ancestors.
-    # Todo: consider a dynamic number of columns
+    # Max level is 7 ancestors as pr. request from RSD
     ancestor_names = ancestor_names[:7]
     # Append empty strings to conform to report schema of up to 7 ancestors
     for _ in range(7 - len(ancestor_names)):
@@ -203,7 +203,7 @@ def extract_manager(managers: list[dict]) -> list[str]:
     ]
 
 
-def extract_list_format_1(org_unit: dict, engagement_map) -> Iterator:
+def extract_list_format_1(org_unit: dict, engagement_map) -> Iterator[tuple[str]]:
     """Extract relevant data from Graphql-response and return as a list of tuples"""
     ancestors = extract_ancestors(org_unit["ancestors"])
     # Add org_unit name as first ancestor if no ancestors
@@ -290,7 +290,9 @@ def get_age(cpr_number: str) -> int:
     return age.years
 
 
-def extract_list_format_2(org_unit: dict, engagement_map: dict[str, list]) -> Iterator:
+def extract_list_format_2(
+    org_unit: dict, engagement_map: dict[str, list]
+) -> Iterator[tuple[str]]:
     """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
     ancestors = extract_ancestors(org_unit["ancestors"])
     # Add org_unit name as first ancestor if no ancestors
