@@ -1,4 +1,4 @@
-"""Generates a report for RSD containing information on org_units, managers and engagements"""
+"""Generates two reports for RSD containing information on org_units, managers and engagements"""
 
 import datetime
 from collections import defaultdict
@@ -24,49 +24,6 @@ from tools.log import setup_logging
 setup_logging(LogLevel.DEBUG)
 logger = get_logger()
 
-HEADERS = (
-    "Niveau 1",
-    "Niveau 2",
-    "Niveau 3",
-    "Niveau 4",
-    "Niveau 5",
-    "Niveau 6",
-    "Niveau 7",
-    "Enhedsnavn",
-    "Leder",
-    "Medleder 1",
-    "Medleder 2",
-    "Administrator",
-    "Administrativ ansvarlig",
-    "Personaleledelse",
-    "Uddannelsesansvarlig",
-    "BVN (k)",
-    "Tjenestenummer",
-    "Medarbejder",
-    "E-mail",
-    "Stillingskode nuværende",
-)
-HEADERS_2 = [
-    "Niveau 1",
-    "Niveau 2",
-    "Niveau 3",
-    "Niveau 4",
-    "Niveau 5",
-    "Niveau 6",
-    "Niveau 7",
-    "Enhedsnavn",
-    "Enhedstype",
-    "Medarbejder",
-    "Stilling",
-    "Lederbetegnelse",
-    "Lederansvar",
-    "Tjenestenummer",
-    "CPR-nummer",
-    "E-mail",
-    "Alder",
-    "Leder",
-    "BVN (k)",
-]
 
 # Query to find engagements and managers in all administrative org_units.
 # The administrative organisation means all units below "Region Syddanmark" which is why the uuid  "00923955-db6e-49fc-a191-ec36ff151ec7" can be hardcoded into the filter
@@ -120,6 +77,224 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
   }
 }
 """
+
+
+class RSDReportsCommon:
+    def __init__(self, settings, graphql_response, engagement_map):
+        self.settings = settings
+        self.engagement_map = engagement_map
+        # Extract data from graphql response
+        self.data = []
+        for o in graphql_response:
+            self.data.extend(self.parse_orgunit_data_to_report(o))
+
+        self.sort_result()
+
+        self.upload_excel()
+
+    def sort_result(self):
+        """Sort data by unit name and path"""
+        for i in range(7, -1, -1):
+            self.data.sort(key=lambda _: _[i])
+
+    def upload_excel(self):
+        """Write data as excel file and upload it to MO"""
+        logger.info(f"uploading file {self.filename} to MO reports")
+        with file_uploader(self.settings, self.filename) as filename:
+            workbook = xlsxwriter.Workbook(filename)
+            excel = XLSXExporter(filename)
+            excel.add_sheet(
+                workbook, "Personer", list(prepend(self.headers, self.data))
+            )
+            workbook.close()
+
+    def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
+        raise NotImplementedError()
+
+
+class RSDReportsEngagementManagers(RSDReportsCommon):
+    filename = "engagements_managers.xlsx"
+    headers = (
+        "Niveau 1",
+        "Niveau 2",
+        "Niveau 3",
+        "Niveau 4",
+        "Niveau 5",
+        "Niveau 6",
+        "Niveau 7",
+        "Enhedsnavn",
+        "Leder",
+        "Medleder 1",
+        "Medleder 2",
+        "Administrator",
+        "Administrativ ansvarlig",
+        "Personaleledelse",
+        "Uddannelsesansvarlig",
+        "BVN (k)",
+        "Tjenestenummer",
+        "Medarbejder",
+        "E-mail",
+        "Stillingskode nuværende",
+    )
+
+    def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
+        """Extract relevant data from Graphql-response and return as a list of tuples"""
+        ancestors = extract_ancestors(org_unit["ancestors"])
+        # Add org_unit name as first ancestor if no ancestors
+        managers = extract_manager(org_unit["managers"])
+        if not ancestors[0]:
+            ancestors[0] = org_unit["name"]
+        for e in org_unit["engagements"]:
+            person = one(e["person"])
+            name = person["name"]
+
+            email = first(person["addresses"], default=None)
+            email = email["name"] if email else ""
+            job_function = (
+                f"{e['job_function']['name']} ({e['job_function']['user_key']})"
+            )
+            yield (
+                *ancestors,
+                org_unit["name"],
+                *managers,
+                e["user_key"],
+                e["user_key"][3:],
+                name,
+                email,
+                job_function,
+            )
+        engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
+        manager_persons = {
+            one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
+        }
+        managers_with_no_engagement_here = manager_persons - engagement_persons
+        for m in managers_with_no_engagement_here:
+            engagement = first(self.engagement_map[m], default=None)
+            if not engagement:
+                continue
+            person = one(engagement["person"])
+            email = first(person["addresses"], default=None)
+            email = email["name"] if email else ""
+            job_function = f"{engagement['job_function']['name']} ({engagement['job_function']['user_key']})"
+            yield (
+                *ancestors,
+                org_unit["name"],
+                *managers,
+                engagement["user_key"],
+                engagement["user_key"][3:],
+                one(engagement["person"])["name"],
+                email,
+                job_function,
+            )
+
+
+class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
+    filename = "engagements_managers_with_cpr.xlsx"
+    headers = [
+        "Niveau 1",
+        "Niveau 2",
+        "Niveau 3",
+        "Niveau 4",
+        "Niveau 5",
+        "Niveau 6",
+        "Niveau 7",
+        "Enhedsnavn",
+        "Enhedstype",
+        "Medarbejder",
+        "Stilling",
+        "Lederbetegnelse",
+        "Lederansvar",
+        "Tjenestenummer",
+        "CPR-nummer",
+        "E-mail",
+        "Alder",
+        "Leder",
+        "BVN (k)",
+    ]
+
+    def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
+        """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
+        ancestors = extract_ancestors(org_unit["ancestors"])
+        # Add org_unit name as first ancestor if no ancestors
+        if not ancestors[0]:
+            ancestors[0] = org_unit["name"]
+        managers = org_unit["managers"]
+        manager = first(find_managers_of_type(managers, "Leder"), default=None)
+        manager_name = (
+            one(manager["person"])["name"] if manager and manager["person"] else ""
+        )
+        for e in org_unit["engagements"]:
+            person = one(e["person"])
+
+            email = first(person["addresses"], default=None)
+            email = email["name"] if email else ""
+
+            manager_role = find_manager_role_for_person(person, managers)
+            manager_type = manager_role["manager_type"]["name"] if manager_role else ""
+            # Select "Personaleledelse" if it exists, else pick any other responsibility
+            responsibility = (
+                max(
+                    manager_role["responsibilities"],
+                    key=lambda _: _["name"] == "Personaleledelse",
+                )["name"]
+                if manager_role
+                else ""
+            )
+
+            yield (
+                *ancestors,
+                org_unit["name"],
+                org_unit["unit_type"]["name"],
+                person["name"],
+                e["extension_1"],
+                manager_type,
+                responsibility,
+                e["user_key"][3:],
+                person["cpr_number"],
+                email,
+                str(get_age(person["cpr_number"])),
+                manager_name,
+                e["user_key"],
+            )
+        engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
+        manager_persons = {
+            one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
+        }
+        managers_with_no_engagement_here = manager_persons - engagement_persons
+        for m in managers_with_no_engagement_here:
+            engagement = first(self.engagement_map[m], default=None)
+            if not engagement:
+                continue
+            person = one(engagement["person"])
+            manager_role = find_manager_role_for_person(person, managers)
+            manager_type = manager_role["manager_type"]["name"] if manager_role else ""
+            # Select "Personaleledelse" if it exists, else pick any other responsibility
+            responsibility = (
+                max(
+                    manager_role["responsibilities"],
+                    key=lambda _: _["name"] == "Personaleledelse",
+                )["name"]
+                if manager_role
+                else ""
+            )
+            email = first(person["addresses"], default=None)
+            email = email["name"] if email else ""
+
+            yield (
+                *ancestors,
+                org_unit["name"],
+                org_unit["unit_type"]["name"],
+                person["name"],
+                engagement["extension_1"],
+                manager_type,
+                responsibility,
+                engagement["user_key"][3:],
+                person["cpr_number"],
+                email,
+                str(get_age(person["cpr_number"])),
+                manager_name,
+                engagement["user_key"],
+            )
 
 
 def extract_ancestors(
@@ -203,55 +378,6 @@ def extract_manager(managers: list[dict]) -> list[str]:
     ]
 
 
-def extract_list_format_1(org_unit: dict, engagement_map) -> Iterator[tuple[str]]:
-    """Extract relevant data from Graphql-response and return as a list of tuples"""
-    ancestors = extract_ancestors(org_unit["ancestors"])
-    # Add org_unit name as first ancestor if no ancestors
-    managers = extract_manager(org_unit["managers"])
-    if not ancestors[0]:
-        ancestors[0] = org_unit["name"]
-    for e in org_unit["engagements"]:
-        person = one(e["person"])
-        name = person["name"]
-
-        email = first(person["addresses"], default=None)
-        email = email["name"] if email else ""
-        job_function = f"{e['job_function']['name']} ({e['job_function']['user_key']})"
-        yield (
-            *ancestors,
-            org_unit["name"],
-            *managers,
-            e["user_key"],
-            e["user_key"][3:],
-            name,
-            email,
-            job_function,
-        )
-    engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
-    manager_persons = {
-        one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
-    }
-    managers_with_no_engagement_here = manager_persons - engagement_persons
-    for m in managers_with_no_engagement_here:
-        engagement = first(engagement_map[m], default=None)
-        if not engagement:
-            continue
-        person = one(engagement["person"])
-        email = first(person["addresses"], default=None)
-        email = email["name"] if email else ""
-        job_function = f"{engagement['job_function']['name']} ({engagement['job_function']['user_key']})"
-        yield (
-            *ancestors,
-            org_unit["name"],
-            *managers,
-            engagement["user_key"],
-            engagement["user_key"][3:],
-            one(engagement["person"])["name"],
-            email,
-            job_function,
-        )
-
-
 def get_cpr_birthdate(number: int | str) -> datetime.datetime:
     """Copied from MO"""
     if isinstance(number, str):
@@ -290,93 +416,6 @@ def get_age(cpr_number: str) -> int:
     return age.years
 
 
-def extract_list_format_2(
-    org_unit: dict, engagement_map: dict[str, list]
-) -> Iterator[tuple[str]]:
-    """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
-    ancestors = extract_ancestors(org_unit["ancestors"])
-    # Add org_unit name as first ancestor if no ancestors
-    if not ancestors[0]:
-        ancestors[0] = org_unit["name"]
-    managers = org_unit["managers"]
-    manager = first(find_managers_of_type(managers, "Leder"), default=None)
-    manager_name = (
-        one(manager["person"])["name"] if manager and manager["person"] else ""
-    )
-    for e in org_unit["engagements"]:
-        person = one(e["person"])
-
-        email = first(person["addresses"], default=None)
-        email = email["name"] if email else ""
-
-        manager_role = find_manager_role_for_person(person, managers)
-        manager_type = manager_role["manager_type"]["name"] if manager_role else ""
-        # Select "Personaleledelse" if it exists, else pick any other responsibility
-        responsibility = (
-            max(
-                manager_role["responsibilities"],
-                key=lambda _: _["name"] == "Personaleledelse",
-            )["name"]
-            if manager_role
-            else ""
-        )
-
-        yield (
-            *ancestors,
-            org_unit["name"],
-            org_unit["unit_type"]["name"],
-            person["name"],
-            e["extension_1"],
-            manager_type,
-            responsibility,
-            e["user_key"][3:],
-            person["cpr_number"],
-            email,
-            str(get_age(person["cpr_number"])),
-            manager_name,
-            e["user_key"],
-        )
-    engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
-    manager_persons = {
-        one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
-    }
-    managers_with_no_engagement_here = manager_persons - engagement_persons
-    for m in managers_with_no_engagement_here:
-        engagement = first(engagement_map[m], default=None)
-        if not engagement:
-            continue
-        person = one(engagement["person"])
-        manager_role = find_manager_role_for_person(person, managers)
-        manager_type = manager_role["manager_type"]["name"] if manager_role else ""
-        # Select "Personaleledelse" if it exists, else pick any other responsibility
-        responsibility = (
-            max(
-                manager_role["responsibilities"],
-                key=lambda _: _["name"] == "Personaleledelse",
-            )["name"]
-            if manager_role
-            else ""
-        )
-        email = first(person["addresses"], default=None)
-        email = email["name"] if email else ""
-
-        yield (
-            *ancestors,
-            org_unit["name"],
-            org_unit["unit_type"]["name"],
-            person["name"],
-            engagement["extension_1"],
-            manager_type,
-            responsibility,
-            engagement["user_key"][3:],
-            person["cpr_number"],
-            email,
-            str(get_age(person["cpr_number"])),
-            manager_name,
-            engagement["user_key"],
-        )
-
-
 @click.command()
 @click.option("--mora_base", envvar="MORA_BASE", default="http://mo-service:5000")
 @click.option("--client-id", envvar="CLIENT_ID", default="dipex")
@@ -406,31 +445,12 @@ def main(*args, **kwargs):
         for e in o["engagements"]:
             engagement_map[one(e["person"])["uuid"]].append(e)
 
-    # Extract data from graphql response
-    data = []
-    data_2 = []
-    for o in res:
-        data.extend(extract_list_format_1(o, engagement_map))
-        data_2.extend(extract_list_format_2(o, engagement_map))
-
-    # Sort data by unit name and path
-    for i in range(7, -1, -1):
-        data.sort(key=lambda _: _[i])
-        data_2.sort(key=lambda _: _[i])
-
-    logger.info("uploading files to MO reports")
-    with file_uploader(settings, "engagements_managers.xlsx") as filename:
-        # write data as excel file
-        workbook = xlsxwriter.Workbook(filename)
-        excel = XLSXExporter(filename)
-        excel.add_sheet(workbook, "Personer", list(prepend(HEADERS, data)))
-        workbook.close()
-    with file_uploader(settings, "engagements_managers_with_cpr.xlsx") as filename:
-        # write data as excel file
-        workbook = xlsxwriter.Workbook(filename)
-        excel = XLSXExporter(filename)
-        excel.add_sheet(workbook, "Personer", list(prepend(HEADERS_2, data_2)))
-        workbook.close()
+    RSDReportsEngagementManagers(
+        settings=settings, graphql_response=res, engagement_map=engagement_map
+    )
+    RSDReportsEngagementManagersWithCPR(
+        settings=settings, graphql_response=res, engagement_map=engagement_map
+    )
 
 
 if __name__ == "__main__":
