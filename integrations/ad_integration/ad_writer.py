@@ -289,7 +289,7 @@ class MOGraphqlSource:
 
     def _get_client(self):
         return GraphQLClient(
-            url=f"{self._settings['global']['mora.base']}/graphql/v7",
+            url=f"{self._settings['global']['mora.base']}/graphql/v22",
             client_id=os.environ.get("CLIENT_ID", "dipex"),
             client_secret=os.environ["CLIENT_SECRET"],
             auth_realm=os.environ.get("AUTH_REALM", "mo"),
@@ -302,12 +302,12 @@ class MOGraphqlSource:
         query = gql(
             """
             query PaginatedOrgUnits($cursor: Cursor) {
-              org_units(to_date: null, limit: 50, cursor: $cursor) {
+              org_units(filter: { to_date: null }, limit: 50, cursor: $cursor) {
                 page_info {
                   next_cursor
                 }
                 objects {
-                  objects {
+                  validities {
                     uuid
                     parent_uuid
                     engagements {
@@ -352,7 +352,7 @@ class MOGraphqlSource:
         # its manager UUID.
         org_unit_map = {}
 
-        objs = (obj[0] for obj in (item["objects"] for item in self._response))
+        objs = (obj[0] for obj in (item["validities"] for item in self._response))
         for obj in objs:
             # Skip org units without managers
             if not obj["managers"]:
