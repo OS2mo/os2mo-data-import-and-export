@@ -163,12 +163,8 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 email,
                 job_function,
             )
-        engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
-        manager_persons = {
-            one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
-        }
-        managers_with_no_engagement_here = manager_persons - engagement_persons
-        for m in managers_with_no_engagement_here:
+
+        for m in find_managers_with_no_engagement_here(org_unit):
             engagement = first(self.engagement_map[m], default=None)
             if not engagement:
                 continue
@@ -256,12 +252,8 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 manager_name,
                 e["user_key"],
             )
-        engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
-        manager_persons = {
-            one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
-        }
-        managers_with_no_engagement_here = manager_persons - engagement_persons
-        for m in managers_with_no_engagement_here:
+
+        for m in find_managers_with_no_engagement_here(org_unit):
             engagement = first(self.engagement_map[m], default=None)
             if not engagement:
                 continue
@@ -295,6 +287,14 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 manager_name,
                 engagement["user_key"],
             )
+
+
+def find_managers_with_no_engagement_here(org_unit: dict) -> set[str]:
+    engagement_persons = {one(e["person"])["uuid"] for e in org_unit["engagements"]}
+    manager_persons = {
+        one(m["person"])["uuid"] for m in org_unit["managers"] if m["person"]
+    }
+    return manager_persons - engagement_persons
 
 
 def extract_ancestors(
