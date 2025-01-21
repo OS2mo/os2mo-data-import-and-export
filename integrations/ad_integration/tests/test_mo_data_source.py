@@ -14,7 +14,7 @@ from .mocks import MockMORESTSource
 
 class TestMOGraphqlSource:
     def _get_instance(self, *objs) -> MOGraphqlSource:
-        wrapped_value = [{"objects": [obj]} for obj in objs]
+        wrapped_value = [{"validities": [obj]} for obj in objs]
         with patch(
             "integrations.ad_integration.ad_writer.MOGraphqlSource._run_query",
             return_value=wrapped_value,
