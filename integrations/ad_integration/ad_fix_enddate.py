@@ -477,16 +477,18 @@ class MOEngagementSource:
         query = gql(
             """
             query Get_mo_engagements($employees: [UUID!]) {
-                engagements(employees: $employees, from_date: null, to_date: null) {
+                engagements(filter: {employee: {uuids: $employees}, from_date: null, to_date: null}) {
                     objects {
-                        validity {
-                            from
-                            to
-                        }
-                        org_unit {
-                            name
-                            ancestors_validity {
+                        validities {
+                            validity {
+                                from
+                                to
+                            }
+                            org_unit {
                                 name
+                                ancestors_validity {
+                                    name
+                                }
                             }
                         }
                     }
@@ -498,9 +500,9 @@ class MOEngagementSource:
             query,
             variable_values=jsonable_encoder({"employees": uuid}),
         )
-        if not result["engagements"]:
+        if not result["engagements"]["objects"]:
             raise KeyError("User not found in mo")
-        return result["engagements"]
+        return result["engagements"]["objects"]
 
     def get_simple_engagement(self, ad_user: ADUser) -> MOSimpleEngagement:
         """Return a `MOSimpleEngagement` for a given MO user UUID"""
@@ -659,7 +661,9 @@ class MOEngagementSource:
             return _ParsedEngagement(start, end, org_unit)
 
         parsed_validities = [
-            _parse(obj) for engagement in engagements for obj in engagement["objects"]
+            _parse(obj)
+            for engagement in engagements
+            for obj in engagement["validities"]
         ]
 
         return parsed_validities
@@ -832,7 +836,7 @@ def cli(
     )
 
     graphql_client = GraphQLClient(
-        url=f"{mora_base}/graphql/v3",
+        url=f"{mora_base}/graphql/v22",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,

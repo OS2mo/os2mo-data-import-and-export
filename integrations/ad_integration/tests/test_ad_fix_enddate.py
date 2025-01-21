@@ -171,7 +171,7 @@ def engagement_objects(*validities: dict) -> dict:
     for validity in validities:
         validity.update(org_unit())
         objects.append(validity)
-    return {"engagements": [{"objects": objects}]}
+    return {"engagements": {"objects": [{"validities": objects}]}}
 
 
 def _get_mock_graphql_session(return_value):
@@ -185,19 +185,21 @@ def _get_mock_graphql_session(return_value):
 def mock_graphql_session():
     return _get_mock_graphql_session(
         {
-            "engagements": [
-                {
-                    "objects": [
-                        {
-                            "validity": {
-                                "from": "2020-01-01",
-                                "to": VALID_AD_DATE,
-                            },
-                            **org_unit(),
-                        }
-                    ]
-                }
-            ]
+            "engagements": {
+                "objects": [
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2020-01-01",
+                                    "to": VALID_AD_DATE,
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    }
+                ]
+            }
         }
     )
 
@@ -245,7 +247,7 @@ def test_get_org_unit_path():
 
 def test_mo_engagement_source_raises_keyerror_on_no_engagements():
     mock_mo_engagement_source = MOEngagementSource(
-        _get_mock_graphql_session({"engagements": []}),
+        _get_mock_graphql_session({"engagements": {"objects": []}}),
         split=True,
     )
     with pytest.raises(KeyError):
@@ -256,70 +258,82 @@ def test_mo_engagement_source_raises_keyerror_on_no_engagements():
     "eng",
     [
         {
-            "engagements": [
-                {
-                    "objects": [
-                        {
-                            "validity": {
-                                "from": "2020-09-02T00:00:00+02:00",
-                                "to": "2021-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        }
-                    ]
-                },
-                {
-                    "objects": [
-                        {
-                            "validity": {
-                                "from": "2021-09-02T00:00:00+02:00",
-                                "to": "2022-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        }
-                    ]
-                },
-                {
-                    "objects": [
-                        {
-                            "validity": {
-                                "from": "2022-09-02T00:00:00+02:00",
-                                "to": "2023-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        }
-                    ]
-                },
-            ]
+            "engagements": {
+                "objects": [
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2020-09-02T00:00:00+02:00",
+                                    "to": "2021-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2021-09-02T00:00:00+02:00",
+                                    "to": "2022-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2022-09-02T00:00:00+02:00",
+                                    "to": "2023-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                ],
+            },
         },
         {
-            "engagements": [
-                {
-                    "objects": [
-                        {
-                            "validity": {
-                                "from": "2020-09-02T00:00:00+02:00",
-                                "to": "2021-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        },
-                        {
-                            "validity": {
-                                "from": "2021-09-02T00:00:00+02:00",
-                                "to": "2022-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        },
-                        {
-                            "validity": {
-                                "from": "2022-09-02T00:00:00+02:00",
-                                "to": "2023-09-02T00:00:00+02:00",
-                            },
-                            **org_unit(),
-                        },
-                    ]
-                }
-            ]
+            "engagements": {
+                "objects": [
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2020-09-02T00:00:00+02:00",
+                                    "to": "2021-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2021-09-02T00:00:00+02:00",
+                                    "to": "2022-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                    {
+                        "validities": [
+                            {
+                                "validity": {
+                                    "from": "2022-09-02T00:00:00+02:00",
+                                    "to": "2023-09-02T00:00:00+02:00",
+                                },
+                                **org_unit(),
+                            }
+                        ]
+                    },
+                ]
+            }
         },
     ],
 )
@@ -492,7 +506,7 @@ def test_get_split_engagement(mock_response, expected_split):
 @pytest.mark.parametrize(
     "engagement_objects",
     [
-        {"engagements": []},  # no engagements
+        {"engagements": {"objects": []}},  # no engagements
         engagement_objects(),  # `engagements` key is present but `objects` is empty
     ],
 )
