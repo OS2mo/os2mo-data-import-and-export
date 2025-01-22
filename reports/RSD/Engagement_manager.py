@@ -93,7 +93,9 @@ class RSDReportsCommon:
         self.upload_excel()
 
     def sort_result(self):
-        """Sort data by unit name and path"""
+        """Sort data by employee name, unit name and path"""
+        employee_row = self.headers.index("Medarbejder")
+        self.data.sort(key=lambda _: _[employee_row])
         for i in range(7, -1, -1):
             self.data.sort(key=lambda _: _[i])
 
@@ -136,11 +138,15 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         "E-mail",
         "Stillingskode nuværende",
     )
+    # For units with no engagements or managers we need a row containing the first 8 columns and the rest should be empty
+    empty_rows = (len(headers) - 8) * [""]
 
     def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
         """Extract relevant data from Graphql-response and return as a list of tuples"""
         ancestors = extract_path(org_unit)
         managers = extract_manager(org_unit["managers"])
+        if not (org_unit["engagements"] or org_unit["managers"]):
+            yield (*ancestors, org_unit["name"], *self.empty_rows)
         for e in org_unit["engagements"]:
             person = one(e["person"])
             name = person["name"]
@@ -204,6 +210,8 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         "Leder",
         "BVN (k)",
     ]
+    # For units with no engagements or managers we need a row containing the first 9 columns and the rest should be empty
+    empty_rows = (len(headers) - 9) * [""]
 
     def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
         """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
@@ -213,6 +221,13 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         manager_name = (
             one(manager["person"])["name"] if manager and manager["person"] else ""
         )
+        if not (org_unit["engagements"] or org_unit["managers"]):
+            yield (
+                *ancestors,
+                org_unit["name"],
+                org_unit["unit_type"]["name"],
+                *self.empty_rows,
+            )
         for e in org_unit["engagements"]:
             person = one(e["person"])
 
@@ -438,8 +453,6 @@ def main(*args, **kwargs):
     )
     res = paginated_query(graphql_client=client, query=QUERY, page_size=10)
     res = [r["current"] for r in res]
-    # Filter empty org_units
-    res = list(filter(lambda o: o["engagements"] or o["managers"], res))
 
     # Create a map of all org_unit_uuids to the set of engagement and managers user_keys in each
     engagement_map = defaultdict(list)
