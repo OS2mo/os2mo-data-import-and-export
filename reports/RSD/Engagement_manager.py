@@ -189,7 +189,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 one(engagement["person"])["name"],
                 email,
                 job_function,
-                e["engagement_type"]["name"],
+                engagement["engagement_type"]["name"],
             )
 
 
@@ -303,7 +303,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 str(get_age(person["cpr_number"])),
                 manager_name,
                 engagement["user_key"],
-                e["engagement_type"]["name"],
+                engagement["engagement_type"]["name"],
             )
 
 
