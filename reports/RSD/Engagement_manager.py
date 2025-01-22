@@ -93,7 +93,9 @@ class RSDReportsCommon:
         self.upload_excel()
 
     def sort_result(self):
-        """Sort data by unit name and path"""
+        """Sort data by employee name, unit name and path"""
+        employee_row = self.headers.index("Medarbejder")
+        self.data.sort(key=lambda _: _[employee_row])
         for i in range(7, -1, -1):
             self.data.sort(key=lambda _: _[i])
 
