@@ -1,7 +1,7 @@
 import pytest
 from freezegun import freeze_time
 
-from reports.RSD.Engagement_manager import extract_ancestors
+from reports.RSD.Engagement_manager import extract_path
 from reports.RSD.Engagement_manager import find_managers_of_type
 from reports.RSD.Engagement_manager import get_age
 from reports.RSD.Engagement_manager import has_responsibility
@@ -18,24 +18,30 @@ def test_get_age_at_dates(freeze_date, expected_age):
 
 
 @pytest.mark.parametrize(
-    "ancestors,expected_list",
+    "org_unit,expected_list",
     (
         # Test top unit that has no ancestors
-        ([], ["", "", "", "", "", "", ""]),
+        ({"name": "Niveau 1", "ancestors": []}, ["Niveau 1", "", "", "", "", "", ""]),
         # Test a unit with one ancestor
-        ([{"name": "Niveau 1"}], ["Niveau 1", "", "", "", "", "", ""]),
+        (
+            {"name": "Niveau 2", "ancestors": [{"name": "Niveau 1"}]},
+            ["Niveau 1", "Niveau 2", "", "", "", "", ""],
+        ),
         # Test 8 that with levels of ancestors we return the top 7.
         (
-            [
-                {"name": "Niveau 8"},
-                {"name": "Niveau 7"},
-                {"name": "Niveau 6"},
-                {"name": "Niveau 5"},
-                {"name": "Niveau 4"},
-                {"name": "Niveau 3"},
-                {"name": "Niveau 2"},
-                {"name": "Niveau 1"},
-            ],
+            {
+                "name": "Niveau 9",
+                "ancestors": [
+                    {"name": "Niveau 8"},
+                    {"name": "Niveau 7"},
+                    {"name": "Niveau 6"},
+                    {"name": "Niveau 5"},
+                    {"name": "Niveau 4"},
+                    {"name": "Niveau 3"},
+                    {"name": "Niveau 2"},
+                    {"name": "Niveau 1"},
+                ],
+            },
             [
                 "Niveau 1",
                 "Niveau 2",
@@ -48,8 +54,8 @@ def test_get_age_at_dates(freeze_date, expected_age):
         ),
     ),
 )
-def test_extract_ancestors(ancestors, expected_list):
-    assert extract_ancestors(ancestors) == expected_list
+def test_extract_ancestors(org_unit, expected_list):
+    assert extract_path(org_unit) == expected_list
 
 
 def test_find_managers_of_type():

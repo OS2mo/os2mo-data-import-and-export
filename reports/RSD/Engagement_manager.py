@@ -139,11 +139,8 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
 
     def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
         """Extract relevant data from Graphql-response and return as a list of tuples"""
-        ancestors = extract_ancestors(org_unit["ancestors"])
-        # Add org_unit name as first ancestor if no ancestors
+        ancestors = extract_path(org_unit)
         managers = extract_manager(org_unit["managers"])
-        if not ancestors[0]:
-            ancestors[0] = org_unit["name"]
         for e in org_unit["engagements"]:
             person = one(e["person"])
             name = person["name"]
@@ -210,10 +207,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
 
     def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
         """For 2. report Extract relevant data from Graphql-response and return as a list of tuples"""
-        ancestors = extract_ancestors(org_unit["ancestors"])
-        # Add org_unit name as first ancestor if no ancestors
-        if not ancestors[0]:
-            ancestors[0] = org_unit["name"]
+        ancestors = extract_path(org_unit)
         managers = org_unit["managers"]
         manager = first(find_managers_of_type(managers, "Leder"), default=None)
         manager_name = (
@@ -297,11 +291,20 @@ def find_managers_with_no_engagement_here(org_unit: dict) -> set[str]:
     return manager_persons - engagement_persons
 
 
-def extract_ancestors(
-    ancestors: list[dict],
-) -> list[str]:
+def extract_path(org_unit: dict) -> list[str]:
+    """Find the path to the org_unit.
+
+    Returns a list of names of every ancestor unit, including the org_unit itself.
+    Always returns 7 values to conform with the report scheme. For paths with less than 7 ancestors
+    empty strings are returned. Any path longer than 7 ancestors is cropped.
+
+    """
+    ancestors = org_unit["ancestors"]
+
     # Reverse ancestors list to start at root
     ancestor_names = [a["name"] for a in ancestors[::-1]]
+
+    ancestor_names.append(org_unit["name"])
     # Max level is 7 ancestors as pr. request from RSD
     ancestor_names = ancestor_names[:7]
     # Append empty strings to conform to report schema of up to 7 ancestors
