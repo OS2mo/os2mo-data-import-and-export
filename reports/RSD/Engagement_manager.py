@@ -68,6 +68,9 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
             user_key
           }
           extension_1
+          engagement_type {
+            name
+          }
         }
       }
     }
@@ -137,6 +140,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         "Medarbejder",
         "E-mail",
         "Stillingskode nuværende",
+        "Engagementstype",
     )
     # For units with no engagements or managers we need a row containing the first 8 columns and the rest should be empty
     empty_rows = (len(headers) - 8) * [""]
@@ -165,6 +169,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 name,
                 email,
                 job_function,
+                e["engagement_type"]["name"],
             )
 
         for m in find_managers_with_no_engagement_here(org_unit):
@@ -184,6 +189,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 one(engagement["person"])["name"],
                 email,
                 job_function,
+                e["engagement_type"]["name"],
             )
 
 
@@ -209,6 +215,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         "Alder",
         "Leder",
         "BVN (k)",
+        "Engagementstype",
     ]
     # For units with no engagements or managers we need a row containing the first 9 columns and the rest should be empty
     empty_rows = (len(headers) - 9) * [""]
@@ -260,6 +267,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 str(get_age(person["cpr_number"])),
                 manager_name,
                 e["user_key"],
+                e["engagement_type"]["name"],
             )
 
         for m in find_managers_with_no_engagement_here(org_unit):
@@ -295,6 +303,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 str(get_age(person["cpr_number"])),
                 manager_name,
                 engagement["user_key"],
+                e["engagement_type"]["name"],
             )
 
 
