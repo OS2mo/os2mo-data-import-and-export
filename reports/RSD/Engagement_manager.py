@@ -42,6 +42,9 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
           person {
             name
             uuid
+            addresses(filter: { address_type: { scope: "EMAIL" } }) {
+              name
+            }
           }
           manager_type {
             name
@@ -116,6 +119,16 @@ class RSDReportsCommon:
     def parse_orgunit_data_to_report(self, org_unit: dict) -> Iterator[tuple[str]]:
         raise NotImplementedError()
 
+    def find_manager_email(self, managers) -> str:
+        # Optional TODO: filter vacant
+        manager = first(find_managers_of_type(managers, "Leder"), default=None)
+        # Possible TODO: Check other manager types if there are no "Leder". Or check further up the hierarchy.
+        return (
+            extract_person_email(one(manager["person"]))
+            if manager and manager["person"]
+            else ""
+        )
+
 
 class RSDReportsEngagementManagers(RSDReportsCommon):
     filename = "engagements_managers.xlsx"
@@ -141,6 +154,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         "E-mail",
         "Stillingskode nuværende",
         "Engagementstype",
+        "Leders email",
     )
     # For units with no engagements or managers we need a row containing the first 8 columns and the rest should be empty
     empty_rows = (len(headers) - 8) * [""]
@@ -149,6 +163,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         """Extract relevant data from Graphql-response and return as a list of tuples"""
         ancestors = extract_path(org_unit)
         managers = extract_manager(org_unit["managers"])
+        manager_email = self.find_manager_email(org_unit["managers"])
         if not (org_unit["engagements"] or org_unit["managers"]):
             yield (*ancestors, org_unit["name"], *self.empty_rows)
         for e in org_unit["engagements"]:
@@ -169,6 +184,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 email,
                 job_function,
                 e["engagement_type"]["name"],
+                manager_email,
             )
 
         for m in find_managers_with_no_engagement_here(org_unit):
@@ -188,6 +204,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 email,
                 job_function,
                 engagement["engagement_type"]["name"],
+                manager_email,
             )
 
 
@@ -212,6 +229,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         "E-mail",
         "Alder",
         "Leder",
+        "Leders email",
         "BVN (k)",
         "Engagementstype",
     ]
@@ -226,6 +244,8 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         manager_name = (
             one(manager["person"])["name"] if manager and manager["person"] else ""
         )
+        manager_email = self.find_manager_email(org_unit["managers"])
+
         if not (org_unit["engagements"] or org_unit["managers"]):
             yield (
                 *ancestors,
@@ -263,6 +283,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 email,
                 str(get_age(person["cpr_number"])),
                 manager_name,
+                manager_email,
                 e["user_key"],
                 e["engagement_type"]["name"],
             )
@@ -298,6 +319,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 email,
                 str(get_age(person["cpr_number"])),
                 manager_name,
+                manager_email,
                 engagement["user_key"],
                 engagement["engagement_type"]["name"],
             )
