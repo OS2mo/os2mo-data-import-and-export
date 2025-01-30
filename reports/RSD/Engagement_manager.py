@@ -155,8 +155,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             person = one(e["person"])
             name = person["name"]
 
-            email = first(person["addresses"], default=None)
-            email = email["name"] if email else ""
+            email = extract_person_email(person)
             job_function = (
                 f"{e['job_function']['name']} ({e['job_function']['user_key']})"
             )
@@ -177,8 +176,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             if not engagement:
                 continue
             person = one(engagement["person"])
-            email = first(person["addresses"], default=None)
-            email = email["name"] if email else ""
+            email = extract_person_email(person)
             job_function = f"{engagement['job_function']['name']} ({engagement['job_function']['user_key']})"
             yield (
                 *ancestors,
@@ -238,8 +236,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         for e in org_unit["engagements"]:
             person = one(e["person"])
 
-            email = first(person["addresses"], default=None)
-            email = email["name"] if email else ""
+            email = extract_person_email(person)
 
             manager_role = find_manager_role_for_person(person, managers)
             manager_type = manager_role["manager_type"]["name"] if manager_role else ""
@@ -286,8 +283,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 if manager_role
                 else ""
             )
-            email = first(person["addresses"], default=None)
-            email = email["name"] if email else ""
+            email = extract_person_email(person)
 
             yield (
                 *ancestors,
@@ -305,6 +301,11 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 engagement["user_key"],
                 engagement["engagement_type"]["name"],
             )
+
+
+def extract_person_email(person) -> str:
+    email = first(person["addresses"], default=None)
+    return email["name"] if email else ""
 
 
 def find_managers_with_no_engagement_here(org_unit: dict) -> set[str]:
