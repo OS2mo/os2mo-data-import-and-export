@@ -201,7 +201,7 @@ class AdmOuRow(BaseModel):
     uuid: UUID
     parent: UUID | None
     pnumber: str
-    related_unit: UUID | None
+    related_units: list[UUID]
 
 
 class MedAssRow(BaseModel):
@@ -430,21 +430,15 @@ def process_adm_unit(
     pnumber = only(current["addresses"], {}).get("value", "")  # type: ignore
 
     related_units = only(current["related_units"], {}).get("org_units", [])  # type: ignore
-    related_unit_uuid = only(
-        (
-            UUID(obj["uuid"])
-            for obj in related_units
-            if not obj["uuid"] == current["uuid"]
-        ),
-        None,
-    )
-
+    related_unit_uuids = [
+        UUID(obj["uuid"]) for obj in related_units if not obj["uuid"] == current["uuid"]
+    ]
     adm_ou_row = AdmOuRow(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
         parent=UUID(parent_uuid) if parent_uuid is not None else None,
         pnumber=pnumber,
-        related_unit=related_unit_uuid,
+        related_units=related_unit_uuids,
     )
 
     adm_ou_rows.append(adm_ou_row)
@@ -691,7 +685,7 @@ def adm_ou_rows_to_csv_lines(rows: list[AdmOuRow]) -> list[str]:
             f"{str(r.uuid)}||"
             f"{str(r.parent) if r.parent is not None else ''}||"
             f"{r.pnumber}||"
-            f"{r.related_unit if r.related_unit is not None else ''}\n"
+            f"{','.join(str(related_unit) for related_unit in r.related_units)}\n"
         )
         for r in rows
     ]
