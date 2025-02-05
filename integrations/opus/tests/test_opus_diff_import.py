@@ -144,9 +144,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_import_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(
-            xml_date, ad_reader=None, employee_mapping="test"
-        )
+        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
         diff.start_import(
             self.units,
             self.employees,
@@ -166,7 +164,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_update_unit(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
             diff.update_unit(unit)
@@ -188,9 +186,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     def test_perform_address_update_create(
         self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid, visibility
     ):
-        diff = OpusDiffImportTestbase(
-            xml_date, ad_reader=None, employee_mapping={"dummy": 1}
-        )
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         address_type_uuid = str(address_type_uuid)
         args = {
             "address_type": {"uuid": address_type_uuid},
@@ -236,7 +232,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         dawa_helper_mock,
         xml_date,
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         date = xml_date.strftime("%Y-%m-%d")
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
@@ -285,7 +281,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         dawa_helper_mock,
         xml_date,
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
             {"user_key": "username1", "uuid": "dummyuuid"},
@@ -304,9 +300,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         """Tests that calling ensure_class_in_facet calls morahelpers with the correct owner added"""
         root_uuid = uuid4()
         root_uuid_mock.return_value = root_uuid
-        diff = OpusDiffImportTestbase(
-            "2022-07-13", ad_reader=None, employee_mapping="test"
-        )
+        diff = OpusDiffImportTestbase("2022-07-13", ad_reader=None)
 
         diff.ensure_class_in_facet("Facetname", "classbvn")
         diff.helper.ensure_class_in_facet.assert_called_once_with(
@@ -331,7 +325,6 @@ class _GetInstanceMixin:
                 instance = TestableOpus(
                     xml_date=self._xml_date,
                     ad_reader=None,
-                    employee_mapping=object(),
                     dry_run=dry_run,
                 )
                 return instance
@@ -433,7 +426,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         xml_date,
     ):
         # Arrange
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
 
         # Act
         diff.update_employee({"position": None, "cpr": "123456789"})
@@ -450,7 +443,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         xml_date,
     ):
         # Arrange
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
 
         # Act
         diff.update_employee(
