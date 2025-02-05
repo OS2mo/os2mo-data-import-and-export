@@ -1,7 +1,6 @@
 import datetime
 import hashlib
 import logging
-import pathlib
 import sqlite3
 import uuid
 from functools import lru_cache
@@ -19,7 +18,6 @@ from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
 from more_itertools import partition
 
-from integrations import cpr_mapper
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 from integrations.opus.opus_file_reader import get_opus_filereader
 
@@ -27,17 +25,6 @@ SETTINGS = load_settings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
-
-
-def read_cpr_mapping():
-    cpr_map = pathlib.Path.cwd() / "settings" / "cpr_uuid_map.csv"
-    if not cpr_map.is_file():
-        logger.error("Did not find cpr mapping")
-        raise Exception("Did not find cpr mapping")
-
-    logger.info("Found cpr mapping")
-    employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
-    return employee_forced_uuids
 
 
 def read_available_dumps() -> Dict[datetime.datetime, str]:
