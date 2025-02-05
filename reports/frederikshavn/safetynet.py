@@ -51,6 +51,11 @@ GET_ADM_UNIT = gql(
             addresses(filter: { address_type_user_keys: "Pnummer" }) {
               value
             }
+            related_units {
+              org_units {
+                uuid
+              }
+            }
           }
         }
       }
@@ -196,6 +201,7 @@ class AdmOuRow(BaseModel):
     uuid: UUID
     parent: UUID | None
     pnumber: str
+    related_unit: UUID | None
 
 
 class MedAssRow(BaseModel):
@@ -392,6 +398,18 @@ def process_adm_unit(
     #             "value": "1234567890"
     #           }
     #         ]
+    #         "related_units": [
+    #           {
+    #             "org_units": [
+    #               {
+    #                 "uuid": "626ab928-a76f-46ae-bc8f-2402deb65236"
+    #               },
+    #               {
+    #                 "uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"
+    #               }
+    #             ]
+    #           }
+    #         ]
     #       }
     #     }
     #   ]
@@ -410,11 +428,23 @@ def process_adm_unit(
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
     pnumber = only(current["addresses"], {}).get("value", "")  # type: ignore
+
+    related_units = only(current["related_units"], {}).get("org_units", [])  # type: ignore
+    related_unit_uuid = only(
+        (
+            UUID(obj["uuid"])
+            for obj in related_units
+            if not obj["uuid"] == current["uuid"]
+        ),
+        None,
+    )
+
     adm_ou_row = AdmOuRow(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
         parent=UUID(parent_uuid) if parent_uuid is not None else None,
         pnumber=pnumber,
+        related_unit=related_unit_uuid,
     )
 
     adm_ou_rows.append(adm_ou_row)
@@ -649,12 +679,19 @@ def adm_ou_rows_to_csv_lines(rows: list[AdmOuRow]) -> list[str]:
     """
     Convert ADM org unit data models to CSV
     """
-    return ["Afdelingsnavn||Afdelingskode||Forældreafdelingskode||Pnummer\n"] + [
+    return [
+        "Afdelingsnavn||"
+        "Afdelingskode||"
+        "Forældreafdelingskode||"
+        "Pnummer||"
+        "Arbejdsmiljøorganisationkode\n"
+    ] + [
         (
             f"{r.name}||"
             f"{str(r.uuid)}||"
             f"{str(r.parent) if r.parent is not None else ''}||"
-            f"{r.pnumber}\n"
+            f"{r.pnumber}||"
+            f"{r.related_unit if r.related_unit is not None else ''}\n"
         )
         for r in rows
     ]
