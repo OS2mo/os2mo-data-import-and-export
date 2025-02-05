@@ -431,7 +431,7 @@ def process_adm_unit(
 
     related_units = only(current["related_units"], {}).get("org_units", [])  # type: ignore
     related_unit_uuid = only(
-        (obj["uuid"] for obj in related_units if not obj["uuid"] == current["uuid"]),
+        (UUID(obj["uuid"]) for obj in related_units if not obj["uuid"] == current["uuid"]),
         None,
     )
 
@@ -440,7 +440,7 @@ def process_adm_unit(
         uuid=UUID(current["uuid"]),
         parent=UUID(parent_uuid) if parent_uuid is not None else None,
         pnumber=pnumber,
-        related_unit=UUID(related_unit_uuid) if related_unit_uuid is not None else None,
+        related_unit=related_unit_uuid,
     )
 
     adm_ou_rows.append(adm_ou_row)
