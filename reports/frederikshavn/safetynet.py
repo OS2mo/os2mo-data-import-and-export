@@ -431,7 +431,11 @@ def process_adm_unit(
 
     related_units = only(current["related_units"], {}).get("org_units", [])  # type: ignore
     related_unit_uuid = only(
-        (UUID(obj["uuid"]) for obj in related_units if not obj["uuid"] == current["uuid"]),
+        (
+            UUID(obj["uuid"])
+            for obj in related_units
+            if not obj["uuid"] == current["uuid"]
+        ),
         None,
     )
 
