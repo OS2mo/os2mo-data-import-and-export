@@ -157,14 +157,12 @@ class OpusDiffImport(object):
         self,
         xml_date,
         ad_reader,
-        employee_mapping={},
         filter_ids={},
         dry_run: bool = False,
     ):
         logger.info("Opus diff importer __init__ started")
         self.xml_date = xml_date
         self.ad_reader = ad_reader
-        self.employee_forced_uuids = employee_mapping or opus_helpers.read_cpr_mapping()
 
         self.settings = load_settings()
         self.filter_ids = filter_ids or self.settings.get(
@@ -786,10 +784,7 @@ class OpusDiffImport(object):
             ad_info = self.ad_reader.read_user(cpr=cpr)
 
         if mo_user is None:
-            uuid = self.employee_forced_uuids.get(cpr)
-            logger.info(f"Employee {uuid} in force list. AD info: {ad_info}")
-            if uuid is None:
-                uuid = ad_info.get("ObjectGuid")
+            uuid = ad_info.get("ObjectGuid")
             employee_mo_uuid = self.create_user(employee, uuid)
         else:
             employee_mo_uuid = mo_user["uuid"]
