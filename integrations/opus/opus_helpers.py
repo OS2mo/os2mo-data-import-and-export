@@ -17,6 +17,7 @@ from deepdiff import DeepDiff
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
+from more_itertools import one
 from more_itertools import partition
 
 from integrations import cpr_mapper
@@ -79,6 +80,21 @@ def initialize_db(run_db):
     conn.close()
 
 
+def delete_last_row(run_db) -> None:
+    conn = sqlite3.connect(
+        run_db,
+        detect_types=sqlite3.PARSE_DECLTYPES,
+    )
+    c = conn.cursor()
+    query = "select id from runs order by id desc limit 1"
+    c.execute(query)
+    id = one(c.fetchone())  # Why on earth does fetchone not return one item already?
+    delete = f"delete from runs where id == {id}"
+
+    conn.execute(delete)
+    conn.commit()
+
+
 def next_xml_file(run_db, dumps) -> Tuple[Optional[datetime.date], datetime.date]:
     conn = sqlite3.connect(
         SETTINGS["integrations.opus.import.run_db"],
@@ -91,7 +107,7 @@ def next_xml_file(run_db, dumps) -> Tuple[Optional[datetime.date], datetime.date
     latest_date = row[1]
     next_date = None
     if "Running" in row[2]:
-        print("Critical error")
+        print(f"Critical error,  {row}")
         logging.error("Previous run did not return!")
         raise ImporterrunNotCompleted("Previous run did not return!")
 
