@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+services:
+  dipex:
+    command: ["uvicorn", "integrations.opus.app:app", "--host", "0.0.0.0", "--reload"]
+    volumes:
+      - /home/blj/os2mo/dummy-opus-filer:/opt/opus:ro
+      - /home/blj/os2mo/run_db.sqlite/:/opt/run_db.sqlite:rw

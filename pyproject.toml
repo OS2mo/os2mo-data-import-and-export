@@ -92,6 +92,7 @@ mkdocs = "^1.4.2"
 aiofiles = "^23.1.0"
 iteration-utilities = "^0.11.0"
 fastramqpi = "^10"
+uvicorn = "^0.34.0"
 
 [tool.poetry.group.pre-commit.dependencies]
 ruff = "^0.9"
