@@ -25,6 +25,7 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
+from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -995,13 +996,14 @@ async def import_one(
     print()
 
 
-async def start_opus_diff(ad_reader=None, dry_run: bool = False):
+async def start_opus_diff(
+    ad_reader=None, force: bool = False, full_sync: bool = False, dry_run: bool = False
+):
     """
     Start an opus update, use the oldest available dump that has not
     already been imported.
     """
     SETTINGS = load_settings()
-
     dumps = opus_helpers.read_available_dumps()
     run_db = Path(SETTINGS["integrations.opus.import.run_db"])
     filter_ids = SETTINGS.get("integrations.opus.units.filter_ids", [])
@@ -1009,7 +1011,19 @@ async def start_opus_diff(ad_reader=None, dry_run: bool = False):
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
         raise RunDBInitException("Local base not correctly initialized")
-    xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+
+    if full_sync:
+        xml_date, latest_date = min(sorted(dumps.keys())), None
+    else:
+        try:
+            xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+        except ImporterrunNotCompleted:
+            if force:
+                opus_helpers.delete_last_row(run_db)
+                xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+            else:
+                print("ingen force")
+                raise ImporterrunNotCompleted()
 
     while xml_date:
         await import_one(
