@@ -408,6 +408,16 @@ def process_adm_unit(
     #                 "uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"
     #               }
     #             ]
+    #           },
+    #           {
+    #             "org_units": [
+    #               {
+    #                 "uuid": "18b8b97d-946d-4948-a334-0582935f7c5c"
+    #               },
+    #               {
+    #                 "uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"
+    #               }
+    #             ]
     #           }
     #         ]
     #       }
@@ -429,10 +439,12 @@ def process_adm_unit(
     parent_uuid = current.get("parent", {}).get("uuid")
     pnumber = only(current["addresses"], {}).get("value", "")  # type: ignore
 
-    related_units = only(current["related_units"], {}).get("org_units", [])  # type: ignore
-    related_unit_uuids = [
-        UUID(obj["uuid"]) for obj in related_units if not obj["uuid"] == current["uuid"]
-    ]
+    related_unit_uuids = list(
+        UUID(org_unit["uuid"])
+        for rel_unit in current["related_units"]
+        for org_unit in rel_unit.get("org_units", [])
+        if not org_unit["uuid"] == current["uuid"]
+    )
     adm_ou_row = AdmOuRow(
         name=current.get("name", ""),
         uuid=UUID(current["uuid"]),
