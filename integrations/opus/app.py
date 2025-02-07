@@ -35,7 +35,7 @@ async def trigger(force: bool = False, full_sync: bool = False) -> int:
     settings = load_settings()
     reader = ad_reader.ADParameterReader() if settings.get("integrations.ad") else None
     try:
-        start_opus_diff(reader, force, full_sync)
+        await start_opus_diff(reader, force, full_sync)
     except RunDBInitException:
         raise HTTPException(status_code=500, detail="Rundb not initialized")
     except ImporterrunNotCompleted:
