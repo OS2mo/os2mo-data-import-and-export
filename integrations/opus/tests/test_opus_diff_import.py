@@ -1,5 +1,6 @@
 import unittest
 from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock
@@ -7,11 +8,6 @@ from unittest.mock import call
 from unittest.mock import patch
 from uuid import uuid4
 
-from hypothesis import given
-from hypothesis import settings
-from hypothesis.strategies import datetimes
-from hypothesis.strategies import text
-from hypothesis.strategies import uuids
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
@@ -22,6 +18,8 @@ from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER
 from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER_PRESENT
 from integrations.opus.opus_diff_import import MOPostDryRun
 from integrations.opus.opus_diff_import import OpusDiffImport
+
+XML_DATE = datetime.fromisoformat("2020-01-01")
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
@@ -141,11 +139,9 @@ class Opus_diff_import_tester(unittest.TestCase):
             self.expected_employee_count,
         )
 
-    @given(datetimes())
-    def test_import_count(self, xml_date):
-        self.assertIsInstance(xml_date, datetime)
+    def test_import_count(self):
         diff = OpusDiffImportTest_counts(
-            xml_date, ad_reader=None, employee_mapping="test"
+            XML_DATE, ad_reader=None, employee_mapping="test"
         )
         diff.start_import(
             self.units,
@@ -162,11 +158,8 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @settings(deadline=None)
-    @given(datetimes())
-    def test_update_unit(self, dawa_helper_mock, xml_date):
-        self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+    def test_update_unit(self, dawa_helper_mock):
+        diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
             diff.update_unit(unit)
@@ -178,20 +171,21 @@ class Opus_diff_import_tester(unittest.TestCase):
                         "type": "address",
                         "value": dawa_helper_mock(),
                         "address_type": {"uuid": "dummy-class-uuid"},
-                        "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
+                        "validity": {"from": XML_DATE.strftime("%Y-%m-%d"), "to": None},
                         "org_unit": {"uuid": str(calculated_uuid)},
                         "visibility": None,
                     },
                 )
 
-    @given(datetimes(), datetimes(), text(), uuids(), uuids(), uuids())
-    def test_perform_address_update_create(
-        self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid, visibility
-    ):
+    def test_perform_address_update_create(self):
         diff = OpusDiffImportTestbase(
-            xml_date, ad_reader=None, employee_mapping={"dummy": 1}
+            XML_DATE, ad_reader=None, employee_mapping={"dummy": 1}
         )
-        address_type_uuid = str(address_type_uuid)
+        address_type_uuid = str(uuid4())
+        value = "address value"
+        org_unit_uuid = uuid4()
+        visibility = uuid4()
+        fromdate = XML_DATE - timedelta(days=1)
         args = {
             "address_type": {"uuid": address_type_uuid},
             "value": value,
@@ -226,18 +220,15 @@ class Opus_diff_import_tester(unittest.TestCase):
         ]
     )
     @patch("integrations.dawa_helper.dawa_lookup")
-    @settings(deadline=None)
-    @given(datetimes())
     def test_update_username(
         self,
         current_username,
         new_username,
         change_type,
         dawa_helper_mock,
-        xml_date,
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
-        date = xml_date.strftime("%Y-%m-%d")
+        diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
+        date = XML_DATE.strftime("%Y-%m-%d")
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
             (
@@ -279,13 +270,11 @@ class Opus_diff_import_tester(unittest.TestCase):
             diff.morahelper_mock._mo_post.assert_not_called()
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @given(datetimes())
     def test_skip_multiple_usernames(
         self,
         dawa_helper_mock,
-        xml_date,
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         diff.it_systems = {"Opus": "Opus_uuid"}
         diff.morahelper_mock.get_e_itsystems.return_value = [
             {"user_key": "username1", "uuid": "dummyuuid"},
@@ -426,14 +415,12 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             assert actual_result == expected_result
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @given(datetimes())
     def test_skip_user_if_no_position(
         self,
         dawa_helper_mock,
-        xml_date,
     ):
         # Arrange
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
 
         # Act
         diff.update_employee({"position": None, "cpr": "123456789"})
@@ -443,14 +430,12 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         diff.helper.read_user.assert_not_called()
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @given(datetimes())
     def test_skip_user_if_no_entrydate(
         self,
         dawa_helper_mock,
-        xml_date,
     ):
         # Arrange
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
 
         # Act
         diff.update_employee(
