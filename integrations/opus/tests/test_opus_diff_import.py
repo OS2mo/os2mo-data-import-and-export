@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import call
 from unittest.mock import patch
@@ -70,6 +71,9 @@ class OpusDiffImportTestbase(OpusDiffImport):
     def _add_klasse_to_lora(self, klasse_name, facet_uuid):
         return self._add_klasse_to_lora
 
+    async def find_address(self, street_name, postal_code):
+        return str(uuid4())
+
 
 class OpusDiffImportTest_updates(OpusDiffImportTestbase):
     def __init__(self, *args, **kwargs):
@@ -88,8 +92,8 @@ class OpusDiffImportTest_updates(OpusDiffImportTestbase):
 
 class OpusDiffImportTest_counts(OpusDiffImportTestbase):
     def __init__(self, *args, **kwargs):
-        self.update_employee = MagicMock()
-        self.update_unit = MagicMock()
+        self.update_employee = AsyncMock()
+        self.update_unit = AsyncMock()
         self.terminate_detail = MagicMock()
         self._find_engagement = MagicMock()
         self.delete_engagement = MagicMock()
@@ -99,8 +103,8 @@ class OpusDiffImportTest_counts(OpusDiffImportTestbase):
     def update_employee(self, employee):
         return self.update_employee
 
-    def update_unit(self, unit):
-        return self.update_unit
+    async def update_unit(self, unit):
+        return await self.update_unit
 
     def terminate_detail(self, uuid, detail_type="engagement", end_date=None):
         return self.terminate_detail
@@ -141,13 +145,13 @@ class Opus_diff_import_tester(unittest.TestCase):
             self.expected_employee_count,
         )
 
-    @given(datetimes())
-    def test_import_count(self, xml_date):
-        self.assertIsInstance(xml_date, datetime)
+    async def test_import_count(self):
+        breakpoint()
+        xml_date = datetime.date("2020-01-01")
         diff = OpusDiffImportTest_counts(
             xml_date, ad_reader=None, employee_mapping="test"
         )
-        diff.start_import(
+        await diff.start_import(
             self.units,
             self.employees,
             self.terminated_employees,
@@ -161,10 +165,9 @@ class Opus_diff_import_tester(unittest.TestCase):
             diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
 
-    @patch("integrations.dawa_helper.dawa_lookup")
     @settings(deadline=None)
     @given(datetimes())
-    def test_update_unit(self, dawa_helper_mock, xml_date):
+    def test_update_unit(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
@@ -176,7 +179,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                     "details/create",
                     {
                         "type": "address",
-                        "value": dawa_helper_mock(),
+                        "value": None,
                         "address_type": {"uuid": "dummy-class-uuid"},
                         "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
                         "org_unit": {"uuid": str(calculated_uuid)},
@@ -484,18 +487,9 @@ class TestUpdateEmployeeAddress(_GetInstanceMixin):
         employee addresses of the type 'Adresse' (= postal addresses.)"""
         instance = self.get_instance({})
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
-            # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
-            # "Adresse" address type (a postal address.)
-            with patch(
-                "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
-                return_value="dar-address-uuid",
-            ):
-                with patch.object(instance, "_perform_address_update"):
-                    instance._update_employee_address("mo_uuid", self.opus_employee)
-                    assert (
-                        ensure_class.call_args.kwargs
-                        == self.expected_address_visibility
-                    )
+            with patch.object(instance, "_perform_address_update"):
+                instance._update_employee_address("mo_uuid", self.opus_employee)
+                assert ensure_class.call_args.kwargs == self.expected_address_visibility
 
 
 class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):

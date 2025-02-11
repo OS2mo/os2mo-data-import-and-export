@@ -20,7 +20,6 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 
 import constants
-from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
@@ -191,7 +190,7 @@ class OpusDiffImport(object):
 
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
-
+        self.dar_cache: dict = {}
         logger.info("__init__ done, now ready for import")
 
     def _setup_gql_client(self) -> GraphQLClient:
@@ -252,6 +251,15 @@ class OpusDiffImport(object):
             return one(res["managers"]["objects"])["uuid"]
         except ValueError:
             return None
+
+    async def find_address(self, street_name: str, postal_code: str) -> UUID | None:
+        address_string = f"{street_name}, {postal_code}"
+
+        if address_string not in self.dar_cache.keys():
+            dar_uuid = await opus_helpers.dawa_lookup(address_string)
+            self.dar_cache[address_string] = dar_uuid
+
+        return self.dar_cache[address_string]
 
     def validity(self, employee, edit=False):
         """
@@ -321,7 +329,7 @@ class OpusDiffImport(object):
             else:
                 address_string = employee["address"]
                 zip_code = employee["postalCode"]
-                address_uuid = await dawa_helper.dawa_lookup(address_string, zip_code)
+                address_uuid = self.find_address(address_string, zip_code)
                 if address_uuid:
                     opus_addresses["dar"] = address_uuid
                 else:
@@ -398,9 +406,7 @@ class OpusDiffImport(object):
             }
 
         if unit.get("street") and unit.get("zipCode"):
-            address_uuid = await dawa_helper.dawa_lookup(
-                unit["street"], unit["zipCode"]
-            )
+            address_uuid = await self.lookup_addrerss(unit["street"], unit["zipCode"])
             if address_uuid:
                 logger.debug("Found DAR uuid: {}".format(address_uuid))
                 unit["dar"] = address_uuid

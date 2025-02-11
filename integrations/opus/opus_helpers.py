@@ -14,6 +14,7 @@ from typing import Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
+from fastramqpi.os2mo_dar_client import AsyncDARClient
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
@@ -444,3 +445,28 @@ def find_opus_root_unit_uuid() -> uuid.UUID:
     main_unit = first(units)
     calculated_uuid = generate_uuid(main_unit["@id"])
     return calculated_uuid
+
+
+async def dawa_lookup(address_string: str) -> Optional[str]:
+    """Lookup an address object in DAWA and try to find an UUID for the address.
+
+    Note: `street_name` is a misleading parameter name, as it should contain the street
+          name along with house number, door, story, etc.
+
+    Args:
+        street_name: Address string without postal code, city or country.
+        postal_code: Postal code for the street_name.
+
+    Returns:
+        DAWA UUID for the address, or None if it is not uniquely found.
+    """
+
+    dar_uuid = None
+    try:
+        adarclient = AsyncDARClient()
+        async with adarclient:
+            dar_reply = await adarclient.cleanse_single(address_string)
+            dar_uuid = dar_reply["id"]
+    except Exception as exp:
+        print(exp, " during dawa_lookup")
+    return dar_uuid
