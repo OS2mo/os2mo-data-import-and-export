@@ -3,6 +3,7 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Optional
+from unittest.mock import AsyncMock
 from unittest.mock import MagicMock
 from unittest.mock import call
 from unittest.mock import patch
@@ -872,6 +873,26 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             QUERY_FIND_MANAGER_PRESENT, variable_values={"user_key": str(opus_id)}
         )
         assert res == manager_uuid
+
+    @pytest.mark.asyncio
+    async def test_dar_cache(self):
+        """Test that DAR calls are cached so each address is only fetched once"""
+        # Arrange
+        instance = self.get_instance({})
+        assert instance.dar_cache == {}
+        with patch(
+            "integrations.opus.opus_diff_import.dawa_helper"
+        ) as dawa_helper_mock:
+            dawa_helper_mock.dawa_lookup = AsyncMock()
+            # Act
+            await instance.find_address("Test", "2345")
+            await instance.find_address("Test", "2345")
+            # Assert
+            assert dawa_helper_mock.dawa_lookup.await_count == 1
+            # Act
+            await instance.find_address("Helt anden test", "9876")
+            # Assert
+            assert dawa_helper_mock.dawa_lookup.await_count == 2
 
 
 if __name__ == "__main__":
