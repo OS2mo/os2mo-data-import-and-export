@@ -873,6 +873,27 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         )
         assert res == manager_uuid
 
+    @pytest.mark.asyncio
+    async def test_dar_cache(self):
+        """Test that DAR calls are cached so each address is only fetched once"""
+        # Arrange
+        instance = self.get_instance({})
+        assert instance.dar_cache == {}
+        with patch(
+            "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup"
+        ) as dawa_helper_mock:
+            # Act
+            await instance.find_address("Test", "2345")
+            await instance.find_address("Test", "2345")
+            # Assert
+            assert dawa_helper_mock.await_count == 1
+            assert len(instance.dar_cache) == 1
+            # Act
+            await instance.find_address("Completely different address", "9876")
+            # Assert
+            assert dawa_helper_mock.await_count == 2
+            assert len(instance.dar_cache) == 2
+
 
 if __name__ == "__main__":
     unittest.main()
