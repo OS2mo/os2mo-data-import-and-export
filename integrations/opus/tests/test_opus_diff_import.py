@@ -20,6 +20,7 @@ from integrations.opus.opus_diff_import import MOPostDryRun
 from integrations.opus.opus_diff_import import OpusDiffImport
 
 XML_DATE = datetime.fromisoformat("2020-01-01")
+DAR_UUID = uuid4()
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
@@ -33,6 +34,10 @@ class OpusDiffImportTestbase(OpusDiffImport):
 
     def _get_mora_helper(self, hostname, use_cache):
         return self.morahelper_mock
+
+    def find_address(self, *_):
+        # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the "Adresse" address type (a postal address.)
+        return DAR_UUID
 
     def _setup_gql_client(self):
         return MagicMock()
@@ -157,8 +162,7 @@ class Opus_diff_import_tester(unittest.TestCase):
             diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
 
-    @patch("integrations.dawa_helper.dawa_lookup")
-    def test_update_unit(self, dawa_helper_mock):
+    def test_update_unit(self):
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
@@ -169,7 +173,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                     "details/create",
                     {
                         "type": "address",
-                        "value": dawa_helper_mock(),
+                        "value": DAR_UUID,
                         "address_type": {"uuid": "dummy-class-uuid"},
                         "validity": {"from": XML_DATE.strftime("%Y-%m-%d"), "to": None},
                         "org_unit": {"uuid": str(calculated_uuid)},
@@ -219,13 +223,11 @@ class Opus_diff_import_tester(unittest.TestCase):
             ("new_username", None, "details/terminate"),
         ]
     )
-    @patch("integrations.dawa_helper.dawa_lookup")
     def test_update_username(
         self,
         current_username,
         new_username,
         change_type,
-        dawa_helper_mock,
     ):
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         date = XML_DATE.strftime("%Y-%m-%d")
@@ -269,10 +271,8 @@ class Opus_diff_import_tester(unittest.TestCase):
         else:
             diff.morahelper_mock._mo_post.assert_not_called()
 
-    @patch("integrations.dawa_helper.dawa_lookup")
     def test_skip_multiple_usernames(
         self,
-        dawa_helper_mock,
     ):
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         diff.it_systems = {"Opus": "Opus_uuid"}
@@ -414,10 +414,8 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             actual_result = instance._condense_employee_opus_addresses(opus_employee)
             assert actual_result == expected_result
 
-    @patch("integrations.dawa_helper.dawa_lookup")
     def test_skip_user_if_no_position(
         self,
-        dawa_helper_mock,
     ):
         # Arrange
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
@@ -429,10 +427,8 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         # If no position is found the function returns early and never calls 'read_user'
         diff.helper.read_user.assert_not_called()
 
-    @patch("integrations.dawa_helper.dawa_lookup")
     def test_skip_user_if_no_entrydate(
         self,
-        dawa_helper_mock,
     ):
         # Arrange
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
