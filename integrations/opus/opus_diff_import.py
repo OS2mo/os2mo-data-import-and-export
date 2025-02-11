@@ -223,6 +223,9 @@ class OpusDiffImport(object):
     def _get_mora_helper(self, hostname="localhost:5000", use_cache=False):
         return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
 
+    def find_address(self, address_string, zip_code) -> str | None:
+        return dawa_helper.dawa_lookup(address_string, zip_code)
+
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
         """Check response is as expected"""
@@ -320,7 +323,7 @@ class OpusDiffImport(object):
             else:
                 address_string = employee["address"]
                 zip_code = employee["postalCode"]
-                address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                address_uuid = self.find_address(address_string, zip_code)
                 if address_uuid:
                     opus_addresses["dar"] = address_uuid
                 else:
@@ -397,7 +400,7 @@ class OpusDiffImport(object):
             }
 
         if unit.get("street") and unit.get("zipCode"):
-            address_uuid = dawa_helper.dawa_lookup(unit["street"], unit["zipCode"])
+            address_uuid = self.find_address(unit["street"], unit["zipCode"])
             if address_uuid:
                 logger.debug("Found DAR uuid: {}".format(address_uuid))
                 unit["dar"] = address_uuid
