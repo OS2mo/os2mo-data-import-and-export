@@ -45,7 +45,7 @@ GET_ADM_UNIT = gql(
             children {
               uuid
             }
-            managers(filter: { org_unit: { uuids: $org_unit } }, inherit: true) {
+            managers(inherit: true) {
               user_key
             }
             addresses(filter: { address_type_user_keys: "Pnummer" }) {
