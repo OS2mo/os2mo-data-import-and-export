@@ -8,6 +8,7 @@ from unittest.mock import call
 from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
@@ -144,11 +145,12 @@ class Opus_diff_import_tester(unittest.TestCase):
             self.expected_employee_count,
         )
 
-    def test_import_count(self):
+    @pytest.mark.asyncio
+    async def test_import_count(self):
         diff = OpusDiffImportTest_counts(
             XML_DATE, ad_reader=None, employee_mapping="test"
         )
-        diff.start_import(
+        await diff.start_import(
             self.units,
             self.employees,
             self.terminated_employees,
@@ -162,11 +164,12 @@ class Opus_diff_import_tester(unittest.TestCase):
             diff.delete_engagement.call_count, len(self.cancelled_employees)
         )
 
-    def test_update_unit(self):
+    @pytest.mark.asyncio
+    async def test_update_unit(self):
         diff = OpusDiffImportTestbase(XML_DATE, ad_reader=None, employee_mapping="test")
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
-            diff.update_unit(unit)
+            await diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
             if unit.get("street"):
                 diff.helper._mo_post.assert_called_with(
@@ -399,7 +402,8 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             ),
         ]
     )
-    def test_feature_flags_are_respected(
+    @pytest.mark.asyncio
+    async def test_feature_flags_are_respected(
         self,
         settings: dict,
         opus_employee: dict,
@@ -407,11 +411,14 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         expected_result: dict,
     ) -> None:
         instance = self.get_instance(settings)
-        with patch(
-            "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+        with patch.object(
+            instance,
+            "find_address",
             return_value=dar_response,
         ):
-            actual_result = instance._condense_employee_opus_addresses(opus_employee)
+            actual_result = await instance._condense_employee_opus_addresses(
+                opus_employee
+            )
             assert actual_result == expected_result
 
     def test_skip_user_if_no_position(
@@ -460,19 +467,23 @@ class TestUpdateEmployeeAddress(_GetInstanceMixin):
         "scope": "INTERNAL",
     }
 
-    def test_dar_address_visibility(self):
+    @pytest.mark.asyncio
+    async def test_dar_address_visibility(self):
         """Verify that we use the correct visibility class when creating or updating
         employee addresses of the type 'Adresse' (= postal addresses.)"""
         instance = self.get_instance({})
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
             # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
             # "Adresse" address type (a postal address.)
-            with patch(
-                "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup",
+            with patch.object(
+                instance,
+                "find_address",
                 return_value="dar-address-uuid",
             ):
                 with patch.object(instance, "_perform_address_update"):
-                    instance._update_employee_address("mo_uuid", self.opus_employee)
+                    await instance._update_employee_address(
+                        "mo_uuid", self.opus_employee
+                    )
                     assert (
                         ensure_class.call_args.kwargs
                         == self.expected_address_visibility
@@ -870,6 +881,27 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             QUERY_FIND_MANAGER_PRESENT, variable_values={"user_key": str(opus_id)}
         )
         assert res == manager_uuid
+
+    @pytest.mark.asyncio
+    async def test_dar_cache(self):
+        """Test that DAR calls are cached so each address is only fetched once"""
+        # Arrange
+        instance = self.get_instance({})
+        assert instance.dar_cache == {}
+        with patch(
+            "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup"
+        ) as dawa_helper_mock:
+            # Act
+            await instance.find_address("Test", "2345")
+            await instance.find_address("Test", "2345")
+            # Assert
+            assert dawa_helper_mock.await_count == 1
+            assert len(instance.dar_cache) == 1
+            # Act
+            await instance.find_address("Completely different address", "9876")
+            # Assert
+            assert dawa_helper_mock.await_count == 2
+            assert len(instance.dar_cache) == 2
 
 
 if __name__ == "__main__":
