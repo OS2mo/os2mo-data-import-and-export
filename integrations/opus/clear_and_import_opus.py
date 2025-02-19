@@ -10,7 +10,7 @@ from more_itertools import prepend
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
-from integrations.opus.config import Settings
+from integrations.opus.config import OpusSettings
 from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.subtreedeleter import subtreedeleter_helper
@@ -22,7 +22,7 @@ def truncate_db(MOX_BASE: str = "http://localhost:5000/lora") -> None:
 
 
 def prepare_re_import(
-    settings: Settings,
+    settings: OpusSettings,
     opus_uuid: Optional[str] = None,
     connections: int = 4,
 ) -> None:
@@ -44,7 +44,7 @@ def prepare_re_import(
 
 
 async def import_opus(
-    settings: Settings,
+    settings: OpusSettings,
     ad_reader=None,
     import_all: bool = False,
     import_last=False,
@@ -129,7 +129,7 @@ def clear_and_reload(
     --truncate will truncate the database entirely.
     Add the --use-ad flag to connect to AD when reading users.
     """
-    settings = Settings()
+    settings = OpusSettings()
     if new_rundb:
         opus_helpers.initialize_db(settings.integrations_opus_import_run_db)
 
