@@ -5,7 +5,6 @@ from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
 from typing import Dict
-from typing import List
 from typing import Optional
 from uuid import UUID
 
@@ -158,16 +157,15 @@ class OpusDiffImport(object):
         xml_date,
         settings: OpusSettings,
         ad_reader,
-        filter_ids={},
         dry_run: bool = False,
     ):
         logger.info("Opus diff importer __init__ started")
         self.xml_date = xml_date
         self.ad_reader = ad_reader
 
-        self.settings = settings or OpusSettings()
+        self.settings = settings
 
-        self.filter_ids = filter_ids or self.settings.integrations_opus_units_filter_ids
+        self.filter_ids = self.settings.integrations_opus_units_filter_ids
 
         self.dry_run = dry_run
 
@@ -960,7 +958,6 @@ async def import_one(
     xml_date: datetime,
     latest_date: Optional[datetime],
     dumps: Dict,
-    filter_ids: List[str],
     opus_id: Optional[int] = None,
     rundb_write=True,
     dry_run=False,
@@ -974,6 +971,7 @@ async def import_one(
     if latest_date:
         latest_path = dumps[latest_date]
     xml_path = dumps[xml_date]
+    filter_ids = settings.integrations_opus_units_filter_ids
     (
         units,
         filtered_units,
@@ -993,7 +991,6 @@ async def import_one(
         xml_date,
         settings=settings,
         ad_reader=ad_reader,
-        filter_ids=filter_ids,
         dry_run=dry_run,
     )
     await diff.start_import(units, employees, terminated_employees, cancelled_employees)
@@ -1018,7 +1015,6 @@ async def start_opus_diff(
 
     dumps = opus_helpers.read_available_dumps()
     run_db = settings.integrations_opus_import_run_db
-    filter_ids = settings.integrations_opus_units_filter_ids or []
 
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
@@ -1034,7 +1030,6 @@ async def start_opus_diff(
             xml_date,  # type: ignore
             latest_date,  # type: ignore
             dumps,
-            filter_ids,
             opus_id=None,
             dry_run=dry_run,
         )
