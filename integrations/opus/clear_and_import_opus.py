@@ -1,17 +1,16 @@
 import asyncio
-from typing import Dict
 from typing import Optional
 
 import click
 import requests
 from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
-from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import pairwise
 from more_itertools import prepend
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
+from integrations.opus.config import Settings
 from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.subtreedeleter import subtreedeleter_helper
@@ -23,13 +22,12 @@ def truncate_db(MOX_BASE: str = "http://localhost:5000/lora") -> None:
 
 
 def prepare_re_import(
-    settings: Optional[Dict] = None,
+    settings: Settings,
     opus_uuid: Optional[str] = None,
     connections: int = 4,
 ) -> None:
     """Remove all opus-units from MO"""
-    settings = settings or load_settings()
-    mox_base = settings.get("mox.base")
+    mox_base = settings.mo.mo_url
     if opus_uuid:
         session = requests.session()
         dub = find_duplicates_classes(session=session, mox_base=mox_base)
@@ -46,6 +44,7 @@ def prepare_re_import(
 
 
 async def import_opus(
+    settings: Settings,
     ad_reader=None,
     import_all: bool = False,
     import_last=False,
@@ -54,8 +53,7 @@ async def import_opus(
     dry_run: bool = False,
 ) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
-    settings = load_settings()
-    filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+    filter_ids = settings.integrations_opus_units_filter_ids
     dumps = opus_helpers.read_available_dumps()
 
     all_dates = dumps.keys()
@@ -70,6 +68,7 @@ async def import_opus(
     date_pairs = pairwise(all_export_dates)
     for date1, date2 in date_pairs:
         await import_one(
+            settings,
             ad_reader,
             date2,
             date1,
@@ -130,9 +129,9 @@ def clear_and_reload(
     --truncate will truncate the database entirely.
     Add the --use-ad flag to connect to AD when reading users.
     """
-    settings = load_settings()
+    settings = Settings()
     if new_rundb:
-        opus_helpers.initialize_db(settings["integrations.opus.import.run_db"])
+        opus_helpers.initialize_db(settings.integrations_opus_import_run_db)
 
     opus_uuid = str(opus_helpers.find_opus_root_unit_uuid()) if delete_opus else None
     prepare_re_import(
@@ -146,6 +145,7 @@ def clear_and_reload(
         AD.cache_all(print_progress=True)
     asyncio.run(
         import_opus(
+            settings=settings,
             ad_reader=AD,
             import_all=import_all,
             import_last=import_last,
