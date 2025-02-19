@@ -53,7 +53,6 @@ async def import_opus(
     dry_run: bool = False,
 ) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
-    filter_ids = settings.integrations_opus_units_filter_ids
     dumps = opus_helpers.read_available_dumps()
 
     all_dates = dumps.keys()
@@ -73,7 +72,6 @@ async def import_opus(
             date2,
             date1,
             dumps,
-            filter_ids,
             opus_id=opus_id,
             rundb_write=rundb_write,
             dry_run=dry_run,
