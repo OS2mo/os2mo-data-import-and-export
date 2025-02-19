@@ -12,6 +12,7 @@ import pytest
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
+from integrations.opus.config import Settings
 from integrations.opus.opus_diff_import import MUTATION_DELETE_ENGAGEMENT
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT_PRESENT
@@ -24,16 +25,24 @@ XML_DATE = datetime.fromisoformat("2020-01-01")
 DAR_UUID = uuid4()
 
 
+def mock_settings(**kwargs):
+    return Settings(
+        integrations_opus_import_run_db=":memory:",
+        mo={"client_secret": "test"},
+        **kwargs,
+    )
+
+
 class OpusDiffImportTestbase(OpusDiffImport):
-    def __init__(self, latest_date, *args, **kwargs):
+    def __init__(self, latest_date, settings: Settings | None = None, *args, **kwargs):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
         self.morahelper_mock._mo_post.return_value.status_code = 201
         self.morahelper_mock.ensure_class_in_facet.return_code = uuid4()
 
-        super().__init__(latest_date, *args, **kwargs)
+        super().__init__(latest_date, settings or mock_settings(), *args, **kwargs)
 
-    def _get_mora_helper(self, hostname, use_cache):
+    def _get_mora_helper(self, *args, **kwargs):
         return self.morahelper_mock
 
     def find_address(self, *_):
@@ -308,18 +317,17 @@ class TestableOpus(OpusDiffImport):
 class _GetInstanceMixin:
     _xml_date = datetime.now()
 
-    def get_instance(self, settings: dict, dry_run=False) -> OpusDiffImport:
-        settings.setdefault("mora.base", "http://unused.url")
-        with patch(
-            "integrations.opus.opus_diff_import.load_settings", return_value=settings
-        ):
-            with patch("integrations.opus.opus_diff_import.MoraHelper"):
-                instance = TestableOpus(
-                    xml_date=self._xml_date,
-                    ad_reader=None,
-                    dry_run=dry_run,
-                )
-                return instance
+    def get_instance(
+        self, settings: Settings | None = None, dry_run=False
+    ) -> OpusDiffImport:
+        with patch("integrations.opus.opus_diff_import.MoraHelper"):
+            instance = TestableOpus(
+                xml_date=self._xml_date,
+                settings=settings or mock_settings(),
+                ad_reader=None,
+                dry_run=dry_run,
+            )
+            return instance
 
 
 class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
@@ -358,21 +366,21 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             ),
             # Test "skip_employee_email" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_email": True},
+                {"integrations_opus_skip_employee_email": True},
                 opus_employee,
                 dar_valid_uuid,
                 {"phone": opus_employee["workPhone"], "dar": dar_valid_uuid},
             ),
             # Test "skip_employee_address" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_address": True},
+                {"integrations_opus_skip_employee_address": True},
                 opus_employee,
                 dar_valid_uuid,
                 {"phone": opus_employee["workPhone"], "email": opus_employee["email"]},
             ),
             # Test "skip_employee_phone" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_phone": True},
+                {"integrations_opus_skip_employee_phone": True},
                 opus_employee,
                 dar_valid_uuid,
                 {"email": opus_employee["email"], "dar": dar_valid_uuid},
@@ -380,7 +388,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             # Test protected addresses are always removed (regardless of
             # "skip_employee_address" flag.)
             (
-                {"integrations.opus.skip_employee_address": False},
+                {"integrations_opus_skip_employee_address": False},
                 opus_employee_protected_address,
                 dar_valid_uuid,
                 {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
@@ -388,7 +396,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             # Test that failed DAR lookups result in no "dar" key being added to the
             # result (regardless of "skip_employee_address" flag.)
             (
-                {"integrations.opus.skip_employee_address": False},
+                {"integrations_opus_skip_employee_address": False},
                 opus_employee,
                 dar_invalid_uuid,
                 {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
@@ -403,7 +411,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         dar_response: Optional[str],
         expected_result: dict,
     ) -> None:
-        instance = self.get_instance(settings)
+        instance = self.get_instance(settings=mock_settings(**settings))
         with patch.object(
             instance,
             "find_address",
@@ -464,7 +472,7 @@ class TestUpdateEmployeeAddress(_GetInstanceMixin):
     async def test_dar_address_visibility(self):
         """Verify that we use the correct visibility class when creating or updating
         employee addresses of the type 'Adresse' (= postal addresses.)"""
-        instance = self.get_instance({})
+        instance = self.get_instance()
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
             # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
             # "Adresse" address type (a postal address.)

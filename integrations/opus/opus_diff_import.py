@@ -23,7 +23,8 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
-from integrations.opus.config import Settings
+from integrations.opus.config import MOSettings
+from integrations.opus.config import OpusSettings
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -155,7 +156,7 @@ class OpusDiffImport(object):
     def __init__(
         self,
         xml_date,
-        settings: Settings,
+        settings: OpusSettings,
         ad_reader,
         filter_ids={},
         dry_run: bool = False,
@@ -164,7 +165,7 @@ class OpusDiffImport(object):
         self.xml_date = xml_date
         self.ad_reader = ad_reader
 
-        self.settings = settings or Settings()
+        self.settings = settings or OpusSettings()
 
         self.filter_ids = filter_ids or self.settings.integrations_opus_units_filter_ids
 
@@ -172,7 +173,7 @@ class OpusDiffImport(object):
 
         self.session = Session()
         self.helper = self._get_mora_helper(
-            hostname=self.settings.mo.mo_url, use_cache=False
+            mo_settings=self.settings.mo, use_cache=False
         )
         self.gql_client = self._setup_gql_client()
         if dry_run:
@@ -220,8 +221,15 @@ class OpusDiffImport(object):
             types_dict[class_type["user_key"]] = class_type["uuid"]
         return types_dict, facet
 
-    def _get_mora_helper(self, hostname="localhost:5000", use_cache=False):
-        return MoraHelper(hostname=hostname, use_cache=use_cache)
+    def _get_mora_helper(self, mo_settings: MOSettings, use_cache=False):
+        return MoraHelper(
+            hostname=mo_settings.mo_url,
+            auth_realm=mo_settings.auth_realm,
+            auth_server=mo_settings.auth_server,
+            client_id=mo_settings.client_id,
+            client_secret=mo_settings.client_secret.get_secret_value(),
+            use_cache=use_cache,
+        )
 
     async def find_address(self, address_string: str, zip_code: str) -> str | None:
         address = (address_string, zip_code)
@@ -229,6 +237,12 @@ class OpusDiffImport(object):
             dar_uuid = await dawa_helper.dawa_lookup(*address)
             self.dar_cache[address] = dar_uuid
         return self.dar_cache[address]
+
+    def gen_unit_uuid(self, unit):
+        """generate uuids for given units."""
+        return str(
+            opus_helpers.generate_uuid(unit["@id"], self.settings.municipality_name)
+        )
 
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
@@ -866,9 +880,7 @@ class OpusDiffImport(object):
         )
         current_uuids = set(map(itemgetter("uuid"), mo_units))
         # return the units that are active in os2mo, but should be terminated
-        mo_units = filter(
-            lambda unit: opus_helpers.gen_unit_uuid(unit) in current_uuids, units
-        )
+        mo_units = filter(lambda unit: self.gen_unit_uuid(unit) in current_uuids, units)
         return mo_units
 
     def handle_filtered_units(self, units, dry_run=False):
@@ -877,7 +889,7 @@ class OpusDiffImport(object):
         If a unit is filtered from the Opus file it means it cannot be deleted in Opus, but should not appear in MO.
         Any units that exists in MO, but are later moved in Opus to be below one of the filtered units should be terminated in MO.
         """
-        unfiltered_units = {opus_helpers.gen_unit_uuid(unit) for unit in units}
+        unfiltered_units = {self.gen_unit_uuid(unit) for unit in units}
         if dry_run:
             print(
                 f"There are {len(unfiltered_units)} units that should have been terminated."
@@ -943,7 +955,7 @@ class OpusDiffImport(object):
 
 
 async def import_one(
-    settings: Settings,
+    settings: OpusSettings,
     ad_reader,
     xml_date: datetime,
     latest_date: Optional[datetime],
@@ -972,7 +984,10 @@ async def import_one(
         latest_path, xml_path, filter_ids, opus_id=opus_id
     )
     if rundb_write and not dry_run:
-        opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
+        opus_helpers.local_db_insert(
+            settings.integrations_opus_import_run_db,
+            (xml_date, "Running diff update since {}"),
+        )
 
     diff = OpusDiffImport(
         xml_date,
@@ -986,11 +1001,16 @@ async def import_one(
 
     diff.handle_filtered_units(filtered_units)
     if rundb_write and not dry_run:
-        opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
+        opus_helpers.local_db_insert(
+            settings.integrations_opus_import_run_db,
+            (xml_date, "Diff update ended: {}"),
+        )
     print()
 
 
-async def start_opus_diff(settings: Settings, ad_reader=None, dry_run: bool = False):
+async def start_opus_diff(
+    settings: OpusSettings, ad_reader=None, dry_run: bool = False
+):
     """
     Start an opus update, use the oldest available dump that has not
     already been imported.
@@ -1003,10 +1023,13 @@ async def start_opus_diff(settings: Settings, ad_reader=None, dry_run: bool = Fa
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
         raise RunDBInitException("Local base not correctly initialized")
-    xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+    xml_date, latest_date = opus_helpers.next_xml_file(
+        settings.integrations_opus_import_run_db, dumps
+    )
 
     while xml_date:
         await import_one(
+            settings,
             ad_reader,
             xml_date,  # type: ignore
             latest_date,  # type: ignore
@@ -1016,12 +1039,14 @@ async def start_opus_diff(settings: Settings, ad_reader=None, dry_run: bool = Fa
             dry_run=dry_run,
         )
         # Check if there are more files to import
-        xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+        xml_date, latest_date = opus_helpers.next_xml_file(
+            settings.integrations_opus_import_run_db, dumps
+        )
         logger.info("Ended update")
 
 
 if __name__ == "__main__":
-    settings = Settings()
+    settings = OpusSettings()
     reader = ad_reader.ADParameterReader() if settings.integrations_ad else None
 
     try:

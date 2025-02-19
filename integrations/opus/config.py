@@ -2,13 +2,12 @@ from pathlib import Path
 
 from fastramqpi.ra_utils.job_settings import JobSettings
 from pydantic import AnyHttpUrl
+from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
 
 
-class MOSettings(JobSettings):
-    """The inheritance from JobSettings ensures we can read settings from the settings.json file"""
-
+class MOSettings(BaseSettings):
     class Config:
         settings_json_prefix = "crontab"
 
@@ -19,9 +18,7 @@ class MOSettings(JobSettings):
     mo_url: AnyHttpUrl = "http://localhost:5000"
 
 
-class Settings(JobSettings):
-    """The inheritance from JobSettings ensures we can read settings from the settings.json file"""
-
+class Settings(BaseSettings):
     mo: MOSettings = Field(default_factory=MOSettings)
     integrations_opus_import_run_db: Path
     integrations_opus_skip_employee_address = False
@@ -31,3 +28,14 @@ class Settings(JobSettings):
     integrations_opus_units_filter_ids: list[int] = []
 
     integrations_ad: dict | None = None
+
+
+class OpusSettings(Settings, JobSettings):
+    class Config:
+        frozen = True
+        env_nested_delimiter = "__"
+
+    """The inheritance from JobSettings ensures we can read settings from the settings.json file.
+    Remove once opus runs in docker and has all variables in environment variables."""
+
+    pass
