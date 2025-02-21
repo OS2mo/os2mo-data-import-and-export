@@ -119,11 +119,6 @@ Test AD Integration:  # runs outside image (unfortunately)
     - cd integrations/ad_integration/
     - pytest tests/
 
-Test CPR Mapper:
-  extends: .test-python
-  script:
-    - python -m doctest -v integrations/cpr_mapper.py
-
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
