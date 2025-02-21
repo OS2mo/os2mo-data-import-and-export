@@ -23,10 +23,12 @@ from integrations.opus.opus_diff_import import OpusDiffImport
 
 XML_DATE = datetime.fromisoformat("2020-01-01")
 DAR_UUID = uuid4()
+MUNICIPALITY_NAME = "Testerup Kommune"
 
 
 def mock_settings(**kwargs):
     return Settings(
+        municipality_name=MUNICIPALITY_NAME,
         integrations_opus_import_run_db=":memory:",
         mo={"client_secret": "test"},
         **kwargs,
@@ -177,7 +179,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         diff.ensure_class_in_facet = MagicMock(return_value="dummy-class-uuid")
         for unit in self.units:
             await diff.update_unit(unit)
-            calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
+            calculated_uuid = diff.generate_uuid(unit["@id"])
             if unit.get("street"):
                 diff.helper._mo_post.assert_called_with(
                     "details/create",
@@ -504,7 +506,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         "position": "stillingsbetegnelse",
         "orgUnit": unit_name,
     }
-    unit_uuid = str(opus_helpers.generate_uuid(opus_employee["orgUnit"]))
+    unit_uuid = str(
+        opus_helpers.generate_uuid(opus_employee["orgUnit"], MUNICIPALITY_NAME)
+    )
     manager_level = str(uuid4())
     manager_type = str(uuid4())
     manager_responsibility = str(uuid4())
@@ -676,7 +680,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         start_date = "2000-01-01"
         self.opus_employee["entryDate"] = start_date
 
-        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        unit_uuid = str(instance.generate_uuid(self.opus_employee["orgUnit"]))
         mo_engagement = {
             "uuid": "engagement_uuid",
             "validity": {"from": start_date, "to": None},
@@ -706,7 +710,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
-        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        unit_uuid = str(instance.generate_uuid(self.opus_employee["orgUnit"]))
         mo_engagement = {
             "uuid": "engagement_uuid",
             "validity": {"from": str(datetime.now().date()), "to": None},
@@ -750,7 +754,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
-        unit_uuid = str(opus_helpers.generate_uuid(self.opus_employee["orgUnit"]))
+        unit_uuid = str(instance.generate_uuid(self.opus_employee["orgUnit"]))
         mo_engagement = {
             "uuid": "engagement_uuid",
             "validity": {"from": old_start_date, "to": None},

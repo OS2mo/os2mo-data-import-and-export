@@ -131,7 +131,15 @@ def clear_and_reload(
     if new_rundb:
         opus_helpers.initialize_db(settings.integrations_opus_import_run_db)
 
-    opus_uuid = str(opus_helpers.find_opus_root_unit_uuid()) if delete_opus else None
+    opus_uuid = (
+        str(
+            opus_helpers.find_opus_root_unit_uuid(
+                municipality_name=settings.municipality_name
+            )
+        )
+        if delete_opus
+        else None
+    )
     prepare_re_import(
         settings=settings,
         opus_uuid=opus_uuid,

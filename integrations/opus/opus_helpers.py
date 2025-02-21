@@ -103,7 +103,7 @@ def parse_phone(phone_number):
 
 
 @lru_cache(maxsize=None)
-def generate_uuid(value, municipality_name: str = ""):
+def generate_uuid(value, municipality_name: str):
     """
     Generate a predictable uuid based on org name and a unique value.
     """
@@ -395,7 +395,7 @@ def read_and_transform_data(
 
 
 @lru_cache
-def find_opus_root_unit_uuid() -> uuid.UUID:
+def find_opus_root_unit_uuid(municipality_name: str) -> uuid.UUID:
     """Generates uuid for opus root.
 
     Reads the first available opus file and generates the uuid for the first unit in the file.
@@ -406,5 +406,5 @@ def find_opus_root_unit_uuid() -> uuid.UUID:
     first_date = min(sorted(dumps.keys()))
     units, _ = parser(dumps[first_date])
     main_unit = first(units)
-    calculated_uuid = generate_uuid(main_unit["@id"])
+    calculated_uuid = generate_uuid(main_unit["@id"], municipality_name)
     return calculated_uuid

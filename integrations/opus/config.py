@@ -20,6 +20,7 @@ class MOSettings(BaseSettings):
 
 class Settings(BaseSettings):
     mo: MOSettings = Field(default_factory=MOSettings)
+    municipality_name: str
     integrations_opus_import_run_db: Path
     integrations_opus_skip_employee_address = False
     integrations_opus_skip_employee_email = False

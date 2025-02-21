@@ -3,6 +3,7 @@ import logging
 import sys
 from datetime import datetime
 from datetime import timedelta
+from functools import partial
 from operator import itemgetter
 from typing import Dict
 from typing import Optional
@@ -190,6 +191,9 @@ class OpusDiffImport(object):
 
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
+        self.generate_uuid = partial(
+            opus_helpers.generate_uuid, municipality_name=settings.municipality_name
+        )
 
         logger.info("__init__ done, now ready for import")
 
@@ -208,7 +212,11 @@ class OpusDiffImport(object):
     def ensure_class_in_facet(self, *args, **kwargs):
         """Helper function to call ensure_class_in_facet from morahelpers with owner"""
         return self.helper.ensure_class_in_facet(
-            *args, owner=opus_helpers.find_opus_root_unit_uuid(), **kwargs
+            *args,
+            owner=opus_helpers.find_opus_root_unit_uuid(
+                municipality_name=self.settings.municipality_name
+            ),
+            **kwargs,
         )
 
     def _find_classes(self, facet):
@@ -238,9 +246,7 @@ class OpusDiffImport(object):
 
     def gen_unit_uuid(self, unit):
         """generate uuids for given units."""
-        return str(
-            opus_helpers.generate_uuid(unit["@id"], self.settings.municipality_name)
-        )
+        return str(self.generate_uuid(unit["@id"]))
 
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
@@ -397,7 +403,7 @@ class OpusDiffImport(object):
             self._perform_address_update(address_args, current)
 
     async def _update_unit_addresses(self, unit):
-        calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
+        calculated_uuid = self.generate_uuid(unit["@id"])
         unit_addresses = self.helper.read_ou_address(
             calculated_uuid, scope=None, return_all=True
         )
@@ -445,10 +451,10 @@ class OpusDiffImport(object):
             self._perform_address_update(args, current)
 
     async def update_unit(self, unit):
-        calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
+        calculated_uuid = self.generate_uuid(unit["@id"])
         parent_name = unit["parentOrgUnit"]
         parent_uuid = (
-            opus_helpers.generate_uuid(parent_name)
+            self.generate_uuid(parent_name)
             if parent_name
             else self.helper.read_organisation()
         )
@@ -512,7 +518,7 @@ class OpusDiffImport(object):
         :return: True if update happended, False if not.
         """
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
-        unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
+        unit_uuid = self.generate_uuid(opus_employee["orgUnit"])
 
         mo_start_date = datetime.fromisoformat(mo_engagement["validity"]["from"])
         opus_start_date = datetime.fromisoformat(opus_employee["entryDate"])
@@ -583,7 +589,7 @@ class OpusDiffImport(object):
 
     def create_engagement(self, mo_user_uuid, opus_employee):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
-        unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
+        unit_uuid = self.generate_uuid(opus_employee["orgUnit"])
 
         engagement_unit = self.helper.read_ou(unit_uuid)
         if "error" in engagement_unit:
@@ -714,7 +720,7 @@ class OpusDiffImport(object):
             )
 
             args = {
-                "unit": str(opus_helpers.generate_uuid(employee["orgUnit"])),
+                "unit": str(self.generate_uuid(employee["orgUnit"])),
                 "person": employee_mo_uuid,
                 "manager_type": str(manager_type_uuid),
                 "level": str(manager_level_uuid),

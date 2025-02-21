@@ -7,6 +7,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.clear_and_import_opus import import_opus
+from integrations.opus.config import OpusSettings
 from integrations.opus.opus_file_reader import get_opus_filereader
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
@@ -48,6 +49,7 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     Optionally deletes the object and all related orgfuncs directly from Lora.
     Defaults to reading latest file only, but supports reading full history
     """
+    settings = OpusSettings(mo={"mo_url": mora_base})
     helper = MoraHelper(hostname=mora_base)
     object_type, obj = find_type(opus_id, full_history)
     if object_type == "bruger":
@@ -55,7 +57,9 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
         user = helper.read_user(user_cpr=cpr)
         uuid = user["uuid"] if user else None
     else:
-        uuid = opus_helpers.generate_uuid(obj["@id"])
+        uuid = opus_helpers.generate_uuid(
+            obj["@id"], municipality_name=settings.municipality_name
+        )
 
     if delete and uuid and not dry_run:
         delete_object_and_orgfuncs(uuid, mox_base, object_type)
@@ -64,6 +68,7 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     )
     AD = ad_reader.ADParameterReader() if use_ad else None
     import_opus(
+        settings=settings,
         ad_reader=AD,
         import_all=full_history,
         import_last=not full_history,
