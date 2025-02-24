@@ -1,11 +1,11 @@
 import logging
 
 import click
+from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from integrations import dawa_helper
 from integrations.opus.opus_helpers import get_latest_dump
-from integrations.opus.opus_helpers import load_settings
 from integrations.opus.opus_helpers import read_and_transform_data
 
 logger = logging.getLogger("OpusInvalidDar")
