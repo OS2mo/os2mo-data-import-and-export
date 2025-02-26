@@ -55,7 +55,7 @@ async def import_opus(
     dry_run: bool = False,
 ) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
-    dumps = opus_helpers.read_available_dumps()
+    dumps = opus_helpers.read_available_dumps(settings)
 
     all_dates = dumps.keys()
     # Default is read first file only
@@ -136,7 +136,8 @@ def clear_and_reload(
     opus_uuid = (
         str(
             opus_helpers.generate_uuid(
-                opus_helpers.find_opus_root_unit_id(), settings["municipality.name"]
+                opus_helpers.find_opus_root_unit_id(settings),
+                settings["municipality.name"],
             )
         )
         if delete_opus

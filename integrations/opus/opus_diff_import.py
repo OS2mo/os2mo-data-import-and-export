@@ -26,6 +26,7 @@ from integrations.opus import opus_helpers
 from integrations.opus import payloads
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
+from integrations.opus.opus_file_reader import get_opus_filereader
 
 logger = logging.getLogger("opusDiff")
 
@@ -171,6 +172,10 @@ class OpusDiffImport(object):
         self.helper = self._get_mora_helper(
             hostname=self.settings["mora.base"], use_cache=False
         )
+        self.root_uuid = opus_helpers.generate_uuid(
+            opus_helpers.find_opus_root_unit_id(self.settings),
+            self.settings["municipality.name"],
+        )
         self.gql_client = self._setup_gql_client()
         if dry_run:
             self.helper._mo_post = MOPostDryRun
@@ -206,10 +211,8 @@ class OpusDiffImport(object):
 
     def ensure_class_in_facet(self, *args, **kwargs):
         """Helper function to call ensure_class_in_facet from morahelpers with owner"""
-        root_uuid = opus_helpers.generate_uuid(
-            opus_helpers.find_opus_root_unit_id(), self.settings["municipality.name"]
-        )
-        return self.helper.ensure_class_in_facet(*args, owner=root_uuid, **kwargs)
+
+        return self.helper.ensure_class_in_facet(*args, owner=self.root_uuid, **kwargs)
 
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
@@ -979,6 +982,11 @@ async def import_one(
     xml_path = dumps[xml_date]
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
     run_db = settings["integrations.opus.import.run_db"]
+    latest_opus_data = (
+        get_opus_filereader(settings).read_file(latest_path) if latest_path else None
+    )
+    new_opus_data = get_opus_filereader(settings).read_file(xml_path)
+
     (
         units,
         filtered_units,
@@ -986,7 +994,7 @@ async def import_one(
         terminated_employees,
         cancelled_employees,
     ) = opus_helpers.read_and_transform_data(
-        latest_path, xml_path, filter_ids, opus_id=opus_id
+        latest_opus_data, new_opus_data, filter_ids, opus_id=opus_id
     )
     if rundb_write and not dry_run:
         opus_helpers.local_db_insert(run_db, (xml_date, "Running diff update since {}"))
@@ -1012,7 +1020,7 @@ async def start_opus_diff(settings: dict, ad_reader=None, dry_run: bool = False)
     already been imported.
     """
 
-    dumps = opus_helpers.read_available_dumps()
+    dumps = opus_helpers.read_available_dumps(settings)
     run_db = Path(settings["integrations.opus.import.run_db"])
 
     if not run_db.is_file():

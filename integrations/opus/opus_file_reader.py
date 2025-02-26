@@ -3,7 +3,6 @@ from abc import ABC
 from abc import abstractmethod
 from pathlib import Path
 from typing import Dict
-from typing import Optional
 
 import click
 import fs
@@ -92,9 +91,8 @@ class LocalOpusReader(OpusReaderInterface):
         return filename.read_text()
 
 
-def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
+def get_opus_filereader(settings: dict) -> OpusReaderInterface:
     """Get the correct opus reader interface based on values from settings."""
-    settings = settings or load_settings()
     if settings.get("integrations.opus.gcloud_bucket_name"):
         return GcloudOpusReader(settings)
     if settings.get("integrations.opus.smb_host"):
@@ -103,22 +101,27 @@ def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
 
 
 @click.group()
-def cli():
+@click.pass_context
+def cli(ctx):
     """CLI for reading opus-files"""
-    pass
+    ctx.ensure_object(dict)
+
+    ctx.obj["settings"] = load_settings()
 
 
 @cli.command()
-def read_last():
+@click.pass_context
+def read_last(ctx):
     """Read latest opus-file"""
-    ofr = get_opus_filereader()
+    ofr = get_opus_filereader(ctx.obj["settings"])
     click.echo(ofr.read_latest())
 
 
 @cli.command()
-def list_files():
+@click.pass_context
+def list_files(ctx):
     """Show dates of all opus-files"""
-    ofr = get_opus_filereader()
+    ofr = get_opus_filereader(ctx.obj["settings"])
     dumps = ofr.list_opus_files()
     dates = sorted(dumps.keys())
     for date in dates:
@@ -126,10 +129,11 @@ def list_files():
 
 
 @cli.command()
+@click.pass_context
 @click.option("--date", type=click.DateTime())
-def read_file(date):
+def read_file(ctx, date):
     """Read opus-file from specific date. If no date is supplied show all available dates"""
-    ofr = get_opus_filereader()
+    ofr = get_opus_filereader(ctx.obj["settings"])
     dumps = ofr.list_opus_files()
 
     if not date:

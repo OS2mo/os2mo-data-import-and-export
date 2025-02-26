@@ -1,7 +1,6 @@
 import unittest
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
 from typing import Optional
 from unittest.mock import MagicMock
 from unittest.mock import call
@@ -20,6 +19,8 @@ from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER
 from integrations.opus.opus_diff_import import QUERY_FIND_MANAGER_PRESENT
 from integrations.opus.opus_diff_import import MOPostDryRun
 from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.tests.opus_test_data import opus_file_1
+from integrations.opus.tests.opus_test_data import opus_file_2
 
 XML_DATE = datetime.fromisoformat("2020-01-01")
 DAR_UUID = uuid4()
@@ -123,8 +124,8 @@ class Opus_diff_import_tester(unittest.TestCase):
     """Tests for opus_diff_import funktions that does not use input from testfiles"""
 
     def setUp(self):
-        self.file1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
-        self.file2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
+        self.file1 = opus_file_1
+        self.file2 = opus_file_2
         self.expected_unit_count = 4
         self.expected_employee_count = 2
         self.expected_terminations = 1
@@ -297,13 +298,17 @@ class Opus_diff_import_tester(unittest.TestCase):
 
     def test_ensure_class_in_facet(self):
         """Tests that calling ensure_class_in_facet calls morahelpers with the correct owner added"""
-        diff = OpusDiffImportTestbase(
-            "2022-07-13", ad_reader=None, settings=DUMMY_SETTINGS
-        )
+        with patch(
+            "integrations.opus.opus_helpers.find_opus_root_unit_id", return_value="1"
+        ):
+            diff = OpusDiffImportTestbase(
+                "2022-07-13", ad_reader=None, settings=DUMMY_SETTINGS
+            )
 
         diff.ensure_class_in_facet("Facetname", "classbvn")
+
         diff.helper.ensure_class_in_facet.assert_called_once_with(
-            "Facetname", "classbvn", owner=UUID("4d4128ce-efb7-74bc-9a3f-9422d5ceeca1")
+            "Facetname", "classbvn", owner=UUID("48f52b6e-bcab-cc6c-7a7e-efed0d0e727d")
         )
 
 

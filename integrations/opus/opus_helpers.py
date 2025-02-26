@@ -26,14 +26,14 @@ START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 logger = logging.getLogger("opusHelper")
 
 
-def read_available_dumps() -> Dict[datetime.datetime, str]:
-    dumps = get_opus_filereader().list_opus_files()
+def read_available_dumps(settings) -> Dict[datetime.datetime, str]:
+    dumps = get_opus_filereader(settings).list_opus_files()
     assert len(dumps) > 0, "No Opus files found!"
     return dumps
 
 
-def get_latest_dump():
-    dumps = read_available_dumps()
+def get_latest_dump(settings):
+    dumps = read_available_dumps(settings)
     latest_date = max(dumps.keys())
     return latest_date, dumps[latest_date]
 
@@ -119,9 +119,8 @@ def generate_uuid(value, municipality_name: str):
     return value_uuid
 
 
-def parser(target_file: str, opus_id: Optional[int] = None) -> Tuple[List, List]:
+def parser(text_input: str, opus_id: Optional[int] = None) -> Tuple[List, List]:
     """Read an opus file and return units and employees"""
-    text_input = get_opus_filereader().read_file(target_file)
 
     data = xmltodict.parse(text_input)
     data = data["kmd"]
@@ -205,17 +204,17 @@ def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
 
 
 def file_diff(
-    file1: Optional[str],
-    file2: str,
+    file_contents_1: Optional[str],
+    file_contents_2: str,
     disable_tqdm: bool = True,
     opus_id: Optional[int] = None,
 ):
     """Compares two files and returns all units and employees that have been changed."""
     units1: List[Dict] = []
     employees1: List[Dict] = []
-    if file1:
-        units1, employees1 = parser(file1, opus_id=opus_id)
-    units2, employees2 = parser(file2, opus_id=opus_id)
+    if file_contents_1:
+        units1, employees1 = parser(file_contents_1, opus_id=opus_id)
+    units2, employees2 = parser(file_contents_2, opus_id=opus_id)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
     cancelled_units = find_missing(units1, units2)
@@ -395,16 +394,16 @@ def read_and_transform_data(
     )
 
 
-@lru_cache
-def find_opus_root_unit_id() -> str:
+def find_opus_root_unit_id(settings) -> str:
     """Finds the opus id for the root opus unit.
 
     Reads the first available opus file and generates the uuid for the first unit in the file.
     Assumes this is the root organisation of opus.
     """
-    dumps = read_available_dumps()
+    dumps = read_available_dumps(settings)
 
     first_date = min(sorted(dumps.keys()))
-    units, _ = parser(dumps[first_date])
+    opus_file = get_opus_filereader(settings).read_file(dumps[first_date])
+    units, _ = parser(opus_file)
     main_unit = first(units)
     return main_unit["@id"]
