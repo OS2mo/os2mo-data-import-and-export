@@ -5,7 +5,6 @@ from typing import Optional
 from unittest.mock import MagicMock
 from unittest.mock import call
 from unittest.mock import patch
-from uuid import UUID
 from uuid import uuid4
 
 import pytest
@@ -42,6 +41,9 @@ class OpusDiffImportTestbase(OpusDiffImport):
 
     def _get_mora_helper(self, hostname, use_cache):
         return self.morahelper_mock
+
+    def _find_root_uuid(self):
+        return uuid4()
 
     def find_address(self, *_):
         # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the "Adresse" address type (a postal address.)
@@ -308,13 +310,16 @@ class Opus_diff_import_tester(unittest.TestCase):
         diff.ensure_class_in_facet("Facetname", "classbvn")
 
         diff.helper.ensure_class_in_facet.assert_called_once_with(
-            "Facetname", "classbvn", owner=UUID("48f52b6e-bcab-cc6c-7a7e-efed0d0e727d")
+            "Facetname", "classbvn", owner=diff.root_uuid
         )
 
 
 class TestableOpus(OpusDiffImport):
     def _setup_gql_client(self):
         return MagicMock()
+
+    def _find_root_uuid(self):
+        return uuid4()
 
 
 class _GetInstanceMixin:

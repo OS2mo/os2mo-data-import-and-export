@@ -172,10 +172,7 @@ class OpusDiffImport(object):
         self.helper = self._get_mora_helper(
             hostname=self.settings["mora.base"], use_cache=False
         )
-        self.root_uuid = opus_helpers.generate_uuid(
-            opus_helpers.find_opus_root_unit_id(self.settings),
-            self.settings["municipality.name"],
-        )
+        self.root_uuid = self._find_root_uuid()
         self.gql_client = self._setup_gql_client()
         if dry_run:
             self.helper._mo_post = MOPostDryRun
@@ -207,6 +204,12 @@ class OpusDiffImport(object):
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
             sync=True,
+        )
+
+    def _find_root_uuid(self):
+        return opus_helpers.generate_uuid(
+            opus_helpers.find_opus_root_unit_id(self.settings),
+            self.settings["municipality.name"],
         )
 
     def ensure_class_in_facet(self, *args, **kwargs):
