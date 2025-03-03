@@ -149,9 +149,10 @@ def get_org_units(
             buckets = bucket(kle_tuples, key=itemgetter(1))
 
             interest = map(itemgetter(0), buckets["INDSIGT"])
+            informed = map(itemgetter(0), buckets["INFORMERET"])
             performing = map(itemgetter(0), buckets["UDFOERENDE"])
 
-            return list(interest), list(performing)
+            return list(interest) + list(informed), list(performing)
 
         kle_performing, kle_interest = get_kle(org_unit_uuid, mh)
 
