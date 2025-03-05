@@ -55,16 +55,24 @@ def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
 
 
 def get_employee_from_map(
-    employee_uuid: str, mapping_file_path: str
+    settings: RollekatalogSettings, employee_uuid: str, mapping_file_path: str
 ) -> Tuple[str, str]:
-    mapping = get_employee_mapping(mapping_file_path)
+    if settings.ldap_url is None:
+        # Old behaviour, rely on mapping file
+        mapping = get_employee_mapping(mapping_file_path)
 
-    if employee_uuid not in mapping:
-        logger.critical(
-            "Unable to find employee in mapping with UUID {}".format(employee_uuid)
-        )
-        sys.exit(3)
-    return mapping[employee_uuid]
+        if employee_uuid not in mapping:
+            logger.critical(
+                "Unable to find employee in mapping with UUID {}".format(employee_uuid)
+            )
+            sys.exit(3)
+        return mapping[employee_uuid]
+    else:
+        # New behaviour, ask ldap integration
+        r = requests.get(f"{settings.ldap_url}/CPRUUID", params={"uuid": employee_uuid})
+        r.raise_for_status()
+        j = r.json()
+        return j["uuid"], j["username"]
 
 
 def get_parent_org_unit_uuid(
@@ -86,6 +94,7 @@ def get_parent_org_unit_uuid(
 
 
 def get_org_units(
+    settings: RollekatalogSettings,
     mh: MoraHelper,
     mo_root_org_unit: UUID,
     ou_filter: bool,
@@ -124,7 +133,7 @@ def get_org_units(
                 return None
 
             ad_guid, sam_account_name = get_employee_from_map(
-                person["uuid"], mapping_file_path
+                settings, person["uuid"], mapping_file_path
             )
             # Only import users who are in AD
             if not ad_guid or not sam_account_name:
@@ -188,6 +197,7 @@ def convert_position(e: Dict, sync_titles: bool = False):
 
 
 def get_users(
+    settings: RollekatalogSettings,
     mh: MoraHelper,
     mapping_file_path: str,
     org_unit_uuids: Set[str],
@@ -203,7 +213,7 @@ def get_users(
         employee_uuid = employee["uuid"]
 
         ad_guid, sam_account_name = get_employee_from_map(
-            employee_uuid, mapping_file_path
+            settings, employee_uuid, mapping_file_path
         )
 
         # Only import users who are in AD
@@ -419,7 +429,9 @@ def main(
 
     try:
         logger.info("Reading organisation")
-        org_units = get_org_units(mh, mo_root_org_unit, ou_filter, mapping_file_path)
+        org_units = get_org_units(
+            settings, mh, mo_root_org_unit, ou_filter, mapping_file_path
+        )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
@@ -430,6 +442,7 @@ def main(
     try:
         logger.info("Reading employees")
         users = get_users(
+            settings,
             mh,
             mapping_file_path,
             org_unit_uuids,
