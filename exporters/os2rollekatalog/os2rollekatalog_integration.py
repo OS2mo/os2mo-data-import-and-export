@@ -55,9 +55,9 @@ def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
 
 
 def get_employee_from_map(
-    settings: RollekatalogSettings, employee_uuid: str, mapping_file_path: str
+    ldap_url: str | None, employee_uuid: str, mapping_file_path: str
 ) -> Tuple[str, str]:
-    if settings.ldap_url is None:
+    if ldap_url is None:
         # Old behaviour, rely on mapping file
         mapping = get_employee_mapping(mapping_file_path)
 
@@ -69,7 +69,10 @@ def get_employee_from_map(
         return mapping[employee_uuid]
     else:
         # New behaviour, ask ldap integration
-        r = requests.get(f"{settings.ldap_url}/CPRUUID", params={"uuid": employee_uuid})
+        r = requests.get(
+            f"{ldap_url}/CPRUUID",
+            params={"uuid": employee_uuid},
+        )
         r.raise_for_status()
         j = r.json()
         return j["uuid"], j["username"]
@@ -94,7 +97,7 @@ def get_parent_org_unit_uuid(
 
 
 def get_org_units(
-    settings: RollekatalogSettings,
+    ldap_url: str | None,
     mh: MoraHelper,
     mo_root_org_unit: UUID,
     ou_filter: bool,
@@ -133,7 +136,7 @@ def get_org_units(
                 return None
 
             ad_guid, sam_account_name = get_employee_from_map(
-                settings, person["uuid"], mapping_file_path
+                ldap_url, person["uuid"], mapping_file_path
             )
             # Only import users who are in AD
             if not ad_guid or not sam_account_name:
@@ -197,7 +200,7 @@ def convert_position(e: Dict, sync_titles: bool = False):
 
 
 def get_users(
-    settings: RollekatalogSettings,
+    ldap_url: str | None,
     mh: MoraHelper,
     mapping_file_path: str,
     org_unit_uuids: Set[str],
@@ -213,7 +216,7 @@ def get_users(
         employee_uuid = employee["uuid"]
 
         ad_guid, sam_account_name = get_employee_from_map(
-            settings, employee_uuid, mapping_file_path
+            ldap_url, employee_uuid, mapping_file_path
         )
 
         # Only import users who are in AD
@@ -341,6 +344,12 @@ def get_users(
     envvar="MOX_ROLLE_MAPPING",
 )
 @click.option(
+    "--ldap-url",
+    default=load_setting("exporters.os2rollekatalog.ldap_url", None),
+    required=False,
+    help="LDAP integration URL to fetch samaccount names from",
+)
+@click.option(
     "--client-id",
     default="dipex",
     envvar="CLIENT_ID",
@@ -397,6 +406,7 @@ def main(
     ou_filter: bool,
     rollekatalog_root_uuid: UUID,
     mapping_file_path: str,
+    ldap_url: str | None,
     client_id: str,
     client_secret: str,
     auth_realm: str,
@@ -430,7 +440,7 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            settings, mh, mo_root_org_unit, ou_filter, mapping_file_path
+            ldap_url, mh, mo_root_org_unit, ou_filter, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
@@ -442,7 +452,7 @@ def main(
     try:
         logger.info("Reading employees")
         users = get_users(
-            settings,
+            ldap_url,
             mh,
             mapping_file_path,
             org_unit_uuids,
