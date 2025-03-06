@@ -73,6 +73,8 @@ def get_employee_from_map(
             f"{ldap_url}/CPRUUID",
             params={"uuid": employee_uuid},
         )
+        if r.status_code == 404:
+            return "", ""  # have to be falsy - handled by caller
         r.raise_for_status()
         j = r.json()
         return j["uuid"], j["username"]
