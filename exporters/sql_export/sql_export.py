@@ -571,13 +571,18 @@ class SqlExport:
             self.session.commit()
 
     def _generate_sql_kle(self, uuid, kle_info, model: Type[_T_KLE]) -> _T_KLE:
+        # The KLE aspect and number classes may not be valid in the same time
+        # period as the KLE object itself, so we must use the _get_lora_class
+        # helper to ensure a fallback.
+        kle_aspect_uuid, kle_aspect_class = self._get_lora_class(kle_info["kle_aspect"])
+        kle_number_uuid, kle_number_class = self._get_lora_class(kle_info["kle_number"])
         return model(
             uuid=str(uuid),
             enhed_uuid=kle_info["unit"],
-            kle_aspekt_uuid=kle_info["kle_aspect"],
-            kle_aspekt_titel=self.lc.classes[kle_info["kle_aspect"]]["title"],
-            kle_nummer_uuid=kle_info["kle_number"],
-            kle_nummer_titel=self.lc.classes[kle_info["kle_number"]]["title"],
+            kle_aspekt_uuid=kle_aspect_uuid,
+            kle_aspekt_titel=kle_aspect_class["title"],
+            kle_nummer_uuid=kle_number_uuid,
+            kle_nummer_titel=kle_number_class["title"],
             startdato=kle_info["from_date"],
             slutdato=kle_info["to_date"],
         )
