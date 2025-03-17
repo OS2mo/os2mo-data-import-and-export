@@ -11,9 +11,12 @@ from typing import List
 import pandas as pd
 from anytree import PreOrderIter
 from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from fastramqpi.raclients.upload import file_uploader
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
+
+from reports.graphql import get_mo_client
 
 # --------------------------------------------------------------------------------------
 # CustomerReports class
@@ -32,7 +35,7 @@ class CustomerReports(MoraHelper):
         nodes (Dict[str, Any]): Dictionary containing the organisation tree.
     """
 
-    def __init__(self, hostname: str, org_name: str):
+    def __init__(self, hostname: str, org_name: str, graphql_client: GraphQLClient):
         """Initialises customer reports with hostname and
         organisation name.
 
@@ -53,6 +56,7 @@ class CustomerReports(MoraHelper):
         """
 
         super().__init__(hostname=hostname, use_cache=False)
+        self.graphql_client = graphql_client
         self.nodes: Dict[str, Any] = dict()
 
         # This sucks, sorry
@@ -232,10 +236,17 @@ def main() -> None:
     host = settings["mora.base"]
     org = settings["reports.org_name"]
     pay_org = settings.get("reports.pay_org_name", org)
+    graphql_client = get_mo_client(
+        mo_base_url=settings["mora.base"],
+        client_id=settings["crontab.CLIENT_ID"],
+        client_secret=settings["crontab.CLIENT_SECRET"],
+        auth_server=settings["crontab.AUTH_SERVER"],
+        gql_version=25,
+    )
 
     # Reports
-    reports = CustomerReports(host, org)
-    sd_reports = CustomerReports(host, pay_org)
+    reports = CustomerReports(host, org, graphql_client)
+    sd_reports = CustomerReports(host, pay_org, graphql_client)
 
     with file_uploader(settings, "Alle Stillinger OS2mo.csv") as filename:
         report_to_csv(reports.employees(), filename)  # type: ignore

@@ -12,7 +12,11 @@ import pandas as pd
 from anytree import PreOrderIter
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from more_itertools import first
+from more_itertools import one
 
+from reports.graphql import get_mo_client
 from reports.shared_reports import CustomerReports
 
 # --------------------------------------------------------------------------------------
@@ -57,8 +61,8 @@ def gender_guess_from_cpr(cpr_no: str | None) -> str:
 
 
 class Survey(CustomerReports):
-    def __init__(self, hostname: str, org_name: str):
-        super().__init__(hostname, org_name)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def org_unit_overview(self) -> pd.DataFrame:
         rows = []
@@ -81,31 +85,62 @@ class Survey(CustomerReports):
         return pd.DataFrame(rows)
 
     def employees(self) -> pd.DataFrame:
+        query = """
+          query OrgunitEmployees($uuid: UUID!) {
+            org_units(filter: { uuids: [$uuid] }) {
+              objects {
+                current {
+                  name
+                  engagements {
+                    user_key
+                    person {
+                      name
+                      cpr_number
+                      addresses(filter: { address_type: { scope: "EMAIL" } }) {
+                        name
+                      }
+                    }
+                  }
+                  managers {
+                        user_key
+                      }
+                }
+              }
+            }
+          }
+        """
+
         rows = []
         for node in PreOrderIter(self.nodes["root"]):
-            employees = self.read_organisation_people(node.name)
-            for uuid, employee in employees.items():
-                address = self.read_user_address(uuid, cpr=True)
-                engagements = self.read_user_engagements(uuid)
+            res = self.graphql_client.execute(
+                gql(query), variable_values={"uuid": node.name}
+            )
+            org_unit = one(res["org_units"]["objects"])["current"]
+            for eng in org_unit["engagements"]:
+                user_key = eng["user_key"]
+
+                person = one(eng["person"])
+                addresses = first(person["addresses"], default=None)
+                email = addresses["name"] if addresses else ""
+                # The manager-role has the same user-key as engagements.
+                # It is imported this way from opus to be able to match managers to engagements
                 emp_type = (
                     "Leder"
-                    if self._mo_lookup(uuid, "e/{}/details/")["manager"]
+                    if user_key in {m["user_key"] for m in org_unit["managers"]}
                     else "Medarbejder"
                 )
-                name = employee["Fornavn"] + " " + employee["Efternavn"]
-                for eng in engagements:
-                    rows.append(
-                        {
-                            "Medarbejdernr": eng.get("user_key"),
-                            "Respondentnavn": name,
-                            "OrgID": eng["org_unit"]["user_key"],
-                            "Enhedsnavn": eng["org_unit"]["name"],
-                            "E-mail": address.get("E-mail") or "",
-                            "Type": emp_type,
-                            "Alder": age_from_cpr(address["CPR-Nummer"]),
-                            "Køn": gender_guess_from_cpr(address["CPR-Nummer"]),
-                        }
-                    )
+                rows.append(
+                    {
+                        "Medarbejdernr": user_key,
+                        "Respondentnavn": person["name"],
+                        "OrgID": org_unit["name"],
+                        "Enhedsnavn": org_unit["name"],
+                        "E-mail": email,
+                        "Type": emp_type,
+                        "Alder": age_from_cpr(person["cpr_number"]),
+                        "Køn": gender_guess_from_cpr(person["cpr_number"]),
+                    }
+                )
 
         return pd.DataFrame(rows)
 
@@ -117,7 +152,15 @@ def main() -> None:
     org = settings["reports.org_name"]
 
     # Survey
-    survey = Survey(host, org)
+    graphql_client = get_mo_client(
+        mo_base_url=settings["mora.base"],
+        client_id=settings["crontab.CLIENT_ID"],
+        client_secret=settings["crontab.CLIENT_SECRET"],
+        auth_server=settings["crontab.AUTH_SERVER"],
+        gql_version=25,
+    )
+
+    survey = Survey(host, org, graphql_client)
 
     with file_uploader(settings, "Datasæt til trivselsundersøgelse.xlsx") as filename:
         with pd.ExcelWriter(filename) as writer:
