@@ -27,6 +27,10 @@ import requests
 from fastramqpi.ra_utils.load_settings import load_setting
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_delay
+from tenacity import wait_fixed
 
 from .config import RollekatalogSettings
 from .titles import export_titles
@@ -54,6 +58,33 @@ def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
     return content
 
 
+class LDAPError(Exception):
+    """Sometimes the LDAP integration returns a status 500 error."""
+
+    pass
+
+
+@retry(
+    retry=retry_if_exception_type(LDAPError),
+    reraise=True,
+    stop=stop_after_delay(5 * 60),
+    wait=wait_fixed(20),
+)
+def get_ldap_user_info(ldap_url: str, employee_uuid: str) -> tuple[str, str]:
+    # New behaviour, ask ldap integration
+    r = requests.get(
+        f"{ldap_url}/CPRUUID",
+        params={"uuid": employee_uuid},
+    )
+    if r.status_code == 404:
+        return "", ""  # have to be falsy - handled by caller
+    elif r.status_code == 500:
+        raise LDAPError("Unexpected error in the LDAP integration")
+    r.raise_for_status()
+    j = r.json()
+    return j["uuid"], j["username"]
+
+
 def get_employee_from_map(
     ldap_url: str | None, employee_uuid: str, mapping_file_path: str
 ) -> Tuple[str, str]:
@@ -68,16 +99,7 @@ def get_employee_from_map(
             sys.exit(3)
         return mapping[employee_uuid]
     else:
-        # New behaviour, ask ldap integration
-        r = requests.get(
-            f"{ldap_url}/CPRUUID",
-            params={"uuid": employee_uuid},
-        )
-        if r.status_code == 404:
-            return "", ""  # have to be falsy - handled by caller
-        r.raise_for_status()
-        j = r.json()
-        return j["uuid"], j["username"]
+        return get_ldap_user_info(ldap_url=ldap_url, employee_uuid=employee_uuid)
 
 
 def get_parent_org_unit_uuid(
