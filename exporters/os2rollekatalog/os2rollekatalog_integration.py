@@ -28,7 +28,6 @@ from fastramqpi.ra_utils.load_settings import load_setting
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from tenacity import retry
-from tenacity import retry_if_exception_type
 from tenacity import stop_after_delay
 from tenacity import wait_fixed
 
@@ -58,17 +57,10 @@ def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
     return content
 
 
-class LDAPError(Exception):
-    """Sometimes the LDAP integration returns a status 500 error."""
-
-    pass
-
-
 @retry(
-    retry=retry_if_exception_type(LDAPError),
     reraise=True,
     stop=stop_after_delay(5 * 60),
-    wait=wait_fixed(120),
+    wait=wait_fixed(60),
 )
 def get_ldap_user_info(ldap_url: str, employee_uuid: str) -> tuple[str, str]:
     # New behaviour, ask ldap integration
@@ -78,8 +70,6 @@ def get_ldap_user_info(ldap_url: str, employee_uuid: str) -> tuple[str, str]:
     )
     if r.status_code == 404:
         return "", ""  # have to be falsy - handled by caller
-    elif r.status_code == 500:
-        raise LDAPError("Unexpected error in the LDAP integration")
     r.raise_for_status()
     j = r.json()
     return j["uuid"], j["username"]
