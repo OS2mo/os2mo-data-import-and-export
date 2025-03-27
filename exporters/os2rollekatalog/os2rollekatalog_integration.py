@@ -68,7 +68,7 @@ class LDAPError(Exception):
     retry=retry_if_exception_type(LDAPError),
     reraise=True,
     stop=stop_after_delay(5 * 60),
-    wait=wait_fixed(20),
+    wait=wait_fixed(120),
 )
 def get_ldap_user_info(ldap_url: str, employee_uuid: str) -> tuple[str, str]:
     # New behaviour, ask ldap integration
