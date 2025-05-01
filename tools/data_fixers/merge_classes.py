@@ -14,9 +14,11 @@ def get_class_uuid(session: SyncClientSession, facet_user_key, user_key):
         """
     query ClassQuery($facet_user_keys: [String!], $user_keys:[String!])
         {
-            classes(facet_user_keys: $facet_user_keys, user_keys: $user_keys)
+            classes(filter: {facet_user_keys: $facet_user_keys, user_keys: $user_keys})
             {
-                uuid
+                objects {
+                    uuid
+                }
             }
         }
     """
@@ -25,7 +27,7 @@ def get_class_uuid(session: SyncClientSession, facet_user_key, user_key):
         q,
         variable_values={"facet_user_keys": [facet_user_key], "user_keys": [user_key]},
     )
-    classes: dict = only(res["classes"], {})
+    classes: dict = only(res["classes"]["objects"], {})
     return classes.get("uuid")
 
 
@@ -63,7 +65,7 @@ def merge_classes(
     """
 
     with GraphQLClient(
-        url=f"{mora_base}/graphql/v3",
+        url=f"{mora_base}/graphql/v25",
         client_id=client_id,
         client_secret=client_secret,
         auth_realm=auth_realm,
