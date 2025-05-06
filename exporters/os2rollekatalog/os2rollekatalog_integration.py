@@ -235,6 +235,7 @@ def get_users(
 
         # Only import users who are in AD
         if not ad_guid or not sam_account_name:
+            logger.warning("The user {} is not in AD".format(employee_uuid))
             continue
 
         def get_employee_email(employee_uuid, mh: MoraHelper):
@@ -276,6 +277,9 @@ def get_users(
             )
         )
         if not positions:
+            logger.warning(
+                "User {} has no positions in relevant orgs".format(employee_uuid)
+            )
             continue
 
         def get_employee_name(employee: dict) -> str:
