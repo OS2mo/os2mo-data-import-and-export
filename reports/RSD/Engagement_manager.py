@@ -49,6 +49,9 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
           manager_type {
             name
           }
+          manager_level {
+            name
+          }
         }
         ancestors {
           name
@@ -148,6 +151,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         "Administrativ ansvarlig",
         "Personaleledelse",
         "Uddannelsesansvarlig",
+        "lederniveau",
         "BVN (k)",
         "Tjenestenummer",
         "Medarbejder",
@@ -169,6 +173,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         for e in org_unit["engagements"]:
             person = one(e["person"])
             name = person["name"]
+            manager_role = find_manager_role_for_person(person, org_unit["managers"])
 
             email = extract_person_email(person)
             job_function = (
@@ -178,6 +183,7 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 *ancestors,
                 org_unit["name"],
                 *managers,
+                manager_role["manager_level"]["name"] if manager_role else "",
                 e["user_key"],
                 e["user_key"][3:],
                 name,
@@ -192,12 +198,14 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             if not engagement:
                 continue
             person = one(engagement["person"])
+            manager_role = find_manager_role_for_person(person, org_unit["managers"])
             email = extract_person_email(person)
             job_function = f"{engagement['job_function']['name']} ({engagement['job_function']['user_key']})"
             yield (
                 *ancestors,
                 org_unit["name"],
                 *managers,
+                manager_role["manager_level"]["name"] if manager_role else "",
                 engagement["user_key"],
                 engagement["user_key"][3:],
                 one(engagement["person"])["name"],
@@ -222,6 +230,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         "Enhedstype",
         "Medarbejder",
         "Stilling",
+        "Lederniveau",
         "Lederbetegnelse",
         "Lederansvar",
         "Tjenestenummer",
@@ -260,6 +269,9 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
 
             manager_role = find_manager_role_for_person(person, managers)
             manager_type = manager_role["manager_type"]["name"] if manager_role else ""
+            manager_level = (
+                manager_role["manager_level"]["name"] if manager_role else ""
+            )
             # Select "Personaleledelse" if it exists, else pick any other responsibility
             responsibility = (
                 max(
@@ -276,6 +288,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 org_unit["unit_type"]["name"],
                 person["name"],
                 e["extension_1"],
+                manager_level,
                 manager_type,
                 responsibility,
                 e["user_key"][3:],
@@ -295,6 +308,9 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
             person = one(engagement["person"])
             manager_role = find_manager_role_for_person(person, managers)
             manager_type = manager_role["manager_type"]["name"] if manager_role else ""
+            manager_level = (
+                manager_role["manager_level"]["name"] if manager_role else ""
+            )
             # Select "Personaleledelse" if it exists, else pick any other responsibility
             responsibility = (
                 max(
@@ -312,6 +328,7 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 org_unit["unit_type"]["name"],
                 person["name"],
                 engagement["extension_1"],
+                manager_level,
                 manager_type,
                 responsibility,
                 engagement["user_key"][3:],
