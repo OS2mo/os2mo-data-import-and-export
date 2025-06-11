@@ -147,16 +147,14 @@ def main(filename: str, dry_run: bool):
             if validity_values["fraction"] == fraction:
                 # Nothing to update
                 continue
-            validity_values["fraction"] = fraction
+            payload = validity_values.copy()
+            payload["fraction"] = fraction
 
-            interval = validity_values.pop("validity")
-            validity_values["from"] = interval["from"]
-            validity_values["to"] = interval["to"]
+            payload["from"] = payload["validity"]["from"]
+            payload["to"] = payload["validity"]["to"]
 
             if not dry_run:
-                graphql_client.execute(
-                    gql(update_query), variable_values=validity_values
-                )
+                graphql_client.execute(gql(update_query), variable_values=payload)
 
             updated_uuids.add(uuid)
 
