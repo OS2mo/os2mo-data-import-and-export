@@ -772,14 +772,20 @@ def upload_csv(
 @click.option(
     "--skip-upload", is_flag=True, help="Skip SFTP upload (nice for debugging)"
 )
-def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
+@click.option("--only-adm-org", is_flag=True, help="Only process the administrative organisation")
+def main(
+    adm_unit_uuid: UUID,
+    med_unit_uuid: UUID,
+    skip_upload: bool,
+    only_adm_org: bool,
+) -> None:
     logger.info("Started Safetynet report generation")
 
     settings = get_settings()
 
     if not adm_unit_uuid:
         adm_unit_uuid = UUID(settings.reports_safetynet_adm_unit_uuid)  # type: ignore
-    if not med_unit_uuid:
+    if not only_adm_org and not med_unit_uuid:
         med_unit_uuid = UUID(settings.reports_safetynet_med_unit_uuid)  # type: ignore
 
     gql_client = get_mo_client(
@@ -807,14 +813,15 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     else:
         upload_csv(*sftp_settings, "adm-engagements.csv", csv_lines)
 
-    # Med employee (based on associations) report
-    logger.info("Generating med association report")
-    med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
-    csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
-    if skip_upload:
-        write_csv("/tmp/med-associations.csv", csv_lines)
-    else:
-        upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
+    if not only_adm_org:
+        # Med employee (based on associations) report
+        logger.info("Generating med association report")
+        med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
+        csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
+        if skip_upload:
+            write_csv("/tmp/med-associations.csv", csv_lines)
+        else:
+            upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
@@ -824,13 +831,14 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     else:
         upload_csv(*sftp_settings, "adm-org-units.csv", csv_lines)
 
-    # Med OU report
-    logger.info("Generating MED OU report")
-    csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
-    if skip_upload:
-        write_csv("/tmp/med-org-units.csv", csv_lines)
-    else:
-        upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
+    if not only_adm_org:
+        # Med OU report
+        logger.info("Generating MED OU report")
+        csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
+        if skip_upload:
+            write_csv("/tmp/med-org-units.csv", csv_lines)
+        else:
+            upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 
