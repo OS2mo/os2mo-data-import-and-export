@@ -22,7 +22,8 @@ from paramiko import SSHClient
 from pydantic.main import BaseModel
 
 from reports.graphql import get_mo_client
-from reports.safetynet.config import get_settings, SafetyNetSettings
+from reports.safetynet.config import SafetyNetSettings
+from reports.safetynet.config import get_settings
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -734,7 +735,7 @@ def get_unified_settings(kubernetes_environment: bool) -> SafetyNetSettings:
         client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
         mora_base=job_settings.mora_base,
         safetynet_sftp_hostname=job_settings.reports_safetynet_sftp_hostname,  # type: ignore
-        safetynet_sftp_port=job_settings.reports_safetynet_sftp_port,  # type: ignore
+        safetynet_sftp_port=int(job_settings.reports_safetynet_sftp_port),  # type: ignore
         safetynet_sftp_username=job_settings.reports_safetynet_sftp_username,  # type: ignore
         safetynet_sftp_password=job_settings.reports_safetynet_sftp_password,  # type: ignore
         safetynet_adm_unit_uuid=UUID(job_settings.reports_safetynet_adm_unit_uuid),  # type: ignore
@@ -792,8 +793,14 @@ def upload_csv(
 @click.option(
     "--skip-upload", is_flag=True, help="Skip SFTP upload (nice for debugging)"
 )
-@click.option("--only-adm-org", is_flag=True, help="Only process the administrative organisation")
-@click.option("--kubernetes-environment", is_flag=True, help="Set this flag if we are running in Kubernetes")
+@click.option(
+    "--only-adm-org", is_flag=True, help="Only process the administrative organisation"
+)
+@click.option(
+    "--kubernetes-environment",
+    is_flag=True,
+    help="Set this flag if we are running in Kubernetes",
+)
 def main(
     adm_unit_uuid: UUID,
     med_unit_uuid: UUID,

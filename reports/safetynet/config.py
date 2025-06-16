@@ -12,7 +12,7 @@ class SafetyNetSettings(BaseSettings):
     mora_base: str
 
     safetynet_sftp_hostname: str
-    safetynet_sftp_port: str
+    safetynet_sftp_port: int
     safetynet_sftp_username: str
     safetynet_sftp_password: SecretStr
 
