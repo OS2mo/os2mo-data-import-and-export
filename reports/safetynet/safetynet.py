@@ -22,6 +22,8 @@ from paramiko import SSHClient
 from pydantic.main import BaseModel
 
 from reports.graphql import get_mo_client
+from reports.safetynet.config import SafetyNetSettings
+from reports.safetynet.config import get_settings
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -718,8 +720,27 @@ def write_csv(path: str, lines: list[str]) -> None:
         fp.writelines(lines)
 
 
-def get_settings(*args, **kwargs) -> JobSettings:
-    return JobSettings(*args, **kwargs)
+def get_unified_settings(kubernetes_environment: bool) -> SafetyNetSettings:
+    # We will not attempt to do either of the following (in order to try not to break
+    # things and decrease the code analyzability):
+    # 1) use JobSettings in a Kubernetes environment
+    # 2) change the on-prem JSON settings
+    if kubernetes_environment:
+        return get_settings()
+
+    job_settings = JobSettings()
+    return get_settings(
+        auth_server=job_settings.crontab_AUTH_SERVER,  # type: ignore
+        client_id=job_settings.client_id,
+        client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
+        mora_base=job_settings.mora_base,
+        safetynet_sftp_hostname=job_settings.reports_safetynet_sftp_hostname,  # type: ignore
+        safetynet_sftp_port=int(job_settings.reports_safetynet_sftp_port),  # type: ignore
+        safetynet_sftp_username=job_settings.reports_safetynet_sftp_username,  # type: ignore
+        safetynet_sftp_password=job_settings.reports_safetynet_sftp_password,  # type: ignore
+        safetynet_adm_unit_uuid=UUID(job_settings.reports_safetynet_adm_unit_uuid),  # type: ignore
+        safetynet_med_unit_uuid=UUID(job_settings.reports_safetynet_med_unit_uuid),  # type: ignore
+    )
 
 
 @contextmanager  # type: ignore
@@ -772,30 +793,43 @@ def upload_csv(
 @click.option(
     "--skip-upload", is_flag=True, help="Skip SFTP upload (nice for debugging)"
 )
-def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
+@click.option(
+    "--only-adm-org", is_flag=True, help="Only process the administrative organisation"
+)
+@click.option(
+    "--kubernetes-environment",
+    is_flag=True,
+    help="Set this flag if we are running in Kubernetes",
+)
+def main(
+    adm_unit_uuid: UUID,
+    med_unit_uuid: UUID,
+    skip_upload: bool,
+    only_adm_org: bool,
+    kubernetes_environment: bool,
+) -> None:
     logger.info("Started Safetynet report generation")
 
-    settings = get_settings()
+    settings = get_unified_settings(kubernetes_environment=kubernetes_environment)
 
     if not adm_unit_uuid:
-        adm_unit_uuid = UUID(settings.reports_safetynet_adm_unit_uuid)  # type: ignore
-    if not med_unit_uuid:
-        med_unit_uuid = UUID(settings.reports_safetynet_med_unit_uuid)  # type: ignore
+        adm_unit_uuid = settings.safetynet_adm_unit_uuid
+    if not (only_adm_org or med_unit_uuid):
+        med_unit_uuid = settings.safetynet_med_unit_uuid
 
     gql_client = get_mo_client(
-        auth_server=settings.crontab_AUTH_SERVER,  # type: ignore
+        auth_server=settings.auth_server,
         client_id=settings.client_id,
-        # Careful - this is not a SecretStr
-        client_secret=settings.crontab_CLIENT_SECRET,  # type: ignore
+        client_secret=settings.client_secret.get_secret_value(),
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
 
     sftp_settings = (
-        settings.reports_safetynet_sftp_hostname,  # type: ignore
-        settings.reports_safetynet_sftp_port,  # type: ignore
-        settings.reports_safetynet_sftp_username,  # type: ignore
-        settings.reports_safetynet_sftp_password,  # type: ignore
+        settings.safetynet_sftp_hostname,
+        settings.safetynet_sftp_port,
+        settings.safetynet_sftp_username,
+        settings.safetynet_sftp_password.get_secret_value(),
     )
 
     # Adm employee report
@@ -807,14 +841,15 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     else:
         upload_csv(*sftp_settings, "adm-engagements.csv", csv_lines)
 
-    # Med employee (based on associations) report
-    logger.info("Generating med association report")
-    med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
-    csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
-    if skip_upload:
-        write_csv("/tmp/med-associations.csv", csv_lines)
-    else:
-        upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
+    if not only_adm_org:
+        # Med employee (based on associations) report
+        logger.info("Generating med association report")
+        med_ass_rows, med_ou_rows = process_med_unit(gql_client, med_unit_uuid, [], [])
+        csv_lines = med_ass_rows_to_csv_lines(med_ass_rows)
+        if skip_upload:
+            write_csv("/tmp/med-associations.csv", csv_lines)
+        else:
+            upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
@@ -824,13 +859,14 @@ def main(adm_unit_uuid: UUID, med_unit_uuid: UUID, skip_upload: bool) -> None:
     else:
         upload_csv(*sftp_settings, "adm-org-units.csv", csv_lines)
 
-    # Med OU report
-    logger.info("Generating MED OU report")
-    csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
-    if skip_upload:
-        write_csv("/tmp/med-org-units.csv", csv_lines)
-    else:
-        upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
+    if not only_adm_org:
+        # Med OU report
+        logger.info("Generating MED OU report")
+        csv_lines = med_ou_rows_to_csv_lines(med_ou_rows)
+        if skip_upload:
+            write_csv("/tmp/med-org-units.csv", csv_lines)
+        else:
+            upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 

@@ -295,7 +295,7 @@ reports_employee_phonebook_for_frederikshavn(){
 
 reports_safetynet_frederikshavn(){
   echo "Running Frederikshavn Safetynet reports"
-  ${VENV}/bin/python3 -m reports.frederikshavn.safetynet
+  ${VENV}/bin/python3 -m reports.safetynet.safetynet
 }
 
 reports_csv(){
