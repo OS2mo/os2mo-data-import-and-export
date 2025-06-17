@@ -20,6 +20,7 @@ from paramiko import AutoAddPolicy
 from paramiko import SFTPClient
 from paramiko import SSHClient
 from pydantic.main import BaseModel
+from pydantic.types import SecretStr
 
 from reports.graphql import get_mo_client
 from reports.safetynet.config import SafetyNetSettings
@@ -771,15 +772,23 @@ def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPC
 
 
 def upload_csv(
-    hostname: str,
-    port: int,
-    username: str,
-    password: str,
+    hostname: str | None,
+    port: int | None,
+    username: str | None,
+    password: SecretStr | None,
     remote_path: str,
     csv_lines: list[str],
 ) -> None:
+    try:
+        assert hostname is not None
+        assert port is not None
+        assert username is not None
+        assert password is not None
+    except AssertionError:
+        logger.warning("SFTP server settings missing - skipping upload!")
+        return
     upload_str = "".join(csv_lines)
-    with sftp_client(hostname, port, username, password) as client:  # type: ignore
+    with sftp_client(hostname, port, username, password.get_secret_value()) as client:  # type: ignore
         client.putfo(StringIO(upload_str), remote_path, confirm=False)
 
 
@@ -830,7 +839,7 @@ def main(
         settings.safetynet_sftp_hostname,
         settings.safetynet_sftp_port,
         settings.safetynet_sftp_username,
-        settings.safetynet_sftp_password.get_secret_value(),
+        settings.safetynet_sftp_password,
     )
 
     # Adm employee report
