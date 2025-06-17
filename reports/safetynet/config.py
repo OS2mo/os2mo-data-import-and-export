@@ -17,7 +17,7 @@ class SafetyNetSettings(BaseSettings):
     safetynet_sftp_password: SecretStr
 
     safetynet_adm_unit_uuid: UUID
-    safetynet_med_unit_uuid: UUID
+    safetynet_med_unit_uuid: UUID | None = None
 
 
 def get_settings(*args, **kwargs) -> SafetyNetSettings:

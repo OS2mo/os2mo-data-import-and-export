@@ -815,6 +815,7 @@ def main(
     if not adm_unit_uuid:
         adm_unit_uuid = settings.safetynet_adm_unit_uuid
     if not (only_adm_org or med_unit_uuid):
+        assert settings.safetynet_med_unit_uuid is not None
         med_unit_uuid = settings.safetynet_med_unit_uuid
 
     gql_client = get_mo_client(
