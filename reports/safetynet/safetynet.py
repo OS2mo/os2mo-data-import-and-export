@@ -23,6 +23,7 @@ from pydantic.main import BaseModel
 
 from reports.graphql import get_mo_client
 from reports.safetynet.config import SafetyNetSettings
+from reports.safetynet.config import SafetyNetSFTP
 from reports.safetynet.config import get_settings
 from tools.log import LogLevel
 from tools.log import get_logger
@@ -734,10 +735,12 @@ def get_unified_settings(kubernetes_environment: bool) -> SafetyNetSettings:
         client_id=job_settings.client_id,
         client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
         mora_base=job_settings.mora_base,
-        safetynet_sftp_hostname=job_settings.reports_safetynet_sftp_hostname,  # type: ignore
-        safetynet_sftp_port=int(job_settings.reports_safetynet_sftp_port),  # type: ignore
-        safetynet_sftp_username=job_settings.reports_safetynet_sftp_username,  # type: ignore
-        safetynet_sftp_password=job_settings.reports_safetynet_sftp_password,  # type: ignore
+        safetynet_sftp=SafetyNetSFTP(
+            hostname=job_settings.reports_safetynet_sftp_hostname,  # type: ignore
+            port=int(job_settings.reports_safetynet_sftp_port),  # type: ignore
+            username=job_settings.reports_safetynet_sftp_username,  # type: ignore
+            password=job_settings.reports_safetynet_sftp_password,  # type: ignore
+        ),
         safetynet_adm_unit_uuid=UUID(job_settings.reports_safetynet_adm_unit_uuid),  # type: ignore
         safetynet_med_unit_uuid=UUID(job_settings.reports_safetynet_med_unit_uuid),  # type: ignore
     )
@@ -771,15 +774,22 @@ def sftp_client(hostname: str, port: int, username: str, password: str) -> SFTPC
 
 
 def upload_csv(
-    hostname: str,
-    port: int,
-    username: str,
-    password: str,
+    safetynet_sftp: SafetyNetSFTP | None,
     remote_path: str,
     csv_lines: list[str],
 ) -> None:
+    try:
+        assert safetynet_sftp is not None
+    except AssertionError:
+        logger.warning("SFTP server settings missing - skipping upload!")
+        return
     upload_str = "".join(csv_lines)
-    with sftp_client(hostname, port, username, password) as client:  # type: ignore
+    with sftp_client(  # type: ignore
+        safetynet_sftp.hostname,
+        safetynet_sftp.port,
+        safetynet_sftp.username,
+        safetynet_sftp.password.get_secret_value(),
+    ) as client:
         client.putfo(StringIO(upload_str), remote_path, confirm=False)
 
 
@@ -826,13 +836,6 @@ def main(
         gql_version=22,
     )
 
-    sftp_settings = (
-        settings.safetynet_sftp_hostname,
-        settings.safetynet_sftp_port,
-        settings.safetynet_sftp_username,
-        settings.safetynet_sftp_password.get_secret_value(),
-    )
-
     # Adm employee report
     logger.info("Generating adm employee report")
     adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
@@ -840,7 +843,7 @@ def main(
     if skip_upload:
         write_csv("/tmp/adm-engagements.csv", csv_lines)
     else:
-        upload_csv(*sftp_settings, "adm-engagements.csv", csv_lines)
+        upload_csv(settings.safetynet_sftp, "adm-engagements.csv", csv_lines)
 
     if not only_adm_org:
         # Med employee (based on associations) report
@@ -850,7 +853,7 @@ def main(
         if skip_upload:
             write_csv("/tmp/med-associations.csv", csv_lines)
         else:
-            upload_csv(*sftp_settings, "med-associations.csv", csv_lines)
+            upload_csv(settings.safetynet_sftp, "med-associations.csv", csv_lines)
 
     # Adm OU report
     logger.info("Generating adm OU report")
@@ -858,7 +861,7 @@ def main(
     if skip_upload:
         write_csv("/tmp/adm-org-units.csv", csv_lines)
     else:
-        upload_csv(*sftp_settings, "adm-org-units.csv", csv_lines)
+        upload_csv(settings.safetynet_sftp, "adm-org-units.csv", csv_lines)
 
     if not only_adm_org:
         # Med OU report
@@ -867,7 +870,7 @@ def main(
         if skip_upload:
             write_csv("/tmp/med-org-units.csv", csv_lines)
         else:
-            upload_csv(*sftp_settings, "med-org-units.csv", csv_lines)
+            upload_csv(settings.safetynet_sftp, "med-org-units.csv", csv_lines)
 
     logger.info("Finished Safetynet report generation")
 

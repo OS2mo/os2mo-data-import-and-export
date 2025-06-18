@@ -1,8 +1,16 @@
 from uuid import UUID
 
 from pydantic import AnyHttpUrl
+from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import SecretStr
+
+
+class SafetyNetSFTP(BaseModel):
+    hostname: str
+    port: int
+    username: str
+    password: SecretStr
 
 
 class SafetyNetSettings(BaseSettings):
@@ -11,13 +19,13 @@ class SafetyNetSettings(BaseSettings):
     client_secret: SecretStr
     mora_base: str
 
-    safetynet_sftp_hostname: str
-    safetynet_sftp_port: int
-    safetynet_sftp_username: str
-    safetynet_sftp_password: SecretStr
+    safetynet_sftp: SafetyNetSFTP | None = None
 
     safetynet_adm_unit_uuid: UUID
     safetynet_med_unit_uuid: UUID | None = None
+
+    class Config:
+        env_nested_delimiter = "__"
 
 
 def get_settings(*args, **kwargs) -> SafetyNetSettings:
