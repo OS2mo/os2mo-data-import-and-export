@@ -23,6 +23,7 @@ from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import AnyHttpUrl
+from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import SecretStr
 
@@ -33,6 +34,13 @@ from exporters.utils.priority_by_class import lc_choose_public_address
 LOG_LEVEL = logging.DEBUG
 
 logger = logging.getLogger("plan2learn")
+
+
+class Plan2LearnFTPES(BaseModel):
+    hostname: str
+    port: int = 21
+    username: str
+    password: SecretStr
 
 
 class Settings(BaseSettings):
@@ -47,6 +55,11 @@ class Settings(BaseSettings):
     plan2learn_email_priority: list[UUID] = []
     exporters_plan2learn_allowed_engagement_types: list[str] = []
     integrations_SD_Lon_import_too_deep: list[str] = []
+
+    plan2_learn_ftpes: Plan2LearnFTPES | None = None
+
+    class Config:
+        env_nested_delimiter = "__"
 
 
 for name in logging.root.manager.loggerDict:
@@ -236,14 +249,14 @@ def export_bruger_mo(settings: Settings, node, used_cprs, mh):
     return rows, used_cprs
 
 
-def export_bruger(settings, mh, nodes, lc, lc_historic):
+def export_bruger(settings: Settings, mh, nodes, lc, lc_historic):
     #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
     if lc and lc_historic:
         bruger_exporter = partial(export_bruger_lc, lc=lc, lc_historic=lc_historic)
     else:
         bruger_exporter = partial(export_bruger_mo, mh=mh)
 
-    used_cprs = set()
+    used_cprs: set[str] = set()
     rows = []
     for node in PreOrderIter(nodes["root"]):
         new_rows, used_cprs = bruger_exporter(
@@ -607,7 +620,7 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def main(speedup, settings, dry_run=None):
+def main(speedup, settings: Settings, dry_run=None):
     t = time.time()
 
     mh = MoraHelper(hostname=settings.mora_base)
@@ -688,6 +701,15 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         return Settings()  # type: ignore
 
     job_settings = JobSettings()
+    try:
+        ftp_settings = Plan2LearnFTPES(
+            hostname=job_settings.exporters_plan2learn_host,  # type: ignore
+            username=job_settings.exporters_plan2learn_user,  # type: ignore
+            password=job_settings.exporters_plan2learn_password,  # type: ignore
+        )
+    except AttributeError:
+        logger.info("FTP-settings not found")
+        ftp_settings = None
     return Settings(
         mora_base=job_settings.mora_base,
         auth_server=job_settings.crontab_AUTH_SERVER,  # type: ignore
@@ -698,6 +720,7 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         plan2learn_phone_priority=job_settings.exporters_plan2learn_phone_priority,  # type: ignore
         exporters_plan2learn_root_unit=job_settings.exporters_plan2learn_root_unit,  # type: ignore
         integrations_SD_Lon_import_too_deep=job_settings.integrations_SD_Lon_import_too_deep,  # type: ignore
+        plan2_learn_ftpes=ftp_settings,
     )
 
 
