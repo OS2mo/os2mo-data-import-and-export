@@ -57,6 +57,7 @@ update_query = """mutation UpdateEngagement(
   $extension_7: String
   $extension_8: String
   $extension_9: String
+  $fraction: Int
   $from: DateTime!
   $job_function_uuid: UUID
   $org_unit_uuid: UUID
@@ -79,6 +80,7 @@ update_query = """mutation UpdateEngagement(
       extension_7: $extension_7
       extension_8: $extension_8
       extension_9: $extension_9
+      fraction: $fraction
       job_function: $job_function_uuid
       org_unit: $org_unit_uuid
       person: $employee_uuid
@@ -137,7 +139,10 @@ def main(filename: str, dry_run: bool):
     }
     # Keep a set of all updated uuids to log how many engagements was updated
     updated_uuids = set()
-    for uuid, fraction in unique_everseen(lines):
+    for uuid, input_fraction in unique_everseen(lines):
+        # Convert inputs like "0,80000" to a float and
+        # scale input fraction (0-1) to MOs values (0-1_000_000)
+        fraction = int(float(input_fraction.replace(",", ".")) * 1_000_000)
         try:
             engagement_validities = engagements_map[uuid]
         except KeyError:
