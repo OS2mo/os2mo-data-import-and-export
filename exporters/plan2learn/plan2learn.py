@@ -23,6 +23,7 @@ from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import AnyHttpUrl
+from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import SecretStr
 
@@ -33,6 +34,13 @@ from exporters.utils.priority_by_class import lc_choose_public_address
 LOG_LEVEL = logging.DEBUG
 
 logger = logging.getLogger("plan2learn")
+
+
+class Plan2LearnFTPES(BaseModel):
+    hostname: str
+    port: int
+    username: str
+    password: SecretStr
 
 
 class Settings(BaseSettings):
@@ -46,6 +54,11 @@ class Settings(BaseSettings):
     plan2learn_email_priority: list[UUID] = []
     exporters_plan2learn_allowed_engagement_types: list[str] = []
     integrations_SD_Lon_import_too_deep: list[str] = []
+
+    plan2_learn_ftpes: Plan2LearnFTPES | None = None
+
+    class Config:
+        env_nested_delimiter = "__"
 
 
 for name in logging.root.manager.loggerDict:
