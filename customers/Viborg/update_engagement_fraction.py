@@ -57,6 +57,7 @@ update_query = """mutation UpdateEngagement(
   $extension_7: String
   $extension_8: String
   $extension_9: String
+  $fraction: Int
   $from: DateTime!
   $job_function_uuid: UUID
   $org_unit_uuid: UUID
@@ -79,6 +80,7 @@ update_query = """mutation UpdateEngagement(
       extension_7: $extension_7
       extension_8: $extension_8
       extension_9: $extension_9
+      fraction: $fraction
       job_function: $job_function_uuid
       org_unit: $org_unit_uuid
       person: $employee_uuid
