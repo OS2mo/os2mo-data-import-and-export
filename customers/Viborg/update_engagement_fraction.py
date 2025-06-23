@@ -149,7 +149,9 @@ def main(filename: str, dry_run: bool):
             click.echo(f"Warning: engagement with {uuid=} not found in MO")
             continue
         for validity_values in engagement_validities:
-            if validity_values["fraction"] == fraction:
+            if validity_values["fraction"] == fraction or (
+                validity_values["fraction"] is None and (fraction == 0)
+            ):
                 # Nothing to update
                 continue
             payload = validity_values.copy()
