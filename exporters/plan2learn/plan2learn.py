@@ -17,11 +17,15 @@ from uuid import UUID
 
 import click
 from anytree import PreOrderIter
-from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.ra_utils.job_settings import JobSettings
 from fastramqpi.raclients.upload import file_uploader
 from more_itertools import first
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
+from pydantic import AnyHttpUrl
+from pydantic import BaseModel
+from pydantic import BaseSettings
+from pydantic import SecretStr
 
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
@@ -30,6 +34,33 @@ from exporters.utils.priority_by_class import lc_choose_public_address
 LOG_LEVEL = logging.DEBUG
 
 logger = logging.getLogger("plan2learn")
+
+
+class Plan2LearnFTPES(BaseModel):
+    hostname: str
+    port: int = 21
+    username: str
+    password: SecretStr
+
+
+class Settings(BaseSettings):
+    auth_server: AnyHttpUrl
+    client_id: str
+    client_secret: str
+    mora_base: str
+    auth_realm: str = "mo"
+
+    exporters_plan2learn_root_unit: UUID
+    plan2learn_phone_priority: list[UUID] = []
+    plan2learn_email_priority: list[UUID] = []
+    exporters_plan2learn_allowed_engagement_types: list[str] = []
+    integrations_SD_Lon_import_too_deep: list[str] = []
+
+    plan2_learn_ftpes: Plan2LearnFTPES | None = None
+
+    class Config:
+        env_nested_delimiter = "__"
+
 
 for name in logging.root.manager.loggerDict:
     if name in ("LoraCache", "mora-helper", "plan2learn"):
@@ -42,8 +73,6 @@ logging.basicConfig(
     level=LOG_LEVEL,
     stream=sys.stdout,
 )
-
-SETTINGS = load_settings()
 
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
@@ -116,13 +145,13 @@ def get_email_addresses(
         return {}
 
 
-def get_e_address_mo(e_uuid, scope, mh, settings):
+def get_e_address_mo(e_uuid, scope, mh, settings: Settings):
     candidates = mh.get_e_addresses(e_uuid, scope)
 
     if scope == "PHONE":
-        priority_list = settings.get("plan2learn.phone.priority", [])
+        priority_list = settings.plan2learn_phone_priority
     elif scope == "EMAIL":
-        priority_list = settings.get("plan2learn.email.priority", [])
+        priority_list = settings.plan2learn_email_priority
     else:
         priority_list = []
 
@@ -145,17 +174,15 @@ def construct_bruger_row(user_uuid, cpr, name, email, phone):
     return row
 
 
-allowed_engagement_types = SETTINGS["exporters.plan2learn.allowed_engagement_types"]
-
-
-def export_bruger_lc(node, used_cprs, lc, lc_historic):
+def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
     # TODO: If this is to run faster, we need to pre-sort into units,
     # to avoid iterating all engagements for each unit.
     lora_engagements = lc_historic.engagements.values()
     lora_engagements = flatten(lora_engagements)
     lora_engagements = filter(lambda engv: engv["unit"] == node.name, lora_engagements)
     lora_engagements = filter(
-        lambda engv: engv["engagement_type"] in allowed_engagement_types,
+        lambda engv: engv["engagement_type"]
+        in settings.exporters_plan2learn_allowed_engagement_types,
         lora_engagements,
     )
     lora_user_uuids = map(itemgetter("user"), lora_engagements)
@@ -170,15 +197,17 @@ def export_bruger_lc(node, used_cprs, lc, lc_historic):
         name = user["navn"]
 
         _phone_obj = get_filtered_phone_addresses(
-            user_uuid, SETTINGS["plan2learn.phone.priority"], lc_historic
+            user_uuid, settings.plan2learn_phone_priority, lc_historic
         )
+
         _phone = None
         if _phone_obj:
             _phone = _phone_obj["value"]
 
         _email_obj = get_email_addresses(
-            user_uuid, SETTINGS["plan2learn.email.priority"], lc_historic, lc
+            user_uuid, settings.plan2learn_email_priority, lc_historic, lc
         )
+
         _email = None
         if _email_obj:
             _email = _email_obj["value"]
@@ -187,28 +216,31 @@ def export_bruger_lc(node, used_cprs, lc, lc_historic):
     return rows, used_cprs
 
 
-def export_bruger_mo(node, used_cprs, mh):
+def export_bruger_mo(settings: Settings, node, used_cprs, mh):
     employees = mh.read_organisation_people(
         node.name, split_name=False, read_all=True, skip_past=True
     )
     rows = []
     for uuid, employee in employees.items():
-        if employee["engagement_type_uuid"] not in allowed_engagement_types:
+        if (
+            employee["engagement_type_uuid"]
+            not in settings.exporters_plan2learn_allowed_engagement_types
+        ):
             continue
         user_uuid = employee["Person UUID"]
         name = employee["Navn"]
-        cpr = address["CPR-Nummer"]  # noqa: F821
+        cpr = employee["CPR-Nummer"]  # noqa: F821
         if cpr in used_cprs:
             # print('Skipping user: {} '.format(uuid))
             continue
         used_cprs.add(cpr)
 
-        _phone_obj = get_e_address_mo(user_uuid, "PHONE", mh, SETTINGS)
+        _phone_obj = get_e_address_mo(user_uuid, "PHONE", mh, settings)
         _phone = None
         if _phone_obj:
             _phone = _phone_obj["value"]
 
-        _email_obj = get_e_address_mo(user_uuid, "EMAIL", mh, SETTINGS)
+        _email_obj = get_e_address_mo(user_uuid, "EMAIL", mh, settings)
         _email = None
         if _email_obj:
             _email = _email_obj["value"]
@@ -217,17 +249,19 @@ def export_bruger_mo(node, used_cprs, mh):
     return rows, used_cprs
 
 
-def export_bruger(mh, nodes, lc, lc_historic):
+def export_bruger(settings: Settings, mh, nodes, lc, lc_historic):
     #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
     if lc and lc_historic:
         bruger_exporter = partial(export_bruger_lc, lc=lc, lc_historic=lc_historic)
     else:
         bruger_exporter = partial(export_bruger_mo, mh=mh)
 
-    used_cprs = set()
+    used_cprs: set[str] = set()
     rows = []
     for node in PreOrderIter(nodes["root"]):
-        new_rows, used_cprs = bruger_exporter(node, used_cprs)
+        new_rows, used_cprs = bruger_exporter(
+            settings=settings, node=node, used_cprs=used_cprs
+        )
         rows.extend(new_rows)
 
     # Turns out, we need to update this once we reach engagements
@@ -244,7 +278,7 @@ def _split_dar(address):
     return gade, post, by
 
 
-def export_organisation(mh, nodes, filename, lc=None):
+def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
     fieldnames = ["AfdelingsID", "Afdelingsnavn", "Parentid", "Gade", "Postnr", "By"]
 
     rows = []
@@ -262,7 +296,7 @@ def export_organisation(mh, nodes, filename, lc=None):
 
                 level_uuid = unitv["level"]
                 level_titel = lc.classes[level_uuid]
-                too_deep = SETTINGS["integrations.SD_Lon.import.too_deep"]
+                too_deep = settings.integrations_SD_Lon_import_too_deep
                 if level_titel["title"] in too_deep:
                     continue
 
@@ -289,7 +323,7 @@ def export_organisation(mh, nodes, filename, lc=None):
         else:
             ou = mh.read_ou(node.name)
             level = ou["org_unit_level"]
-            if level["name"] in SETTINGS["integrations.SD_Lon.import.too_deep"]:
+            if level["name"] in settings.integrations_SD_Lon_import_too_deep:
                 continue
 
             over_uuid = ou["parent"]["uuid"] if ou["parent"] else ""
@@ -313,7 +347,13 @@ def export_organisation(mh, nodes, filename, lc=None):
 
 
 def export_engagement(
-    mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
+    settings: Settings,
+    mh,
+    filename,
+    eksporterede_afdelinger,
+    brugere_rows,
+    lc,
+    lc_historic,
 ):
     fieldnames = [
         "EngagementId",
@@ -326,7 +366,7 @@ def export_engagement(
         "StartdatoEngagement",
     ]
 
-    allowed_engagement_types = SETTINGS["exporters.plan2learn.allowed_engagement_types"]
+    allowed_engagement_types = settings.exporters_plan2learn_allowed_engagement_types
 
     rows = []
 
@@ -580,12 +620,12 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def main(speedup, dry_run=None):
+def main(speedup, settings: Settings, dry_run=None):
     t = time.time()
 
-    mh = MoraHelper(hostname=SETTINGS["mora.base"])
+    mh = MoraHelper(hostname=settings.mora_base)
 
-    root_unit = SETTINGS["exporters.plan2learn.root_unit"]
+    root_unit = settings.exporters_plan2learn_root_unit
 
     if speedup:
         # Here we should activate read-only mode, actual state and
@@ -610,39 +650,78 @@ def main(speedup, dry_run=None):
     # reading this from cache.
     nodes = mh.read_ou_tree(root_unit)
 
-    brugere_rows = export_bruger(mh, nodes, lc, lc_historic)
+    brugere_rows = export_bruger(settings, mh, nodes, lc, lc_historic)
     print("Bruger: {}s".format(time.time() - t))
     logger.info("Bruger: {}s".format(time.time() - t))
 
-    with file_uploader(SETTINGS, "plan2learn_organisation.csv") as filename:
-        eksporterede_afdelinger = export_organisation(mh, nodes, filename, lc)
+    with file_uploader(settings, "plan2learn_organisation.csv") as filename:
+        eksporterede_afdelinger = export_organisation(settings, mh, nodes, filename, lc)
     print("Organisation: {}s".format(time.time() - t))
     logger.info("Organisation: {}s".format(time.time() - t))
 
-    with file_uploader(SETTINGS, "plan2learn_engagement.csv") as filename:
+    with file_uploader(settings, "plan2learn_engagement.csv") as filename:
         brugere_rows = export_engagement(
-            mh, filename, eksporterede_afdelinger, brugere_rows, lc, lc_historic
+            settings,
+            mh,
+            filename,
+            eksporterede_afdelinger,
+            brugere_rows,
+            lc,
+            lc_historic,
         )
     print("Engagement: {}s".format(time.time() - t))
     logger.info("Engagement: {}s".format(time.time() - t))
 
-    with file_uploader(SETTINGS, "plan2learn_stillingskode.csv") as filename:
+    with file_uploader(settings, "plan2learn_stillingskode.csv") as filename:
         export_stillingskode(mh, nodes, filename)
     print("Stillingskode: {}s".format(time.time() - t))
     logger.info("Stillingskode: {}s".format(time.time() - t))
 
-    with file_uploader(SETTINGS, "plan2learn_leder.csv") as filename:
+    with file_uploader(settings, "plan2learn_leder.csv") as filename:
         export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print("Leder: {}s".format(time.time() - t))
     logger.info("Leder: {}s".format(time.time() - t))
 
     # Now exported the now fully populated brugere.csv
     brugere_fieldnames = ["BrugerId", "CPR", "Navn", "E-mail", "Mobil", "Stilling"]
-    with file_uploader(SETTINGS, "plan2learn_bruger.csv") as filename:
+    with file_uploader(settings, "plan2learn_bruger.csv") as filename:
         mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
     print("Export completed")
     logger.info("Export completed")
+
+
+def get_unified_settings(kubernetes_environment: bool) -> Settings:
+    # We will not attempt to do either of the following (in order to try not to break
+    # things and decrease the code analyzability):
+    # 1) use JobSettings in a Kubernetes environment
+    # 2) change the on-prem JSON settings
+    if kubernetes_environment:
+        # read settings from enviromnent variables
+        return Settings()  # type: ignore
+
+    job_settings = JobSettings()
+    try:
+        ftp_settings = Plan2LearnFTPES(
+            hostname=job_settings.exporters_plan2learn_host,  # type: ignore
+            username=job_settings.exporters_plan2learn_user,  # type: ignore
+            password=job_settings.exporters_plan2learn_password,  # type: ignore
+        )
+    except AttributeError:
+        logger.info("FTP-settings not found")
+        ftp_settings = None
+    return Settings(
+        mora_base=job_settings.mora_base,
+        auth_server=job_settings.crontab_AUTH_SERVER,  # type: ignore
+        client_id=job_settings.crontab_CLIENT_ID,  # type: ignore
+        client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
+        exporters_plan2learn_allowed_engagement_types=job_settings.exporters_plan2learn_allowed_engagement_types,  # type: ignore
+        plan2learn_email_priority=job_settings.exporters_plan2learn_email_priority,  # type: ignore
+        plan2learn_phone_priority=job_settings.exporters_plan2learn_phone_priority,  # type: ignore
+        exporters_plan2learn_root_unit=job_settings.exporters_plan2learn_root_unit,  # type: ignore
+        integrations_SD_Lon_import_too_deep=job_settings.integrations_SD_Lon_import_too_deep,  # type: ignore
+        plan2_learn_ftpes=ftp_settings,
+    )
 
 
 @click.command()
@@ -654,14 +733,16 @@ def main(speedup, dry_run=None):
     help="Choose backend",
 )
 @click.option("--read-from-cache", is_flag=True, envvar="USE_CACHED_LORACACHE")
+@click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
 def cli(**args):
     logger.info("Starting with args: %r", args)
+    settings = get_unified_settings(kubernetes_environment=args["kubernetes"])
     if args["backend"]:
         # True -> use LoRa
-        main(speedup=True, dry_run=args["read_from_cache"])
+        main(settings=settings, speedup=True, dry_run=args["read_from_cache"])
     else:
         # False -> use MO
-        main(speedup=False)
+        main(settings=settings, speedup=False)
 
 
 if __name__ == "__main__":
