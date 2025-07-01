@@ -295,9 +295,9 @@ def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
                     continue
 
                 level_uuid = unitv["level"]
-                level_titel = lc.classes[level_uuid]
+                level_titel = lc.classes[level_uuid]["title"] if level_uuid else ""
                 too_deep = settings.integrations_SD_Lon_import_too_deep
-                if level_titel["title"] in too_deep:
+                if level_titel in too_deep:
                     continue
 
                 over_uuid = unitv["parent"] if unitv["parent"] else ""
@@ -323,7 +323,7 @@ def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
         else:
             ou = mh.read_ou(node.name)
             level = ou["org_unit_level"]
-            if level["name"] in settings.integrations_SD_Lon_import_too_deep:
+            if level and level["name"] in settings.integrations_SD_Lon_import_too_deep:
                 continue
 
             over_uuid = ou["parent"]["uuid"] if ou["parent"] else ""
