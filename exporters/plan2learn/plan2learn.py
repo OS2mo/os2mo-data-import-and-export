@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import SecretStr
 
+from exporters.plan2learn.ship_files import main as ship_files
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
 from exporters.utils.priority_by_class import lc_choose_public_address
@@ -734,6 +735,7 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
 )
 @click.option("--read-from-cache", is_flag=True, envvar="USE_CACHED_LORACACHE")
 @click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
+@click.option("--ship-files", is_flag=True, envvar="SHIP_FILES")
 def cli(**args):
     logger.info("Starting with args: %r", args)
     settings = get_unified_settings(kubernetes_environment=args["kubernetes"])
@@ -743,6 +745,8 @@ def cli(**args):
     else:
         # False -> use MO
         main(settings=settings, speedup=False)
+    if args["ship_files"]:
+        ship_files()
 
 
 if __name__ == "__main__":
