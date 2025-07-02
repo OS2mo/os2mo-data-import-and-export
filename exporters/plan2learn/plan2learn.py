@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     exporters_plan2learn_allowed_engagement_types: list[str] = []
     integrations_SD_Lon_import_too_deep: list[str] = []
 
-    plan2_learn_ftpes: Plan2LearnFTPES | None = None
+    plan2learn_ftpes: Plan2LearnFTPES | None = None
 
     class Config:
         env_nested_delimiter = "__"
@@ -720,7 +720,7 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         plan2learn_phone_priority=job_settings.exporters_plan2learn_phone_priority,  # type: ignore
         exporters_plan2learn_root_unit=job_settings.exporters_plan2learn_root_unit,  # type: ignore
         integrations_SD_Lon_import_too_deep=job_settings.integrations_SD_Lon_import_too_deep,  # type: ignore
-        plan2_learn_ftpes=ftp_settings,
+        plan2learn_ftpes=ftp_settings,
     )
 
 

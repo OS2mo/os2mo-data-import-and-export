@@ -61,11 +61,11 @@ def read_file(settings: Settings, filename: str) -> str:
 @click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
 def main(kubernetes: bool):
     settings = get_unified_settings(kubernetes_environment=kubernetes)
-    if not settings.plan2_learn_ftpes:
+    if not settings.plan2learn_ftpes:
         click.echo("No ftp-connection setup - aborting")
         return
     print("Directory listing before upload:")
-    print_dir_list(settings.plan2_learn_ftpes)
+    print_dir_list(settings.plan2learn_ftpes)
 
     filenames = [
         "bruger.csv",
@@ -78,7 +78,7 @@ def main(kubernetes: bool):
     for to_file in filenames:
         # The server insists on returning a timeout after every upload, so we
         # re-start the connection for each file.
-        ftps = start_ftpes_connection(settings.plan2_learn_ftpes)
+        ftps = start_ftpes_connection(settings.plan2learn_ftpes)
         from_file = f"plan2learn_{to_file}"
 
         csv_file = BytesIO(read_file(settings, from_file).encode())
@@ -95,7 +95,7 @@ def main(kubernetes: bool):
             ftps.quit()
 
     print("Directory listing after upload:")
-    print_dir_list(settings.plan2_learn_ftpes)
+    print_dir_list(settings.plan2learn_ftpes)
 
 
 if __name__ == "__main__":
