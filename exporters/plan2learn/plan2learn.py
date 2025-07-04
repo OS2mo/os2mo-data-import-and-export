@@ -149,9 +149,9 @@ def get_e_address_mo(e_uuid, scope, mh, settings: Settings):
     candidates = mh.get_e_addresses(e_uuid, scope)
 
     if scope == "PHONE":
-        priority_list = settings.plan2learn_phone_priority
+        priority_list = [str(u) for u in settings.plan2learn_phone_priority]
     elif scope == "EMAIL":
-        priority_list = settings.plan2learn_email_priority
+        priority_list = [str(u) for u in settings.plan2learn_email_priority]
     else:
         priority_list = []
 
