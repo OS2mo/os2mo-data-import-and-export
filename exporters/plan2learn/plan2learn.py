@@ -53,7 +53,7 @@ class Settings(BaseSettings):
     exporters_plan2learn_root_unit: UUID
     plan2learn_phone_priority: list[UUID] = []
     plan2learn_email_priority: list[UUID] = []
-    exporters_plan2learn_allowed_engagement_types: list[str] = []
+    exporters_plan2learn_allowed_engagement_types: list[UUID] = []
     integrations_SD_Lon_import_too_deep: list[str] = []
 
     plan2learn_ftpes: Plan2LearnFTPES | None = None
@@ -181,7 +181,7 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
     lora_engagements = flatten(lora_engagements)
     lora_engagements = filter(lambda engv: engv["unit"] == node.name, lora_engagements)
     lora_engagements = filter(
-        lambda engv: engv["engagement_type"]
+        lambda engv: UUID(engv["engagement_type"])
         in settings.exporters_plan2learn_allowed_engagement_types,
         lora_engagements,
     )
@@ -223,7 +223,7 @@ def export_bruger_mo(settings: Settings, node, used_cprs, mh):
     rows = []
     for uuid, employee in employees.items():
         if (
-            employee["engagement_type_uuid"]
+            UUID(employee["engagement_type_uuid"])
             not in settings.exporters_plan2learn_allowed_engagement_types
         ):
             continue
@@ -394,7 +394,7 @@ def export_engagement(
                     logger.info(msg.format(engv["unit"]))
                     continue
 
-                if engv["engagement_type"] not in allowed_engagement_types:
+                if UUID(engv["engagement_type"]) not in allowed_engagement_types:
                     logger.debug(err_msg.format(eng))
                     continue
 
@@ -477,7 +477,7 @@ def export_engagement(
                     # Denne afdeling er ikke med i afdelingseksport.
                     continue
 
-                if eng["engagement_type"]["uuid"] not in allowed_engagement_types:
+                if UUID(eng["engagement_type"]["uuid"]) not in allowed_engagement_types:
                     logger.debug(err_msg.format(eng))
                     continue
 
