@@ -7,9 +7,9 @@ import more_itertools
 from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 
-from exporters.plan2learn.plan2learn import Plan2LearnFTPES
-from exporters.plan2learn.plan2learn import Settings
-from exporters.plan2learn.plan2learn import get_unified_settings
+from exporters.plan2learn.plan2learn_settings import Plan2LearnFTPES
+from exporters.plan2learn.plan2learn_settings import Settings
+from exporters.plan2learn.plan2learn_settings import get_unified_settings
 
 
 def start_ftpes_connection(settings: Plan2LearnFTPES, timeout=30):
