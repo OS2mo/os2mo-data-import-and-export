@@ -674,7 +674,6 @@ def main(speedup, settings: Settings, dry_run=None):
 @click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
 @click.option("--ship-files", is_flag=True, envvar="SHIP_FILES")
 def cli(**args):
-    breakpoint()
     logger.info("Starting with args: %r", args)
     settings = get_unified_settings(kubernetes_environment=args["kubernetes"])
     if args["backend"]:
