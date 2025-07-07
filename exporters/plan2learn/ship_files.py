@@ -57,13 +57,9 @@ def read_file(settings: Settings, filename: str) -> str:
     return more_itertools.one(result["files"]["objects"])["text_contents"]
 
 
-@click.command()
-@click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
-def main(kubernetes: bool):
-    settings = get_unified_settings(kubernetes_environment=kubernetes)
-    if not settings.plan2learn_ftpes:
-        click.echo("No ftp-connection setup - aborting")
-        return
+def ship_files(settings: Settings):
+    assert settings.plan2learn_ftpes
+
     print("Directory listing before upload:")
     print_dir_list(settings.plan2learn_ftpes)
 
@@ -96,6 +92,16 @@ def main(kubernetes: bool):
 
     print("Directory listing after upload:")
     print_dir_list(settings.plan2learn_ftpes)
+
+
+@click.command()
+@click.option("--kubernetes", is_flag=True, envvar="KUBERNETES")
+def main(kubernetes: bool):
+    settings = get_unified_settings(kubernetes_environment=kubernetes)
+    if not settings.plan2learn_ftpes:
+        click.echo("No ftp-connection setup - aborting")
+        return
+    ship_files(settings=settings)
 
 
 if __name__ == "__main__":

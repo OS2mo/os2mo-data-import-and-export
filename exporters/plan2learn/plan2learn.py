@@ -24,7 +24,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 from exporters.plan2learn.plan2learn_settings import Settings
 from exporters.plan2learn.plan2learn_settings import get_unified_settings
-from exporters.plan2learn.ship_files import main as ship_files
+from exporters.plan2learn.ship_files import ship_files
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
 from exporters.utils.priority_by_class import lc_choose_public_address
@@ -683,7 +683,7 @@ def cli(**args):
         # False -> use MO
         main(settings=settings, speedup=False)
     if args["ship_files"]:
-        ship_files()
+        ship_files(settings=settings)
 
 
 if __name__ == "__main__":
