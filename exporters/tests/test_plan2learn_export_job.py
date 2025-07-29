@@ -14,26 +14,26 @@ from exporters.plan2learn.plan2learn import get_filtered_phone_addresses
             "05b69443-0c9f-4d57-bb4b-a8c719afff89",
             "ffbe5804-cf13-450a-a41b-47865e355a15",
             [
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
             ],
         ),
         (  # Expecting the first address to be returned.
             "e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d",
             "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
             [
-                "e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d",
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                UUID("e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d"),
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
             ],
         ),
         (  # First address is expected to be returned from priority list with multiple uuids.
             "f376deb8-4743-4ca6-a047-3241de8fe9d2",
             "16d08fe1-45cf-4e21-b5af-1262002534d0",
             [
-                "f376deb8-4743-4ca6-a047-3241de8fe9d2",
-                "e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d",
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
+                UUID("f376deb8-4743-4ca6-a047-3241de8fe9d2"),
+                UUID("e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d"),
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
             ],
         ),
     ],
@@ -58,7 +58,7 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
     assert output_dict == response
     assert UUID(response["adresse_type"]) == UUID(address_type_uuid)
     assert UUID(response["user"]) == UUID(person_uuid)
-    assert UUID(response["adresse_type"]) == UUID(first(priority_list_uuid))
+    assert UUID(response["adresse_type"]) == first(priority_list_uuid)
 
 
 @pytest.mark.parametrize(
@@ -73,8 +73,8 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
             ],
             "16d08fe1-45cf-4e21-b5af-1262002534d0",
             [
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d",
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("e75f74f5-cbc4-4661-b9f4-e6a9e05abb2d"),
             ],
             {
                 "adresse_type": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
@@ -90,9 +90,9 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
             ],
             "eff3fca2-645c-4613-90ad-5fb47db47bc7",
             [
-                "f376deb8-4743-4ca6-a047-3241de8fe9d2"
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+                UUID("f376deb8-4743-4ca6-a047-3241de8fe9d2"),
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("c803d0c2-2ef7-460c-83c0-980c58bfa7ac"),
             ],
             {},
         ),
@@ -104,7 +104,7 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
                 }
             ],
             "16d08fe1-45cf-4e21-b5af-1262002534d0",
-            ["05b69443-0c9f-4d57-bb4b-a8c719afff89"],
+            [UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89")],
             {},
         ),
         (  # Several addresses of different address_types, some are in settings. Ensure we pick the first from the list.
@@ -128,9 +128,9 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
             ],
             "eff3fca2-645c-4613-90ad-5fb47db47bc7",
             [
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "5a02f9c4-bb83-4ce5-b1ba-7289db912b0c",
-                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("5a02f9c4-bb83-4ce5-b1ba-7289db912b0c"),
+                UUID("c803d0c2-2ef7-460c-83c0-980c58bfa7ac"),
             ],
             {
                 "adresse_type": "05b69443-0c9f-4d57-bb4b-a8c719afff89",
@@ -154,8 +154,8 @@ def test_get_filtered_phone_addresses_takes_first_element_in_list_unit_test(
             ],
             "16d08fe1-45cf-4e21-b5af-1262002534d0",
             [
-                "05b69443-0c9f-4d57-bb4b-a8c719afff89",
-                "c803d0c2-2ef7-460c-83c0-980c58bfa7ac",
+                UUID("05b69443-0c9f-4d57-bb4b-a8c719afff89"),
+                UUID("c803d0c2-2ef7-460c-83c0-980c58bfa7ac"),
             ],
             {
                 "adresse_type": "05b69443-0c9f-4d57-bb4b-a8c719afff89",

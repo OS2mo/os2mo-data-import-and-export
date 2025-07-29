@@ -79,12 +79,15 @@ def get_filtered_phone_addresses(
     phone_addresses = get_e_address(str(e_uuid), "Telefon", lc_historic)
 
     # Filter through all addresses, on the "adresse_type" uuid, and only return the ones existing in priority_list.
-    addresses = filter(lambda p: p["adresse_type"] in priority_list, phone_addresses)
+    addresses = filter(
+        lambda p: p["adresse_type"] and UUID(p["adresse_type"]) in priority_list,
+        phone_addresses,
+    )
 
     # Sort addresses according to the "adresse_type" placement in priority_list, to only return the address that matches
     # the first element in priority_list.
     address = first(  # type: ignore
-        sorted(addresses, key=lambda a: priority_list.index(a["adresse_type"])),
+        sorted(addresses, key=lambda a: priority_list.index(UUID(a["adresse_type"]))),
         default={},
     )
 
@@ -109,7 +112,9 @@ def get_email_addresses(
 
     email_addresses = get_e_address(str(e_uuid), "E-mail", lc_historic)
 
-    address = lc_choose_public_address(email_addresses, priority_list, lc)
+    address = lc_choose_public_address(
+        email_addresses, [str(uuid) for uuid in priority_list], lc
+    )
     if address is not None:
         return address
     else:
