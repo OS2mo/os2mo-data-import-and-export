@@ -9,7 +9,6 @@ Helper class to make a number of pre-defined queries into MO
 import datetime
 import logging
 import sys
-import time
 from functools import partial
 from operator import itemgetter
 from typing import List
@@ -573,8 +572,6 @@ def export_leder(mh, nodes, eksporterede_afdelinger, lc=None):
 
 
 def main(speedup, settings: Settings, dry_run=None):
-    t = time.time()
-
     mh = MoraHelper(hostname=settings.mora_base)
 
     root_unit = str(settings.exporters_plan2learn_root_unit)
@@ -602,32 +599,14 @@ def main(speedup, settings: Settings, dry_run=None):
     # reading this from cache.
     nodes = mh.read_ou_tree(root_unit)
 
-    brugere_rows = export_bruger(settings, mh, nodes, lc, lc_historic)
-    print("Bruger: {}s".format(time.time() - t))
-    logger.info("Bruger: {}s".format(time.time() - t))
+    # read data-rows
 
-    fieldnames = ["AfdelingsID", "Afdelingsnavn", "Parentid", "Gade", "Postnr", "By"]
-    rows = export_organisation(settings, mh, nodes, lc)
+    brugere_rows = export_bruger(settings, mh, nodes, lc, lc_historic)
+    org_rows = export_organisation(settings, mh, nodes, lc)
     # Vi laver en liste over eksporterede afdelinger, så de som ikke er eksporterede
     # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
-    eksporterede_afdelinger = [r["AfdelingsID"] for r in rows]
-    with file_uploader(settings, "plan2learn_organisation.csv") as filename:
-        mh._write_csv(fieldnames, rows, filename)
-        
-    print("Organisation: {}s".format(time.time() - t))
-    logger.info("Organisation: {}s".format(time.time() - t))
-
-    fieldnames = [
-        "EngagementId",
-        "BrugerId",
-        "AfdelingsId",
-        "AktivStatus",
-        "StillingskodeId",
-        "Primær",
-        "Engagementstype",
-        "StartdatoEngagement",
-    ]
-    rows = export_engagement(
+    eksporterede_afdelinger = [r["AfdelingsID"] for r in org_rows]
+    engagement_rows = export_engagement(
         settings,
         mh,
         eksporterede_afdelinger,
@@ -635,34 +614,59 @@ def main(speedup, settings: Settings, dry_run=None):
         lc,
         lc_historic,
     )
-
-    with file_uploader(settings, "plan2learn_engagement.csv") as filename:
-        mh._write_csv(fieldnames, rows, filename)
-
-    print("Engagement: {}s".format(time.time() - t))
-    logger.info("Engagement: {}s".format(time.time() - t))
-
-    fieldnames = ["StillingskodeID", "AktivStatus", "Stillingskode", "Stillingskode#"]
-    rows = export_stillingskode(mh, nodes)
-    with file_uploader(settings, "plan2learn_stillingskode.csv") as filename:
-        mh._write_csv(fieldnames, rows, filename)
-
-    print("Stillingskode: {}s".format(time.time() - t))
-    logger.info("Stillingskode: {}s".format(time.time() - t))
-
+    stillingskode_rows = export_stillingskode(mh, nodes)
     manager_rows = export_leder(mh, nodes, eksporterede_afdelinger)
-    fieldnames = ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"]
-    with file_uploader(settings, "plan2learn_leder.csv") as filename:
-        mh._write_csv(fieldnames, manager_rows, filename)
-    print("Leder: {}s".format(time.time() - t))
-    logger.info("Leder: {}s".format(time.time() - t))
+
+    def upload(settings, filename, fieldnames, rows):
+        with file_uploader(settings, filename) as f:
+            mh._write_csv(fieldnames, rows, f)
+
+    upload(
+        settings,
+        "plan2learn_organisation.csv",
+        ["AfdelingsID", "Afdelingsnavn", "Parentid", "Gade", "Postnr", "By"],
+        org_rows,
+    )
+
+    upload(
+        settings,
+        "plan2learn_engagement.csv",
+        [
+            "EngagementId",
+            "BrugerId",
+            "AfdelingsId",
+            "AktivStatus",
+            "StillingskodeId",
+            "Primær",
+            "Engagementstype",
+            "StartdatoEngagement",
+        ],
+        engagement_rows,
+    )
+
+    upload(
+        settings,
+        "plan2learn_stillingskode.csv",
+        ["StillingskodeID", "AktivStatus", "Stillingskode", "Stillingskode#"],
+        stillingskode_rows,
+    )
+
+    upload(
+        settings,
+        "plan2learn_leder.csv",
+        ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"],
+        manager_rows,
+    )
 
     # Now exported the now fully populated brugere.csv
-    brugere_fieldnames = ["BrugerId", "CPR", "Navn", "E-mail", "Mobil", "Stilling"]
-    with file_uploader(settings, "plan2learn_bruger.csv") as filename:
-        mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
-    print("Export completed")
+    upload(
+        settings,
+        "plan2learn_bruger.csv",
+        ["BrugerId", "CPR", "Navn", "E-mail", "Mobil", "Stilling"],
+        brugere_rows,
+    )
+
     logger.info("Export completed")
 
 
