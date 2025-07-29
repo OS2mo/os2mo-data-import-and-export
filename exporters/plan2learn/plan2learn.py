@@ -254,14 +254,8 @@ def _split_dar(address):
     return gade, post, by
 
 
-def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
-    fieldnames = ["AfdelingsID", "Afdelingsnavn", "Parentid", "Gade", "Postnr", "By"]
-
+def export_organisation(settings: Settings, mh, nodes, lc=None) -> list[dict]:
     rows = []
-    # Vi laver en liste over eksporterede afdelinger, så de som ikke er eksporterede
-    # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
-    eksporterede_afdelinger = []
-
     for node in PreOrderIter(nodes["root"]):
         if lc:
             for unit in lc.units.values():
@@ -285,7 +279,6 @@ def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
                             address = raw_address[0]["value"]
 
                 gade, post, by = _split_dar(address)
-                eksporterede_afdelinger.append(unit[0]["uuid"])
                 row = {
                     "AfdelingsID": unit[0]["uuid"],
                     "Afdelingsnavn": unit[0]["name"],
@@ -307,7 +300,6 @@ def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
             dar_address = mh.read_ou_address(node.name)
             gade, post, by = _split_dar(dar_address.get("Adresse"))
 
-            eksporterede_afdelinger.append(ou["uuid"])
             row = {
                 "AfdelingsID": ou["uuid"],
                 "Afdelingsnavn": ou["name"],
@@ -318,30 +310,17 @@ def export_organisation(settings: Settings, mh, nodes, filename, lc=None):
             }
             rows.append(row)
 
-    mh._write_csv(fieldnames, rows, filename)
-    return eksporterede_afdelinger
+    return rows
 
 
 def export_engagement(
     settings: Settings,
     mh,
-    filename,
     eksporterede_afdelinger,
     brugere_rows,
     lc,
     lc_historic,
-):
-    fieldnames = [
-        "EngagementId",
-        "BrugerId",
-        "AfdelingsId",
-        "AktivStatus",
-        "StillingskodeId",
-        "Primær",
-        "Engagementstype",
-        "StartdatoEngagement",
-    ]
-
+)-> list[dict]:
     allowed_engagement_types = settings.exporters_plan2learn_allowed_engagement_types
 
     rows = []
@@ -518,12 +497,10 @@ def export_engagement(
                 }
 
                 rows.append(row)
-    mh._write_csv(fieldnames, rows, filename)
-    return brugere_rows
+    return rows
 
 
-def export_stillingskode(mh, nodes, filename, lc=None):
-    fieldnames = ["StillingskodeID", "AktivStatus", "Stillingskode", "Stillingskode#"]
+def export_stillingskode(mh, lc=None)-> list[dict]:
     rows = []
     if lc:
         job_function_facet = None
@@ -560,11 +537,10 @@ def export_stillingskode(mh, nodes, filename, lc=None):
                 "Stillingskode#": stilling["uuid"],
             }
             rows.append(row)
-    mh._write_csv(fieldnames, rows, filename)
+    return rows
 
 
-def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
-    fieldnames = ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"]
+def export_leder(mh, nodes, eksporterede_afdelinger, lc=None):
     rows = []
     for node in PreOrderIter(nodes["root"]):
         if node.name not in eksporterede_afdelinger:
@@ -593,7 +569,7 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
                     "Titel": manager["Ansvar"],
                 }
                 rows.append(row)
-    mh._write_csv(fieldnames, rows, filename)
+    return rows
 
 
 def main(speedup, settings: Settings, dry_run=None):
@@ -630,31 +606,54 @@ def main(speedup, settings: Settings, dry_run=None):
     print("Bruger: {}s".format(time.time() - t))
     logger.info("Bruger: {}s".format(time.time() - t))
 
+    fieldnames = ["AfdelingsID", "Afdelingsnavn", "Parentid", "Gade", "Postnr", "By"]
+    rows = export_organisation(settings, mh, nodes, lc)
+    # Vi laver en liste over eksporterede afdelinger, så de som ikke er eksporterede
+    # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
+    eksporterede_afdelinger = [r["AfdelingsID"] for r in rows]
     with file_uploader(settings, "plan2learn_organisation.csv") as filename:
-        eksporterede_afdelinger = export_organisation(settings, mh, nodes, filename, lc)
+        mh._write_csv(fieldnames, rows, filename)
+        
     print("Organisation: {}s".format(time.time() - t))
     logger.info("Organisation: {}s".format(time.time() - t))
 
+    fieldnames = [
+        "EngagementId",
+        "BrugerId",
+        "AfdelingsId",
+        "AktivStatus",
+        "StillingskodeId",
+        "Primær",
+        "Engagementstype",
+        "StartdatoEngagement",
+    ]
+    rows = export_engagement(
+        settings,
+        mh,
+        eksporterede_afdelinger,
+        brugere_rows,
+        lc,
+        lc_historic,
+    )
+
     with file_uploader(settings, "plan2learn_engagement.csv") as filename:
-        brugere_rows = export_engagement(
-            settings,
-            mh,
-            filename,
-            eksporterede_afdelinger,
-            brugere_rows,
-            lc,
-            lc_historic,
-        )
+        mh._write_csv(fieldnames, rows, filename)
+
     print("Engagement: {}s".format(time.time() - t))
     logger.info("Engagement: {}s".format(time.time() - t))
 
+    fieldnames = ["StillingskodeID", "AktivStatus", "Stillingskode", "Stillingskode#"]
+    rows = export_stillingskode(mh, nodes)
     with file_uploader(settings, "plan2learn_stillingskode.csv") as filename:
-        export_stillingskode(mh, nodes, filename)
+        mh._write_csv(fieldnames, rows, filename)
+
     print("Stillingskode: {}s".format(time.time() - t))
     logger.info("Stillingskode: {}s".format(time.time() - t))
 
+    manager_rows = export_leder(mh, nodes, eksporterede_afdelinger)
+    fieldnames = ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"]
     with file_uploader(settings, "plan2learn_leder.csv") as filename:
-        export_leder(mh, nodes, filename, eksporterede_afdelinger)
+        mh._write_csv(fieldnames, manager_rows, filename)
     print("Leder: {}s".format(time.time() - t))
     logger.info("Leder: {}s".format(time.time() - t))
 
