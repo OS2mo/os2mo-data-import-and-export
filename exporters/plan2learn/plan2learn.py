@@ -601,7 +601,7 @@ def main(speedup, settings: Settings, dry_run=None):
 
     mh = MoraHelper(hostname=settings.mora_base)
 
-    root_unit = settings.exporters_plan2learn_root_unit
+    root_unit = str(settings.exporters_plan2learn_root_unit)
 
     if speedup:
         # Here we should activate read-only mode, actual state and
