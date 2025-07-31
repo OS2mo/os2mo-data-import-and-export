@@ -63,8 +63,8 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         client_id=job_settings.crontab_CLIENT_ID,  # type: ignore
         client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
         exporters_plan2learn_allowed_engagement_types=job_settings.exporters_plan2learn_allowed_engagement_types,  # type: ignore
-        plan2learn_email_priority=job_settings.exporters_plan2learn_email_priority,  # type: ignore
-        plan2learn_phone_priority=job_settings.exporters_plan2learn_phone_priority,  # type: ignore
+        plan2learn_email_priority=job_settings.plan2learn_email_priority,  # type: ignore
+        plan2learn_phone_priority=job_settings.plan2learn_phone_priority,  # type: ignore
         exporters_plan2learn_root_unit=job_settings.exporters_plan2learn_root_unit,  # type: ignore
         integrations_SD_Lon_import_too_deep=job_settings.integrations_SD_Lon_import_too_deep,  # type: ignore
         plan2learn_ftpes=ftp_settings,
