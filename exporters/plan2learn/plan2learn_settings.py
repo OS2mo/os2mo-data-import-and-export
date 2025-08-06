@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from uuid import UUID
 
 from fastramqpi.ra_utils.job_settings import JobSettings
@@ -19,6 +20,11 @@ class Plan2LearnFTPES(BaseModel):
     password: SecretStr
 
 
+class Variant(Enum):
+    rsd = "RSD"
+    viborg = "Viborg"
+
+
 class Settings(BaseSettings):
     auth_server: AnyHttpUrl
     client_id: str
@@ -31,6 +37,7 @@ class Settings(BaseSettings):
     plan2learn_email_priority: list[UUID] = []
     exporters_plan2learn_allowed_engagement_types: list[UUID] = []
     integrations_SD_Lon_import_too_deep: list[str] = []
+    plan2learn_variant: Variant
 
     plan2learn_ftpes: Plan2LearnFTPES | None = None
 
@@ -49,7 +56,7 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
 
     job_settings = JobSettings()
     try:
-        ftp_settings = Plan2LearnFTPES(
+        ftp_settings: Plan2LearnFTPES | None = Plan2LearnFTPES(
             hostname=job_settings.exporters_plan2learn_host,  # type: ignore
             username=job_settings.exporters_plan2learn_user,  # type: ignore
             password=job_settings.exporters_plan2learn_password,  # type: ignore
@@ -62,6 +69,7 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         auth_server=job_settings.crontab_AUTH_SERVER,  # type: ignore
         client_id=job_settings.crontab_CLIENT_ID,  # type: ignore
         client_secret=job_settings.crontab_CLIENT_SECRET,  # type: ignore
+        plan2learn_variant=job_settings.exporters_plan2learn_variant,  # type: ignore
         exporters_plan2learn_allowed_engagement_types=job_settings.exporters_plan2learn_allowed_engagement_types,  # type: ignore
         plan2learn_email_priority=job_settings.plan2learn_email_priority,  # type: ignore
         plan2learn_phone_priority=job_settings.plan2learn_phone_priority,  # type: ignore

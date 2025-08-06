@@ -22,8 +22,10 @@ from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from exporters.plan2learn.plan2learn_settings import Settings
+from exporters.plan2learn.plan2learn_settings import Variant
 from exporters.plan2learn.plan2learn_settings import get_unified_settings
 from exporters.plan2learn.ship_files import ship_files
+from exporters.sql_export.gql_lora_cache_async import GQLLoraCache
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import choose_public_address
 from exporters.utils.priority_by_class import lc_choose_public_address
@@ -186,8 +188,20 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
         _email = None
         if _email_obj:
             _email = _email_obj["value"]
+        bruger_row = construct_bruger_row(user_uuid, cpr, name, _email, _phone)
 
-        rows.append(construct_bruger_row(user_uuid, cpr, name, _email, _phone))
+        if settings.plan2learn_variant == "RSD":
+            # For Viborg this is handled during "export_engagements"
+            user_engagements = [e for e in lc.engagements if e["user"] == user_uuid]
+            user_engagements.sort(key=lambda e: e["fraction"])
+            # Ensure the same engagement is selected each time by sorting on user_key
+            # Assumes the user-key has a prefix of a 2 digit institution identifier
+            # followed by a dash and then the engagement-id eg. AB-1234
+            user_engagement = min(user_engagements, key=lambda e: e["user_key"][3:])
+            stilling = user_engagement["extension_3"]
+            bruger_row["Stilling"] = stilling
+
+        rows.append(bruger_row)
     return rows, used_cprs
 
 
@@ -312,6 +326,19 @@ def export_organisation(settings: Settings, mh, nodes, lc=None) -> list[dict]:
     return rows
 
 
+def update_user_positions_viborg(brugere_rows, employee, engv, lc):
+    for bruger in brugere_rows:
+        if bruger["BrugerId"] == employee["uuid"]:
+            # extension_3 from the job-function-configurator repo.
+            udvidelse_3 = engv["extensions"].get("udvidelse_3")
+            if udvidelse_3:
+                bruger["Stilling"] = udvidelse_3
+            else:
+                job_function = engv["job_function"]
+                stilling = lc.classes[job_function]["title"]
+                bruger["Stilling"] = stilling
+
+
 def export_engagement(
     settings: Settings,
     mh,
@@ -319,11 +346,10 @@ def export_engagement(
     brugere_rows,
     lc,
     lc_historic,
-)-> list[dict]:
+) -> list[dict]:
     allowed_engagement_types = settings.exporters_plan2learn_allowed_engagement_types
 
     rows = []
-
     # Keep a list of exported engagements to avoid exporting the same engagment
     # multiple times if it has multiple rows in MO.
     exported_engagements = []
@@ -386,18 +412,11 @@ def export_engagement(
                         logger.warning(msg.format(engv["uuid"]))
                         print(msg.format(engv["uuid"]))
                         primary = False
-                if primary:
+                if primary and settings.plan2learn_variant == Variant.viborg:
                     primær = 1
-                    for bruger in brugere_rows:
-                        if bruger["BrugerId"] == employee["uuid"]:
-                            # extension_3 from the job-function-configurator repo.
-                            udvidelse_3 = engv["extensions"].get("udvidelse_3")
-                            if udvidelse_3:
-                                bruger["Stilling"] = udvidelse_3
-                            else:
-                                job_function = engv["job_function"]
-                                stilling = lc.classes[job_function]["title"]
-                                bruger["Stilling"] = stilling
+                    # Updates "brugere_rows" with "stilling".
+                    # Only for Viborg as this is handled differently for RSD
+                    update_user_positions_viborg(brugere_rows, employee, engv, lc)
                 else:
                     primær = 0
 
@@ -499,7 +518,7 @@ def export_engagement(
     return rows
 
 
-def export_stillingskode(mh, lc=None)-> list[dict]:
+def export_stillingskode(mh, lc=None) -> list[dict]:
     rows = []
     if lc:
         job_function_facet = None
@@ -539,36 +558,89 @@ def export_stillingskode(mh, lc=None)-> list[dict]:
     return rows
 
 
-def export_leder(mh, nodes, eksporterede_afdelinger, lc=None):
+def export_leder_viborg(mh: MoraHelper, nodes, eksporterede_afdelinger):
     rows = []
     for node in PreOrderIter(nodes["root"]):
         if node.name not in eksporterede_afdelinger:
             # Denne afdeling er ikke med i afdelingseksport.
             continue
 
-        if lc:
-            for manager in lc.managers:
-                if manager["unit"] != node.name:
-                    continue
-
-                row = {
-                    "BrugerId": manager["user"],
-                    "AfdelingsID": node.name,
-                    "AktivStatus": 1,
-                    "Titel": manager["Ansvar"],
-                }
-                rows.append(row)
-        else:
-            manager = mh.read_ou_manager(node.name, inherit=False)
-            if "uuid" in manager:
-                row = {
-                    "BrugerId": manager.get("uuid"),
-                    "AfdelingsID": node.name,
-                    "AktivStatus": 1,
-                    "Titel": manager["Ansvar"],
-                }
-                rows.append(row)
+        manager = mh.read_ou_manager(node.name, inherit=False)
+        if "uuid" in manager:
+            row = {
+                "BrugerId": manager.get("uuid"),
+                "AfdelingsID": node.name,
+                "AktivStatus": 1,
+                "Titel": manager["Ansvar"],
+            }
+            rows.append(row)
     return rows
+
+
+def export_leder_rsd(nodes, eksporterede_afdelinger, lc: GQLLoraCache):
+    rows = []
+    for node in PreOrderIter(nodes["root"]):
+        if node.name not in eksporterede_afdelinger:
+            # Denne afdeling er ikke med i afdelingseksport.
+            continue
+
+        managers = [
+            manager
+            for manager in flatten(lc.managers.values())
+            if manager["unit"] == node.name
+        ]
+        if not managers:
+            continue
+        # If more than one manager exists choose one with "Personaleledelse" as responsibility
+        manager = max(
+            managers,
+            key=lambda m: "Personaleledelse"
+            in (
+                lc.classes[responsibility]["title"]
+                for responsibility in m["manager_responsibility"]
+                if responsibility
+            ),
+        )
+
+        if not manager["user"]:
+            # Manager-role is vacant
+            continue
+
+        # If manager has more than one responsibility choose "Personaleledelse"
+        responsibility = (
+            max(
+                manager["manager_responsibility"],
+                key=lambda r: r == "Personaleledelse",
+            )
+            if manager["manager_responsibility"]
+            else None
+        )
+        responsibility_name = (
+            lc.classes[responsibility]["title"] if responsibility else ""
+        )
+        row = {
+            "BrugerId": manager["user"],
+            "AfdelingsID": node.name,
+            "AktivStatus": "1",
+            "Titel": responsibility_name,
+            "OrganisationsfunktionsUUID": manager["uuid"],
+        }
+        rows.append(row)
+    return rows
+
+
+def export_leder(
+    settings: Settings, nodes, eksporterede_afdelinger, mh: MoraHelper, lc: GQLLoraCache
+):
+    manager_titles = ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"]
+    if settings.plan2learn_variant == Variant.rsd:
+        manager_titles.append("OrganisationsfunktionsUUID")
+        rows = export_leder_rsd(nodes, eksporterede_afdelinger, lc)
+    elif settings.plan2learn_variant == Variant.viborg:
+        rows = export_leder_viborg(mh, nodes, eksporterede_afdelinger)
+    else:
+        raise NotImplementedError()
+    return rows, manager_titles
 
 
 def main(speedup, settings: Settings, dry_run=None):
@@ -614,8 +686,12 @@ def main(speedup, settings: Settings, dry_run=None):
         lc,
         lc_historic,
     )
-    stillingskode_rows = export_stillingskode(mh, nodes)
-    manager_rows = export_leder(mh, nodes, eksporterede_afdelinger)
+    # TODO: Why is lc not passed into export_stillingskode?
+    stillingskode_rows = export_stillingskode(mh)
+
+    manager_rows, manager_titles = export_leder(
+        settings, nodes, eksporterede_afdelinger, mh=mh, lc=lc
+    )
 
     def upload(settings, filename, fieldnames, rows):
         with file_uploader(settings, filename) as f:
@@ -654,7 +730,7 @@ def main(speedup, settings: Settings, dry_run=None):
     upload(
         settings,
         "plan2learn_leder.csv",
-        ["BrugerId", "AfdelingsID", "AktivStatus", "Titel"],
+        manager_titles,
         manager_rows,
     )
 
