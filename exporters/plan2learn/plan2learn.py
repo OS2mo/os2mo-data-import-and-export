@@ -591,41 +591,31 @@ def export_leder_rsd(nodes, eksporterede_afdelinger, lc: GQLLoraCache):
         ]
         if not managers:
             continue
-        # If more than one manager exists choose one with "Personaleledelse" as responsibility
-        manager = max(
-            managers,
-            key=lambda m: "Personaleledelse"
-            in (
-                lc.classes[responsibility]["title"]
-                for responsibility in m["manager_responsibility"]
-                if responsibility
-            ),
-        )
+        for manager in managers:
+            if not manager["user"]:
+                # Manager-role is vacant
+                continue
 
-        if not manager["user"]:
-            # Manager-role is vacant
-            continue
-
-        # If manager has more than one responsibility choose "Personaleledelse"
-        responsibility = (
-            max(
-                manager["manager_responsibility"],
-                key=lambda r: r == "Personaleledelse",
+            # If manager has more than one responsibility choose "Personaleledelse"
+            responsibility = (
+                max(
+                    manager["manager_responsibility"],
+                    key=lambda r: r == "Personaleledelse",
+                )
+                if manager["manager_responsibility"]
+                else None
             )
-            if manager["manager_responsibility"]
-            else None
-        )
-        responsibility_name = (
-            lc.classes[responsibility]["title"] if responsibility else ""
-        )
-        row = {
-            "BrugerId": manager["user"],
-            "AfdelingsID": node.name,
-            "AktivStatus": "1",
-            "Titel": responsibility_name,
-            "OrganisationsfunktionsUUID": manager["uuid"],
-        }
-        rows.append(row)
+            responsibility_name = (
+                lc.classes[responsibility]["title"] if responsibility else ""
+            )
+            row = {
+                "BrugerId": manager["user"],
+                "AfdelingsID": node.name,
+                "AktivStatus": "1",
+                "Titel": responsibility_name,
+                "OrganisationsfunktionsUUID": manager["uuid"],
+            }
+            rows.append(row)
     return rows
 
 
