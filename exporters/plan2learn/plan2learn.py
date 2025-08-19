@@ -339,6 +339,27 @@ def update_user_positions_viborg(brugere_rows, employee, engv, lc):
                 bruger["Stilling"] = stilling
 
 
+def find_start_date_viborg(active: bool, engv: dict) -> str:
+    if active:
+        return ""
+    return engv["from_date"]
+
+
+def find_start_date_rsd(eng: list[dict]) -> str:
+    return min(eng, key=lambda e: e["from_date"])["from_date"]
+
+
+def find_start_date(
+    settings: Settings, active: bool, engv: dict, eng: list[dict]
+) -> str:
+    if settings.plan2learn_variant == Variant.viborg:
+        return find_start_date_viborg(active, engv)
+    elif settings.plan2learn_variant == Variant.rsd:
+        return find_start_date_rsd(eng)
+    else:
+        raise NotImplementedError()
+
+
 def export_engagement(
     settings: Settings,
     mh,
@@ -384,13 +405,9 @@ def export_engagement(
 
                 valid_from = datetime.datetime.strptime(engv["from_date"], "%Y-%m-%d")
                 active = valid_from < datetime.datetime.now()
-                if active:
-                    aktiv_status = 1
-                    start_dato = ""
-                else:
-                    # Currently we always set engagment to active, even if it is not.
-                    aktiv_status = 1
-                    start_dato = engv["from_date"]
+                start_dato = find_start_date(settings, active, engv, eng)
+                # Currently we always set engagment to active, even if it is not.
+                aktiv_status = 1
 
                 if engv["uuid"] in lc.engagements:
                     primary = lc.engagements[engv["uuid"]][0]["primary_boolean"]
