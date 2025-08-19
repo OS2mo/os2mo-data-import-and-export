@@ -198,7 +198,7 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
             # Assumes the user-key has a prefix of a 2 digit institution identifier
             # followed by a dash and then the engagement-id eg. AB-1234
             user_engagement = min(user_engagements, key=lambda e: e["user_key"][3:])
-            stilling = user_engagement["extension_3"]
+            stilling = user_engagement["extension_1"]
             bruger_row["Stilling"] = stilling
 
         rows.append(bruger_row)
