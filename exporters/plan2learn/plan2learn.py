@@ -190,7 +190,7 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
             _email = _email_obj["value"]
         bruger_row = construct_bruger_row(user_uuid, cpr, name, _email, _phone)
 
-        if settings.plan2learn_variant == "RSD":
+        if settings.plan2learn_variant == Variant.rsd:
             # For Viborg this is handled during "export_engagements"
             user_engagements = [e for e in lc.engagements if e["user"] == user_uuid]
             user_engagements.sort(key=lambda e: e["fraction"])
