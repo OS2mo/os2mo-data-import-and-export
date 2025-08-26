@@ -192,13 +192,15 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
 
         if settings.plan2learn_variant == Variant.rsd:
             # For Viborg this is handled during "export_engagements"
-            user_engagements = [e for e in lc.engagements if e["user"] == user_uuid]
+            user_engagements = [
+                e for e in flatten(lc.engagements.values()) if e["user"] == user_uuid
+            ]
             user_engagements.sort(key=lambda e: e["fraction"])
             # Ensure the same engagement is selected each time by sorting on user_key
             # Assumes the user-key has a prefix of a 2 digit institution identifier
             # followed by a dash and then the engagement-id eg. AB-1234
             user_engagement = min(user_engagements, key=lambda e: e["user_key"][3:])
-            stilling = user_engagement["extension_1"]
+            stilling = user_engagement["extensions"]["udvidelse_1"]
             bruger_row["Stilling"] = stilling
 
         rows.append(bruger_row)
