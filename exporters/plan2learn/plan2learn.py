@@ -195,7 +195,6 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
             user_engagements = [
                 e for e in flatten(lc.engagements.values()) if e["user"] == user_uuid
             ]
-            user_engagements.sort(key=lambda e: e["fraction"])
             # Ensure the same engagement is selected each time by sorting on user_key
             # Assumes the user-key has a prefix of a 2 digit institution identifier
             # followed by a dash and then the engagement-id eg. AB-1234
