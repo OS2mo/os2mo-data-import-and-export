@@ -198,9 +198,10 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
             # Ensure the same engagement is selected each time by sorting on user_key
             # Assumes the user-key has a prefix of a 2 digit institution identifier
             # followed by a dash and then the engagement-id eg. AB-1234
-            user_engagement = min(user_engagements, key=lambda e: e["user_key"][3:])
-            stilling = user_engagement["extensions"]["udvidelse_1"]
-            bruger_row["Stilling"] = stilling
+            bruger_row["Stilling"] = None
+            if user_engagements:
+                user_engagement = min(user_engagements, key=lambda e: e["user_key"][3:])
+                bruger_row["Stilling"] = user_engagement["extensions"]["udvidelse_1"]
 
         rows.append(bruger_row)
     return rows, used_cprs
