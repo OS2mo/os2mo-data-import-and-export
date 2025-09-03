@@ -41,6 +41,43 @@ def opus_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
 
 
 @pytest.fixture
+def opus_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
+    return {
+        "org_units": {
+            "objects": [
+                {
+                    "current": {
+                        "name": "Some name",
+                        "uuid": "9d1af806-f4d6-44e2-a001-a5deb3aa6703",
+                        "engagements": [
+                            {"uuid": "83483193-c623-4a59-a0c1-ac8887fba72e"}
+                        ],
+                        "parent": {"uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98"},
+                        "children": [],
+                        "managers": [{"user_key": "12345"}],
+                        "addresses": [{"value": "1234567890"}],
+                        "related_units": [
+                            {
+                                "org_units": [
+                                    {"uuid": "626ab928-a76f-46ae-bc8f-2402deb65236"},
+                                    {"uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"},
+                                ]
+                            },
+                            {
+                                "org_units": [
+                                    {"uuid": "18b8b97d-946d-4948-a334-0582935f7c5c"},
+                                    {"uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"},
+                                ]
+                            },
+                        ],
+                    }
+                }
+            ]
+        }
+    }
+
+
+@pytest.fixture
 def opus_engagements() -> dict[str, Any]:
     return {
         "engagements": {
@@ -72,6 +109,42 @@ def opus_engagements() -> dict[str, Any]:
                         ],
                         "job_function": {"name": "Kung Fu Master"},
                     },
+                }
+            ]
+        }
+    }
+
+
+@pytest.fixture
+def opus_ou_parent_manager_same_as_eng_employee() -> dict[str, Any]:
+    return {
+        "org_units": {
+            "objects": [
+                {
+                    "current": {
+                        "parent": {
+                            "uuid": "48a3819e-c5e1-4f4d-b4ad-582caff6ea51",
+                            "managers": [{"user_key": "12345"}],
+                        }
+                    }
+                }
+            ]
+        }
+    }
+
+
+@pytest.fixture
+def opus_ou_grand_parent_manager_not_same_as_eng_employee() -> dict[str, Any]:
+    return {
+        "org_units": {
+            "objects": [
+                {
+                    "current": {
+                        "parent": {
+                            "uuid": "1848c7e8-e6ce-4e25-a939-9ac9b4fd0675",
+                            "managers": [{"user_key": "54321"}],
+                        }
+                    }
                 }
             ]
         }

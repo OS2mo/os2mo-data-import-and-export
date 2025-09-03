@@ -163,6 +163,7 @@ GET_PARENT_UNIT = gql(
         objects {
           current {
             parent {
+              uuid
               managers(inherit: true) {
                 user_key
               }
@@ -231,20 +232,62 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
-def get_opus_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+def get_opus_manager_eng_user_key(
+    gql_client: GraphQLClient,
+    org_unit: dict[str, Any],
+    employee_eng_user_key: str,
+) -> str:
     manager = only(org_unit["managers"], {})  # type: ignore
-    # The manager user_key is the same as the engagement user_key
-    return manager.get("user_key", "")
+    # The manager user_key is the same as the managers engagement user_key
+    manager_eng_user_key = manager.get("user_key", "")
+    next_ou_uuid = org_unit["uuid"]
+    while manager_eng_user_key == employee_eng_user_key:
+        parent_ou_resp = gql_client.execute(
+            GET_PARENT_UNIT, variable_values={"org_unit": next_ou_uuid}
+        )
+
+        # Example response
+        # "org_units": {
+        #     "objects": [
+        #         {
+        #             "current": {
+        #                 "parent": {
+        #                     "uuid": "48a3819e-c5e1-4f4d-b4ad-582caff6ea51",
+        #                     "managers": [
+        #                         {
+        #                             "user_key": "54321"
+        #                         }
+        #                     ]
+        #                 }
+        #             }
+        #         }
+        #     ]
+        # }
+
+        parent_ou = one(parent_ou_resp["org_units"]["objects"])
+        next_ou_uuid = parent_ou["current"]["parent"]["uuid"]
+        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+
+        manager_eng_user_key = parent_manager.get("user_key", "")
+
+    return manager_eng_user_key
 
 
 def get_manager_eng_user_key(
-    settings: SafetyNetSettings, current_unit: dict[str, Any]
+    gql_client: GraphQLClient,
+    settings: SafetyNetSettings,
+    current_unit: dict[str, Any],
+    employee_eng_user_key: str,
 ) -> str:
     """
     State/strategy pattern for getting the managers engagement user_key.
     """
     # TODO: implement SD strategy
-    return get_opus_manager_eng_user_key(current_unit)
+    return get_opus_manager_eng_user_key(
+        gql_client=gql_client,
+        org_unit=current_unit,
+        employee_eng_user_key=employee_eng_user_key,
+    )
 
 
 def process_engagement(
@@ -324,34 +367,9 @@ def process_engagement(
     email = first(person["addresses"], {}).get("value", "")  # type: ignore
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
-    manager_eng_user_key = get_manager_eng_user_key(settings, org_unit)
-
-    # If the manager is the employee itself, use the manager of the parent units
-    if manager_eng_user_key == current.get("user_key", ""):
-        parent_ou_resp = gql_client.execute(
-            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
-        )
-
-        # Example response
-        # "org_units": {
-        #     "objects": [
-        #         {
-        #             "current": {
-        #                 "parent": {
-        #                     "managers": [
-        #                         {
-        #                             "user_key": "54321"
-        #                         }
-        #                     ]
-        #                 }
-        #             }
-        #         }
-        #     ]
-        # }
-
-        parent_ou = one(parent_ou_resp["org_units"]["objects"])
-        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
-        manager_eng_user_key = parent_manager.get("user_key", "")
+    manager_eng_user_key = get_manager_eng_user_key(
+        gql_client, settings, org_unit, current.get("user_key", "")
+    )
 
     return AdmEngRow(
         person_user_key=current["user_key"],
