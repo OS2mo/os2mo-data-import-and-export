@@ -575,7 +575,7 @@ def process_association(
 
 def process_med_unit(
     gql_client: GraphQLClient,
-    org_unit: UUID,
+    org_unit_uuid: UUID,
     med_ass_rows: list[MedAssRow],
     med_ou_rows: list[MedOuRow],
 ) -> tuple[list[MedAssRow], list[MedOuRow]]:
@@ -586,16 +586,18 @@ def process_med_unit(
 
     Args:
         gql_client: the GraphQL client
-        org_unit: the root org unit to process
+        org_unit_uuid: the root org unit to process
         med_ass_rows: list of association data to append new data to
         med_ou_rows: list of OU data to append new data to
 
     Returns:
         List of association data and list of OU data
     """
-    logger.info("Processing med unit", uuid=str(org_unit))
+    logger.info("Processing med unit", uuid=str(org_unit_uuid))
 
-    unit = gql_client.execute(GET_MED_UNIT, variable_values={"org_unit": str(org_unit)})
+    unit = gql_client.execute(
+        GET_MED_UNIT, variable_values={"org_unit": str(org_unit_uuid)}
+    )
     # Example response:
     #
     # "org_units": {
@@ -638,7 +640,7 @@ def process_med_unit(
     med_ou_rows.append(med_ou_row)
 
     for ass in assocs:
-        ass_rows = process_association(gql_client, ass, org_unit)
+        ass_rows = process_association(gql_client, ass, org_unit_uuid)
         med_ass_rows.extend(ass_rows)
 
     for child in children:
