@@ -1,11 +1,13 @@
 import os
 from typing import Any
+from typing import cast
 from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import UUID
 
 from click.testing import CliRunner
 from fastramqpi.raclients.graph.client import GraphQLClient
+from pydantic import AnyHttpUrl
 from pydantic import SecretStr
 
 from reports.safetynet.config import SafetyNetSettings
@@ -24,7 +26,7 @@ def test_adm_engagements(
     csv_file = "/tmp/adm-engagements.csv"
 
     mock_get_unified_settings.return_value = SafetyNetSettings(
-        auth_server="http://mocked.keycloak",
+        auth_server=cast(AnyHttpUrl, "http://mocked.keycloak"),
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
@@ -70,7 +72,7 @@ def test_adm_engagements_get_managers_recursively(
     csv_file = "/tmp/adm-engagements.csv"
 
     mock_get_unified_settings.return_value = SafetyNetSettings(
-        auth_server="http://mocked.keycloak",
+        auth_server=cast(AnyHttpUrl, "http://mocked.keycloak"),
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
