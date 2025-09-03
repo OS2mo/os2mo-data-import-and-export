@@ -833,6 +833,9 @@ def main(
         client_id=settings.client_id,
         client_secret=settings.client_secret.get_secret_value(),
         mo_base_url=settings.mora_base,
+        # NOTE: changing the GraphQL version could potentially deeply impact
+        # the tests in which all GraphQL responses are mocked! (the best we
+        # can do for now)
         gql_version=22,
     )
 
