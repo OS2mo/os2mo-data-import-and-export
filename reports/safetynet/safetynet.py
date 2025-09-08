@@ -25,6 +25,7 @@ from pydantic.main import BaseModel
 from reports.graphql import get_mo_client
 from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
+from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
 from tools.log import LogLevel
 from tools.log import get_logger
@@ -243,14 +244,36 @@ def get_opus_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
     return manager.get("user_key", "")
 
 
+def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+    manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+    person = only(manager.get("person", []), default=dict())  # type: ignore
+
+    engagements = person.get("engagements", [])
+
+    user_key = only(
+        (
+            eng["user_key"]
+            for eng in engagements
+            if eng["org_unit_uuid"] == org_unit["uuid"]
+        ),
+        default="",
+    )
+
+    return user_key
+
+
 def get_manager_eng_user_key(
     settings: SafetyNetSettings, current_unit: dict[str, Any]
 ) -> str:
     """
     State/strategy pattern for getting the managers engagement user_key.
     """
-    # TODO: implement SD strategy
-    return get_opus_manager_eng_user_key(current_unit)
+    if settings.source_system == SourceSystem.OPUS:
+        return get_opus_manager_eng_user_key(current_unit)
+    elif settings.source_system == SourceSystem.SD:
+        return get_sd_manager_eng_user_key(current_unit)
+    else:
+        raise NotImplementedError()
 
 
 def process_engagement(
