@@ -51,6 +51,12 @@ GET_ADM_UNIT = gql(
             }
             managers(inherit: true) {
               user_key
+              person {
+                engagements {
+                  user_key
+                  org_unit_uuid
+                }
+              }
             }
             addresses(filter: { address_type_user_keys: "Pnummer" }) {
               value
@@ -415,7 +421,21 @@ def process_adm_unit(
     #         ],
     #         "managers": [
     #             {
-    #                 "user_key": "54321"
+    #                 "user_key": "54321",
+    #                 "person": [
+    #                   {
+    #                     "engagements": [
+    #                       {
+    #                         "user_key": "54321",
+    #                         "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+    #                       },
+    #                       {
+    #                         "user_key": "23456",
+    #                         "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+    #                       }
+    #                     ]
+    #                   }
+    #                 ]
     #             }
     #         ]
     #         "addresses": [
