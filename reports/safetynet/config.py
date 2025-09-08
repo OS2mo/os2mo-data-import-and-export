@@ -1,9 +1,15 @@
+from enum import Enum
 from uuid import UUID
 
 from pydantic import AnyHttpUrl
 from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import SecretStr
+
+
+class SourceSystem(Enum):
+    OPUS = "opus"
+    SD = "sd"
 
 
 class SafetyNetSFTP(BaseModel):
@@ -23,6 +29,8 @@ class SafetyNetSettings(BaseSettings):
 
     safetynet_adm_unit_uuid: UUID
     safetynet_med_unit_uuid: UUID | None = None
+
+    source_system: SourceSystem = SourceSystem.OPUS
 
     class Config:
         env_nested_delimiter = "__"

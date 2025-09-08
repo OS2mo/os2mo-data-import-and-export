@@ -6,6 +6,7 @@
 # 4) An org unit report for the MED organisation
 from contextlib import contextmanager
 from io import StringIO
+from typing import Any
 from uuid import UUID
 
 import click
@@ -24,6 +25,7 @@ from pydantic.main import BaseModel
 from reports.graphql import get_mo_client
 from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
+from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
 from tools.log import LogLevel
 from tools.log import get_logger
@@ -50,6 +52,12 @@ GET_ADM_UNIT = gql(
             }
             managers(inherit: true) {
               user_key
+              person {
+                engagements {
+                  user_key
+                  org_unit_uuid
+                }
+              }
             }
             addresses(filter: { address_type_user_keys: "Pnummer" }) {
               value
@@ -230,8 +238,49 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
+def get_opus_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+    manager = only(org_unit["managers"], {})  # type: ignore
+    # The manager user_key is the same as the engagement user_key
+    return manager.get("user_key", "")
+
+
+def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+    manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+    person = only(manager.get("person", []), default=dict())  # type: ignore
+
+    engagements = person.get("engagements", [])
+
+    user_key = only(
+        (
+            eng["user_key"]
+            for eng in engagements
+            if eng["org_unit_uuid"] == org_unit["uuid"]
+        ),
+        default="",
+    )
+
+    return user_key
+
+
+def get_manager_eng_user_key(
+    settings: SafetyNetSettings, current_unit: dict[str, Any]
+) -> str:
+    """
+    State/strategy pattern for getting the managers engagement user_key.
+    """
+    if settings.source_system == SourceSystem.OPUS:
+        return get_opus_manager_eng_user_key(current_unit)
+    elif settings.source_system == SourceSystem.SD:
+        return get_sd_manager_eng_user_key(current_unit)
+    else:
+        raise NotImplementedError()
+
+
 def process_engagement(
-    gql_client: GraphQLClient, eng_uuid: UUID, ou_uuid: UUID, manager_eng_user_key: str
+    gql_client: GraphQLClient,
+    settings: SafetyNetSettings,
+    eng_uuid: UUID,
+    org_unit: dict[str, Any],
 ) -> AdmEngRow:
     """
     Process a single engagement from an ADM org unit
@@ -239,8 +288,7 @@ def process_engagement(
     Args:
         gql_client: the GraphQL client
         eng_uuid: the UUID of the engagement
-        ou_uuid: the UUID of the org unit
-        manager_eng_user_key: the user key of the engagement of the manager of the OU
+        org_unit: the GraphQL "current" org unit
 
     Returns:
         Data for the engagement
@@ -305,10 +353,12 @@ def process_engagement(
     email = first(person["addresses"], {}).get("value", "")  # type: ignore
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
-    # If the manager is the employee itself, use the manager of the parent unit
+    manager_eng_user_key = get_manager_eng_user_key(settings, org_unit)
+
+    # If the manager is the employee itself, use the manager of the parent units
     if manager_eng_user_key == current.get("user_key", ""):
         parent_ou_resp = gql_client.execute(
-            GET_PARENT_UNIT, variable_values={"org_unit": str(ou_uuid)}
+            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
         )
 
         # Example response
@@ -338,7 +388,7 @@ def process_engagement(
         first_name=person["given_name"],
         last_name=person["surname"],
         email=email,
-        org_unit=ou_uuid,
+        org_unit=UUID(org_unit["uuid"]),
         eng_start=eng_start,
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
@@ -349,6 +399,7 @@ def process_engagement(
 
 def process_adm_unit(
     gql_client: GraphQLClient,
+    settings: SafetyNetSettings,
     org_unit: UUID,
     adm_eng_rows: list[AdmEngRow],
     adm_ou_rows: list[AdmOuRow],
@@ -393,7 +444,21 @@ def process_adm_unit(
     #         ],
     #         "managers": [
     #             {
-    #                 "user_key": "54321"
+    #                 "user_key": "54321",
+    #                 "person": [
+    #                   {
+    #                     "engagements": [
+    #                       {
+    #                         "user_key": "54321",
+    #                         "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+    #                       },
+    #                       {
+    #                         "user_key": "23456",
+    #                         "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+    #                       }
+    #                     ]
+    #                   }
+    #                 ]
     #             }
     #         ]
     #         "addresses": [
@@ -434,10 +499,6 @@ def process_adm_unit(
     engs = [UUID(eng["uuid"]) for eng in current["engagements"]]
     children = [UUID(child["uuid"]) for child in current["children"]]
 
-    manager = only(current["managers"], {})  # type: ignore
-    # The manager user_key is the same as the engagement user_key
-    manager_eng_user_key = manager.get("user_key", "")
-
     # Org unit data
     parent_uuid = current.get("parent", {}).get("uuid")
     pnumber = only(current["addresses"], {}).get("value", "")  # type: ignore
@@ -459,13 +520,11 @@ def process_adm_unit(
     adm_ou_rows.append(adm_ou_row)
 
     for eng in engs:
-        adm_eng_row = process_engagement(
-            gql_client, eng, org_unit, manager_eng_user_key
-        )
+        adm_eng_row = process_engagement(gql_client, settings, eng, current)
         adm_eng_rows.append(adm_eng_row)
 
     for child in children:
-        process_adm_unit(gql_client, child, adm_eng_rows, adm_ou_rows)
+        process_adm_unit(gql_client, settings, child, adm_eng_rows, adm_ou_rows)
 
     return adm_eng_rows, adm_ou_rows
 
@@ -559,7 +618,7 @@ def process_association(
 
 def process_med_unit(
     gql_client: GraphQLClient,
-    org_unit: UUID,
+    org_unit_uuid: UUID,
     med_ass_rows: list[MedAssRow],
     med_ou_rows: list[MedOuRow],
 ) -> tuple[list[MedAssRow], list[MedOuRow]]:
@@ -570,16 +629,18 @@ def process_med_unit(
 
     Args:
         gql_client: the GraphQL client
-        org_unit: the root org unit to process
+        org_unit_uuid: the root org unit to process
         med_ass_rows: list of association data to append new data to
         med_ou_rows: list of OU data to append new data to
 
     Returns:
         List of association data and list of OU data
     """
-    logger.info("Processing med unit", uuid=str(org_unit))
+    logger.info("Processing med unit", uuid=str(org_unit_uuid))
 
-    unit = gql_client.execute(GET_MED_UNIT, variable_values={"org_unit": str(org_unit)})
+    unit = gql_client.execute(
+        GET_MED_UNIT, variable_values={"org_unit": str(org_unit_uuid)}
+    )
     # Example response:
     #
     # "org_units": {
@@ -622,7 +683,7 @@ def process_med_unit(
     med_ou_rows.append(med_ou_row)
 
     for ass in assocs:
-        ass_rows = process_association(gql_client, ass, org_unit)
+        ass_rows = process_association(gql_client, ass, org_unit_uuid)
         med_ass_rows.extend(ass_rows)
 
     for child in children:
@@ -833,12 +894,17 @@ def main(
         client_id=settings.client_id,
         client_secret=settings.client_secret.get_secret_value(),
         mo_base_url=settings.mora_base,
+        # NOTE: changing the GraphQL version could potentially deeply impact
+        # the tests in which all GraphQL responses are mocked! (the best we
+        # can do for now)
         gql_version=22,
     )
 
     # Adm employee report
     logger.info("Generating adm employee report")
-    adm_eng_rows, adm_ou_rows = process_adm_unit(gql_client, adm_unit_uuid, [], [])
+    adm_eng_rows, adm_ou_rows = process_adm_unit(
+        gql_client, settings, adm_unit_uuid, [], []
+    )
     csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows)
     if skip_upload:
         write_csv("/tmp/adm-engagements.csv", csv_lines)
