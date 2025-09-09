@@ -288,7 +288,7 @@ def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
     ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
     engagements = person.get("engagements", [])
 
-    user_key = only(
+    manager_eng_user_key = only(
         (
             eng["user_key"]
             for eng in engagements
@@ -297,7 +297,7 @@ def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
         default="",
     )
 
-    return user_key
+    return manager_eng_user_key
 
 
 def get_manager_eng_user_key(
