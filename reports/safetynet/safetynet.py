@@ -175,6 +175,12 @@ GET_PARENT_UNIT = gql(
             parent {
               managers(inherit: true) {
                 user_key
+                person {
+                  engagements {
+                    user_key
+                    org_unit_uuid
+                  }
+                }
               }
             }
           }
@@ -265,6 +271,7 @@ def get_opus_manager_eng_user_key(
         #                     "managers": [
         #                         {
         #                             "user_key": "54321"
+        #                             "person": [...]
         #                         }
         #                     ]
         #                 }
