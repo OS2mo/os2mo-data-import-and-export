@@ -67,6 +67,9 @@ GET_ADM_UNIT = gql(
                 uuid
               }
             }
+            ancestors {
+              uuid
+            }
           }
         }
       }
@@ -245,16 +248,18 @@ def get_opus_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
 
 
 def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+    ancestors = org_unit.get("ancestors", [])
     manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
     person = only(manager.get("person", []), default=dict())  # type: ignore
 
+    ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
     engagements = person.get("engagements", [])
 
     user_key = only(
         (
             eng["user_key"]
             for eng in engagements
-            if eng["org_unit_uuid"] == org_unit["uuid"]
+            if eng["org_unit_uuid"] in [org_unit["uuid"]] + ancestor_uuids
         ),
         default="",
     )
@@ -486,6 +491,11 @@ def process_adm_unit(
     #                 "uuid": "abcab928-a76f-46ae-bc8f-2402deb65123"
     #               }
     #             ]
+    #           }
+    #         ],
+    #         "ancestors": [
+    #           {
+    #             "uuid": "66a5c4b6-9acc-42fa-98ca-44e96a3b68b8"
     #           }
     #         ]
     #       }
