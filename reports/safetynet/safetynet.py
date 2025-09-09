@@ -306,7 +306,11 @@ def _get_sd_manager_eng_user_key(
     return manager_eng_user_key
 
 
-def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+def get_sd_manager_eng_user_key(
+    gql_client: GraphQLClient,
+    org_unit: dict[str, Any],
+    employee_eng_user_key: str,
+) -> str:
     ancestors = org_unit.get("ancestors", [])
     ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
     potential_manager_eng_unit_uuids = [org_unit["uuid"]] + ancestor_uuids
@@ -316,6 +320,51 @@ def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
     manager_eng_user_key = _get_sd_manager_eng_user_key(
         potential_manager_eng_unit_uuids, manager
     )
+
+    # If the manager is the employee itself, use the manager of the parent units
+    if manager_eng_user_key == employee_eng_user_key:
+        parent_ou_resp = gql_client.execute(
+            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
+        )
+        # Example response
+        # {
+        #     "org_units": {
+        #         "objects": [
+        #             {
+        #                 "current": {
+        #                     "parent": {
+        #                         "managers": [
+        #                             {
+        #                                 "user_key": "12345",
+        #                                 "person": [
+        #                                     {
+        #                                         "engagements": [
+        #                                             {
+        #                                                 "user_key": "54321",
+        #                                                 "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+        #                                             },
+        #                                             {
+        #                                                 "user_key": "23456",
+        #                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+        #                                             }
+        #                                         ]
+        #                                     }
+        #                                 ]
+        #                             }
+        #                         ]
+        #                     }
+        #                 }
+        #             }
+        #         ]
+        #     }
+        # }
+
+        parent_ou = one(parent_ou_resp["org_units"]["objects"])
+        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+
+        manager_eng_user_key = _get_sd_manager_eng_user_key(
+            ancestor_uuids, parent_manager
+        )
 
     return manager_eng_user_key
 
@@ -336,7 +385,11 @@ def get_manager_eng_user_key(
             employee_eng_user_key=employee_eng_user_key,
         )
     elif settings.source_system == SourceSystem.SD:
-        return get_sd_manager_eng_user_key(current_unit)
+        return get_sd_manager_eng_user_key(
+            gql_client=gql_client,
+            org_unit=current_unit,
+            employee_eng_user_key=employee_eng_user_key,
+        )
     else:
         raise NotImplementedError()
 
