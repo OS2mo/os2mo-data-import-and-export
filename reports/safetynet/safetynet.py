@@ -360,7 +360,11 @@ def get_sd_manager_eng_user_key(
         # }
 
         parent_ou = one(parent_ou_resp["org_units"]["objects"])
-        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+        try:
+            parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+        except ValueError:
+            logger.warning("More than one manager found!")
+            parent_manager = dict()
 
         manager_eng_user_key = _get_sd_manager_eng_user_key(
             ancestor_uuids, parent_manager
