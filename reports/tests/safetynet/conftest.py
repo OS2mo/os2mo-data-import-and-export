@@ -100,10 +100,16 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                             {
                                                 "user_key": "12345",
                                                 "org_unit_uuid": "9d1af806-f4d6-44e2-a001-a5deb3aa6703",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
                                             },
                                             {
                                                 "user_key": "23456",
                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
                                             },
                                         ]
                                     }
@@ -207,10 +213,16 @@ def sd_ou_parent_manager() -> dict[str, Any]:
                                                 {
                                                     "user_key": "54321",
                                                     "org_unit_uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98",
+                                                    "engagement_type": {
+                                                        "user_key": "månedsløn",
+                                                    },
                                                 },
                                                 {
                                                     "user_key": "23456",
                                                     "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
+                                                    "engagement_type": {
+                                                        "user_key": "månedsløn",
+                                                    },
                                                 },
                                             ]
                                         }
@@ -248,10 +260,23 @@ def sd_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
                                             {
                                                 "user_key": "54321",
                                                 "org_unit_uuid": "9d1af806-f4d6-44e2-a001-a5deb3aa6703",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
+                                            },
+                                            {
+                                                "user_key": "34567",
+                                                "org_unit_uuid": "9d1af806-f4d6-44e2-a001-a5deb3aa6703",
+                                                "engagement_type": {
+                                                    "user_key": "timeløn",
+                                                },
                                             },
                                             {
                                                 "user_key": "23456",
                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
                                             },
                                         ]
                                     }
@@ -303,10 +328,16 @@ def sd_ou_manager_in_ancestor() -> dict[str, Any]:
                                             {
                                                 "user_key": "54321",
                                                 "org_unit_uuid": "3a16f535-edfd-45b7-8c88-4db639face28",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
                                             },
                                             {
                                                 "user_key": "23456",
                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
                                             },
                                         ]
                                     }
