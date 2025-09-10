@@ -56,6 +56,9 @@ GET_ADM_UNIT = gql(
                 engagements {
                   user_key
                   org_unit_uuid
+                  engagement_type {
+                    user_key
+                  }
                 }
               }
             }
@@ -179,6 +182,9 @@ GET_PARENT_UNIT = gql(
                   engagements {
                     user_key
                     org_unit_uuid
+                    engagement_type {
+                      user_key
+                    }
                   }
                 }
               }
@@ -299,6 +305,7 @@ def _get_sd_manager_eng_user_key(
             eng["user_key"]
             for eng in engagements
             if eng["org_unit_uuid"] in potential_manager_eng_unit_uuids
+            and eng["engagement_type"]["user_key"] == "månedsløn"
         ),
         default="",
     )
@@ -342,10 +349,16 @@ def get_sd_manager_eng_user_key(
         #                                             {
         #                                                 "user_key": "54321",
         #                                                 "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+        #                                                 "engagement_type": {
+        #                                                     "user_key": "månedsløn"
+        #                                                 }
         #                                             },
         #                                             {
         #                                                 "user_key": "23456",
         #                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+        #                                                 "engagement_type": {
+        #                                                     "user_key": "månedsløn"
+        #                                                 }
         #                                             }
         #                                         ]
         #                                     }
@@ -551,10 +564,16 @@ def process_adm_unit(
     #                       {
     #                         "user_key": "54321",
     #                         "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+    #                         "engagement_type": {
+    #                           "user_key": "månedsløn"
+    #                         }
     #                       },
     #                       {
     #                         "user_key": "23456",
     #                         "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+    #                         "engagement_type": {
+    #                           "user_key": "månedsløn"
+    #                         }
     #                       }
     #                     ]
     #                   }
