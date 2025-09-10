@@ -175,6 +175,12 @@ GET_PARENT_UNIT = gql(
             parent {
               managers(inherit: true) {
                 user_key
+                person {
+                  engagements {
+                    user_key
+                    org_unit_uuid
+                  }
+                }
               }
             }
           }
@@ -241,42 +247,153 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
-def get_opus_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
+def get_opus_manager_eng_user_key(
+    gql_client: GraphQLClient,
+    org_unit: dict[str, Any],
+    employee_eng_user_key: str,
+) -> str:
     manager = only(org_unit["managers"], {})  # type: ignore
     # The manager user_key is the same as the engagement user_key
-    return manager.get("user_key", "")
+    manager_eng_user_key = manager.get("user_key", "")
+
+    # If the manager is the employee itself, use the manager of the parent units
+    if manager_eng_user_key == employee_eng_user_key:
+        parent_ou_resp = gql_client.execute(
+            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
+        )
+
+        # Example response
+        # "org_units": {
+        #     "objects": [
+        #         {
+        #             "current": {
+        #                 "parent": {
+        #                     "managers": [
+        #                         {
+        #                             "user_key": "54321"
+        #                             "person": [...]
+        #                         }
+        #                     ]
+        #                 }
+        #             }
+        #         }
+        #     ]
+        # }
+
+        parent_ou = one(parent_ou_resp["org_units"]["objects"])
+        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+        manager_eng_user_key = parent_manager.get("user_key", "")
+
+    return manager_eng_user_key
 
 
-def get_sd_manager_eng_user_key(org_unit: dict[str, Any]) -> str:
-    ancestors = org_unit.get("ancestors", [])
-    manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+def _get_sd_manager_eng_user_key(
+    potential_manager_eng_unit_uuids: list[str],
+    manager: dict[str, Any],
+) -> str:
     person = only(manager.get("person", []), default=dict())  # type: ignore
-
-    ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
     engagements = person.get("engagements", [])
 
-    user_key = only(
+    manager_eng_user_key = only(
         (
             eng["user_key"]
             for eng in engagements
-            if eng["org_unit_uuid"] in [org_unit["uuid"]] + ancestor_uuids
+            if eng["org_unit_uuid"] in potential_manager_eng_unit_uuids
         ),
         default="",
     )
 
-    return user_key
+    return manager_eng_user_key
+
+
+def get_sd_manager_eng_user_key(
+    gql_client: GraphQLClient,
+    org_unit: dict[str, Any],
+    employee_eng_user_key: str,
+) -> str:
+    ancestors = org_unit.get("ancestors", [])
+    ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
+    potential_manager_eng_unit_uuids = [org_unit["uuid"]] + ancestor_uuids
+
+    manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+
+    manager_eng_user_key = _get_sd_manager_eng_user_key(
+        potential_manager_eng_unit_uuids, manager
+    )
+
+    # If the manager is the employee itself, use the manager of the parent units
+    if manager_eng_user_key == employee_eng_user_key:
+        parent_ou_resp = gql_client.execute(
+            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
+        )
+        # Example response
+        # {
+        #     "org_units": {
+        #         "objects": [
+        #             {
+        #                 "current": {
+        #                     "parent": {
+        #                         "managers": [
+        #                             {
+        #                                 "user_key": "12345",
+        #                                 "person": [
+        #                                     {
+        #                                         "engagements": [
+        #                                             {
+        #                                                 "user_key": "54321",
+        #                                                 "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
+        #                                             },
+        #                                             {
+        #                                                 "user_key": "23456",
+        #                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
+        #                                             }
+        #                                         ]
+        #                                     }
+        #                                 ]
+        #                             }
+        #                         ]
+        #                     }
+        #                 }
+        #             }
+        #         ]
+        #     }
+        # }
+
+        parent_ou = one(parent_ou_resp["org_units"]["objects"])
+        try:
+            parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+        except ValueError:
+            logger.warning("More than one manager found!")
+            parent_manager = dict()
+
+        manager_eng_user_key = _get_sd_manager_eng_user_key(
+            ancestor_uuids, parent_manager
+        )
+
+    return manager_eng_user_key
 
 
 def get_manager_eng_user_key(
-    settings: SafetyNetSettings, current_unit: dict[str, Any]
+    gql_client: GraphQLClient,
+    settings: SafetyNetSettings,
+    current_unit: dict[str, Any],
+    employee_eng_user_key: str,
 ) -> str:
     """
     State/strategy pattern for getting the managers engagement user_key.
     """
     if settings.source_system == SourceSystem.OPUS:
-        return get_opus_manager_eng_user_key(current_unit)
+        return get_opus_manager_eng_user_key(
+            gql_client=gql_client,
+            org_unit=current_unit,
+            employee_eng_user_key=employee_eng_user_key,
+        )
     elif settings.source_system == SourceSystem.SD:
-        return get_sd_manager_eng_user_key(current_unit)
+        return get_sd_manager_eng_user_key(
+            gql_client=gql_client,
+            org_unit=current_unit,
+            employee_eng_user_key=employee_eng_user_key,
+        )
     else:
         raise NotImplementedError()
 
@@ -358,34 +475,12 @@ def process_engagement(
     email = first(person["addresses"], {}).get("value", "")  # type: ignore
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
-    manager_eng_user_key = get_manager_eng_user_key(settings, org_unit)
-
-    # If the manager is the employee itself, use the manager of the parent units
-    if manager_eng_user_key == current.get("user_key", ""):
-        parent_ou_resp = gql_client.execute(
-            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
-        )
-
-        # Example response
-        # "org_units": {
-        #     "objects": [
-        #         {
-        #             "current": {
-        #                 "parent": {
-        #                     "managers": [
-        #                         {
-        #                             "user_key": "54321"
-        #                         }
-        #                     ]
-        #                 }
-        #             }
-        #         }
-        #     ]
-        # }
-
-        parent_ou = one(parent_ou_resp["org_units"]["objects"])
-        parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
-        manager_eng_user_key = parent_manager.get("user_key", "")
+    manager_eng_user_key = get_manager_eng_user_key(
+        gql_client=gql_client,
+        settings=settings,
+        current_unit=org_unit,
+        employee_eng_user_key=current.get("user_key", ""),
+    )
 
     return AdmEngRow(
         person_user_key=current["user_key"],
