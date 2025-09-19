@@ -18,7 +18,7 @@ setup_logging(LogLevel("INFO"))
 @click.option("--auth-realm", envvar="AUTH_REALM", default="mo")
 @click.option("--auth-server", envvar="AUTH_SERVER")
 @click.option("--owner", type=click.UUID)
-@click.option("--limit")
+@click.option("--limit", type=click.INT)
 @click.argument(
     "objecttype",
     type=click.Choice(
@@ -52,8 +52,8 @@ def refresh_events(
     objecttype: str,
 ) -> None:
     """Post graphql refresh mutators paginating through all objects for the given object type"""
-    
-    mutator = f"""mutation MyMutation($cursor: Cursor = null, $limit: int = "1000", $owner: UUID!) {{
+
+    mutator = f"""mutation MyMutation($cursor: Cursor = null, $limit: int, $owner: UUID!) {{
     {objecttype}_refresh(
         owner: $owner
         limit: $limit
@@ -77,16 +77,16 @@ def refresh_events(
         httpx_client_kwargs={"timeout": None},
     ) as session:
         variable_values: dict[str, Any] = {"limit": limit, "owner": str(owner)}
-        # First refresh
-        r = session.execute(gql(mutator), variable_values=variable_values)
-        cursor = r[f"{objecttype}_refresh"]["page_info"]["next_cursor"]
-        count += len(r[f"{objecttype}_refresh"]["objects"])
-        # Repeat until cursor is None
-        while cursor:
-            variable_values["cursor"] = cursor
+
+        while True:
             r = session.execute(gql(mutator), variable_values=variable_values)
-            cursor = r[f"{objecttype}_refresh"]["page_info"]["next_cursor"]
             count += len(r[f"{objecttype}_refresh"]["objects"])
+
+            cursor = r[f"{objecttype}_refresh"]["page_info"]["next_cursor"]
+            variable_values["cursor"] = cursor
+
+            if cursor is None:
+                break
 
     click.echo(f"Refreshed {count} {objecttype} events.")
 
