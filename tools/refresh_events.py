@@ -51,12 +51,13 @@ def refresh_events(
     limit: int,
     objecttype: str,
 ) -> None:
-    """Post graphql refresh mutators paginating through all objects for the given object type"""
+    """Post graphql refresh mutators paginating through all current and future objects for the given object type"""
 
     mutator = f"""mutation MyMutation($cursor: Cursor = null, $limit: int, $owner: UUID!) {{
     {objecttype}_refresh(
         owner: $owner
         limit: $limit
+        filter: {{ to_date: null }}
         cursor: $cursor
         ) {{
         objects
