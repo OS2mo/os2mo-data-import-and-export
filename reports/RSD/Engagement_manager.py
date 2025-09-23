@@ -29,7 +29,7 @@ logger = get_logger()
 # The administrative organisation means all units below "Region Syddanmark" which is why the uuid  "00923955-db6e-49fc-a191-ec36ff151ec7" can be hardcoded into the filter
 QUERY = """
 query EngagementManagers($limit: int, $cursor: Cursor = null) {
-  org_units(limit: $limit, cursor: $cursor, filter: { ancestor: { uuids: "00923955-db6e-49fc-a191-ec36ff151ec7" } }) {
+  org_units(limit: $limit, cursor: $cursor) {
     objects {
       current {
         uuid
@@ -77,6 +77,9 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
           engagement_type {
             name
           }
+        }
+        root {
+          uuid
         }
       }
     }
@@ -501,7 +504,11 @@ def main(*args, **kwargs):
         gql_version=22,
     )
     res = paginated_query(graphql_client=client, query=QUERY, page_size=10)
-    res = [r["current"] for r in res]
+    res = [
+        r["current"]
+        for r in res
+        if one(r["current"]["root"])["uuid"] == "00923955-db6e-49fc-a191-ec36ff151ec7"
+    ]
 
     # Create a map of all org_unit_uuids to the set of engagement and managers user_keys in each
     engagement_map = defaultdict(list)
