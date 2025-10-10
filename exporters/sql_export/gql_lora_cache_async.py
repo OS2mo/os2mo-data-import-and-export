@@ -142,8 +142,8 @@ class GQLLoraCache:
             client_secret=self.settings.client_secret,  # type: ignore
             auth_realm=self.settings.auth_realm,
             auth_server=self.settings.auth_server,  # type: ignore
-            httpx_client_kwargs={"timeout": 300},
-            execute_timeout=300,
+            httpx_client_kwargs={"timeout": 1000},
+            execute_timeout=1000,
         )
         # NOTE: The client is never closed 👍
         session = self._gql_client_session = await client.__aenter__()
