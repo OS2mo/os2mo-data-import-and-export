@@ -1333,6 +1333,9 @@ def cli(**args):
     """
     Command line interface for the AD writer class.
     """
+    print("WARNING: This CLI does not use LoraCache even if the cronjob does")
+    print("         Instead it uses the MORestSource, which is NOT equivalent")
+    print("         Thus this CLI may destroy production data, please do not use it")
 
     ad_writer = ADWriter(skip_occupied_names=args["ignore_occupied_names"])
 
