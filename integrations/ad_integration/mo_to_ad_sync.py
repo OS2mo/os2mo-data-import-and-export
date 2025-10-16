@@ -34,6 +34,11 @@ def run_mo_to_ad_sync(
 ):
     if sync_cpr or sync_username:
         print("Warning: --sync-cpr/--sync-username is for testing only")
+        print()
+        print("WARNING: This does not use run the discriminator (unlike the cronjob)")
+        print("         Instead it runs another piece of code, which is NOT equivalent")
+        print("         Thus this codepath may fail when the cronjob does not")
+
         all_users = [reader.read_user(user=sync_username, cpr=sync_cpr)]
     else:
         all_users = reader.read_it_all(print_progress=True)
