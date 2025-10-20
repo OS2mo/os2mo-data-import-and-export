@@ -58,8 +58,8 @@ def get_e_address(e_uuid, scope, lc_historic):
     # Iterator of all addresses for current user and correct scope
     lora_addresses = filter(lambda address: address["scope"] == scope, lora_addresses)
     candidates = lora_addresses
-
-    return candidates
+    # Sort addresses by startdate to pick the newest address first
+    return sorted(candidates, key=lambda a: a["from_date"], reverse=True)
 
 
 def get_filtered_phone_addresses(
