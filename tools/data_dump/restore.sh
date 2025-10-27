@@ -13,7 +13,7 @@ docker exec -t -u postgres "${DB_CONTAINER}" psql -c \
 
 alter_db=$?
 if [ $alter_db -ne 0 ]; then
-    echo "Failed to rename $DB_NAME to ${DB_NAME}_old."
+    echo "Failed to rename $DB_NAME to ${DB_NAME}_old. Consider running 'make cleanup'"
     exit 1
 fi
 
