@@ -19,7 +19,7 @@ fi
 
 echo "Restoring $DB_NAME"
 docker exec -t -u postgres "${DB_CONTAINER}" /bin/bash -c \
-    "pg_restore -d postgres -C -j$(nproc) --verbose $BACKUP_FILE" >> /tmp/pg_restore.log
+    "pg_restore -d postgres -C -j$(nproc) --verbose $BACKUP_FILE"
 
 pg_restore=$?
 if [ $pg_restore -ne 0 ]; then
