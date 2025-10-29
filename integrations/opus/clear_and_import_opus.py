@@ -12,6 +12,7 @@ from more_itertools import prepend
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
+from integrations.opus.ad import LdapADGUIDReader
 from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.subtreedeleter import subtreedeleter_helper
@@ -140,13 +141,18 @@ def clear_and_reload(
         opus_uuid=opus_uuid,
         connections=connections,
     )
-    AD = None
+    reader: ad_reader.ADParameterReader | LdapADGUIDReader | None = None
     if use_ad:
-        AD = ad_reader.ADParameterReader()
-        AD.cache_all(print_progress=True)
+        if (hostname := settings.get("integrations.opus.ldap_url")) and (
+            port := settings.get("integrations.opus.ldap_port")
+        ):
+            reader = LdapADGUIDReader(host=hostname, port=port)
+        elif settings.get("integrations.ad"):
+            reader = ad_reader.ADParameterReader()
+            reader.cache_all(print_progress=True)
     asyncio.run(
         import_opus(
-            ad_reader=AD,
+            ad_reader=reader,
             import_all=import_all,
             import_last=import_last,
             dry_run=dry_run,
