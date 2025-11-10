@@ -668,11 +668,7 @@ def main(speedup, settings: Settings, dry_run=None):
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
-        lc_historic = LoraCache(
-            resolve_dar=False,
-            full_history=True,
-            skip_past=False if settings.plan2learn_variant == Variant.rsd else True,
-        )
+        lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=True)
         lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
         # Here we should de-activate read-only mode
     else:
