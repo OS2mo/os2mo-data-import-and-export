@@ -684,14 +684,6 @@ class SqlExport:
                         self.session.add(sql_responsibility)
             self.session.commit()
 
-    def log_overlapping_runs_aak(self):
-        self.engine.execute(
-            "INSERT INTO [dbo].[kvittering_afvigelse] "
-            "([query_tid],[aarsag]) VALUES (getdate(), "
-            "'Time-export: hopper over da foregående "
-            "loop stadig kører.')"
-        )
-
     def export(self, resolve_dar: bool, use_pickle: typing.Any) -> None:
         self.perform_export(
             resolve_dar=resolve_dar,
@@ -758,8 +750,6 @@ def wrap_export(args: dict, settings: dict) -> None:
 
     except fastramqpi.ra_utils.ensure_single_run.LockTaken as name_of_lock:
         logger.warning(f"Lock {name_of_lock} taken, aborting export")
-        if "log_overlapping_aak" in settings and settings.get("log_overlapping_aak"):
-            sql_export.log_overlapping_runs_aak()
 
 
 @click.command(help="SQL export")

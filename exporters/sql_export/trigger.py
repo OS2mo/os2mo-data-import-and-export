@@ -60,14 +60,6 @@ def trigger(
         lock = lock_actual
     acquired = lock.acquire(blocking=False)
     if not acquired:
-        settings = DatabaseSettings()  # type: ignore
-        if settings.log_overlapping_aak:
-            sql_export = SqlExport(
-                force_sqlite=False,
-                historic=historic,
-                settings=settings.to_old_settings(),
-            )
-            sql_export.log_overlapping_runs_aak()
         raise HTTPException(409, "Already running")
 
     background_tasks.add_task(refresh_db, resolve_dar, historic, read_from_cache, lock)

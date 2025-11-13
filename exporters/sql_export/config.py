@@ -76,7 +76,6 @@ class DatabaseSettings(JobSettings):
 
     actual_state: DatabaseConfiguration = Field(default_factory=DatabaseConfiguration)  # type: ignore
     historic_state: DatabaseConfiguration | None
-    log_overlapping_aak: bool = False
     use_new_cache: bool = False
     primary_manager_responsibility: str | None = None
 
