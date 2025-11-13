@@ -133,10 +133,8 @@ class GQLLoraCache:
 
         self._gql_client_session: AsyncClientSession | None = None
 
-    async def gql_client_session(self) -> AsyncClientSession:
-        if (session := self._gql_client_session) is not None:
-            return session
-        client = GraphQLClient(
+    def make_client(self) -> GraphQLClient:
+        return GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v22",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,  # type: ignore
@@ -145,6 +143,11 @@ class GQLLoraCache:
             httpx_client_kwargs={"timeout": 1000},
             execute_timeout=1000,
         )
+
+    async def gql_client_session(self) -> AsyncClientSession:
+        if (session := self._gql_client_session) is not None:
+            return session
+        client = self.make_client()
         # NOTE: The client is never closed 👍
         session = self._gql_client_session = await client.__aenter__()
         return session
