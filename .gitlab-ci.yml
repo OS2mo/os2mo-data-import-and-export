@@ -136,13 +136,6 @@ Test OPUS Helpers:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py
 
-Test AAK LOS Integration:
-  extends: .test-python
-  script:
-    - cd integrations/aarhus
-    - pip install -r ../requirements/test.txt
-    - pytest tests/
-
 Test Reports:
   extends: .test-python
   script:

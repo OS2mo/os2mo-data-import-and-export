@@ -491,7 +491,6 @@ class TestEnsureSingleRun(unittest.TestCase):
         mock_engine.reset_mock()
         mock_settings.reset_mock()
 
-        mock_settings.return_value = {"log_overlapping_aak": False}
         mock_engine.return_value = MagicMock()
         mock_perform_export.return_value = None
 
@@ -506,7 +505,7 @@ class TestEnsureSingleRun(unittest.TestCase):
             "resolve_dar": resolve_dar,
             "read_from_cache": use_pickle,
         }
-        settings = {"log_overlapping_aak": False}
+        settings: dict[Any, Any] = {}
 
         if locked:
             # open( , "x") creates a file, and throws an error if the file already
