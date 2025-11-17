@@ -33,6 +33,8 @@ class SafetyNetSettings(BaseSettings):
     source_system: SourceSystem = SourceSystem.OPUS
 
     include_manager_cpr: bool = False
+    # Only include these SD engagement types (user keys)
+    allowed_sd_engagement_types: list[str] = ["månedsløn"]
 
     class Config:
         env_nested_delimiter = "__"
