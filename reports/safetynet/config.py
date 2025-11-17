@@ -32,6 +32,8 @@ class SafetyNetSettings(BaseSettings):
 
     source_system: SourceSystem = SourceSystem.OPUS
 
+    include_manager_cpr: bool = False
+
     class Config:
         env_nested_delimiter = "__"
 

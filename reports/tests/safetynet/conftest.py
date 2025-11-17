@@ -96,6 +96,7 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                 "user_key": "bf925460-2777-4b79-97ee-62eae4e46671",
                                 "person": [
                                     {
+                                        "cpr_number": "2010014321",
                                         "engagements": [
                                             {
                                                 "user_key": "12345",
@@ -111,7 +112,7 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
@@ -209,6 +210,7 @@ def sd_ou_parent_manager() -> dict[str, Any]:
                                     "user_key": "1c967433-2ae8-49bf-b4c1-9a8e9d9eb89e",
                                     "person": [
                                         {
+                                            "cpr_number": "2010014321",
                                             "engagements": [
                                                 {
                                                     "user_key": "54321",
@@ -224,7 +226,7 @@ def sd_ou_parent_manager() -> dict[str, Any]:
                                                         "user_key": "månedsløn",
                                                     },
                                                 },
-                                            ]
+                                            ],
                                         }
                                     ],
                                 }
@@ -256,6 +258,7 @@ def sd_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
                                 "user_key": "e2b58581-1cbe-4397-8ca6-d8ae97d8cfa4",
                                 "person": [
                                     {
+                                        "cpr_number": "2010014321",
                                         "engagements": [
                                             {
                                                 "user_key": "54321",
@@ -278,7 +281,7 @@ def sd_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
@@ -324,6 +327,7 @@ def sd_ou_manager_in_ancestor() -> dict[str, Any]:
                                 "user_key": "e2b58581-1cbe-4397-8ca6-d8ae97d8cfa4",
                                 "person": [
                                     {
+                                        "cpr_number": "2010014321",
                                         "engagements": [
                                             {
                                                 "user_key": "54321",
@@ -339,7 +343,7 @@ def sd_ou_manager_in_ancestor() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
