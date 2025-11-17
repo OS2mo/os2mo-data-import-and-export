@@ -53,6 +53,7 @@ GET_ADM_UNIT = gql(
             managers(inherit: true) {
               user_key
               person {
+                cpr_number
                 engagements {
                   user_key
                   org_unit_uuid
@@ -179,6 +180,7 @@ GET_PARENT_UNIT = gql(
               managers(inherit: true) {
                 user_key
                 person {
+                  cpr_number
                   engagements {
                     user_key
                     org_unit_uuid
@@ -214,6 +216,7 @@ class AdmEngRow(BaseModel):
     eng_start: str
     eng_end: str
     manager_eng_user_key: str
+    manager_cpr: str
     username: str  # AD username
     job_function: str
 
@@ -253,12 +256,15 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
-def get_opus_manager_eng_user_key(
+def get_opus_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     org_unit: dict[str, Any],
     employee_eng_user_key: str,
-) -> str:
+) -> tuple[str, str]:
     manager = only(org_unit["managers"], {})  # type: ignore
+    manager_person = only(manager.get("person", []), default=dict())  # type: ignore
+    manager_cpr = manager_person.get("cpr_number", "")
+
     # The manager user_key is the same as the engagement user_key
     manager_eng_user_key = manager.get("user_key", "")
 
@@ -288,9 +294,11 @@ def get_opus_manager_eng_user_key(
 
         parent_ou = one(parent_ou_resp["org_units"]["objects"])
         parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
+        manager_person = only(manager.get("person", []), default=dict())  # type: ignore
+        manager_cpr = manager_person.get("cpr_number", "")
         manager_eng_user_key = parent_manager.get("user_key", "")
 
-    return manager_eng_user_key
+    return manager_eng_user_key, manager_cpr
 
 
 def _get_sd_manager_eng_user_key(
@@ -313,16 +321,18 @@ def _get_sd_manager_eng_user_key(
     return manager_eng_user_key
 
 
-def get_sd_manager_eng_user_key(
+def get_sd_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     org_unit: dict[str, Any],
     employee_eng_user_key: str,
-) -> str:
+) -> tuple[str, str]:
     ancestors = org_unit.get("ancestors", [])
     ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
     potential_manager_eng_unit_uuids = [org_unit["uuid"]] + ancestor_uuids
 
     manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+    manager_person = only(manager.get("person", []), default=dict())  # type: ignore
+    manager_cpr = manager_person.get("cpr_number", "")
 
     manager_eng_user_key = _get_sd_manager_eng_user_key(
         potential_manager_eng_unit_uuids, manager
@@ -345,6 +355,7 @@ def get_sd_manager_eng_user_key(
         #                                 "user_key": "12345",
         #                                 "person": [
         #                                     {
+        #                                         "cpr_number": "0101011234",
         #                                         "engagements": [
         #                                             {
         #                                                 "user_key": "54321",
@@ -379,30 +390,33 @@ def get_sd_manager_eng_user_key(
             logger.warning("More than one manager found!")
             parent_manager = dict()
 
+        manager_person = only(parent_manager.get("person", []), default=dict())  # type: ignore
+        manager_cpr = manager_person.get("cpr_number", "")
+
         manager_eng_user_key = _get_sd_manager_eng_user_key(
             ancestor_uuids, parent_manager
         )
 
-    return manager_eng_user_key
+    return manager_eng_user_key, manager_cpr
 
 
-def get_manager_eng_user_key(
+def get_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     settings: SafetyNetSettings,
     current_unit: dict[str, Any],
     employee_eng_user_key: str,
-) -> str:
+) -> tuple[str, str]:
     """
     State/strategy pattern for getting the managers engagement user_key.
     """
     if settings.source_system == SourceSystem.OPUS:
-        return get_opus_manager_eng_user_key(
+        return get_opus_manager_eng_user_key_and_cpr(
             gql_client=gql_client,
             org_unit=current_unit,
             employee_eng_user_key=employee_eng_user_key,
         )
     elif settings.source_system == SourceSystem.SD:
-        return get_sd_manager_eng_user_key(
+        return get_sd_manager_eng_user_key_and_cpr(
             gql_client=gql_client,
             org_unit=current_unit,
             employee_eng_user_key=employee_eng_user_key,
@@ -488,7 +502,7 @@ def process_engagement(
     email = first(person["addresses"], {}).get("value", "")  # type: ignore
     cpr = person["cpr_number"] if person["cpr_number"] is not None else ""
 
-    manager_eng_user_key = get_manager_eng_user_key(
+    manager_eng_user_key, manager_cpr = get_manager_eng_user_key_and_cpr(
         gql_client=gql_client,
         settings=settings,
         current_unit=org_unit,
@@ -505,6 +519,7 @@ def process_engagement(
         eng_start=eng_start,
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
+        manager_cpr=manager_cpr,
         username=first(email.split("@")),
         job_function=current["job_function"]["name"],
     )
@@ -560,6 +575,7 @@ def process_adm_unit(
     #                 "user_key": "54321",
     #                 "person": [
     #                   {
+    #                     "cpr_number": "0101011234",
     #                     "engagements": [
     #                       {
     #                         "user_key": "54321",
