@@ -304,6 +304,7 @@ def get_opus_manager_eng_user_key_and_cpr(
 def _get_sd_manager_eng_user_key(
     potential_manager_eng_unit_uuids: list[str],
     manager: dict[str, Any],
+    allowed_engagement_types: list[str],
 ) -> str:
     person = only(manager.get("person", []), default=dict())  # type: ignore
     engagements = person.get("engagements", [])
@@ -313,7 +314,7 @@ def _get_sd_manager_eng_user_key(
             eng["user_key"]
             for eng in engagements
             if eng["org_unit_uuid"] in potential_manager_eng_unit_uuids
-            and eng["engagement_type"]["user_key"] == "månedsløn"
+            and eng["engagement_type"]["user_key"] in allowed_engagement_types
         ),
         default="",
     )
@@ -323,6 +324,7 @@ def _get_sd_manager_eng_user_key(
 
 def get_sd_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
+    settings: SafetyNetSettings,
     org_unit: dict[str, Any],
     employee_eng_user_key: str,
 ) -> tuple[str, str]:
@@ -335,7 +337,7 @@ def get_sd_manager_eng_user_key_and_cpr(
     manager_cpr = manager_person.get("cpr_number", "")
 
     manager_eng_user_key = _get_sd_manager_eng_user_key(
-        potential_manager_eng_unit_uuids, manager
+        potential_manager_eng_unit_uuids, manager, settings.allowed_sd_engagement_types
     )
 
     # If the manager is the employee itself, use the manager of the parent units
@@ -394,7 +396,7 @@ def get_sd_manager_eng_user_key_and_cpr(
         manager_cpr = manager_person.get("cpr_number", "")
 
         manager_eng_user_key = _get_sd_manager_eng_user_key(
-            ancestor_uuids, parent_manager
+            ancestor_uuids, parent_manager, settings.allowed_sd_engagement_types
         )
 
     return manager_eng_user_key, manager_cpr
@@ -418,6 +420,7 @@ def get_manager_eng_user_key_and_cpr(
     elif settings.source_system == SourceSystem.SD:
         return get_sd_manager_eng_user_key_and_cpr(
             gql_client=gql_client,
+            settings=settings,
             org_unit=current_unit,
             employee_eng_user_key=employee_eng_user_key,
         )
