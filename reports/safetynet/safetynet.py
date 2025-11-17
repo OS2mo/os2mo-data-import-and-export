@@ -832,23 +832,26 @@ def process_med_unit(
     return med_ass_rows, med_ou_rows
 
 
-def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
+def adm_eng_rows_to_csv_lines(
+    rows: list[AdmEngRow], include_manager_cpr: bool
+) -> list[str]:
     """
     Convert ADM engagement data models to CSV
     """
     return [
-        "Medarbejdernummer||"
-        "CPR||"
-        "Fornavn||"
-        "Efternavn||"
-        "Mail||"
-        "Afdelingskode||"
-        "Startdato||"
-        "Slutdato||"
-        "LedersMedarbejdernummer||"
-        "Brugernavn||"
-        "Titel||"
-        "Faggruppe\n"
+        f"Medarbejdernummer||"
+        f"CPR||"
+        f"Fornavn||"
+        f"Efternavn||"
+        f"Mail||"
+        f"Afdelingskode||"
+        f"Startdato||"
+        f"Slutdato||"
+        f"LedersMedarbejdernummer||"
+        f"{'LedersCPR||' if include_manager_cpr else ''}"
+        f"Brugernavn||"
+        f"Titel||"
+        f"Faggruppe\n"
     ] + [
         (
             f"{r.person_user_key}||"
@@ -860,6 +863,7 @@ def adm_eng_rows_to_csv_lines(rows: list[AdmEngRow]) -> list[str]:
             f"{r.eng_start}||"
             f"{r.eng_end}||"
             f"{r.manager_eng_user_key}||"
+            f"{r.manager_cpr + '||' if include_manager_cpr else ''}"
             f"{r.username}||"
             f"{r.job_function}||"
             f"{r.job_function}\n"
@@ -1045,7 +1049,7 @@ def main(
     adm_eng_rows, adm_ou_rows = process_adm_unit(
         gql_client, settings, adm_unit_uuid, [], []
     )
-    csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows)
+    csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows, settings.include_manager_cpr)
     if skip_upload:
         write_csv("/tmp/adm-engagements.csv", csv_lines)
     else:

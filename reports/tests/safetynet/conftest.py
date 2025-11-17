@@ -112,7 +112,7 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
@@ -226,7 +226,7 @@ def sd_ou_parent_manager() -> dict[str, Any]:
                                                         "user_key": "månedsløn",
                                                     },
                                                 },
-                                            ]
+                                            ],
                                         }
                                     ],
                                 }
@@ -281,7 +281,7 @@ def sd_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
@@ -343,7 +343,7 @@ def sd_ou_manager_in_ancestor() -> dict[str, Any]:
                                                     "user_key": "månedsløn",
                                                 },
                                             },
-                                        ]
+                                        ],
                                     }
                                 ],
                             }
