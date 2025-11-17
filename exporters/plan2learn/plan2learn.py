@@ -6,6 +6,7 @@
 Helper class to make a number of pre-defined queries into MO
 """
 
+import asyncio
 import datetime
 import logging
 import sys
@@ -16,9 +17,13 @@ from uuid import UUID
 
 import click
 from anytree import PreOrderIter
+from fastramqpi.ra_utils.asyncio_utils import gather_with_concurrency
 from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from gql.client import AsyncClientSession
 from more_itertools import first
 from more_itertools import flatten
+from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from exporters.plan2learn.plan2learn_settings import Settings
@@ -347,194 +352,162 @@ def find_start_date_viborg(active: bool, engv: dict) -> str:
     return engv["from_date"]
 
 
-def find_start_date_rsd(eng: list[dict]) -> str:
-    return min(eng, key=lambda e: e["from_date"])["from_date"]
+async def find_start_date_rsd(session: AsyncClientSession, uuid: str) -> str:
+    res = await session.execute(
+        gql("""query EngagementStartdate($uuids: [UUID!]) {
+                  engagements(filter: { uuids: $uuids, from_date: null, to_date: null }) {
+                    objects {
+                      validities {
+                        validity {
+                          from
+                        }
+                      }
+                    }
+                  }
+                }
+                """),
+        variable_values={"uuids": [uuid]},
+    )
+    validities = one(res["engagements"]["objects"])["validities"]
+    return min([e["validity"]["from"] for e in validities])
 
 
-def find_start_date(
-    settings: Settings, active: bool, engv: dict, eng: list[dict]
+async def find_start_date(
+    settings: Settings, active: bool, engv: dict, session: AsyncClientSession
 ) -> str:
     if settings.plan2learn_variant == Variant.viborg:
         return find_start_date_viborg(active, engv)
     elif settings.plan2learn_variant == Variant.rsd:
-        return find_start_date_rsd(eng)
+        return await find_start_date_rsd(session=session, uuid=engv["uuid"])
     else:
         raise NotImplementedError()
 
 
-def export_engagement(
+async def engagement_row(
+    settings,
+    session,
+    employee_effects,
+    lc,
+    lc_historic,
+    eksporterede_afdelinger,
+    allowed_engagement_types,
+    exported_engagements,
+    mh,
+    brugere_rows,
+):
+    err_msg = "Skipping {}, due to non-allowed engagement type"
+    rows = []
+    for eng in lc_historic.engagements.values():
+        # We can consistenly access index 0, the historic export
+        # is for the purpose of catching future engagements, not
+        # to catch all validities
+        engv = eng[0]
+
+        # As this is not the historic cache, there should only be one user
+        employee = employee_effects[0]
+
+        if engv["user"] != employee["uuid"]:
+            continue
+
+        if engv["unit"] not in eksporterede_afdelinger:
+            msg = "Unit {} is not included in the export"
+            logger.info(msg.format(engv["unit"]))
+            continue
+
+        if UUID(engv["engagement_type"]) not in allowed_engagement_types:
+            logger.debug(err_msg.format(eng))
+            continue
+
+        if engv["uuid"] in exported_engagements:
+            continue
+        exported_engagements.append(engv["uuid"])
+
+        valid_from = datetime.datetime.strptime(engv["from_date"], "%Y-%m-%d")
+        active = valid_from < datetime.datetime.now()
+
+        start_dato = await find_start_date(settings, active, engv, session)
+        # Currently we always set engagment to active, even if it is not.
+        aktiv_status = 1
+
+        if engv["uuid"] in lc.engagements:
+            primary = lc.engagements[engv["uuid"]][0]["primary_boolean"]
+        else:
+            # This is a future engagement, we accept that the LoRa cache will
+            # not provide the answer and search in MO.
+            mo_engagements = mh.read_user_engagement(
+                employee["uuid"],
+                read_all=True,
+                skip_past=True,
+                calculate_primary=True,
+            )
+            primary = None
+            for mo_eng in mo_engagements:
+                if mo_eng["uuid"] == engv["uuid"]:
+                    primary = mo_eng["is_primary"]
+            if primary is None:
+                msg = "Warning: Unable to find primary for {}!"
+                logger.warning(msg.format(engv["uuid"]))
+                print(msg.format(engv["uuid"]))
+                primary = False
+        if primary and settings.plan2learn_variant == Variant.viborg:
+            primær = 1
+            # Updates "brugere_rows" with "stilling".
+            # Only for Viborg as this is handled differently for RSD
+            update_user_positions_viborg(brugere_rows, employee, engv, lc)
+        else:
+            primær = 0
+
+        stilingskode_id = engv["job_function"]
+        ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
+        eng_type = lc.classes[engv["engagement_type"]]["title"]
+
+        row = {
+            "EngagementId": engv["uuid"],
+            "BrugerId": employee["uuid"],
+            "AfdelingsId": engv["unit"],
+            "AktivStatus": aktiv_status,
+            "StillingskodeId": stilingskode_id,
+            "Primær": primær,
+            "Engagementstype": eng_type,
+            "StartdatoEngagement": start_dato,
+        }
+        rows.append(row)
+    return rows
+
+
+async def export_engagement(
     settings: Settings,
     mh,
     eksporterede_afdelinger,
     brugere_rows,
-    lc,
-    lc_historic,
+    lc: GQLLoraCache,
+    lc_historic: GQLLoraCache,
 ) -> list[dict]:
     allowed_engagement_types = settings.exporters_plan2learn_allowed_engagement_types
-
-    rows = []
     # Keep a list of exported engagements to avoid exporting the same engagment
     # multiple times if it has multiple rows in MO.
-    exported_engagements = []
-
-    err_msg = "Skipping {}, due to non-allowed engagement type"
-    if lc and lc_historic:
-        for employee_effects in lc.users.values():
-            for eng in lc_historic.engagements.values():
-                # We can consistenly access index 0, the historic export
-                # is for the purpose of catching future engagements, not
-                # to catch all validities
-                engv = eng[0]
-
-                # As this is not the historic cache, there should only be one user
-                employee = employee_effects[0]
-
-                if engv["user"] != employee["uuid"]:
-                    continue
-
-                if engv["unit"] not in eksporterede_afdelinger:
-                    msg = "Unit {} is not included in the export"
-                    logger.info(msg.format(engv["unit"]))
-                    continue
-
-                if UUID(engv["engagement_type"]) not in allowed_engagement_types:
-                    logger.debug(err_msg.format(eng))
-                    continue
-
-                if engv["uuid"] in exported_engagements:
-                    continue
-                exported_engagements.append(engv["uuid"])
-
-                valid_from = datetime.datetime.strptime(engv["from_date"], "%Y-%m-%d")
-                active = valid_from < datetime.datetime.now()
-                start_dato = find_start_date(settings, active, engv, eng)
-                # Currently we always set engagment to active, even if it is not.
-                aktiv_status = 1
-
-                if engv["uuid"] in lc.engagements:
-                    primary = lc.engagements[engv["uuid"]][0]["primary_boolean"]
-                else:
-                    # This is a future engagement, we accept that the LoRa cache will
-                    # not provide the answer and search in MO.
-                    mo_engagements = mh.read_user_engagement(
-                        employee["uuid"],
-                        read_all=True,
-                        skip_past=True,
-                        calculate_primary=True,
-                    )
-                    primary = None
-                    for mo_eng in mo_engagements:
-                        if mo_eng["uuid"] == engv["uuid"]:
-                            primary = mo_eng["is_primary"]
-                    if primary is None:
-                        msg = "Warning: Unable to find primary for {}!"
-                        logger.warning(msg.format(engv["uuid"]))
-                        print(msg.format(engv["uuid"]))
-                        primary = False
-                if primary and settings.plan2learn_variant == Variant.viborg:
-                    primær = 1
-                    # Updates "brugere_rows" with "stilling".
-                    # Only for Viborg as this is handled differently for RSD
-                    update_user_positions_viborg(brugere_rows, employee, engv, lc)
-                else:
-                    primær = 0
-
-                stilingskode_id = engv["job_function"]
-                ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
-                eng_type = lc.classes[engv["engagement_type"]]["title"]
-
-                row = {
-                    "EngagementId": engv["uuid"],
-                    "BrugerId": employee["uuid"],
-                    "AfdelingsId": engv["unit"],
-                    "AktivStatus": aktiv_status,
-                    "StillingskodeId": stilingskode_id,
-                    "Primær": primær,
-                    "Engagementstype": eng_type,
-                    "StartdatoEngagement": start_dato,
-                }
-                rows.append(row)
-    else:
-        employees = mh.read_all_users()
-        for employee in employees:
-            logger.info("Read engagements for {}".format(employee))
-            engagements = mh.read_user_engagement(
-                employee["uuid"], read_all=True, skip_past=True, calculate_primary=True
-            )
-            present_engagements = mh.read_user_engagement(
-                employee["uuid"], read_all=False, calculate_primary=True
-            )
-            for eng in engagements:
-                if eng["org_unit"]["uuid"] not in eksporterede_afdelinger:
-                    # Denne afdeling er ikke med i afdelingseksport.
-                    continue
-
-                if UUID(eng["engagement_type"]["uuid"]) not in allowed_engagement_types:
-                    logger.debug(err_msg.format(eng))
-                    continue
-
-                if eng["uuid"] in exported_engagements:
-                    continue
-                exported_engagements.append(eng["uuid"])
-                logger.info("New line in file: {}".format(eng))
-
-                valid_from = datetime.datetime.strptime(
-                    eng["validity"]["from"], "%Y-%m-%d"
+    exported_engagements: list[str] = []
+    async with lc.make_client() as session:
+        rows = await gather_with_concurrency(
+            100,
+            *[
+                engagement_row(
+                    settings,
+                    session,
+                    employee_effects,
+                    lc,
+                    lc_historic,
+                    eksporterede_afdelinger,
+                    allowed_engagement_types,
+                    exported_engagements,
+                    mh,
+                    brugere_rows,
                 )
+                for employee_effects in lc.users.values()
+            ],
+        )
 
-                active = valid_from < datetime.datetime.now()
-                logger.info("Active status: {}".format(active))
-                if active:
-                    aktiv_status = 1
-                    start_dato = ""
-                else:
-                    # Currently we always set engagement to active, even if it
-                    # is not.
-                    aktiv_status = 1
-                    start_dato = eng["validity"]["from"]
-
-                if eng["is_primary"]:
-                    primær = 1
-
-                    # If we have a present engagement, make sure this is the
-                    # one we use.
-                    if present_engagements:
-                        for present_eng in present_engagements:
-                            if not present_eng["uuid"] == eng["uuid"]:
-                                # This is a future engagement
-                                continue
-                            for bruger in brugere_rows:
-                                if bruger["BrugerId"] == employee["uuid"]:
-                                    if eng["extension_3"]:
-                                        bruger["Stilling"] = eng["extension_3"]
-                                    else:
-                                        bruger["Stilling"] = eng["job_function"]["name"]
-                    else:
-                        for bruger in brugere_rows:
-                            if bruger["BrugerId"] == employee["uuid"]:
-                                if eng["extension_3"]:
-                                    bruger["Stilling"] = eng["extension_3"]
-                                else:
-                                    bruger["Stilling"] = eng["job_function"]["name"]
-                else:
-                    primær = 0
-
-                stilingskode_id = eng["job_function"]["uuid"]
-                ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
-
-                row = {
-                    "EngagementId": eng["uuid"],
-                    "BrugerId": employee["uuid"],
-                    "AfdelingsId": eng["org_unit"]["uuid"],
-                    "AktivStatus": aktiv_status,
-                    "StillingskodeId": stilingskode_id,
-                    "Primær": primær,
-                    "Engagementstype": eng["engagement_type"]["name"],
-                    "StartdatoEngagement": start_dato,
-                }
-
-                rows.append(row)
-    return rows
+    return [r for r in flatten(rows) if r is not None]
 
 
 def export_stillingskode(mh, lc=None) -> list[dict]:
@@ -687,14 +660,18 @@ def main(speedup, settings: Settings, dry_run=None):
     # Vi laver en liste over eksporterede afdelinger, så de som ikke er eksporterede
     # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
     eksporterede_afdelinger = [r["AfdelingsID"] for r in org_rows]
-    engagement_rows = export_engagement(
-        settings,
-        mh,
-        eksporterede_afdelinger,
-        brugere_rows,
-        lc,
-        lc_historic,
+
+    engagement_rows = asyncio.run(
+        export_engagement(
+            settings,
+            mh,
+            eksporterede_afdelinger,
+            brugere_rows,
+            lc,
+            lc_historic,
+        )
     )
+
     # TODO: Why is lc not passed into export_stillingskode?
     stillingskode_rows = export_stillingskode(mh)
 
