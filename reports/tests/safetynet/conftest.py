@@ -96,7 +96,7 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                 "user_key": "bf925460-2777-4b79-97ee-62eae4e46671",
                                 "person": [
                                     {
-                                        "cpr_number": "2010014321",
+                                        "cpr_number": "0101011255",
                                         "engagements": [
                                             {
                                                 "user_key": "12345",
