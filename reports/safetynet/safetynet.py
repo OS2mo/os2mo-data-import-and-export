@@ -522,7 +522,7 @@ def process_engagement(
         eng_start=eng_start,
         eng_end=eng_end,
         manager_eng_user_key=manager_eng_user_key,
-        manager_cpr=manager_cpr,
+        manager_cpr=manager_cpr if not manager_cpr == cpr else "",
         username=first(email.split("@")),
         job_function=current["job_function"]["name"],
     )
