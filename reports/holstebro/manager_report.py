@@ -201,7 +201,9 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
-        if ny_level_regex.match(one(eng["org_unit"])["org_unit_level"]["user_key"])
+        if ny_level_regex.match(
+            one(eng["org_unit"]).get("org_unit_level", {}).get("user_key", "")
+        )
         and sd_emp_id_regex.match(eng.get("user_key", ""))
     ]
 
