@@ -189,6 +189,16 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         address = first(current["addresses"], None)
         return current["cpr_number"] if address is None else ""
 
+    def get_ou_level(engagement: dict[str, Any]) -> str:
+        """
+        Get the OU level for the engagement unit. If the org_unit_level is None,
+        return the empty string.
+        """
+        ou_level = one(engagement["org_unit"]).get("org_unit_level")
+        if ou_level is None:
+            return ""
+        return ou_level.get("user_key", "")
+
     return [
         XLSXRow(
             employment_id=eng.get("user_key", ""),
@@ -201,9 +211,7 @@ def employees_to_xlsx_rows(employees: list[dict[str, Any]]) -> list[XLSXRow]:
         )
         for emp in employees
         for eng in emp["current"]["engagements"]
-        if ny_level_regex.match(
-            one(eng["org_unit"]).get("org_unit_level", {}).get("user_key", "")
-        )
+        if ny_level_regex.match(get_ou_level(eng))
         and sd_emp_id_regex.match(eng.get("user_key", ""))
     ]
 
