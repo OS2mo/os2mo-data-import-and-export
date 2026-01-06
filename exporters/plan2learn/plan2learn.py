@@ -170,7 +170,13 @@ def export_bruger_lc(settings: Settings, node, used_cprs, lc, lc_historic):
     lora_user_uuids = map(itemgetter("user"), lora_engagements)
     rows = []
     for user_uuid in lora_user_uuids:
-        user = lc.users[user_uuid][0]
+        try:
+            user = lc.users[user_uuid][0]
+        except KeyError:
+            logger.info(f"{user_uuid} not found")
+            # Bandaid: sometimes we have a user_uuid that is not in lc.users as
+            # the state is being changed while this program is running.
+            continue
         cpr = user["cpr"]
         if cpr in used_cprs:
             # print('Skipping user: {} '.format(uuid))
