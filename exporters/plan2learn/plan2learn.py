@@ -686,7 +686,9 @@ def main(speedup, settings: Settings, dry_run=None):
     )
 
     def upload(settings, filename, fieldnames, rows):
-        with file_uploader(settings, filename) as f:
+        with file_uploader(
+            settings, filename, timeout=settings.file_upload_timeout
+        ) as f:
             mh._write_csv(fieldnames, rows, f)
 
     upload(
