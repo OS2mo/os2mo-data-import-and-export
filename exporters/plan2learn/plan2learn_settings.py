@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     plan2learn_variant: Variant
 
     plan2learn_ftpes: Plan2LearnFTPES | None = None
+    file_upload_timeout: float = 60.0
 
     class Config:
         env_nested_delimiter = "__"
@@ -76,4 +77,5 @@ def get_unified_settings(kubernetes_environment: bool) -> Settings:
         exporters_plan2learn_root_unit=job_settings.exporters_plan2learn_root_unit,  # type: ignore
         integrations_SD_Lon_import_too_deep=job_settings.integrations_SD_Lon_import_too_deep,  # type: ignore
         plan2learn_ftpes=ftp_settings,
+        file_upload_timeout=60.0,
     )

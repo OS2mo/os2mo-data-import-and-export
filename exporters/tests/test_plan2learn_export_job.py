@@ -1,9 +1,13 @@
+import asyncio
+from unittest.mock import AsyncMock
 from unittest.mock import patch
 from uuid import UUID
+from uuid import uuid4
 
 import pytest
 from more_itertools import first
 
+from exporters.plan2learn.plan2learn import find_start_date_rsd
 from exporters.plan2learn.plan2learn import get_filtered_phone_addresses
 
 
@@ -185,3 +189,42 @@ def test_get_filtered_phone_addresses_sends_correct_address_from_filter_unit_tes
     )
 
     assert response == expected_result
+
+
+def test_rsd_start_date_0() -> None:
+    session = AsyncMock()
+    session.execute.return_value = {"engagements": {"objects": []}}
+
+    assert asyncio.run(find_start_date_rsd(session, str(uuid4()))) is None
+
+
+def test_rsd_start_date_1() -> None:
+    session = AsyncMock()
+    session.execute.return_value = {
+        "engagements": {"objects": [{"validities": [{"validity": {"from": "value"}}]}]}
+    }
+
+    assert asyncio.run(find_start_date_rsd(session, str(uuid4()))) == "value"
+
+
+def test_rsd_start_date_2() -> None:
+    session = AsyncMock()
+    session.execute.return_value = {
+        "engagements": {
+            "objects": [
+                {
+                    "validities": [
+                        {"validity": {"from": "value 1"}},
+                    ]
+                },
+                {
+                    "validities": [
+                        {"validity": {"from": "value 2"}},
+                    ]
+                },
+            ]
+        }
+    }
+
+    with pytest.raises(ValueError):
+        asyncio.run(find_start_date_rsd(session, str(uuid4())))
