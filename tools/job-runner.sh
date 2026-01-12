@@ -214,11 +214,6 @@ exports_mo_to_ad_sync(){
     ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
 }
 
-exports_ad_enddate_fixer(){
-    echo "Fixing enddates in AD of terminated engagements"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_fix_enddate
-}
-
 exports_plan2learn(){
     echo "running exports_plan2learn"
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
@@ -495,10 +490,6 @@ exports(){
 
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
         run-job exports_mo_to_ad_sync &
-    fi
-
-    if [ "${RUN_AD_ENDDATE_FIXER}" == "true" ]; then
-        run-job exports_ad_enddate_fixer &
     fi
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
