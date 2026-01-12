@@ -358,7 +358,7 @@ def find_start_date_viborg(active: bool, engv: dict) -> str:
     return engv["from_date"]
 
 
-async def find_start_date_rsd(session: AsyncClientSession, uuid: str) -> str:
+async def find_start_date_rsd(session: AsyncClientSession, uuid: str) -> str | None:
     res = await session.execute(
         gql("""query EngagementStartdate($uuids: [UUID!]) {
                   engagements(filter: { uuids: $uuids, from_date: null, to_date: null }) {
@@ -374,13 +374,19 @@ async def find_start_date_rsd(session: AsyncClientSession, uuid: str) -> str:
                 """),
         variable_values={"uuids": [uuid]},
     )
-    validities = one(res["engagements"]["objects"])["validities"]
-    return min([e["validity"]["from"] for e in validities])
+    objects = res["engagements"]["objects"]
+    if not objects:
+        # This can happen if an engagement is terminated or similar after the
+        # loracache has been built, but before this runs.
+        return None
+    if len(objects) > 1:
+        raise ValueError(f"Multiple objects found for uuid={uuid}")
+    return min([e["validity"]["from"] for e in objects[0]["validities"]])
 
 
 async def find_start_date(
     settings: Settings, active: bool, engv: dict, session: AsyncClientSession
-) -> str:
+) -> str | None:
     if settings.plan2learn_variant == Variant.viborg:
         return find_start_date_viborg(active, engv)
     elif settings.plan2learn_variant == Variant.rsd:
@@ -432,6 +438,8 @@ async def engagement_row(
         active = valid_from < datetime.datetime.now()
 
         start_dato = await find_start_date(settings, active, engv, session)
+        if start_dato is None:
+            continue
         # Currently we always set engagment to active, even if it is not.
         aktiv_status = 1
 
