@@ -302,7 +302,6 @@ def get_opus_manager_eng_user_key_and_cpr(
 
 
 def _get_sd_manager_eng_user_key(
-    potential_manager_eng_unit_uuids: list[str],
     manager: dict[str, Any],
     allowed_engagement_types: list[str],
 ) -> str:
@@ -313,8 +312,7 @@ def _get_sd_manager_eng_user_key(
         (
             eng["user_key"]
             for eng in engagements
-            if eng["org_unit_uuid"] in potential_manager_eng_unit_uuids
-            and eng["engagement_type"]["user_key"] in allowed_engagement_types
+            if eng["engagement_type"]["user_key"] in allowed_engagement_types
         ),
         default="",
     )
@@ -328,16 +326,12 @@ def get_sd_manager_eng_user_key_and_cpr(
     org_unit: dict[str, Any],
     employee_eng_user_key: str,
 ) -> tuple[str, str]:
-    ancestors = org_unit.get("ancestors", [])
-    ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
-    potential_manager_eng_unit_uuids = [org_unit["uuid"]] + ancestor_uuids
-
     manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
     manager_person = only(manager.get("person", []), default=dict())  # type: ignore
     manager_cpr = manager_person.get("cpr_number", "")
 
     manager_eng_user_key = _get_sd_manager_eng_user_key(
-        potential_manager_eng_unit_uuids, manager, settings.allowed_sd_engagement_types
+        manager, settings.allowed_sd_engagement_types
     )
 
     # If the manager is the employee itself, use the manager of the parent units
@@ -396,7 +390,7 @@ def get_sd_manager_eng_user_key_and_cpr(
         manager_cpr = manager_person.get("cpr_number", "")
 
         manager_eng_user_key = _get_sd_manager_eng_user_key(
-            ancestor_uuids, parent_manager, settings.allowed_sd_engagement_types
+            parent_manager, settings.allowed_sd_engagement_types
         )
 
     return manager_eng_user_key, manager_cpr
