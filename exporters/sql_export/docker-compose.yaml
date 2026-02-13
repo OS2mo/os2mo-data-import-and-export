@@ -32,12 +32,27 @@ services:
       EVENTDRIVEN: "true"
       USE_NEW_CACHE: "true"
       FULL_HISTORY: "true"
+
+      # Database
+      FASTRAMQPI__DATABASE__USER: "fastramqpi"
+      FASTRAMQPI__DATABASE__PASSWORD: "fastramqpi"
+      FASTRAMQPI__DATABASE__HOST: "db"
+      FASTRAMQPI__DATABASE__NAME: "fastramqpi"
     ports:
       - "127.0.0.1:8789:8000"
     volumes:
       - ./:/opt/sql_export/
     networks:
       - os2mo_default
+      - sql_export
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: "fastramqpi"
+      POSTGRES_PASSWORD: "fastramqpi"
+      POSTGRES_DB: "fastramqpi"
+    networks:
       - sql_export
 
   export-db:
