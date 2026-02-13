@@ -7,11 +7,6 @@ services:
     build: .
     command: ["uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
-      AUTH_SERVER: "http://keycloak:8080/auth"
-      CLIENT_ID: "dipex"
-      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-
-      MO_URL: "http://mo:5000"
       MORA_BASE: "http://mo:5000"
       MOX_BASE: "http://mo:5000/lora"
 
@@ -28,16 +23,37 @@ services:
       HISTORIC_STATE__USER: postgres
       HISTORIC_STATE__PASSWORD: mysecretpassword2
 
-      FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker:5672/"
       EVENTDRIVEN: "true"
       USE_NEW_CACHE: "true"
       FULL_HISTORY: "true"
+
+      # MO
+      FASTRAMQPI__AMQP__URL: "amqp://guest:guest@msg-broker"
+      FASTRAMQPI__AUTH_SERVER: "http://keycloak:8080/auth"
+      FASTRAMQPI__MO_URL: "http://mo:5000"
+      FASTRAMQPI__CLIENT_ID: "dipex"
+      FASTRAMQPI__CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+
+      # Database
+      FASTRAMQPI__DATABASE__USER: "fastramqpi"
+      FASTRAMQPI__DATABASE__PASSWORD: "fastramqpi"
+      FASTRAMQPI__DATABASE__HOST: "db"
+      FASTRAMQPI__DATABASE__NAME: "fastramqpi"
     ports:
       - "127.0.0.1:8789:8000"
     volumes:
       - ./:/opt/sql_export/
     networks:
       - os2mo_default
+      - sql_export
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: "fastramqpi"
+      POSTGRES_PASSWORD: "fastramqpi"
+      POSTGRES_DB: "fastramqpi"
+    networks:
       - sql_export
 
   export-db:
