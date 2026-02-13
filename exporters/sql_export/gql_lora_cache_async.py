@@ -905,6 +905,8 @@ class GQLLoraCache:
                                 org_unit_uuid
                                 user_key
                                 itsystem_uuid
+                                external_id
+                                engagement_uuids
                                 primary_uuid
                                 validity {
                                     from
@@ -945,6 +947,8 @@ class GQLLoraCache:
                                 org_unit_uuid
                                 user_key
                                 itsystem_uuid
+                                external_id
+                                engagement_uuids
                                 primary_uuid
                                 validity {
                                     from
@@ -969,6 +973,8 @@ class GQLLoraCache:
             "itsystem_uuid": "itsystem",
             "org_unit_uuid": "unit",
             "user_key": "username",
+            "external_id": "external_id",
+            "engagement_uuids": "engagement_uuids",
         }
 
         res: dict = {}
@@ -1525,6 +1531,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 visibility_uuid
+                                engagement_uuid
                                 name
                                 value
                                 uuid
@@ -1570,6 +1577,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 visibility_uuid
+                                engagement_uuid
                                 name
                                 value
                                 uuid
@@ -1611,6 +1619,7 @@ class GQLLoraCache:
             "org_unit_uuid": "unit",
             "address_type_uuid": "adresse_type",
             "visibility_uuid": "visibility",
+            "engagement_uuid": "engagement_uuid",
         }
 
         res: dict = {}

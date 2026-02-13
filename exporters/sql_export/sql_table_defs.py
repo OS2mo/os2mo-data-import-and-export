@@ -113,6 +113,7 @@ class BaseAdresse(Compare):
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250))
     dar_uuid = Column(String(36))  # , ForeignKey('dar_adresser.uuid'))
+    engagement_uuid = Column(String(36))
     adressetype_uuid = Column(String(36))  # , ForeignKey("klasser.uuid"))
     adressetype_bvn = Column(String(250), nullable=False)
     adressetype_scope = Column(String(250), nullable=False)
@@ -233,6 +234,7 @@ class BaseItForbindelse(Compare):
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     brugernavn = Column(String(250))
+    eksternt_id = Column(String(250))
     primær_boolean = Column(Boolean)
     startdato = Column(String(10))
     slutdato = Column(String(10))
@@ -282,6 +284,22 @@ class WLederAnsvar(Base, BaseLederAnsvar):  # type: ignore
 
 class LederAnsvar(Base, BaseLederAnsvar):  # type: ignore
     __tablename__ = "leder_ansvar"
+
+
+class BaseItForbindelseEngagement(Compare):
+    id = Column(Integer, nullable=False, primary_key=True)
+    it_forbindelse_uuid = Column(String(36))
+    engagement_uuid = Column(String(36))
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
+
+
+class WItForbindelseEngagement(Base, BaseItForbindelseEngagement):  # type: ignore
+    __tablename__ = "wit_forbindelse_engagement"
+
+
+class ItForbindelseEngagement(Base, BaseItForbindelseEngagement):  # type: ignore
+    __tablename__ = "it_forbindelse_engagement"
 
 
 class BaseKLE(Compare):
@@ -369,4 +387,5 @@ sql_type = (
     | KLE
     | Enhedssammenkobling
     | DARAdresse
+    | ItForbindelseEngagement
 )
