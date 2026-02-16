@@ -34,6 +34,14 @@ services:
       FASTRAMQPI__CLIENT_ID: "dipex"
       FASTRAMQPI__CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
+      # GqlLoraCache (via JobSettings) does not use the FASTRAMQPI__ prefix, so we must set these explicitly
+      # alongside the prefixed versions used by the main FastRAMQPI application.
+      # NOTE: These must be kept in sync with .gitlab-ci.yml
+      CLIENT_ID: "dipex"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+      AUTH_REALM: "mo"
+      AUTH_SERVER: "http://keycloak:8080/auth"
+
       # Database
       FASTRAMQPI__DATABASE__USER: "fastramqpi"
       FASTRAMQPI__DATABASE__PASSWORD: "fastramqpi"
