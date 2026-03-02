@@ -31,7 +31,7 @@ def app(load_marked_envvars: None) -> FastAPI:
 async def graphql_client(mo_client: AsyncClient) -> AsyncIterator[AsyncClientSession]:
     """Authenticated GraphQL codegen client for OS2mo."""
     url = f"{mo_client.base_url}/graphql/v{GRAPHQL_VERSION}"
-    
+
     client = GraphQLClient(
         url=url,
         client_id=os.environ["CLIENT_ID"],
