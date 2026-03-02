@@ -32,11 +32,6 @@ async def graphql_client(mo_client: AsyncClient) -> AsyncIterator[AsyncClientSes
     """Authenticated GraphQL codegen client for OS2mo."""
     url = f"{mo_client.base_url}/graphql/v{GRAPHQL_VERSION}"
     
-    print(f"DEBUG: CLIENT_ID={os.environ.get('CLIENT_ID')}")
-    print(f"DEBUG: CLIENT_SECRET={os.environ.get('CLIENT_SECRET')}")
-    print(f"DEBUG: AUTH_SERVER={os.environ.get('AUTH_SERVER')}")
-    print(f"DEBUG: AUTH_REALM={os.environ.get('AUTH_REALM')}")
-
     client = GraphQLClient(
         url=url,
         client_id=os.environ["CLIENT_ID"],
