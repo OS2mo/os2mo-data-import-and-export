@@ -4,6 +4,7 @@ from typing import AsyncIterator
 from typing import Awaitable
 from typing import Callable
 from typing import Iterator
+from uuid import UUID
 
 import pytest
 from fastapi import FastAPI
@@ -19,6 +20,123 @@ from sqlalchemy.orm import Session
 
 GRAPHQL_VERSION = 22
 VALIDITY = {"from": "2020-01-01", "to": None}
+
+
+@pytest.fixture
+async def address_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "address_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def org_unit_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def org_unit_level_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "org_unit_level", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def visibility_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "visibility", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def engagement_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "engagement_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def job_function_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "job_function", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def leave_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "leave_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def kle_aspect_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "kle_aspect", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def kle_number_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "kle_number", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def manager_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "manager_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def manager_level_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "manager_level", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def responsibility_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "responsibility", "published": "Publiceret", "validity": VALIDITY}
+    ))
+
+
+@pytest.fixture
+async def association_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(await create_facet(
+        {"user_key": "association_type", "published": "Publiceret", "validity": VALIDITY}
+    ))
 
 
 @pytest.fixture

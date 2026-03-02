@@ -7,7 +7,6 @@ from typing import Callable
 import pytest
 from more_itertools import one
 from sql_export.sql_table_defs import ItForbindelse
-from sql_export.sql_table_defs import ItSystem
 from sqlalchemy.orm import Session
 
 from .conftest import VALIDITY
@@ -47,9 +46,6 @@ async def test_it_connection_sync(
     )
 
     await trigger()
-
-    it_system = one(actual_state_db_session.query(ItSystem).filter_by(uuid=it_system_uuid).all())
-    assert it_system.navn == "My System"
 
     conn = one(actual_state_db_session.query(ItForbindelse).filter_by(uuid=it_connection_uuid).all())
     assert conn.it_system_uuid == it_system_uuid

@@ -3,6 +3,7 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from uuid import UUID
 
 import pytest
 from more_itertools import one
@@ -15,21 +16,17 @@ from .conftest import VALIDITY
 @pytest.mark.integration_test
 async def test_dar_address_sync(
     trigger: Callable[[], Awaitable[None]],
-    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    address_type_facet: UUID,
     create_class: Callable[[dict[str, Any]], Awaitable[str]],
     create_person: Callable[[dict[str, Any]], Awaitable[str]],
     create_address: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    address_type_facet = await create_facet(
-        {"user_key": "address_type", "published": "Publiceret", "validity": VALIDITY}
-    )
-
     dar_address_type_uuid = await create_class(
         {
             "user_key": "dar_addr",
             "name": "DAR Address",
-            "facet_uuid": address_type_facet,
+            "facet_uuid": str(address_type_facet),
             "scope": "DAR",
             "published": "Publiceret",
             "validity": VALIDITY,

@@ -3,6 +3,7 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
+from uuid import UUID
 
 import pytest
 from more_itertools import one
@@ -15,24 +16,18 @@ from .conftest import VALIDITY
 @pytest.mark.integration_test
 async def test_related_units_sync(
     trigger: Callable[[], Awaitable[None]],
-    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    org_unit_type_facet: UUID,
+    org_unit_level_facet: UUID,
     create_class: Callable[[dict[str, Any]], Awaitable[str]],
     create_org_unit: Callable[[dict[str, Any]], Awaitable[str]],
     create_related: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    org_unit_type_facet = await create_facet(
-        {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
-    )
-    org_unit_level_facet = await create_facet(
-        {"user_key": "org_unit_level", "published": "Publiceret", "validity": VALIDITY}
-    )
-
     unit_type_uuid = await create_class(
         {
             "user_key": "unit_type",
             "name": "Unit Type",
-            "facet_uuid": org_unit_type_facet,
+            "facet_uuid": str(org_unit_type_facet),
             "published": "Publiceret",
             "validity": VALIDITY,
         }
@@ -41,7 +36,7 @@ async def test_related_units_sync(
         {
             "user_key": "level",
             "name": "Level",
-            "facet_uuid": org_unit_level_facet,
+            "facet_uuid": str(org_unit_level_facet),
             "published": "Publiceret",
             "validity": VALIDITY,
         }
