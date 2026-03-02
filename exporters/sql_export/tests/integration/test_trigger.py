@@ -11,6 +11,8 @@ from sql_export.sql_table_defs import Bruger
 from sql_export.sql_table_defs import Enhed
 from sql_export.sql_table_defs import Engagement
 from sql_export.sql_table_defs import Adresse
+from sql_export.sql_table_defs import ItSystem
+from sql_export.sql_table_defs import ItForbindelse
 from sqlalchemy.orm import Session
 
 
@@ -303,3 +305,55 @@ async def test_address_sync(
     assert found_addr.bruger_uuid == person_uuid
     assert found_addr.adressetype_uuid == address_type_uuid
     assert found_addr.synlighed_uuid == visibility_uuid
+
+
+@pytest.mark.integration_test
+async def test_it_connection_sync(
+    trigger: Callable[[], Awaitable[None]],
+    create_person: Callable[[dict[str, Any]], Awaitable[str]],
+    create_it_system: Callable[[dict[str, Any]], Awaitable[str]],
+    create_it_connection: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    # 1. Setup dependencies
+    person_uuid = await create_person(
+        {
+            "cpr_number": "0404700000",
+            "given_name": "IT",
+            "surname": "User",
+            "user_key": "it_user",
+        }
+    )
+    it_system_uuid = await create_it_system(
+        {
+            "name": "My System",
+            "user_key": "my_system",
+        }
+    )
+
+    # 2. Create IT Connection
+    input_data = {
+        "user_key": "it_username",
+        "employee_uuid": person_uuid,
+        "itsystem_uuid": it_system_uuid,
+        "validity": {"from": "2020-01-01", "to": None},
+    }
+    it_connection_uuid = await create_it_connection(input_data)
+
+    await trigger()
+
+    # 3. Assert
+    # Check ItSystem
+    it_systems = actual_state_db_session.query(ItSystem).all()
+    found_sys = next((s for s in it_systems if s.uuid == it_system_uuid), None)
+    assert found_sys is not None
+    assert found_sys.navn == "My System"
+
+    # Check ItForbindelse
+    it_connections = actual_state_db_session.query(ItForbindelse).all()
+    found_conn = next((c for c in it_connections if c.uuid == it_connection_uuid), None)
+    
+    assert found_conn is not None
+    assert found_conn.it_system_uuid == it_system_uuid
+    assert found_conn.bruger_uuid == person_uuid
+    assert found_conn.brugernavn == input_data["user_key"]
