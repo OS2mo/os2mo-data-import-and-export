@@ -289,3 +289,95 @@ def create_manager(
         return create_resp["manager_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_association(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an Association."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateAssociation($input: AssociationCreateInput!) {
+            association_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["association_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_leave(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Leave."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateLeave($input: LeaveCreateInput!) {
+            leave_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["leave_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_kle(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a KLE."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateKLE($input: KLECreateInput!) {
+            kle_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["kle_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_related(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Related Units (Enhedssammenkobling)."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateRelatedUnits($input: RelatedUnitsUpdateInput!) {
+            related_units_update(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["related_units_update"]["uuid"]
+
+    return inner
