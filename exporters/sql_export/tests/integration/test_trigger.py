@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from more_itertools import one
 from sql_export.sql_table_defs import Bruger
 from sql_export.sql_table_defs import Enhed
+from sql_export.sql_table_defs import Engagement
 from sqlalchemy.orm import Session
 
 
@@ -133,3 +134,105 @@ async def test_org_unit_sync(
     assert found_unit.navn == input_data["name"]
     assert found_unit.enhedstype_uuid == unit_type_uuid
     assert found_unit.enhedsniveau_uuid == level_uuid
+
+
+@pytest.mark.integration_test
+async def test_engagement_sync(
+    trigger: Callable[[], Awaitable[None]],
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    create_class: Callable[[dict[str, Any]], Awaitable[str]],
+    create_person: Callable[[dict[str, Any]], Awaitable[str]],
+    create_org_unit: Callable[[dict[str, Any]], Awaitable[str]],
+    create_engagement: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    # 1. Setup dependencies
+    engagement_type_facet = await create_facet(
+        {"user_key": "engagement_type", "description": "engagement_type"}
+    )
+    job_function_facet = await create_facet(
+        {"user_key": "job_function", "description": "job_function"}
+    )
+    org_unit_type_facet = await create_facet(
+        {"user_key": "org_unit_type", "description": "org_unit_type"}
+    )
+    org_unit_level_facet = await create_facet(
+        {"user_key": "org_unit_level", "description": "org_unit_level"}
+    )
+
+    engagement_type_uuid = await create_class(
+        {
+            "user_key": "eng_type",
+            "title": "Eng Type",
+            "facet_uuid": engagement_type_facet,
+            "scope": "TEXT",
+        }
+    )
+    job_function_uuid = await create_class(
+        {
+            "user_key": "job_func",
+            "title": "Job Func",
+            "facet_uuid": job_function_facet,
+            "scope": "TEXT",
+        }
+    )
+    unit_type_uuid = await create_class(
+        {
+            "user_key": "unit_type",
+            "title": "Unit Type",
+            "facet_uuid": org_unit_type_facet,
+            "scope": "TEXT",
+        }
+    )
+    level_uuid = await create_class(
+        {
+            "user_key": "level",
+            "title": "Level",
+            "facet_uuid": org_unit_level_facet,
+            "scope": "TEXT",
+        }
+    )
+
+    person_uuid = await create_person(
+        {
+            "cpr_number": "0202700000",
+            "given_name": "Eng",
+            "surname": "User",
+            "user_key": "eng_user",
+        }
+    )
+    unit_uuid = await create_org_unit(
+        {
+            "user_key": "eng_unit",
+            "name": "Eng Unit",
+            "org_unit_type_uuid": unit_type_uuid,
+            "org_unit_level_uuid": level_uuid,
+            "parent_uuid": None,
+            "validity": {"from": "2020-01-01", "to": None},
+        }
+    )
+
+    # 2. Create Engagement
+    input_data = {
+        "user_key": "my_eng",
+        "employee_uuid": person_uuid,
+        "org_unit_uuid": unit_uuid,
+        "engagement_type_uuid": engagement_type_uuid,
+        "job_function_uuid": job_function_uuid,
+        "fraction": 100,
+        "validity": {"from": "2020-01-01", "to": None},
+    }
+    engagement_uuid = await create_engagement(input_data)
+
+    await trigger()
+
+    # 3. Assert
+    engagements = actual_state_db_session.query(Engagement).all()
+    found_eng = next((e for e in engagements if e.uuid == engagement_uuid), None)
+    
+    assert found_eng is not None
+    assert found_eng.bvn == input_data["user_key"]
+    assert found_eng.bruger_uuid == person_uuid
+    assert found_eng.enhed_uuid == unit_uuid
+    assert found_eng.engagementstype_uuid == engagement_type_uuid
+    assert found_eng.stillingsbetegnelse_uuid == job_function_uuid
