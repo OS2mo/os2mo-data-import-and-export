@@ -125,14 +125,12 @@ async def test_org_unit_sync(
     await trigger()
 
     # 3. Read from DB and assert
-    units = actual_state_db_session.query(Enhed).all()
-    found_unit = next((u for u in units if u.uuid == unit_uuid), None)
-
-    assert found_unit is not None
-    assert found_unit.bvn == input_data["user_key"]
-    assert found_unit.navn == input_data["name"]
-    assert found_unit.enhedstype_uuid == unit_type_uuid
-    assert found_unit.enhedsniveau_uuid == level_uuid
+    unit = one(actual_state_db_session.query(Enhed).all())
+    assert unit.uuid == unit_uuid
+    assert unit.bvn == input_data["user_key"]
+    assert unit.navn == input_data["name"]
+    assert unit.enhedstype_uuid == unit_type_uuid
+    assert unit.enhedsniveau_uuid == level_uuid
 
 
 @pytest.mark.integration_test
