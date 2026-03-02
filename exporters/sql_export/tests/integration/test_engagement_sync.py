@@ -5,6 +5,7 @@ from typing import Awaitable
 from typing import Callable
 
 import pytest
+from more_itertools import one
 from sql_export.sql_table_defs import Engagement
 from sqlalchemy.orm import Session
 
@@ -103,12 +104,9 @@ async def test_engagement_sync(
 
     await trigger()
 
-    engagements = actual_state_db_session.query(Engagement).all()
-    found_eng = next((e for e in engagements if e.uuid == engagement_uuid), None)
-
-    assert found_eng is not None
-    assert found_eng.bvn == "my_eng"
-    assert found_eng.bruger_uuid == person_uuid
-    assert found_eng.enhed_uuid == unit_uuid
-    assert found_eng.engagementstype_uuid == engagement_type_uuid
-    assert found_eng.stillingsbetegnelse_uuid == job_function_uuid
+    eng = one(actual_state_db_session.query(Engagement).filter_by(uuid=engagement_uuid).all())
+    assert eng.bvn == "my_eng"
+    assert eng.bruger_uuid == person_uuid
+    assert eng.enhed_uuid == unit_uuid
+    assert eng.engagementstype_uuid == engagement_type_uuid
+    assert eng.stillingsbetegnelse_uuid == job_function_uuid

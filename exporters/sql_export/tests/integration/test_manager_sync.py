@@ -116,14 +116,11 @@ async def test_manager_sync(
 
     await trigger()
 
-    managers = actual_state_db_session.query(Leder).all()
-    found_mgr = next((m for m in managers if m.uuid == manager_uuid), None)
-
-    assert found_mgr is not None
-    assert found_mgr.bruger_uuid == person_uuid
-    assert found_mgr.enhed_uuid == unit_uuid
-    assert found_mgr.ledertype_uuid == manager_type_uuid
-    assert found_mgr.niveautype_uuid == manager_level_uuid
+    mgr = one(actual_state_db_session.query(Leder).filter_by(uuid=manager_uuid).all())
+    assert mgr.bruger_uuid == person_uuid
+    assert mgr.enhed_uuid == unit_uuid
+    assert mgr.ledertype_uuid == manager_type_uuid
+    assert mgr.niveautype_uuid == manager_level_uuid
 
     responsibility = one(actual_state_db_session.query(LederAnsvar).filter_by(leder_uuid=manager_uuid).all())
     assert responsibility.lederansvar_uuid == responsibility_uuid

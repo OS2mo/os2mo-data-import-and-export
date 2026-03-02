@@ -5,6 +5,7 @@ from typing import Awaitable
 from typing import Callable
 
 import pytest
+from more_itertools import one
 from sql_export.sql_table_defs import Adresse
 from sqlalchemy.orm import Session
 
@@ -68,11 +69,8 @@ async def test_address_sync(
 
     await trigger()
 
-    addresses = actual_state_db_session.query(Adresse).all()
-    found_addr = next((a for a in addresses if a.uuid == address_uuid), None)
-
-    assert found_addr is not None
-    assert found_addr.værdi == "test@example.com"
-    assert found_addr.bruger_uuid == person_uuid
-    assert found_addr.adressetype_uuid == address_type_uuid
-    assert found_addr.synlighed_uuid == visibility_uuid
+    addr = one(actual_state_db_session.query(Adresse).filter_by(uuid=address_uuid).all())
+    assert addr.værdi == "test@example.com"
+    assert addr.bruger_uuid == person_uuid
+    assert addr.adressetype_uuid == address_type_uuid
+    assert addr.synlighed_uuid == visibility_uuid
