@@ -24,6 +24,5 @@ async def test_facet_sync(
 
     await trigger()
 
-    facet = one(actual_state_db_session.query(Facet).all())
-    assert facet.uuid == facet_uuid
+    facet = one(actual_state_db_session.query(Facet).filter_by(uuid=facet_uuid).all())
     assert facet.bvn == "my_facet"

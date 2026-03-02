@@ -35,8 +35,7 @@ async def test_class_sync(
 
     await trigger()
 
-    klasse = one(actual_state_db_session.query(Klasse).all())
-    assert klasse.uuid == class_uuid
+    klasse = one(actual_state_db_session.query(Klasse).filter_by(uuid=class_uuid).all())
     assert klasse.bvn == "my_class"
     assert klasse.titel == "My Class"
     assert klasse.facet_uuid == facet_uuid

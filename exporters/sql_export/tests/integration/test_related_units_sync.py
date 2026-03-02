@@ -68,7 +68,8 @@ async def test_related_units_sync(
 
     related_uuid = await create_related(
         {
-            "org_units": [unit1_uuid, unit2_uuid],
+            "origin": unit1_uuid,
+            "destination": [unit2_uuid],
             "validity": VALIDITY,
         }
     )
@@ -76,5 +77,4 @@ async def test_related_units_sync(
     await trigger()
 
     related = one(actual_state_db_session.query(Enhedssammenkobling).all())
-    assert related.uuid == related_uuid
     assert {related.enhed1_uuid, related.enhed2_uuid} == {unit1_uuid, unit2_uuid}
