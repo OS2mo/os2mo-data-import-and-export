@@ -17,6 +17,8 @@ from sql_export.sql_table_defs import Leder
 from sql_export.sql_table_defs import LederAnsvar
 from sqlalchemy.orm import Session
 
+VALIDITY = {"from": "2020-01-01", "to": None}
+
 
 @pytest.mark.integration_test
 def test_trigger1() -> None:
@@ -85,26 +87,28 @@ async def test_org_unit_sync(
 ) -> None:
     # 1. Create needed classes
     org_unit_type_facet = await create_facet(
-        {"user_key": "org_unit_type", "description": "org_unit_type"}
+        {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
     )
     org_unit_level_facet = await create_facet(
-        {"user_key": "org_unit_level", "description": "org_unit_level"}
+        {"user_key": "org_unit_level", "published": "Publiceret", "validity": VALIDITY}
     )
-    
+
     unit_type_uuid = await create_class(
         {
             "user_key": "unit_type",
-            "title": "Unit Type",
+            "name": "Unit Type",
             "facet_uuid": org_unit_type_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     level_uuid = await create_class(
         {
             "user_key": "level",
-            "title": "Level",
+            "name": "Level",
             "facet_uuid": org_unit_level_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
 
@@ -112,10 +116,9 @@ async def test_org_unit_sync(
     input_data = {
         "user_key": "my_unit",
         "name": "My Unit",
-        "org_unit_type_uuid": unit_type_uuid,
-        "org_unit_level_uuid": level_uuid,
-        "parent_uuid": None, # Root unit
-        "validity": {"from": "2020-01-01", "to": None},
+        "org_unit_type": unit_type_uuid,
+        "org_unit_level": level_uuid,
+        "validity": VALIDITY,
     }
     unit_uuid = await create_org_unit(input_data)
 
@@ -123,17 +126,8 @@ async def test_org_unit_sync(
 
     # 3. Read from DB and assert
     units = actual_state_db_session.query(Enhed).all()
-    # Filter for our unit, assuming clean DB or at least check if ours is there
-    # But integration tests usually clean up or run in isolation.
-    # The fixture `purge_export_db` in conftest suggests cleanup.
-    
-    # We might have other units (like root unit created by system), so find ours
-    found_unit = None
-    for u in units:
-        if u.uuid == unit_uuid:
-            found_unit = u
-            break
-            
+    found_unit = next((u for u in units if u.uuid == unit_uuid), None)
+
     assert found_unit is not None
     assert found_unit.bvn == input_data["user_key"]
     assert found_unit.navn == input_data["name"]
@@ -153,48 +147,52 @@ async def test_engagement_sync(
 ) -> None:
     # 1. Setup dependencies
     engagement_type_facet = await create_facet(
-        {"user_key": "engagement_type", "description": "engagement_type"}
+        {"user_key": "engagement_type", "published": "Publiceret", "validity": VALIDITY}
     )
     job_function_facet = await create_facet(
-        {"user_key": "job_function", "description": "job_function"}
+        {"user_key": "job_function", "published": "Publiceret", "validity": VALIDITY}
     )
     org_unit_type_facet = await create_facet(
-        {"user_key": "org_unit_type", "description": "org_unit_type"}
+        {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
     )
     org_unit_level_facet = await create_facet(
-        {"user_key": "org_unit_level", "description": "org_unit_level"}
+        {"user_key": "org_unit_level", "published": "Publiceret", "validity": VALIDITY}
     )
 
     engagement_type_uuid = await create_class(
         {
             "user_key": "eng_type",
-            "title": "Eng Type",
+            "name": "Eng Type",
             "facet_uuid": engagement_type_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     job_function_uuid = await create_class(
         {
             "user_key": "job_func",
-            "title": "Job Func",
+            "name": "Job Func",
             "facet_uuid": job_function_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     unit_type_uuid = await create_class(
         {
             "user_key": "unit_type",
-            "title": "Unit Type",
+            "name": "Unit Type",
             "facet_uuid": org_unit_type_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     level_uuid = await create_class(
         {
             "user_key": "level",
-            "title": "Level",
+            "name": "Level",
             "facet_uuid": org_unit_level_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
 
@@ -210,33 +208,33 @@ async def test_engagement_sync(
         {
             "user_key": "eng_unit",
             "name": "Eng Unit",
-            "org_unit_type_uuid": unit_type_uuid,
-            "org_unit_level_uuid": level_uuid,
-            "parent_uuid": None,
-            "validity": {"from": "2020-01-01", "to": None},
+            "org_unit_type": unit_type_uuid,
+            "org_unit_level": level_uuid,
+            "validity": VALIDITY,
         }
     )
 
     # 2. Create Engagement
-    input_data = {
-        "user_key": "my_eng",
-        "employee_uuid": person_uuid,
-        "org_unit_uuid": unit_uuid,
-        "engagement_type_uuid": engagement_type_uuid,
-        "job_function_uuid": job_function_uuid,
-        "fraction": 100,
-        "validity": {"from": "2020-01-01", "to": None},
-    }
-    engagement_uuid = await create_engagement(input_data)
+    engagement_uuid = await create_engagement(
+        {
+            "user_key": "my_eng",
+            "person": person_uuid,
+            "org_unit": unit_uuid,
+            "engagement_type": engagement_type_uuid,
+            "job_function": job_function_uuid,
+            "fraction": 100,
+            "validity": VALIDITY,
+        }
+    )
 
     await trigger()
 
     # 3. Assert
     engagements = actual_state_db_session.query(Engagement).all()
     found_eng = next((e for e in engagements if e.uuid == engagement_uuid), None)
-    
+
     assert found_eng is not None
-    assert found_eng.bvn == input_data["user_key"]
+    assert found_eng.bvn == "my_eng"
     assert found_eng.bruger_uuid == person_uuid
     assert found_eng.enhed_uuid == unit_uuid
     assert found_eng.engagementstype_uuid == engagement_type_uuid
@@ -254,26 +252,29 @@ async def test_address_sync(
 ) -> None:
     # 1. Setup dependencies
     address_type_facet = await create_facet(
-        {"user_key": "address_type", "description": "address_type"}
+        {"user_key": "address_type", "published": "Publiceret", "validity": VALIDITY}
     )
     visibility_facet = await create_facet(
-        {"user_key": "visibility", "description": "visibility"}
+        {"user_key": "visibility", "published": "Publiceret", "validity": VALIDITY}
     )
 
     address_type_uuid = await create_class(
         {
             "user_key": "email",
-            "title": "Email",
+            "name": "Email",
             "facet_uuid": address_type_facet,
             "scope": "EMAIL",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     visibility_uuid = await create_class(
         {
             "user_key": "public",
-            "title": "Public",
+            "name": "Public",
             "facet_uuid": visibility_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
 
@@ -287,23 +288,24 @@ async def test_address_sync(
     )
 
     # 2. Create Address
-    input_data = {
-        "value": "test@example.com",
-        "employee_uuid": person_uuid,
-        "address_type_uuid": address_type_uuid,
-        "visibility_uuid": visibility_uuid,
-        "validity": {"from": "2020-01-01", "to": None},
-    }
-    address_uuid = await create_address(input_data)
+    address_uuid = await create_address(
+        {
+            "value": "test@example.com",
+            "person": person_uuid,
+            "address_type": address_type_uuid,
+            "visibility": visibility_uuid,
+            "validity": VALIDITY,
+        }
+    )
 
     await trigger()
 
     # 3. Assert
     addresses = actual_state_db_session.query(Adresse).all()
     found_addr = next((a for a in addresses if a.uuid == address_uuid), None)
-    
+
     assert found_addr is not None
-    assert found_addr.værdi == input_data["value"]
+    assert found_addr.værdi == "test@example.com"
     assert found_addr.bruger_uuid == person_uuid
     assert found_addr.adressetype_uuid == address_type_uuid
     assert found_addr.synlighed_uuid == visibility_uuid
@@ -330,17 +332,19 @@ async def test_it_connection_sync(
         {
             "name": "My System",
             "user_key": "my_system",
+            "validity": VALIDITY,
         }
     )
 
     # 2. Create IT Connection
-    input_data = {
-        "user_key": "it_username",
-        "employee_uuid": person_uuid,
-        "itsystem_uuid": it_system_uuid,
-        "validity": {"from": "2020-01-01", "to": None},
-    }
-    it_connection_uuid = await create_it_connection(input_data)
+    it_connection_uuid = await create_it_connection(
+        {
+            "user_key": "it_username",
+            "person": person_uuid,
+            "itsystem": it_system_uuid,
+            "validity": VALIDITY,
+        }
+    )
 
     await trigger()
 
@@ -354,11 +358,11 @@ async def test_it_connection_sync(
     # Check ItForbindelse
     it_connections = actual_state_db_session.query(ItForbindelse).all()
     found_conn = next((c for c in it_connections if c.uuid == it_connection_uuid), None)
-    
+
     assert found_conn is not None
     assert found_conn.it_system_uuid == it_system_uuid
     assert found_conn.bruger_uuid == person_uuid
-    assert found_conn.brugernavn == input_data["user_key"]
+    assert found_conn.brugernavn == "it_username"
 
 
 @pytest.mark.integration_test
@@ -373,59 +377,64 @@ async def test_manager_sync(
 ) -> None:
     # 1. Setup dependencies
     manager_type_facet = await create_facet(
-        {"user_key": "manager_type", "description": "manager_type"}
+        {"user_key": "manager_type", "published": "Publiceret", "validity": VALIDITY}
     )
     manager_level_facet = await create_facet(
-        {"user_key": "manager_level", "description": "manager_level"}
+        {"user_key": "manager_level", "published": "Publiceret", "validity": VALIDITY}
     )
     responsibility_facet = await create_facet(
-        {"user_key": "responsibility", "description": "responsibility"}
+        {"user_key": "responsibility", "published": "Publiceret", "validity": VALIDITY}
     )
     org_unit_type_facet = await create_facet(
-        {"user_key": "org_unit_type", "description": "org_unit_type"}
+        {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
     )
     org_unit_level_facet = await create_facet(
-        {"user_key": "org_unit_level", "description": "org_unit_level"}
+        {"user_key": "org_unit_level", "published": "Publiceret", "validity": VALIDITY}
     )
 
     manager_type_uuid = await create_class(
         {
             "user_key": "leader",
-            "title": "Leader",
+            "name": "Leader",
             "facet_uuid": manager_type_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     manager_level_uuid = await create_class(
         {
             "user_key": "level1",
-            "title": "Level 1",
+            "name": "Level 1",
             "facet_uuid": manager_level_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     responsibility_uuid = await create_class(
         {
             "user_key": "resp1",
-            "title": "Responsibility 1",
+            "name": "Responsibility 1",
             "facet_uuid": responsibility_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     unit_type_uuid = await create_class(
         {
             "user_key": "unit_type",
-            "title": "Unit Type",
+            "name": "Unit Type",
             "facet_uuid": org_unit_type_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
     level_uuid = await create_class(
         {
             "user_key": "level",
-            "title": "Level",
+            "name": "Level",
             "facet_uuid": org_unit_level_facet,
-            "scope": "TEXT",
+            "published": "Publiceret",
+            "validity": VALIDITY,
         }
     )
 
@@ -441,23 +450,23 @@ async def test_manager_sync(
         {
             "user_key": "manager_unit",
             "name": "Manager Unit",
-            "org_unit_type_uuid": unit_type_uuid,
-            "org_unit_level_uuid": level_uuid,
-            "parent_uuid": None,
-            "validity": {"from": "2020-01-01", "to": None},
+            "org_unit_type": unit_type_uuid,
+            "org_unit_level": level_uuid,
+            "validity": VALIDITY,
         }
     )
 
     # 2. Create Manager
-    input_data = {
-        "employee_uuid": person_uuid,
-        "org_unit_uuid": unit_uuid,
-        "manager_type_uuid": manager_type_uuid,
-        "manager_level_uuid": manager_level_uuid,
-        "responsibility_uuids": [responsibility_uuid],
-        "validity": {"from": "2020-01-01", "to": None},
-    }
-    manager_uuid = await create_manager(input_data)
+    manager_uuid = await create_manager(
+        {
+            "person": person_uuid,
+            "org_unit": unit_uuid,
+            "manager_type": manager_type_uuid,
+            "manager_level": manager_level_uuid,
+            "responsibility": [responsibility_uuid],
+            "validity": VALIDITY,
+        }
+    )
 
     await trigger()
 
@@ -465,7 +474,7 @@ async def test_manager_sync(
     # Check Leder
     managers = actual_state_db_session.query(Leder).all()
     found_mgr = next((m for m in managers if m.uuid == manager_uuid), None)
-    
+
     assert found_mgr is not None
     assert found_mgr.bruger_uuid == person_uuid
     assert found_mgr.enhed_uuid == unit_uuid

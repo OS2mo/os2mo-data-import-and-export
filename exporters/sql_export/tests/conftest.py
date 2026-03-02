@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
+import os
 from collections.abc import AsyncIterator
 
 import pytest
@@ -25,8 +26,23 @@ def integration_test_environment_variables(monkeypatch: pytest.MonkeyPatch) -> N
     """Default environment for integration tests.
 
     Automatically used by tests marked 'integration_test' (see pytest_collection_modifyitems).
+
+    GqlLoraCacheSettings (used by the app during startup) reads auth credentials
+    from unprefixed env vars (CLIENT_SECRET, etc.), but docker-compose only sets
+    FASTRAMQPI__-prefixed versions. Mirror the FASTRAMQPI__ auth settings so both
+    the app and test fixtures can find them.
     """
-    pass
+    # (source FASTRAMQPI__ env var, default if source is unset)
+    env_mappings = {
+        "CLIENT_ID": ("FASTRAMQPI__CLIENT_ID", "dipex"),
+        "CLIENT_SECRET": ("FASTRAMQPI__CLIENT_SECRET", None),
+        "AUTH_SERVER": ("FASTRAMQPI__AUTH_SERVER", "http://keycloak:8080/auth"),
+        "AUTH_REALM": ("FASTRAMQPI__AUTH_REALM", "mo"),
+    }
+    for target, (source, default) in env_mappings.items():
+        value = os.environ.get(source, default)
+        if value is not None:
+            monkeypatch.setenv(target, value)
 
 
 @pytest.fixture

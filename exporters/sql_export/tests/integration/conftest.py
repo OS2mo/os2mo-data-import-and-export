@@ -31,6 +31,11 @@ def app(load_marked_envvars: None) -> FastAPI:
 async def graphql_client(mo_client: AsyncClient) -> AsyncIterator[AsyncClientSession]:
     """Authenticated GraphQL codegen client for OS2mo."""
     url = f"{mo_client.base_url}/graphql/v{GRAPHQL_VERSION}"
+    
+    print(f"DEBUG: CLIENT_ID={os.environ.get('CLIENT_ID')}")
+    print(f"DEBUG: CLIENT_SECRET={os.environ.get('CLIENT_SECRET')}")
+    print(f"DEBUG: AUTH_SERVER={os.environ.get('AUTH_SERVER')}")
+    print(f"DEBUG: AUTH_REALM={os.environ.get('AUTH_REALM')}")
 
     client = GraphQLClient(
         url=url,
@@ -135,7 +140,7 @@ def create_org_unit(
 
     async def inner(input_data: dict[str, Any]) -> str:
         create_mutation = gql("""
-        mutation CreateOrgUnit($input: OrgUnitCreateInput!) {
+        mutation CreateOrgUnit($input: OrganisationUnitCreateInput!) {
             org_unit_create(input: $input) {
                 uuid
             }
