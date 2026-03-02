@@ -240,3 +240,26 @@ def create_it_connection(
         return create_resp["ituser_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_manager(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Manager."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateManager($input: ManagerCreateInput!) {
+            manager_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["manager_create"]["uuid"]
+
+    return inner

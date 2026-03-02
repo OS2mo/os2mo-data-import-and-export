@@ -13,6 +13,8 @@ from sql_export.sql_table_defs import Engagement
 from sql_export.sql_table_defs import Adresse
 from sql_export.sql_table_defs import ItSystem
 from sql_export.sql_table_defs import ItForbindelse
+from sql_export.sql_table_defs import Leder
+from sql_export.sql_table_defs import LederAnsvar
 from sqlalchemy.orm import Session
 
 
@@ -357,3 +359,120 @@ async def test_it_connection_sync(
     assert found_conn.it_system_uuid == it_system_uuid
     assert found_conn.bruger_uuid == person_uuid
     assert found_conn.brugernavn == input_data["user_key"]
+
+
+@pytest.mark.integration_test
+async def test_manager_sync(
+    trigger: Callable[[], Awaitable[None]],
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    create_class: Callable[[dict[str, Any]], Awaitable[str]],
+    create_person: Callable[[dict[str, Any]], Awaitable[str]],
+    create_org_unit: Callable[[dict[str, Any]], Awaitable[str]],
+    create_manager: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    # 1. Setup dependencies
+    manager_type_facet = await create_facet(
+        {"user_key": "manager_type", "description": "manager_type"}
+    )
+    manager_level_facet = await create_facet(
+        {"user_key": "manager_level", "description": "manager_level"}
+    )
+    responsibility_facet = await create_facet(
+        {"user_key": "responsibility", "description": "responsibility"}
+    )
+    org_unit_type_facet = await create_facet(
+        {"user_key": "org_unit_type", "description": "org_unit_type"}
+    )
+    org_unit_level_facet = await create_facet(
+        {"user_key": "org_unit_level", "description": "org_unit_level"}
+    )
+
+    manager_type_uuid = await create_class(
+        {
+            "user_key": "leader",
+            "title": "Leader",
+            "facet_uuid": manager_type_facet,
+            "scope": "TEXT",
+        }
+    )
+    manager_level_uuid = await create_class(
+        {
+            "user_key": "level1",
+            "title": "Level 1",
+            "facet_uuid": manager_level_facet,
+            "scope": "TEXT",
+        }
+    )
+    responsibility_uuid = await create_class(
+        {
+            "user_key": "resp1",
+            "title": "Responsibility 1",
+            "facet_uuid": responsibility_facet,
+            "scope": "TEXT",
+        }
+    )
+    unit_type_uuid = await create_class(
+        {
+            "user_key": "unit_type",
+            "title": "Unit Type",
+            "facet_uuid": org_unit_type_facet,
+            "scope": "TEXT",
+        }
+    )
+    level_uuid = await create_class(
+        {
+            "user_key": "level",
+            "title": "Level",
+            "facet_uuid": org_unit_level_facet,
+            "scope": "TEXT",
+        }
+    )
+
+    person_uuid = await create_person(
+        {
+            "cpr_number": "0505700000",
+            "given_name": "Manager",
+            "surname": "User",
+            "user_key": "manager_user",
+        }
+    )
+    unit_uuid = await create_org_unit(
+        {
+            "user_key": "manager_unit",
+            "name": "Manager Unit",
+            "org_unit_type_uuid": unit_type_uuid,
+            "org_unit_level_uuid": level_uuid,
+            "parent_uuid": None,
+            "validity": {"from": "2020-01-01", "to": None},
+        }
+    )
+
+    # 2. Create Manager
+    input_data = {
+        "employee_uuid": person_uuid,
+        "org_unit_uuid": unit_uuid,
+        "manager_type_uuid": manager_type_uuid,
+        "manager_level_uuid": manager_level_uuid,
+        "responsibility_uuids": [responsibility_uuid],
+        "validity": {"from": "2020-01-01", "to": None},
+    }
+    manager_uuid = await create_manager(input_data)
+
+    await trigger()
+
+    # 3. Assert
+    # Check Leder
+    managers = actual_state_db_session.query(Leder).all()
+    found_mgr = next((m for m in managers if m.uuid == manager_uuid), None)
+    
+    assert found_mgr is not None
+    assert found_mgr.bruger_uuid == person_uuid
+    assert found_mgr.enhed_uuid == unit_uuid
+    assert found_mgr.ledertype_uuid == manager_type_uuid
+    assert found_mgr.niveautype_uuid == manager_level_uuid
+
+    # Check LederAnsvar
+    responsibilities = actual_state_db_session.query(LederAnsvar).filter_by(leder_uuid=manager_uuid).all()
+    assert len(responsibilities) == 1
+    assert responsibilities[0].lederansvar_uuid == responsibility_uuid
