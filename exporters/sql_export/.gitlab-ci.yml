@@ -69,6 +69,13 @@ Integration-test SQL Exporter:
     ACTUAL_STATE__DB_NAME: actualstate
     ACTUAL_STATE__USER: postgres
     ACTUAL_STATE__PASSWORD: mysecretpassword
+    # GqlLoraCache settings
+    # GqlLoraCache (via JobSettings) does not use the FASTRAMQPI__ prefix, so we must set these explicitly.
+    # NOTE: These must be kept in sync with docker-compose.yaml
+    CLIENT_ID: "dipex"
+    CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+    AUTH_REALM: "mo"
+    AUTH_SERVER: "http://keycloak:8080/auth"
 
 
 # Release

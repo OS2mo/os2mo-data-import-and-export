@@ -28,7 +28,7 @@ RUN python -m venv $POETRY_HOME \
 WORKDIR /opt
 RUN python -m venv $VIRTUAL_ENV
 COPY poetry.lock pyproject.toml ./
-RUN poetry install --no-root --only=main
+RUN poetry install --no-root
 
 COPY . /opt/sql_export
 CMD [ "uvicorn", "--factory", "sql_export.main:create_app", "--host", "0.0.0.0" ]

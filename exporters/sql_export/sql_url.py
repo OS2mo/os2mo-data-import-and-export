@@ -22,6 +22,7 @@ SETTINGS_MAP = {
     DatabaseFunction.ACTUAL_STATE: {
         "type": "exporters.actual_state.type",
         "host": "exporters.actual_state.host",
+        "port": "exporters.actual_state.port",
         "db_name": "exporters.actual_state.db_name",
         "username": "exporters.actual_state.user",
         "password": "exporters.actual_state.password",
@@ -29,6 +30,7 @@ SETTINGS_MAP = {
     DatabaseFunction.ACTUAL_STATE_HISTORIC: {
         "type": "exporters.actual_state_historic.type",
         "host": "exporters.actual_state_historic.host",
+        "port": "exporters.actual_state_historic.port",
         "db_name": "exporters.actual_state_historic.db_name",
         "username": "exporters.actual_state_historic.user",
         "password": "exporters.actual_state_historic.password",
@@ -40,6 +42,7 @@ SETTINGS_MAP = {
 FALLBACK_MAP = {
     DatabaseFunction.ACTUAL_STATE_HISTORIC: {
         "host": "exporters.actual_state.host",
+        "port": "exporters.actual_state.port",
         "username": "exporters.actual_state.user",
         "password": "exporters.actual_state.password",
     },
@@ -98,6 +101,7 @@ def get_db_name(database_function: DatabaseFunction, settings: Dict) -> str:
 
 
 get_db_host = partial(load_setting, "host")
+get_db_port = partial(load_setting, "port")
 get_db_username = partial(load_setting, "username")
 get_db_password = partial(load_setting, "password")
 
@@ -124,28 +128,33 @@ def generate_connection_url(
     )
     user = get_db_username(database_function, settings)
     db_host = get_db_host(database_function, settings)
+    db_port = get_db_port(database_function, settings)
     pw_raw = get_db_password(database_function, settings)
     pw_raw = pw_raw or ""
     pw = urllib.parse.quote_plus(pw_raw)
+
+    host_str = db_host
+    if db_port:
+        host_str = f"{db_host}:{db_port}"
 
     if db_type == "Memory":
         return "sqlite://"
     if db_type == "SQLite":
         return "sqlite:///{}.db".format(db_name)
     if db_type == "MS-SQL":
-        return "mssql+pymssql://{}:{}@{}/{}".format(user, pw, db_host, db_name)
+        return "mssql+pymssql://{}:{}@{}/{}".format(user, pw, host_str, db_name)
     if db_type == "MS-SQL-ODBC":
         quoted = urllib.parse.quote_plus(
             (
                 "DRIVER=libtdsodbc.so;Server={};Database={};UID={};"
-                + "PWD={};TDS_Version=8.0;Port=1433;"
-            ).format(db_host, db_name, user, pw_raw)
+                + "PWD={};TDS_Version=8.0;Port={};"
+            ).format(db_host, db_name, user, pw_raw, db_port or 1433)
         )
         return "mssql+pyodbc:///?odbc_connect={}".format(quoted)
     if db_type == "Mysql":
-        return "mysql+mysqldb://{}:{}@{}/{}".format(user, pw, db_host, db_name)
+        return "mysql+mysqldb://{}:{}@{}/{}".format(user, pw, host_str, db_name)
     if db_type == "Postgres":
-        return "postgresql://{}:{}@{}/{}".format(user, pw, db_host, db_name)
+        return "postgresql://{}:{}@{}/{}".format(user, pw, host_str, db_name)
     raise Exception("Unknown DB type")
 
 

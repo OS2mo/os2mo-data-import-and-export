@@ -61,6 +61,7 @@ class DatabaseConfiguration(BaseSettings):  # type: ignore
 
     type: str | None
     host: str | None
+    port: int | None = None
     db_name: str
     user: str | None
     password: SecretStr | None
@@ -102,6 +103,7 @@ class DatabaseSettings(JobSettings):
             "mox.base": self.mox_base,
             "exporters.actual_state.type": self.actual_state.type,
             "exporters.actual_state.host": self.actual_state.host,
+            "exporters.actual_state.port": self.actual_state.port,
             "exporters.actual_state.db_name": self.actual_state.db_name,
             "exporters.actual_state.user": self.actual_state.user,
             "exporters.actual_state.password": secret_val_or_none(
@@ -118,6 +120,8 @@ class DatabaseSettings(JobSettings):
                     or self.actual_state.type,
                     "exporters.actual_state_historic.host": self.historic_state.host
                     or self.actual_state.host,
+                    "exporters.actual_state_historic.port": self.historic_state.port
+                    or self.actual_state.port,
                     "exporters.actual_state_historic.db_name": self.historic_state.db_name
                     or self.actual_state.db_name,
                     "exporters.actual_state_historic.user": self.historic_state.user

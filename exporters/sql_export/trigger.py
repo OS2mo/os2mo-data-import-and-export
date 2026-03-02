@@ -64,3 +64,13 @@ def trigger(
 
     background_tasks.add_task(refresh_db, resolve_dar, historic, read_from_cache, lock)
     return {"detail": "Triggered"}
+
+
+@trigger_router.post("/wait_for_finish")
+def wait_for_finish(historic: bool = Query(False)) -> dict[str, str]:
+    if historic:
+        lock = lock_historic
+    else:
+        lock = lock_actual
+    with lock:
+        return {"detail": "Finished"}
