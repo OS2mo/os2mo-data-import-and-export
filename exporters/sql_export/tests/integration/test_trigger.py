@@ -10,6 +10,7 @@ from more_itertools import one
 from sql_export.sql_table_defs import Bruger
 from sql_export.sql_table_defs import Enhed
 from sql_export.sql_table_defs import Engagement
+from sql_export.sql_table_defs import Adresse
 from sqlalchemy.orm import Session
 
 
@@ -236,3 +237,69 @@ async def test_engagement_sync(
     assert found_eng.enhed_uuid == unit_uuid
     assert found_eng.engagementstype_uuid == engagement_type_uuid
     assert found_eng.stillingsbetegnelse_uuid == job_function_uuid
+
+
+@pytest.mark.integration_test
+async def test_address_sync(
+    trigger: Callable[[], Awaitable[None]],
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    create_class: Callable[[dict[str, Any]], Awaitable[str]],
+    create_person: Callable[[dict[str, Any]], Awaitable[str]],
+    create_address: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    # 1. Setup dependencies
+    address_type_facet = await create_facet(
+        {"user_key": "address_type", "description": "address_type"}
+    )
+    visibility_facet = await create_facet(
+        {"user_key": "visibility", "description": "visibility"}
+    )
+
+    address_type_uuid = await create_class(
+        {
+            "user_key": "email",
+            "title": "Email",
+            "facet_uuid": address_type_facet,
+            "scope": "EMAIL",
+        }
+    )
+    visibility_uuid = await create_class(
+        {
+            "user_key": "public",
+            "title": "Public",
+            "facet_uuid": visibility_facet,
+            "scope": "TEXT",
+        }
+    )
+
+    person_uuid = await create_person(
+        {
+            "cpr_number": "0303700000",
+            "given_name": "Addr",
+            "surname": "User",
+            "user_key": "addr_user",
+        }
+    )
+
+    # 2. Create Address
+    input_data = {
+        "value": "test@example.com",
+        "employee_uuid": person_uuid,
+        "address_type_uuid": address_type_uuid,
+        "visibility_uuid": visibility_uuid,
+        "validity": {"from": "2020-01-01", "to": None},
+    }
+    address_uuid = await create_address(input_data)
+
+    await trigger()
+
+    # 3. Assert
+    addresses = actual_state_db_session.query(Adresse).all()
+    found_addr = next((a for a in addresses if a.uuid == address_uuid), None)
+    
+    assert found_addr is not None
+    assert found_addr.værdi == input_data["value"]
+    assert found_addr.bruger_uuid == person_uuid
+    assert found_addr.adressetype_uuid == address_type_uuid
+    assert found_addr.synlighed_uuid == visibility_uuid

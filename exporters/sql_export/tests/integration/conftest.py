@@ -171,3 +171,26 @@ def create_engagement(
         return create_resp["engagement_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_address(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an Address."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateAddress($input: AddressCreateInput!) {
+            address_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["address_create"]["uuid"]
+
+    return inner
