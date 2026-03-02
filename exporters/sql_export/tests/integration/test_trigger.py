@@ -8,6 +8,7 @@ import pytest
 from httpx import AsyncClient
 from more_itertools import one
 from sql_export.sql_table_defs import Bruger
+from sql_export.sql_table_defs import Enhed
 from sqlalchemy.orm import Session
 
 
@@ -42,7 +43,7 @@ def trigger(test_client: AsyncClient) -> Callable[[], Awaitable[None]]:
 
 
 @pytest.mark.integration_test
-async def test_trigger_full_export(
+async def test_employee_sync(
     trigger: Callable[[], Awaitable[None]],
     create_person: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
@@ -66,3 +67,69 @@ async def test_trigger_full_export(
     assert user.efternavn == input_data["surname"]
     assert user.cpr == input_data["cpr_number"]
     assert user.bvn == input_data["user_key"]
+
+
+@pytest.mark.integration_test
+async def test_org_unit_sync(
+    trigger: Callable[[], Awaitable[None]],
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+    create_class: Callable[[dict[str, Any]], Awaitable[str]],
+    create_org_unit: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    # 1. Create needed classes
+    org_unit_type_facet = await create_facet(
+        {"user_key": "org_unit_type", "description": "org_unit_type"}
+    )
+    org_unit_level_facet = await create_facet(
+        {"user_key": "org_unit_level", "description": "org_unit_level"}
+    )
+    
+    unit_type_uuid = await create_class(
+        {
+            "user_key": "unit_type",
+            "title": "Unit Type",
+            "facet_uuid": org_unit_type_facet,
+            "scope": "TEXT",
+        }
+    )
+    level_uuid = await create_class(
+        {
+            "user_key": "level",
+            "title": "Level",
+            "facet_uuid": org_unit_level_facet,
+            "scope": "TEXT",
+        }
+    )
+
+    # 2. Create the Org Unit
+    input_data = {
+        "user_key": "my_unit",
+        "name": "My Unit",
+        "org_unit_type_uuid": unit_type_uuid,
+        "org_unit_level_uuid": level_uuid,
+        "parent_uuid": None, # Root unit
+        "validity": {"from": "2020-01-01", "to": None},
+    }
+    unit_uuid = await create_org_unit(input_data)
+
+    await trigger()
+
+    # 3. Read from DB and assert
+    units = actual_state_db_session.query(Enhed).all()
+    # Filter for our unit, assuming clean DB or at least check if ours is there
+    # But integration tests usually clean up or run in isolation.
+    # The fixture `purge_export_db` in conftest suggests cleanup.
+    
+    # We might have other units (like root unit created by system), so find ours
+    found_unit = None
+    for u in units:
+        if u.uuid == unit_uuid:
+            found_unit = u
+            break
+            
+    assert found_unit is not None
+    assert found_unit.bvn == input_data["user_key"]
+    assert found_unit.navn == input_data["name"]
+    assert found_unit.enhedstype_uuid == unit_type_uuid
+    assert found_unit.enhedsniveau_uuid == level_uuid

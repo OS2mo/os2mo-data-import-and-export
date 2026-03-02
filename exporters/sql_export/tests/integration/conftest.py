@@ -79,3 +79,72 @@ def create_person(
         return create_resp["employee_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_facet(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Facet."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateFacet($input: FacetCreateInput!) {
+            facet_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["facet_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_class(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Class."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateClass($input: ClassCreateInput!) {
+            class_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["class_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_org_unit(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an OrgUnit."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateOrgUnit($input: OrgUnitCreateInput!) {
+            org_unit_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["org_unit_create"]["uuid"]
+
+    return inner
