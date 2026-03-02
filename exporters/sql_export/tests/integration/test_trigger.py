@@ -66,10 +66,8 @@ async def test_employee_sync(
 
     await trigger()
 
-    # Read all users and assert there is one and only one
     users = actual_state_db_session.query(Bruger).all()
     user = one(users)
-    # Assert that the read user has the expected data
     assert user.uuid == person_uuid
     assert user.fornavn == input_data["given_name"]
     assert user.efternavn == input_data["surname"]
@@ -85,7 +83,6 @@ async def test_org_unit_sync(
     create_org_unit: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    # 1. Create needed classes
     org_unit_type_facet = await create_facet(
         {"user_key": "org_unit_type", "published": "Publiceret", "validity": VALIDITY}
     )
@@ -112,7 +109,6 @@ async def test_org_unit_sync(
         }
     )
 
-    # 2. Create the Org Unit
     input_data = {
         "user_key": "my_unit",
         "name": "My Unit",
@@ -124,7 +120,6 @@ async def test_org_unit_sync(
 
     await trigger()
 
-    # 3. Read from DB and assert
     unit = one(actual_state_db_session.query(Enhed).all())
     assert unit.uuid == unit_uuid
     assert unit.bvn == input_data["user_key"]
@@ -143,7 +138,6 @@ async def test_engagement_sync(
     create_engagement: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    # 1. Setup dependencies
     engagement_type_facet = await create_facet(
         {"user_key": "engagement_type", "published": "Publiceret", "validity": VALIDITY}
     )
@@ -212,7 +206,6 @@ async def test_engagement_sync(
         }
     )
 
-    # 2. Create Engagement
     engagement_uuid = await create_engagement(
         {
             "user_key": "my_eng",
@@ -227,7 +220,6 @@ async def test_engagement_sync(
 
     await trigger()
 
-    # 3. Assert
     engagements = actual_state_db_session.query(Engagement).all()
     found_eng = next((e for e in engagements if e.uuid == engagement_uuid), None)
 
@@ -248,7 +240,6 @@ async def test_address_sync(
     create_address: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    # 1. Setup dependencies
     address_type_facet = await create_facet(
         {"user_key": "address_type", "published": "Publiceret", "validity": VALIDITY}
     )
@@ -285,7 +276,6 @@ async def test_address_sync(
         }
     )
 
-    # 2. Create Address
     address_uuid = await create_address(
         {
             "value": "test@example.com",
@@ -298,7 +288,6 @@ async def test_address_sync(
 
     await trigger()
 
-    # 3. Assert
     addresses = actual_state_db_session.query(Adresse).all()
     found_addr = next((a for a in addresses if a.uuid == address_uuid), None)
 
@@ -317,7 +306,6 @@ async def test_it_connection_sync(
     create_it_connection: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    # 1. Setup dependencies
     person_uuid = await create_person(
         {
             "cpr_number": "0404700000",
@@ -334,7 +322,6 @@ async def test_it_connection_sync(
         }
     )
 
-    # 2. Create IT Connection
     it_connection_uuid = await create_it_connection(
         {
             "user_key": "it_username",
@@ -346,14 +333,11 @@ async def test_it_connection_sync(
 
     await trigger()
 
-    # 3. Assert
-    # Check ItSystem
     it_systems = actual_state_db_session.query(ItSystem).all()
     found_sys = next((s for s in it_systems if s.uuid == it_system_uuid), None)
     assert found_sys is not None
     assert found_sys.navn == "My System"
 
-    # Check ItForbindelse
     it_connections = actual_state_db_session.query(ItForbindelse).all()
     found_conn = next((c for c in it_connections if c.uuid == it_connection_uuid), None)
 
@@ -373,7 +357,6 @@ async def test_manager_sync(
     create_manager: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    # 1. Setup dependencies
     manager_type_facet = await create_facet(
         {"user_key": "manager_type", "published": "Publiceret", "validity": VALIDITY}
     )
@@ -454,7 +437,6 @@ async def test_manager_sync(
         }
     )
 
-    # 2. Create Manager
     manager_uuid = await create_manager(
         {
             "person": person_uuid,
@@ -468,8 +450,6 @@ async def test_manager_sync(
 
     await trigger()
 
-    # 3. Assert
-    # Check Leder
     managers = actual_state_db_session.query(Leder).all()
     found_mgr = next((m for m in managers if m.uuid == manager_uuid), None)
 
@@ -479,7 +459,5 @@ async def test_manager_sync(
     assert found_mgr.ledertype_uuid == manager_type_uuid
     assert found_mgr.niveautype_uuid == manager_level_uuid
 
-    # Check LederAnsvar
-    responsibilities = actual_state_db_session.query(LederAnsvar).filter_by(leder_uuid=manager_uuid).all()
-    assert len(responsibilities) == 1
-    assert responsibilities[0].lederansvar_uuid == responsibility_uuid
+    responsibility = one(actual_state_db_session.query(LederAnsvar).filter_by(leder_uuid=manager_uuid).all())
+    assert responsibility.lederansvar_uuid == responsibility_uuid
