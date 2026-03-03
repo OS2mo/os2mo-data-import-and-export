@@ -7,10 +7,6 @@ import pytest
 from pytest import Item
 
 
-def pytest_configure(config: pytest.Config) -> None:
-    config.addinivalue_line("markers", "clean_db: reset the MO database before the test")
-
-
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(items: list[Item]) -> None:
     """Fake `autouse` fixtures for tests marked with integration_test.
@@ -22,17 +18,14 @@ def pytest_collection_modifyitems(items: list[Item]) -> None:
     for item in items:
         if item.get_closest_marker("integration_test"):
             # MUST prepend to replicate auto-use fixtures coming first
-            fixtures = []  # type: ignore[attr-defined]
-            # Ensure MO database is clean before snapshot/background tasks
-            if item.get_closest_marker("clean_db"):
-                fixtures.append("empty_db")
-            fixtures.extend([
+            item.fixturenames[:0] = [  # type: ignore[attr-defined]
+                # Ensure MO database is clean before snapshot/background tasks
+                "empty_db",
                 # Default environmental variables for integration tests
                 "integration_test_environment_variables",
                 # Ensure Export DB is cleaned between integration tests
                 "purge_export_db",
-            ])
-            item.fixturenames[:0] = fixtures
+            ]
 
 
 @pytest.fixture
