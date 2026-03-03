@@ -13,7 +13,7 @@ from .conftest import VALIDITY
 
 
 @pytest.mark.integration_test
-@pytest.mark.usefixtures("empty_db")
+@pytest.mark.clean_db
 async def test_class_sync(
     trigger: Callable[[], Awaitable[None]],
     create_org: ...,
