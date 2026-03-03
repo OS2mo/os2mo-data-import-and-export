@@ -27,6 +27,7 @@ from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
 from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
+from reports.safetynet.exceptions import ManagerEngagementCouplingMissing
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -60,6 +61,12 @@ GET_ADM_UNIT = gql(
                   engagement_type {
                     user_key
                   }
+                }
+              }
+              engagement_response {
+                uuid
+                current {
+                  user_key
                 }
               }
             }
@@ -308,14 +315,25 @@ def _get_sd_manager_eng_user_key(
     person = only(manager.get("person", []), default=dict())  # type: ignore
     engagements = person.get("engagements", [])
 
-    manager_eng_user_key = only(
-        (
+    try:
+        manager_eng_user_key = one(
             eng["user_key"]
             for eng in engagements
             if eng["engagement_type"]["user_key"] in allowed_engagement_types
-        ),
-        default="",
-    )
+        )
+    except ValueError:
+        logger.info(
+            "More than one engagement for manager. Using manager-engagement coupling"
+        )
+        eng_response = manager.get("engagement_response")
+        if eng_response is None:
+            logger.error(
+                "Manager engagement coupling missing",
+                manager_cpr=person.get("cpr_number", ""),
+            )
+            raise ManagerEngagementCouplingMissing()
+        current = eng_response["current"]
+        manager_eng_user_key = current["user_key"]
 
     return manager_eng_user_key
 
@@ -370,6 +388,12 @@ def get_sd_manager_eng_user_key_and_cpr(
         #                                         ]
         #                                     }
         #                                 ]
+        #                                 "engagement_response": {
+        #                                   "uuid": "71809dae-fe33-43fc-92df-e72195a7ece8",
+        #                                   "current": {
+        #                                     "user_key": "54321",
+        #                                   }
+        #                                }
         #                             }
         #                         ]
         #                     }
@@ -590,7 +614,13 @@ def process_adm_unit(
     #                       }
     #                     ]
     #                   }
-    #                 ]
+    #                 ],
+    #                 "engagement_response": {
+    #                   "uuid": "83126162-1c90-4ab6-942c-86fb1eca4535",
+    #                   "current": {
+    #                     "user_key": "54321"
+    #                   }
+    #                 }
     #             }
     #         ]
     #         "addresses": [
