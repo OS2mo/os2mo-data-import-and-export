@@ -23,6 +23,16 @@ VALIDITY = {"from": "2020-01-01", "to": None}
 
 
 @pytest.fixture
+async def empty_db(
+    unauthenticated_mo_client: AsyncClient,
+) -> AsyncIterator[None]:
+    """Ensure tests are running on an empty database."""
+    r = await unauthenticated_mo_client.post("/testing/database/clean")
+    r.raise_for_status()
+    yield
+
+
+@pytest.fixture
 async def address_type_facet(
     create_facet: Callable[[dict[str, Any]], Awaitable[str]],
 ) -> UUID:
@@ -267,6 +277,29 @@ def create_class(
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["class_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_org(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an OrgUnit."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateOrg($input: OrganisationCreate!) {
+            org_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["org_create"]["uuid"]
 
     return inner
 

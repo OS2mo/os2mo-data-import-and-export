@@ -13,12 +13,16 @@ from .conftest import VALIDITY
 
 
 @pytest.mark.integration_test
+@pytest.mark.usefixtures("empty_db")
 async def test_class_sync(
     trigger: Callable[[], Awaitable[None]],
+    create_org: ...,
     create_facet: Callable[[dict[str, Any]], Awaitable[str]],
     create_class: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
+    await create_org({"municipality_code": None})
+
     facet_uuid = await create_facet(
         {"user_key": "my_facet", "published": "Publiceret", "validity": VALIDITY}
     )
@@ -35,7 +39,8 @@ async def test_class_sync(
 
     await trigger()
 
-    klasse = one(actual_state_db_session.query(Klasse).filter_by(uuid=class_uuid).all())
+    classes = actual_state_db_session.query(Klasse).all()
+    klasse = one(classes)
     assert klasse.bvn == "my_class"
     assert klasse.titel == "My Class"
     assert klasse.facet_uuid == facet_uuid
