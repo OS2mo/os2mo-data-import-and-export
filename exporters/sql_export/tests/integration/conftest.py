@@ -33,6 +33,14 @@ async def empty_db(
 
 
 @pytest.fixture
+async def root_org(
+    create_org: Callable[[dict[str, Any]], Awaitable[str]],
+) -> str:
+    """Create the root organisation required by all MO operations."""
+    return await create_org({"municipality_code": None})
+
+
+@pytest.fixture
 async def address_type_facet(
     create_facet: Callable[[dict[str, Any]], Awaitable[str]],
 ) -> UUID:
@@ -214,6 +222,7 @@ def actual_state_db_session() -> Iterator[Session]:
 
 @pytest.fixture
 def create_person(
+    root_org: str,
     graphql_client: AsyncClientSession,
 ) -> Callable[[dict[str, Any]], Awaitable[str]]:
     """Returns a function to create a Person."""
@@ -237,6 +246,7 @@ def create_person(
 
 @pytest.fixture
 def create_facet(
+    root_org: str,
     graphql_client: GraphQLClient,
 ) -> Callable[[dict[str, Any]], Awaitable[str]]:
     """Returns a function to create a Facet."""
@@ -375,6 +385,7 @@ def create_address(
 
 @pytest.fixture
 def create_it_system(
+    root_org: str,
     graphql_client: GraphQLClient,
 ) -> Callable[[dict[str, Any]], Awaitable[str]]:
     """Returns a function to create an ITSystem."""

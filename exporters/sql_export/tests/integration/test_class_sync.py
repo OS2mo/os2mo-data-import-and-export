@@ -15,13 +15,10 @@ from .conftest import VALIDITY
 @pytest.mark.integration_test
 async def test_class_sync(
     trigger: Callable[[], Awaitable[None]],
-    create_org: ...,
     create_facet: Callable[[dict[str, Any]], Awaitable[str]],
     create_class: Callable[[dict[str, Any]], Awaitable[str]],
     actual_state_db_session: Session,
 ) -> None:
-    await create_org({"municipality_code": None})
-
     facet_uuid = await create_facet(
         {"user_key": "my_facet", "published": "Publiceret", "validity": VALIDITY}
     )
