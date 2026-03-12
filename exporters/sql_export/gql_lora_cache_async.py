@@ -1526,6 +1526,7 @@ class GQLLoraCache:
                                 address_type_uuid
                                 employee_uuid
                                 org_unit_uuid
+                                engagement_uuid
                                 visibility_uuid
                                 name
                                 value
@@ -1571,6 +1572,7 @@ class GQLLoraCache:
                                 address_type_uuid
                                 employee_uuid
                                 org_unit_uuid
+                                engagement_uuid
                                 visibility_uuid
                                 name
                                 value
@@ -1611,6 +1613,7 @@ class GQLLoraCache:
         replace_dict = {
             "employee_uuid": "user",
             "org_unit_uuid": "unit",
+            "engagement_uuid": "engagement",
             "address_type_uuid": "adresse_type",
             "visibility_uuid": "visibility",
         }
