@@ -34,6 +34,13 @@ services:
       FASTRAMQPI__CLIENT_ID: "dipex"
       FASTRAMQPI__CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
 
+      # GqlLoraCache settings
+      # GqlLoraCache (via JobSettings) does not use the FASTRAMQPI__ prefix, so we must set these explicitly.
+      AUTH_SERVER: "http://keycloak:8080/auth"
+      AUTH_REALM: "mo"
+      CLIENT_ID: "dipex"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+
       # Database
       FASTRAMQPI__DATABASE__USER: "fastramqpi"
       FASTRAMQPI__DATABASE__PASSWORD: "fastramqpi"
