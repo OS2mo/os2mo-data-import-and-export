@@ -549,6 +549,7 @@ class SqlExport:
             bruger_uuid=it_connection_info["user"],
             enhed_uuid=it_connection_info["unit"],
             brugernavn=it_connection_info["username"],
+            eksternt_id=it_connection_info.get("external_id"),
             startdato=it_connection_info["from_date"],
             slutdato=it_connection_info["to_date"],
             primær_boolean=it_connection_info.get("primary_boolean"),
