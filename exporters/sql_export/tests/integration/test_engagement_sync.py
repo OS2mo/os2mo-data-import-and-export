@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -99,7 +98,6 @@ async def test_engagement_sync(
 
     eng = one(actual_state_db_session.query(Engagement).all())
     assert sql_to_dict(eng) == {
-        "id": ANY,
         "uuid": engagement_uuid,
         "bruger_uuid": person_uuid,
         "enhed_uuid": unit_uuid,

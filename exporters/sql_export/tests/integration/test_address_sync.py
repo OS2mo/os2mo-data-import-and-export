@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -70,7 +69,6 @@ async def test_address_sync(
 
     addr = one(actual_state_db_session.query(Adresse).all())
     assert sql_to_dict(addr) == {
-        "id": ANY,
         "uuid": address_uuid,
         "bvn": address_input["user_key"],
         "bruger_uuid": person_uuid,
@@ -153,7 +151,6 @@ async def test_org_unit_address_sync(
 
     addr = one(actual_state_db_session.query(Adresse).all())
     assert sql_to_dict(addr) == {
-        "id": ANY,
         "uuid": address_uuid,
         "bvn": address_input["user_key"],
         "bruger_uuid": None,

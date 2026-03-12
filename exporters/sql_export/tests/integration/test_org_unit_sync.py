@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -57,7 +56,6 @@ async def test_org_unit_sync(
 
     unit = one(actual_state_db_session.query(Enhed).all())
     assert sql_to_dict(unit) == {
-        "id": ANY,
         "uuid": unit_uuid,
         "navn": input_data["name"],
         "bvn": input_data["user_key"],
@@ -131,7 +129,6 @@ async def test_org_unit_with_parent_sync(
 
     child = one(actual_state_db_session.query(Enhed).filter_by(uuid=child_uuid).all())
     assert sql_to_dict(child) == {
-        "id": ANY,
         "uuid": child_uuid,
         "navn": "Child Unit",
         "bvn": "child_unit",

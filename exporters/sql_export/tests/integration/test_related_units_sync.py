@@ -78,7 +78,6 @@ async def test_related_units_sync(
     # org_unit_uuids from MO GraphQL is sorted, so enhed1 < enhed2
     enhed1_uuid, enhed2_uuid = sorted([unit1_uuid, unit2_uuid])
     assert sql_to_dict(related) == {
-        "id": ANY,
         # create_related returns the origin org unit UUID (enhed1_uuid),
         # not the relation UUID itself, so we cannot assert the exact value here.
         "uuid": ANY,

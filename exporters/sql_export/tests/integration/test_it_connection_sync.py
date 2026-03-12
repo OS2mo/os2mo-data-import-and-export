@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 
 import pytest
 from more_itertools import one
@@ -51,7 +50,6 @@ async def test_it_connection_sync(
 
     conn = one(actual_state_db_session.query(ItForbindelse).all())
     assert sql_to_dict(conn) == {
-        "id": ANY,
         "uuid": it_connection_uuid,
         "it_system_uuid": it_system_uuid,
         "bruger_uuid": person_uuid,

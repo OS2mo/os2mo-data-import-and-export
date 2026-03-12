@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -67,7 +66,6 @@ async def test_dar_address_sync(
     # gql_lora_cache_async.py, which only stores betegnelse.
     dar_address = one(actual_state_db_session.query(DARAdresse).all())
     assert sql_to_dict(dar_address) == {
-        "id": ANY,
         "uuid": DAR_UUID,
         "vejkode": None,
         "vejnavn": None,
@@ -132,7 +130,6 @@ async def test_dar_address_sync_resolve_dar(
     # gql_lora_cache_async.py, which only stores betegnelse.
     dar_address = one(actual_state_db_session.query(DARAdresse).all())
     assert sql_to_dict(dar_address) == {
-        "id": ANY,
         "uuid": DAR_UUID,
         "vejkode": None,
         "vejnavn": None,

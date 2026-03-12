@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 
 import pytest
 from more_itertools import one
@@ -32,7 +31,6 @@ async def test_employee_sync(
 
     user = one(actual_state_db_session.query(Bruger).all())
     assert sql_to_dict(user) == {
-        "id": ANY,
         "uuid": person_uuid,
         "bvn": input_data["user_key"],
         "fornavn": input_data["given_name"],

@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -88,7 +87,6 @@ async def test_kle_sync(
 
     kle = one(actual_state_db_session.query(KLE).all())
     assert sql_to_dict(kle) == {
-        "id": ANY,
         "uuid": kle_uuid,
         "enhed_uuid": unit_uuid,
         "kle_aspekt_uuid": kle_aspect_uuid,

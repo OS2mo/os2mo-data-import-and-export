@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -110,7 +109,6 @@ async def test_manager_sync(
 
     manager = one(actual_state_db_session.query(Leder).all())
     assert sql_to_dict(manager) == {
-        "id": ANY,
         "uuid": manager_uuid,
         "bruger_uuid": person_uuid,
         "enhed_uuid": unit_uuid,
@@ -124,7 +122,6 @@ async def test_manager_sync(
 
     responsibility = one(actual_state_db_session.query(LederAnsvar).all())
     assert sql_to_dict(responsibility) == {
-        "id": ANY,
         "leder_uuid": manager_uuid,
         "lederansvar_uuid": responsibility_uuid,
         "lederansvar_titel": "Responsibility 1",

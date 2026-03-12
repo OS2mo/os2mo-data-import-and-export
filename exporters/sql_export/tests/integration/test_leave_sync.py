@@ -3,7 +3,6 @@
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
@@ -119,7 +118,6 @@ async def test_leave_sync(
 
     leave = one(actual_state_db_session.query(Orlov).all())
     assert sql_to_dict(leave) == {
-        "id": ANY,
         "uuid": leave_uuid,
         "bvn": "my_leave",
         "bruger_uuid": person_uuid,

@@ -25,7 +25,9 @@ VALIDITY = {"from": "2020-01-01", "to": None}
 
 def sql_to_dict(obj):
     """Convert a SQLAlchemy model instance to a dict of all column values."""
-    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+    return {
+        c.name: getattr(obj, c.name) for c in obj.__table__.columns if c.name != "id"
+    }
 
 
 async def _trigger(test_client: AsyncClient, resolve_dar: bool) -> None:
