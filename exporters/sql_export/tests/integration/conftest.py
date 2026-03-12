@@ -458,3 +458,56 @@ def create_association(
         return create_resp["association_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+async def engagement_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "engagement_type",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+async def job_function_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "job_function",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+def create_engagement(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an Engagement."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateEngagement($input: EngagementCreateInput!) {
+            engagement_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["engagement_create"]["uuid"]
+
+    return inner
