@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from sql_export.main import create_app
 
 GRAPHQL_VERSION = 22
+VALIDITY = {"from": "2020-01-01", "to": None}
 
 
 def sql_to_dict(obj):
@@ -140,5 +141,29 @@ def create_person(
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["employee_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+def create_facet(
+    root_org: str,
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Facet."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateFacet($input: FacetCreateInput!) {
+            facet_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["facet_create"]["uuid"]
 
     return inner
