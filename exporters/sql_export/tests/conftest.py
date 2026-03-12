@@ -1,10 +1,17 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
+import os
 from collections.abc import AsyncIterator
+from collections.abc import Iterator
 
 import pytest
 from httpx import AsyncClient
 from pytest import Item
+from sqlalchemy import create_engine
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from sql_export.sql_table_defs import Base
 
 
 @pytest.hookimpl(trylast=True)
@@ -48,5 +55,19 @@ def integration_test_environment_variables(monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.fixture
-async def purge_export_db() -> AsyncIterator[None]:
+def purge_export_db() -> Iterator[None]:
+    """Truncate all tables in the export DB before each integration test."""
+    db_user = os.environ["ACTUAL_STATE__USER"]
+    db_pass = os.environ["ACTUAL_STATE__PASSWORD"]
+    db_host = os.environ["ACTUAL_STATE__HOST"]
+    db_port = os.environ.get("ACTUAL_STATE__PORT", "5432")
+    db_name = os.environ["ACTUAL_STATE__DB_NAME"]
+
+    url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    engine = create_engine(url)
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        for table in reversed(Base.metadata.sorted_tables):
+            session.execute(text(f"TRUNCATE TABLE {table.name} CASCADE"))
+        session.commit()
     yield
