@@ -291,3 +291,48 @@ def create_org_unit(
         return create_resp["org_unit_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+async def kle_aspect_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {"user_key": "kle_aspect", "published": "Publiceret", "validity": VALIDITY}
+        )
+    )
+
+
+@pytest.fixture
+async def kle_number_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {"user_key": "kle_number", "published": "Publiceret", "validity": VALIDITY}
+        )
+    )
+
+
+@pytest.fixture
+def create_kle(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a KLE."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateKLE($input: KLECreateInput!) {
+            kle_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["kle_create"]["uuid"]
+
+    return inner
