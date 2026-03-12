@@ -336,3 +336,26 @@ def create_kle(
         return create_resp["kle_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_related(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Related Units (Enhedssammenkobling)."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateRelatedUnits($input: RelatedUnitsUpdateInput!) {
+            related_units_update(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["related_units_update"]["uuid"]
+
+    return inner
