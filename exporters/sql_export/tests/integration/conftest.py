@@ -120,7 +120,7 @@ def create_org(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["org_create"]["uuid"]
@@ -152,7 +152,7 @@ def create_person(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["employee_create"]["uuid"]
@@ -176,7 +176,7 @@ def create_facet(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["facet_create"]["uuid"]
@@ -199,7 +199,7 @@ def create_class(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["class_create"]["uuid"]
@@ -223,7 +223,7 @@ def create_it_system(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["itsystem_create"]["uuid"]
@@ -246,7 +246,7 @@ def create_it_connection(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["ituser_create"]["uuid"]
@@ -299,7 +299,7 @@ def create_org_unit(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["org_unit_create"]["uuid"]
@@ -344,7 +344,7 @@ def create_kle(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["kle_create"]["uuid"]
@@ -367,7 +367,7 @@ def create_related(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["related_units_update"]["uuid"]
@@ -416,7 +416,7 @@ def create_address(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["address_create"]["uuid"]
@@ -454,7 +454,7 @@ def create_association(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["association_create"]["uuid"]
@@ -507,7 +507,7 @@ def create_engagement(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["engagement_create"]["uuid"]
@@ -541,7 +541,7 @@ def create_leave(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["leave_create"]["uuid"]
@@ -609,7 +609,7 @@ def create_manager(
         }
         """)
 
-        create_resp = await graphql_client.execute(
+        create_resp = await graphql_client.execute(  # type: ignore[misc]
             create_mutation, variable_values={"input": input_data}
         )
         return create_resp["manager_create"]["uuid"]
