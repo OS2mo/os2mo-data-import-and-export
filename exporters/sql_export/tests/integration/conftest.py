@@ -420,3 +420,41 @@ def create_address(
         return create_resp["address_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+async def association_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "association_type",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+def create_association(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an Association."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateAssociation($input: AssociationCreateInput!) {
+            association_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["association_create"]["uuid"]
+
+    return inner
