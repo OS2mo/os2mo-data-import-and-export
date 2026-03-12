@@ -359,3 +359,52 @@ def create_related(
         return create_resp["related_units_update"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+async def address_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "address_type",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+async def visibility_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {"user_key": "visibility", "published": "Publiceret", "validity": VALIDITY}
+        )
+    )
+
+
+@pytest.fixture
+def create_address(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an Address."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateAddress($input: AddressCreateInput!) {
+            address_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["address_create"]["uuid"]
+
+    return inner
