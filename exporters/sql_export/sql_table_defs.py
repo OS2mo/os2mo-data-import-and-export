@@ -233,6 +233,7 @@ class BaseItForbindelse(Compare):
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     brugernavn = Column(String(250))
+    eksternt_id = Column(String(250))
     primær_boolean = Column(Boolean)
     startdato = Column(String(10))
     slutdato = Column(String(10))

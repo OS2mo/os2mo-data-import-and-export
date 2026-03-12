@@ -904,6 +904,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 user_key
+                                external_id
                                 itsystem_uuid
                                 primary_uuid
                                 validity {
@@ -944,6 +945,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 user_key
+                                external_id
                                 itsystem_uuid
                                 primary_uuid
                                 validity {

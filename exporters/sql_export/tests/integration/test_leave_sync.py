@@ -104,22 +104,21 @@ async def test_leave_sync(
         }
     )
 
-    leave_uuid = await create_leave(
-        {
-            "user_key": "my_leave",
-            "person": person_uuid,
-            "leave_type": leave_type_uuid,
-            "engagement": engagement_uuid,
-            "validity": VALIDITY,
-        }
-    )
+    leave_input = {
+        "user_key": "my_leave",
+        "person": person_uuid,
+        "leave_type": leave_type_uuid,
+        "engagement": engagement_uuid,
+        "validity": VALIDITY,
+    }
+    leave_uuid = await create_leave(leave_input)
 
     await trigger()
 
     leave = one(actual_state_db_session.query(Orlov).all())
     assert sql_to_dict(leave) == {
         "uuid": leave_uuid,
-        "bvn": "my_leave",
+        "bvn": leave_input["user_key"],
         "bruger_uuid": person_uuid,
         "orlovstype_uuid": leave_type_uuid,
         "orlovstype_titel": "Leave",

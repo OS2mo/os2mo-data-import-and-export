@@ -114,24 +114,23 @@ async def test_org_unit_with_parent_sync(
             "validity": VALIDITY,
         }
     )
-    child_uuid = await create_org_unit(
-        {
-            "user_key": "child_unit",
-            "name": "Child Unit",
-            "parent": parent_uuid,
-            "org_unit_type": unit_type_uuid,
-            "org_unit_level": level_uuid,
-            "validity": VALIDITY,
-        }
-    )
+    child_input = {
+        "user_key": "child_unit",
+        "name": "Child Unit",
+        "parent": parent_uuid,
+        "org_unit_type": unit_type_uuid,
+        "org_unit_level": level_uuid,
+        "validity": VALIDITY,
+    }
+    child_uuid = await create_org_unit(child_input)
 
     await trigger()
 
     child = one(actual_state_db_session.query(Enhed).filter_by(uuid=child_uuid).all())
     assert sql_to_dict(child) == {
         "uuid": child_uuid,
-        "navn": "Child Unit",
-        "bvn": "child_unit",
+        "navn": child_input["name"],
+        "bvn": child_input["user_key"],
         "forældreenhed_uuid": parent_uuid,
         "enhedstype_uuid": unit_type_uuid,
         "enhedstype_titel": "Unit Type",
