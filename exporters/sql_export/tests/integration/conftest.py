@@ -13,11 +13,42 @@ from gql.client import AsyncClientSession
 from httpx import AsyncClient
 from pydantic import AnyHttpUrl
 from pydantic import parse_obj_as
-from sql_export.main import create_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+from sql_export.main import create_app
+
 GRAPHQL_VERSION = 22
+
+
+def sql_to_dict(obj):
+    """Convert a SQLAlchemy model instance to a dict of all column values."""
+    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+
+@pytest.fixture
+def trigger(test_client: AsyncClient) -> Callable[[], Awaitable[None]]:
+    async def inner() -> None:
+        response = await test_client.post(
+            "/trigger",
+            params={
+                "resolve_dar": False,
+                "historic": False,
+                "read_from_cache": False,
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {"detail": "Triggered"}
+
+        response = await test_client.post(
+            "/wait_for_finish",
+            params={"historic": False},
+            timeout=60.0,
+        )
+        assert response.status_code == 200
+        assert response.json() == {"detail": "Finished"}
+
+    return inner
 
 
 @pytest.fixture
@@ -59,7 +90,39 @@ def actual_state_db_session() -> Iterator[Session]:
 
 
 @pytest.fixture
+def create_org(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an OrgUnit."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateOrg($input: OrganisationCreate!) {
+            org_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["org_create"]["uuid"]
+
+    return inner
+
+
+@pytest.fixture
+async def root_org(
+    create_org: Callable[[dict[str, Any]], Awaitable[str]],
+) -> str:
+    """Create the root organisation required by all MO operations."""
+    return await create_org({"municipality_code": None})
+
+
+@pytest.fixture
 def create_person(
+    root_org: str,
     graphql_client: AsyncClientSession,
 ) -> Callable[[dict[str, Any]], Awaitable[str]]:
     """Returns a function to create a Person."""
