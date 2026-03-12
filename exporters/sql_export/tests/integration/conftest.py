@@ -167,3 +167,26 @@ def create_facet(
         return create_resp["facet_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_class(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Class."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateClass($input: ClassCreateInput!) {
+            class_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["class_create"]["uuid"]
+
+    return inner
