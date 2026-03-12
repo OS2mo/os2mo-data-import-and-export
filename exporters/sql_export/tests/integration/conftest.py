@@ -28,27 +28,39 @@ def sql_to_dict(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
+async def _trigger(test_client: AsyncClient, resolve_dar: bool) -> None:
+    response = await test_client.post(
+        "/trigger",
+        params={
+            "resolve_dar": resolve_dar,
+            "historic": False,
+            "read_from_cache": False,
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"detail": "Triggered"}
+
+    response = await test_client.post(
+        "/wait_for_finish",
+        params={"historic": False},
+        timeout=60.0,
+    )
+    assert response.status_code == 200
+    assert response.json() == {"detail": "Finished"}
+
+
 @pytest.fixture
 def trigger(test_client: AsyncClient) -> Callable[[], Awaitable[None]]:
     async def inner() -> None:
-        response = await test_client.post(
-            "/trigger",
-            params={
-                "resolve_dar": False,
-                "historic": False,
-                "read_from_cache": False,
-            },
-        )
-        assert response.status_code == 200
-        assert response.json() == {"detail": "Triggered"}
+        await _trigger(test_client, resolve_dar=False)
 
-        response = await test_client.post(
-            "/wait_for_finish",
-            params={"historic": False},
-            timeout=60.0,
-        )
-        assert response.status_code == 200
-        assert response.json() == {"detail": "Finished"}
+    return inner
+
+
+@pytest.fixture
+def trigger_with_dar(test_client: AsyncClient) -> Callable[[], Awaitable[None]]:
+    async def inner() -> None:
+        await _trigger(test_client, resolve_dar=True)
 
     return inner
 
