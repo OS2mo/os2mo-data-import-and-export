@@ -36,6 +36,7 @@ from .sql_table_defs import Enhed
 from .sql_table_defs import Enhedssammenkobling
 from .sql_table_defs import Facet
 from .sql_table_defs import ItForbindelse
+from .sql_table_defs import ItForbindelseEngagement
 from .sql_table_defs import ItSystem
 from .sql_table_defs import Klasse
 from .sql_table_defs import Leder
@@ -142,11 +143,18 @@ async def handle_it_user(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_it_connections(uuid)
+    results = result.get(str(uuid), [])
     it_connections_objects = [
-        sql_exporter._generate_sql_it_user(uuid, res, ItForbindelse)
-        for res in result.get(str(uuid), [])
+        sql_exporter._generate_sql_it_user(uuid, res, ItForbindelse) for res in results
     ]
-
+    it_engagement_objects = [
+        sql_exporter._generate_sql_it_user_engagement(
+            uuid, engagement_uuid, res, ItForbindelseEngagement
+        )
+        for res in results
+        for engagement_uuid in res.get("engagement_uuids", [])
+    ]
+    sql_exporter.update_sql(uuid, it_engagement_objects, ItForbindelseEngagement)
     sql_exporter.update_sql(uuid, it_connections_objects, ItForbindelse)
 
 
