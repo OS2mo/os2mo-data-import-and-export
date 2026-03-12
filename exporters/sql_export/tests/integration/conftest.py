@@ -190,3 +190,27 @@ def create_class(
         return create_resp["class_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+def create_it_system(
+    root_org: str,
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create an ITSystem."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateITSystem($input: ITSystemCreateInput!) {
+            itsystem_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["itsystem_create"]["uuid"]
+
+    return inner
