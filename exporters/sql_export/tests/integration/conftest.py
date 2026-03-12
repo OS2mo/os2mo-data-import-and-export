@@ -545,3 +545,71 @@ def create_leave(
         return create_resp["leave_create"]["uuid"]
 
     return inner
+
+
+@pytest.fixture
+async def manager_type_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "manager_type",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+async def manager_level_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "manager_level",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+async def responsibility_facet(
+    create_facet: Callable[[dict[str, Any]], Awaitable[str]],
+) -> UUID:
+    return UUID(
+        await create_facet(
+            {
+                "user_key": "responsibility",
+                "published": "Publiceret",
+                "validity": VALIDITY,
+            }
+        )
+    )
+
+
+@pytest.fixture
+def create_manager(
+    graphql_client: GraphQLClient,
+) -> Callable[[dict[str, Any]], Awaitable[str]]:
+    """Returns a function to create a Manager."""
+
+    async def inner(input_data: dict[str, Any]) -> str:
+        create_mutation = gql("""
+        mutation CreateManager($input: ManagerCreateInput!) {
+            manager_create(input: $input) {
+                uuid
+            }
+        }
+        """)
+
+        create_resp = await graphql_client.execute(
+            create_mutation, variable_values={"input": input_data}
+        )
+        return create_resp["manager_create"]["uuid"]
+
+    return inner
