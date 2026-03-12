@@ -132,6 +132,7 @@ def test_sql_export_tables():
             "wenheder",
             "wenhedssammenkobling",
             "wfacetter",
+            "wit_forbindelse_engagementer",
             "wit_forbindelser",
             "wit_systemer",
             "wklasser",
