@@ -1627,9 +1627,11 @@ class GQLLoraCache:
             # org_unit_uuid
             if any(
                 map(
-                    lambda o: o is not None
-                    and o["employee_uuid"] is None
-                    and o["org_unit_uuid"] is None,
+                    lambda o: (
+                        o is not None
+                        and o["employee_uuid"] is None
+                        and o["org_unit_uuid"] is None
+                    ),
                     obj["obj"],
                 )
             ):
