@@ -73,22 +73,21 @@ async def test_association_sync(
         }
     )
 
-    association_uuid = await create_association(
-        {
-            "user_key": "my_association",
-            "person": person_uuid,
-            "org_unit": unit_uuid,
-            "association_type": association_type_uuid,
-            "validity": VALIDITY,
-        }
-    )
+    association_input = {
+        "user_key": "my_association",
+        "person": person_uuid,
+        "org_unit": unit_uuid,
+        "association_type": association_type_uuid,
+        "validity": VALIDITY,
+    }
+    association_uuid = await create_association(association_input)
 
     await trigger()
 
     association = one(actual_state_db_session.query(Tilknytning).all())
     assert sql_to_dict(association) == {
         "uuid": association_uuid,
-        "bvn": "my_association",
+        "bvn": association_input["user_key"],
         "bruger_uuid": person_uuid,
         "enhed_uuid": unit_uuid,
         "tilknytningstype_uuid": association_type_uuid,
