@@ -907,6 +907,7 @@ class GQLLoraCache:
                                 external_id
                                 itsystem_uuid
                                 primary_uuid
+                                engagement_uuids
                                 validity {
                                     from
                                     to
@@ -948,6 +949,7 @@ class GQLLoraCache:
                                 external_id
                                 itsystem_uuid
                                 primary_uuid
+                                engagement_uuids
                                 validity {
                                     from
                                     to

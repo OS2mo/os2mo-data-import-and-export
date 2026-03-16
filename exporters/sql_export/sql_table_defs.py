@@ -248,6 +248,22 @@ class ItForbindelse(Base, BaseItForbindelse):  # type: ignore
     __tablename__ = "it_forbindelser"
 
 
+class BaseItForbindelseEngagement(Compare):
+    id = Column(Integer, nullable=False, primary_key=True)
+    it_forbindelse_uuid = Column(String(36))  # , ForeignKey('it_forbindelser.uuid'))
+    engagement_uuid = Column(String(36))  # , ForeignKey('engagementer.uuid'))
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
+
+
+class WItForbindelseEngagement(Base, BaseItForbindelseEngagement):  # type: ignore
+    __tablename__ = "wit_forbindelse_engagementer"
+
+
+class ItForbindelseEngagement(Base, BaseItForbindelseEngagement):  # type: ignore
+    __tablename__ = "it_forbindelse_engagementer"
+
+
 class BaseLeder(Compare):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)

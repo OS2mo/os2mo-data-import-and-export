@@ -35,6 +35,7 @@ from .sql_table_defs import Enhed
 from .sql_table_defs import Enhedssammenkobling
 from .sql_table_defs import Facet
 from .sql_table_defs import ItForbindelse
+from .sql_table_defs import ItForbindelseEngagement
 from .sql_table_defs import ItSystem
 from .sql_table_defs import Klasse
 from .sql_table_defs import Kvittering
@@ -50,6 +51,7 @@ from .sql_table_defs import WEnhed
 from .sql_table_defs import WEnhedssammenkobling
 from .sql_table_defs import WFacet
 from .sql_table_defs import WItForbindelse
+from .sql_table_defs import WItForbindelseEngagement
 from .sql_table_defs import WItSystem
 from .sql_table_defs import WKlasse
 from .sql_table_defs import WLeder
@@ -71,6 +73,9 @@ _T_Tilknytning = TypeVar("_T_Tilknytning", Tilknytning, WTilknytning)
 _T_Orlov = TypeVar("_T_Orlov", Orlov, WOrlov)
 _T_ItSystem = TypeVar("_T_ItSystem", ItSystem, WItSystem)
 _T_ItForbindelse = TypeVar("_T_ItForbindelse", ItForbindelse, WItForbindelse)
+_T_ItForbindelseEngagement = TypeVar(
+    "_T_ItForbindelseEngagement", ItForbindelseEngagement, WItForbindelseEngagement
+)
 _T_Leder = TypeVar("_T_Leder", Leder, WLeder)
 _T_LederAnsvar = TypeVar("_T_LederAnsvar", LederAnsvar, WLederAnsvar)
 _T_KLE = TypeVar("_T_KLE", KLE, WKLE)
@@ -556,6 +561,20 @@ class SqlExport:
             primær_boolean=it_connection_info.get("primary_boolean"),
         )
 
+    def _generate_sql_it_user_engagement(
+        self,
+        it_connection_uuid,
+        engagement_uuid,
+        it_connection_info,
+        model: Type[_T_ItForbindelseEngagement],
+    ) -> _T_ItForbindelseEngagement:
+        return model(
+            it_forbindelse_uuid=str(it_connection_uuid),
+            engagement_uuid=str(engagement_uuid),
+            startdato=it_connection_info["from_date"],
+            slutdato=it_connection_info["to_date"],
+        )
+
     def _add_it_users(self):
         logger.info("Add IT users")
         it_connections = tqdm(
@@ -570,6 +589,17 @@ class SqlExport:
                         uuid, it_connection_info, WItForbindelse
                     )
                     self.session.add(sql_it_connection)
+
+                    for engagement_uuid in it_connection_info.get(
+                        "engagement_uuids", []
+                    ):
+                        sql_engagement = self._generate_sql_it_user_engagement(
+                            uuid,
+                            engagement_uuid,
+                            it_connection_info,
+                            WItForbindelseEngagement,
+                        )
+                        self.session.add(sql_engagement)
             self.session.commit()
 
     def _generate_sql_kle(self, uuid, kle_info, model: Type[_T_KLE]) -> _T_KLE:
@@ -701,7 +731,12 @@ class SqlExport:
         Then we add the objects that are not allready in sql - either new or changed in MO -  and remove any that
         do not match.
         """
-        search_key = table.leder_uuid if table == LederAnsvar else table.uuid
+        if table == LederAnsvar:
+            search_key = table.leder_uuid
+        elif table == ItForbindelseEngagement:
+            search_key = table.it_forbindelse_uuid
+        else:
+            search_key = table.uuid
         # Lookup engagement in sql
         current_objects = self.session.execute(
             select(table).where(search_key == str(uuid))
