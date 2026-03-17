@@ -1529,6 +1529,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 engagement_uuid
+                                ituser_uuid
                                 visibility_uuid
                                 name
                                 value
@@ -1575,6 +1576,7 @@ class GQLLoraCache:
                                 employee_uuid
                                 org_unit_uuid
                                 engagement_uuid
+                                ituser_uuid
                                 visibility_uuid
                                 name
                                 value
@@ -1616,6 +1618,7 @@ class GQLLoraCache:
             "employee_uuid": "user",
             "org_unit_uuid": "unit",
             "engagement_uuid": "engagement",
+            "ituser_uuid": "ituser",
             "address_type_uuid": "adresse_type",
             "visibility_uuid": "visibility",
         }

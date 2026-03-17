@@ -112,6 +112,7 @@ class BaseAdresse(Compare):
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     engagement_uuid = Column(String(36))  # , ForeignKey('engagementer.uuid'))
+    ituser_uuid = Column(String(36))  # , ForeignKey('it_forbindelser.uuid'))
     værdi = Column(String(250))
     dar_uuid = Column(String(36))  # , ForeignKey('dar_adresser.uuid'))
     adressetype_uuid = Column(String(36))  # , ForeignKey("klasser.uuid"))

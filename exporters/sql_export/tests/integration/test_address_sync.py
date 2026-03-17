@@ -72,6 +72,7 @@ async def test_address_sync(
         "bruger_uuid": person_uuid,
         "enhed_uuid": None,
         "engagement_uuid": None,
+        "ituser_uuid": None,
         "værdi": address_input["value"],
         "dar_uuid": None,
         "adressetype_uuid": address_type_uuid,
@@ -154,6 +155,7 @@ async def test_org_unit_address_sync(
         "bruger_uuid": None,
         "enhed_uuid": unit_uuid,
         "engagement_uuid": None,
+        "ituser_uuid": None,
         "værdi": address_input["value"],
         "dar_uuid": None,
         "adressetype_uuid": address_type_uuid,
@@ -277,6 +279,89 @@ async def test_address_engagement_sync(
         "bruger_uuid": person_uuid,
         "enhed_uuid": None,
         "engagement_uuid": address_input["engagement"],
+        "ituser_uuid": None,
+        "værdi": address_input["value"],
+        "dar_uuid": None,
+        "adressetype_uuid": address_type_uuid,
+        "adressetype_bvn": address_type_class["user_key"],
+        "adressetype_scope": "E-mail",
+        "adressetype_titel": address_type_class["name"],
+        "synlighed_uuid": None,
+        "synlighed_scope": None,
+        "synlighed_titel": None,
+        "startdato": "2020-01-01",
+        "slutdato": "9999-12-31",
+    }
+
+
+@pytest.mark.integration_test
+async def test_address_ituser_sync(
+    trigger: Callable[[], Awaitable[None]],
+    address_type_facet: UUID,
+    create_class: Callable[[dict[str, Any]], Awaitable[str]],
+    create_person: Callable[[dict[str, Any]], Awaitable[str]],
+    create_it_system: Callable[[dict[str, Any]], Awaitable[str]],
+    create_it_connection: Callable[[dict[str, Any]], Awaitable[str]],
+    create_address: Callable[[dict[str, Any]], Awaitable[str]],
+    actual_state_db_session: Session,
+) -> None:
+    """Test that address synchronization includes the ituser_uuid."""
+    address_type_class = {
+        "user_key": "email",
+        "name": "Email",
+        "facet_uuid": str(address_type_facet),
+        "scope": "EMAIL",
+        "published": "Publiceret",
+        "validity": VALIDITY,
+    }
+    address_type_uuid = await create_class(address_type_class)
+
+    person_uuid = await create_person(
+        {
+            "cpr_number": "0303700000",
+            "given_name": "Addr",
+            "surname": "User",
+            "user_key": "addr_user",
+        }
+    )
+
+    it_system_uuid = await create_it_system(
+        {
+            "user_key": "ad",
+            "name": "Active Directory",
+            "validity": VALIDITY,
+        }
+    )
+
+    ituser_uuid = await create_it_connection(
+        {
+            "user_key": "ad_user",
+            "person": person_uuid,
+            "itsystem": it_system_uuid,
+            "validity": VALIDITY,
+        }
+    )
+
+    address_input = {
+        "user_key": "my_address",
+        "value": "test@example.com",
+        "person": person_uuid,
+        "address_type": address_type_uuid,
+        "ituser": ituser_uuid,
+        "validity": VALIDITY,
+    }
+    address_uuid = await create_address(address_input)
+
+    await trigger()
+
+    addr = one(actual_state_db_session.query(Adresse).all())
+    assert sql_to_dict(addr) == {
+        "uuid": address_uuid,
+        "bvn": address_input["user_key"],
+        "bruger_uuid": person_uuid,
+        "enhed_uuid": None,
+        "engagement_uuid": None,
+        "ituser_uuid": address_input["ituser"],
         "værdi": address_input["value"],
         "dar_uuid": None,
         "adressetype_uuid": address_type_uuid,
