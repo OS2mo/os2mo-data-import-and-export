@@ -27,6 +27,7 @@ from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
 from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
+from reports.safetynet.exceptions import ManagerEngagementCouplingMissing
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -60,6 +61,12 @@ GET_ADM_UNIT = gql(
                   engagement_type {
                     user_key
                   }
+                }
+              }
+              engagement_response {
+                uuid
+                current {
+                  user_key
                 }
               }
             }
@@ -302,22 +309,31 @@ def get_opus_manager_eng_user_key_and_cpr(
 
 
 def _get_sd_manager_eng_user_key(
-    potential_manager_eng_unit_uuids: list[str],
     manager: dict[str, Any],
     allowed_engagement_types: list[str],
 ) -> str:
     person = only(manager.get("person", []), default=dict())  # type: ignore
     engagements = person.get("engagements", [])
 
-    manager_eng_user_key = only(
-        (
+    try:
+        manager_eng_user_key = one(
             eng["user_key"]
             for eng in engagements
-            if eng["org_unit_uuid"] in potential_manager_eng_unit_uuids
-            and eng["engagement_type"]["user_key"] in allowed_engagement_types
-        ),
-        default="",
-    )
+            if eng["engagement_type"]["user_key"] in allowed_engagement_types
+        )
+    except ValueError:
+        logger.info(
+            "More than one engagement for manager. Using manager-engagement coupling"
+        )
+        eng_response = manager.get("engagement_response")
+        if eng_response is None:
+            logger.error(
+                "Manager engagement coupling missing",
+                manager_cpr=person.get("cpr_number", ""),
+            )
+            raise ManagerEngagementCouplingMissing()
+        current = eng_response["current"]
+        manager_eng_user_key = current["user_key"]
 
     return manager_eng_user_key
 
@@ -328,16 +344,12 @@ def get_sd_manager_eng_user_key_and_cpr(
     org_unit: dict[str, Any],
     employee_eng_user_key: str,
 ) -> tuple[str, str]:
-    ancestors = org_unit.get("ancestors", [])
-    ancestor_uuids = [ancestor["uuid"] for ancestor in ancestors]
-    potential_manager_eng_unit_uuids = [org_unit["uuid"]] + ancestor_uuids
-
     manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
     manager_person = only(manager.get("person", []), default=dict())  # type: ignore
     manager_cpr = manager_person.get("cpr_number", "")
 
     manager_eng_user_key = _get_sd_manager_eng_user_key(
-        potential_manager_eng_unit_uuids, manager, settings.allowed_sd_engagement_types
+        manager, settings.allowed_sd_engagement_types
     )
 
     # If the manager is the employee itself, use the manager of the parent units
@@ -376,6 +388,12 @@ def get_sd_manager_eng_user_key_and_cpr(
         #                                         ]
         #                                     }
         #                                 ]
+        #                                 "engagement_response": {
+        #                                   "uuid": "71809dae-fe33-43fc-92df-e72195a7ece8",
+        #                                   "current": {
+        #                                     "user_key": "54321",
+        #                                   }
+        #                                }
         #                             }
         #                         ]
         #                     }
@@ -396,7 +414,7 @@ def get_sd_manager_eng_user_key_and_cpr(
         manager_cpr = manager_person.get("cpr_number", "")
 
         manager_eng_user_key = _get_sd_manager_eng_user_key(
-            ancestor_uuids, parent_manager, settings.allowed_sd_engagement_types
+            parent_manager, settings.allowed_sd_engagement_types
         )
 
     return manager_eng_user_key, manager_cpr
@@ -596,7 +614,13 @@ def process_adm_unit(
     #                       }
     #                     ]
     #                   }
-    #                 ]
+    #                 ],
+    #                 "engagement_response": {
+    #                   "uuid": "83126162-1c90-4ab6-942c-86fb1eca4535",
+    #                   "current": {
+    #                     "user_key": "54321"
+    #                   }
+    #                 }
     #             }
     #         ]
     #         "addresses": [

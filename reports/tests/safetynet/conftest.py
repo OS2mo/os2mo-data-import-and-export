@@ -115,6 +115,12 @@ def sd_ou_manager_the_same_as_eng_employee() -> dict[str, Any]:
                                         ],
                                     }
                                 ],
+                                "engagement_response": {
+                                    "uuid": "83126162-1c90-4ab6-942c-86fb1eca4535",
+                                    "current": {
+                                        "user_key": "12345",
+                                    },
+                                },
                             }
                         ],
                         "addresses": [{"value": "1234567890"}],
@@ -229,6 +235,12 @@ def sd_ou_parent_manager() -> dict[str, Any]:
                                             ],
                                         }
                                     ],
+                                    "engagement_response": {
+                                        "uuid": "71809dae-fe33-43fc-92df-e72195a7ece8",
+                                        "current": {
+                                            "user_key": "54321",
+                                        },
+                                    },
                                 }
                             ],
                         }
@@ -272,13 +284,6 @@ def sd_ou_manager_not_the_same_as_eng_employee() -> dict[str, Any]:
                                                 "org_unit_uuid": "9d1af806-f4d6-44e2-a001-a5deb3aa6703",
                                                 "engagement_type": {
                                                     "user_key": "timeløn",
-                                                },
-                                            },
-                                            {
-                                                "user_key": "23456",
-                                                "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
-                                                "engagement_type": {
-                                                    "user_key": "månedsløn",
                                                 },
                                             },
                                         ],
