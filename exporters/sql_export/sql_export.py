@@ -414,6 +414,7 @@ class SqlExport:
             enhed_uuid=address_info["unit"],
             bruger_uuid=address_info["user"],
             engagement_uuid=address_info.get("engagement"),
+            ituser_uuid=address_info.get("ituser"),
             bvn=address_info["user_key"],
             værdi=address_info["value"],
             dar_uuid=address_info["dar_uuid"],
