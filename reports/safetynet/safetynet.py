@@ -27,7 +27,6 @@ from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
 from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
-from reports.safetynet.exceptions import ManagerEngagementCouplingMissing
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -331,7 +330,9 @@ def _get_sd_manager_eng_user_key(
                 "Manager engagement coupling missing",
                 manager_cpr=person.get("cpr_number", ""),
             )
-            raise ManagerEngagementCouplingMissing()
+            # TODO: fix this later
+            return ""
+            # raise ManagerEngagementCouplingMissing()
         current = eng_response["current"]
         manager_eng_user_key = current["user_key"]
 
