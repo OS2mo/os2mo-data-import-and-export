@@ -111,6 +111,23 @@ GET_ENGAGEMENT = gql(
             job_function {
               name
             }
+            managers(exclude_self: true, inherit: true) {
+              person {
+                cpr_number
+                engagements {
+                  user_key
+                  engagement_type {
+                    user_key
+                  }
+                }
+              }
+              engagement_response {
+                uuid
+                current {
+                  user_key
+                }
+              }
+            }
           }
         }
       }
@@ -507,7 +524,25 @@ def process_engagement(
     #                 ],
     #                 "job_function": {
     #                     "name": "Kung Fu Master"
-    #                 }
+    #                 },
+    #                 "managers": [
+    #                   {
+    #                       "person": [
+    #                           {
+    #                               "cpr_number": "0201543150",
+    #                               "engagements": [
+    #                                   {
+    #                                       "user_key": "54321"
+    #                                       "engagement_type": {
+    #                                           "user_key": "månedsløn"
+    #                                       }
+    #                                   }
+    #                               ]
+    #                           }
+    #                       ],
+    #                       "engagement_response": None,
+    #                    }
+    #                ]
     #             }
     #         }
     #     ]
