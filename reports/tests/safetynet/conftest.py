@@ -203,6 +203,71 @@ def engagements() -> dict[str, Any]:
 
 
 @pytest.fixture
+def engagements_with_multiple_manager_engagements() -> dict[str, Any]:
+    return {
+        "engagements": {
+            "objects": [
+                {
+                    "validities": [
+                        {
+                            "validity": {
+                                "from": "2021-10-22T00:00:00+02:00",
+                                "to": "2023-10-31T00:00:00+01:00",
+                            }
+                        },
+                        {
+                            "validity": {
+                                "from": "2023-11-01T00:00:00+01:00",
+                                "to": "2025-09-30T00:00:00+02:00",
+                            }
+                        },
+                    ],
+                    "current": {
+                        "user_key": "12345",
+                        "person": [
+                            {
+                                "cpr_number": "0101011255",
+                                "given_name": "Bruce",
+                                "surname": "Lee",
+                                "addresses": [{"value": "bruce@kung.fu"}],
+                            }
+                        ],
+                        "job_function": {"name": "Kung Fu Master"},
+                        "managers": [
+                            {
+                                "person": [
+                                    {
+                                        "cpr_number": "2001011299",
+                                        "engagements": [
+                                            {
+                                                "user_key": "54321",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
+                                            },
+                                            {
+                                                "user_key": "67980",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
+                                            },
+                                        ],
+                                    }
+                                ],
+                                "engagement_response": {
+                                    "uuid": "83126162-1c90-4ab6-942c-86fb1eca4535",
+                                    "current": {"user_key": "54321"},
+                                },
+                            }
+                        ],
+                    },
+                }
+            ]
+        }
+    }
+
+
+@pytest.fixture
 def opus_ou_parent_manager() -> dict[str, Any]:
     return {
         "org_units": {
