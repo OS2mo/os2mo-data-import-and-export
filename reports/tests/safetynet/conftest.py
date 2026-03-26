@@ -177,6 +177,24 @@ def engagements() -> dict[str, Any]:
                             }
                         ],
                         "job_function": {"name": "Kung Fu Master"},
+                        "managers": [
+                            {
+                                "person": [
+                                    {
+                                        "cpr_number": "2001011299",
+                                        "engagements": [
+                                            {
+                                                "user_key": "54321",
+                                                "engagement_type": {
+                                                    "user_key": "månedsløn",
+                                                },
+                                            }
+                                        ],
+                                    }
+                                ],
+                                "engagement_response": None,
+                            }
+                        ],
                     },
                 }
             ]
@@ -194,55 +212,6 @@ def opus_ou_parent_manager() -> dict[str, Any]:
                         "parent": {
                             "uuid": "48a3819e-c5e1-4f4d-b4ad-582caff6ea51",
                             "managers": [{"user_key": "54321"}],
-                        }
-                    }
-                }
-            ]
-        }
-    }
-
-
-@pytest.fixture
-def sd_ou_parent_manager() -> dict[str, Any]:
-    return {
-        "org_units": {
-            "objects": [
-                {
-                    "current": {
-                        "parent": {
-                            "uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98",
-                            "managers": [
-                                {
-                                    "user_key": "1c967433-2ae8-49bf-b4c1-9a8e9d9eb89e",
-                                    "person": [
-                                        {
-                                            "cpr_number": "2010014321",
-                                            "engagements": [
-                                                {
-                                                    "user_key": "54321",
-                                                    "org_unit_uuid": "06f200ae-a05e-4fb3-91a4-9f16a0fc0b98",
-                                                    "engagement_type": {
-                                                        "user_key": "månedsløn",
-                                                    },
-                                                },
-                                                {
-                                                    "user_key": "23456",
-                                                    "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b",
-                                                    "engagement_type": {
-                                                        "user_key": "månedsløn",
-                                                    },
-                                                },
-                                            ],
-                                        }
-                                    ],
-                                    "engagement_response": {
-                                        "uuid": "71809dae-fe33-43fc-92df-e72195a7ece8",
-                                        "current": {
-                                            "user_key": "54321",
-                                        },
-                                    },
-                                }
-                            ],
                         }
                     }
                 }

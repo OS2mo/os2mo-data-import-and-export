@@ -111,6 +111,23 @@ GET_ENGAGEMENT = gql(
             job_function {
               name
             }
+            managers(exclude_self: true, inherit: true) {
+              person {
+                cpr_number
+                engagements {
+                  user_key
+                  engagement_type {
+                    user_key
+                  }
+                }
+              }
+              engagement_response {
+                uuid
+                current {
+                  user_key
+                }
+              }
+            }
           }
         }
       }
@@ -340,83 +357,16 @@ def _get_sd_manager_eng_user_key(
 
 
 def get_sd_manager_eng_user_key_and_cpr(
-    gql_client: GraphQLClient,
     settings: SafetyNetSettings,
-    org_unit: dict[str, Any],
-    employee_eng_user_key: str,
+    engagement: dict[str, Any],
 ) -> tuple[str, str]:
-    manager = only(org_unit.get("managers", []), default=dict())  # type: ignore
+    manager = only(engagement.get("managers", []), default=dict())  # type: ignore
     manager_person = only(manager.get("person", []), default=dict())  # type: ignore
     manager_cpr = manager_person.get("cpr_number", "")
 
     manager_eng_user_key = _get_sd_manager_eng_user_key(
         manager, settings.allowed_sd_engagement_types
     )
-
-    # If the manager is the employee itself, use the manager of the parent units
-    if manager_eng_user_key == employee_eng_user_key:
-        parent_ou_resp = gql_client.execute(
-            GET_PARENT_UNIT, variable_values={"org_unit": str(org_unit["uuid"])}
-        )
-        # Example response
-        # {
-        #     "org_units": {
-        #         "objects": [
-        #             {
-        #                 "current": {
-        #                     "parent": {
-        #                         "managers": [
-        #                             {
-        #                                 "user_key": "12345",
-        #                                 "person": [
-        #                                     {
-        #                                         "cpr_number": "0101011234",
-        #                                         "engagements": [
-        #                                             {
-        #                                                 "user_key": "54321",
-        #                                                 "org_unit_uuid": "869c6187-1a05-4dc9-8881-4803bd9277d6"
-        #                                                 "engagement_type": {
-        #                                                     "user_key": "månedsløn"
-        #                                                 }
-        #                                             },
-        #                                             {
-        #                                                 "user_key": "23456",
-        #                                                 "org_unit_uuid": "4c448c55-9f2d-4b7e-a386-44ca218c977b"
-        #                                                 "engagement_type": {
-        #                                                     "user_key": "månedsløn"
-        #                                                 }
-        #                                             }
-        #                                         ]
-        #                                     }
-        #                                 ]
-        #                                 "engagement_response": {
-        #                                   "uuid": "71809dae-fe33-43fc-92df-e72195a7ece8",
-        #                                   "current": {
-        #                                     "user_key": "54321",
-        #                                   }
-        #                                }
-        #                             }
-        #                         ]
-        #                     }
-        #                 }
-        #             }
-        #         ]
-        #     }
-        # }
-
-        parent_ou = one(parent_ou_resp["org_units"]["objects"])
-        try:
-            parent_manager = only(parent_ou["current"]["parent"]["managers"], {})  # type: ignore
-        except ValueError:
-            logger.warning("More than one manager found!")
-            parent_manager = dict()
-
-        manager_person = only(parent_manager.get("person", []), default=dict())  # type: ignore
-        manager_cpr = manager_person.get("cpr_number", "")
-
-        manager_eng_user_key = _get_sd_manager_eng_user_key(
-            parent_manager, settings.allowed_sd_engagement_types
-        )
 
     return manager_eng_user_key, manager_cpr
 
@@ -425,7 +375,7 @@ def get_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     settings: SafetyNetSettings,
     current_unit: dict[str, Any],
-    employee_eng_user_key: str,
+    current_engagement: dict[str, Any],
 ) -> tuple[str, str]:
     """
     State/strategy pattern for getting the managers engagement user_key.
@@ -434,14 +384,12 @@ def get_manager_eng_user_key_and_cpr(
         return get_opus_manager_eng_user_key_and_cpr(
             gql_client=gql_client,
             org_unit=current_unit,
-            employee_eng_user_key=employee_eng_user_key,
+            employee_eng_user_key=current_engagement.get("user_key", ""),
         )
     elif settings.source_system == SourceSystem.SD:
         return get_sd_manager_eng_user_key_and_cpr(
-            gql_client=gql_client,
             settings=settings,
-            org_unit=current_unit,
-            employee_eng_user_key=employee_eng_user_key,
+            engagement=current_engagement,
         )
     else:
         raise NotImplementedError()
@@ -507,7 +455,25 @@ def process_engagement(
     #                 ],
     #                 "job_function": {
     #                     "name": "Kung Fu Master"
-    #                 }
+    #                 },
+    #                 "managers": [
+    #                   {
+    #                       "person": [
+    #                           {
+    #                               "cpr_number": "0201543150",
+    #                               "engagements": [
+    #                                   {
+    #                                       "user_key": "54321"
+    #                                       "engagement_type": {
+    #                                           "user_key": "månedsløn"
+    #                                       }
+    #                                   }
+    #                               ]
+    #                           }
+    #                       ],
+    #                       "engagement_response": None,
+    #                    }
+    #                ]
     #             }
     #         }
     #     ]
@@ -528,7 +494,7 @@ def process_engagement(
         gql_client=gql_client,
         settings=settings,
         current_unit=org_unit,
-        employee_eng_user_key=current.get("user_key", ""),
+        current_engagement=current,
     )
 
     return AdmEngRow(
