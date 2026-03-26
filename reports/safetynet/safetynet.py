@@ -994,7 +994,10 @@ def upload_csv(
 
 @click.command()
 @click.option(
-    "--adm-unit-uuid", type=click.UUID, help="UUID of top level adm unit to process"
+    "--adm-unit-uuid",
+    type=click.UUID,
+    multiple=True,
+    help="UUID of top level adm unit to process",
 )
 @click.option(
     "--med-unit-uuid", type=click.UUID, help="UUID of top level med unit to process"
@@ -1011,7 +1014,7 @@ def upload_csv(
     help="Set this flag if we are running in Kubernetes",
 )
 def main(
-    adm_unit_uuid: UUID,
+    adm_unit_uuid: tuple[UUID, ...],
     med_unit_uuid: UUID,
     skip_upload: bool,
     only_adm_org: bool,
@@ -1021,8 +1024,9 @@ def main(
 
     settings = get_unified_settings(kubernetes_environment=kubernetes_environment)
 
+    adm_unit_uuids = list(adm_unit_uuid)
     if not adm_unit_uuid:
-        adm_unit_uuid = settings.safetynet_adm_unit_uuid
+        adm_unit_uuids = settings.safetynet_adm_unit_uuids
     if not (only_adm_org or med_unit_uuid):
         assert settings.safetynet_med_unit_uuid is not None
         med_unit_uuid = settings.safetynet_med_unit_uuid
@@ -1040,9 +1044,14 @@ def main(
 
     # Adm employee report
     logger.info("Generating adm employee report")
-    adm_eng_rows, adm_ou_rows = process_adm_unit(
-        gql_client, settings, adm_unit_uuid, [], []
-    )
+    adm_eng_rows = []
+    adm_ou_rows = []
+    for adm_unit_uuid_ in adm_unit_uuids:
+        logger.info("Processing adm root unit", root_unit=adm_unit_uuid_)
+        adm_eng_rows, adm_ou_rows = process_adm_unit(
+            gql_client, settings, adm_unit_uuid_, adm_eng_rows, adm_ou_rows
+        )
+
     csv_lines = adm_eng_rows_to_csv_lines(adm_eng_rows, settings.include_manager_cpr)
     if skip_upload:
         write_csv("/tmp/adm-engagements.csv", csv_lines)

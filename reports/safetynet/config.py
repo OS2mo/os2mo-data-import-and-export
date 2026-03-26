@@ -27,7 +27,7 @@ class SafetyNetSettings(BaseSettings):
 
     safetynet_sftp: SafetyNetSFTP | None = None
 
-    safetynet_adm_unit_uuid: UUID
+    safetynet_adm_unit_uuids: list[UUID] = []
     safetynet_med_unit_uuid: UUID | None = None
 
     source_system: SourceSystem = SourceSystem.OPUS

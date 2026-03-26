@@ -34,7 +34,7 @@ def test_adm_engagements_opus_ou_manager_not_the_same_as_eng_employee(
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
-        safetynet_adm_unit_uuid=UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703"),
+        safetynet_adm_unit_uuids=[UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703")],
     )
 
     mock_gql_client = MagicMock(spec=GraphQLClient)
@@ -79,7 +79,7 @@ def test_adm_engagements_opus_ou_manager_the_same_as_eng_employee(
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
-        safetynet_adm_unit_uuid=UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703"),
+        safetynet_adm_unit_uuids=[UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703")],
     )
 
     mock_gql_client = MagicMock(spec=GraphQLClient)
@@ -126,7 +126,7 @@ def test_csv_adm_engagements_sd_ou_manager_not_the_same_as_eng_employee(
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
-        safetynet_adm_unit_uuid=UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703"),
+        safetynet_adm_unit_uuids=[UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703")],
         source_system=SourceSystem.SD,
     )
 
@@ -168,7 +168,7 @@ def test_csv_adm_engagements_sd_ou_manager_not_the_same_as_eng_employee_integrat
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
-        safetynet_adm_unit_uuid=UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703"),
+        safetynet_adm_unit_uuids=[UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703")],
         source_system=SourceSystem.SD,
     )
 
@@ -213,7 +213,7 @@ def test_adm_engagements_sd_ou_manager_cpr_included(
         client_id="client-id",
         client_secret=SecretStr("secret"),
         mora_base="http://mora.base",
-        safetynet_adm_unit_uuid=UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703"),
+        safetynet_adm_unit_uuids=[UUID("9d1af806-f4d6-44e2-a001-a5deb3aa6703")],
         source_system=SourceSystem.SD,
         include_manager_cpr=True,
     )
