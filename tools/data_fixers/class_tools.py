@@ -9,6 +9,9 @@ from uuid import UUID
 from uuid import uuid4
 
 import click
+from fastramqpi.ra_utils.deprecation import deprecated
+from gql import gql
+from gql.client import SyncClientSession
 import jmespath
 import requests
 from aiohttp.client_exceptions import ClientResponseError
@@ -22,6 +25,7 @@ from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
 from mox_helpers.mox_util import ensure_class_value_helper
+from pydantic import AnyHttpUrl
 
 jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
@@ -146,9 +150,12 @@ def filter_duplicates(
 
     return transposed  # type: ignore
 
-
+@deprecated
 def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str]]]:
     """Find classes within a facet that are duplicates.
+
+    Deprecated:
+        Use `find_duplicate_classes` instead
 
     Returns a list of lists containing uuids and titles of classes that are duplicates.
     """
@@ -156,6 +163,54 @@ def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str
     all_classes = read_classes(session, mox_base)
     class_uuids, class_bvns, class_titles, facet_uuids = get_relevant_info(all_classes)
     return filter_duplicates(class_uuids, class_bvns, class_titles, facet_uuids)
+
+# TODO: set up integration tests that check that duplicates are acutally found. I tested it manually by spinning up mo
+#       and creating a duplicate class manually.
+def find_duplicate_classes(mora_base: str, client_id: str, client_secret: str, auth_realm: str, auth_server: AnyHttpUrl) -> list[list[tuple[UUID, str]]]:
+    """Find classes within a facet that are duplicates.
+
+    Returns a list of lists containing uuids and titles of classes that are duplicates.
+    """
+
+    with GraphQLClient(
+        url=f"{mora_base}/graphql/v29",
+        client_id=client_id,
+        client_secret=client_secret,
+        auth_realm=auth_realm,
+        auth_server=auth_server,
+        sync=True,
+        httpx_client_kwargs={"timeout": None},
+    ) as session:
+        assert isinstance(session, SyncClientSession)
+        q = gql(
+            """
+        query ClassToolsFindDuplicateClasses {
+            classes {
+                objects {
+                    current {
+                        uuid
+                        user_key
+                        name
+                        facet_response {
+                            uuid
+                        }
+                    }
+                }
+            }
+        }
+        """
+        )
+        res = session.execute(q)
+        classes = res["classes"]["objects"]
+        classes_current = [
+            klass["current"] for klass in classes if klass["current"] is not None
+        ]
+        assert len(classes_current) == len(classes), "current should never be None"
+        classes_tuples = (
+            (klass["uuid"], klass["user_key"], klass["name"], klass["facet_response"]["uuid"]) for klass in classes_current
+        )
+        class_uuids, class_user_keys, class_names, facet_uuids = unzip(classes_tuples)
+        return filter_duplicates(class_uuids, class_user_keys, class_names, facet_uuids)
 
 
 @click.group()

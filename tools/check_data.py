@@ -1,7 +1,7 @@
 import requests
 from fastramqpi.ra_utils.load_settings import load_settings
 
-from tools.data_fixers.class_tools import find_duplicates_classes
+from tools.data_fixers.class_tools import find_duplicate_classes
 from tools.data_fixers.find_duplicate_users import check_duplicate_cpr
 from tools.data_fixers.opus_terminate_filtered import terminate_filtered_employees
 from tools.data_fixers.opus_terminate_filtered import terminate_filtered_units
@@ -16,8 +16,13 @@ def main():
 
     session = requests.Session()
 
-    dup = find_duplicates_classes(session=session, mox_base=mox_base)
-    assert not dup, f"There are {len(dup)} duplicate classes"
+    dup = find_duplicate_classes(
+        mora_base=mora_base,
+        client_id=settings["crontab.CLIENT_ID"],
+        client_secret=settings["crontab.CLIENT_SECRET"],
+        auth_realm="mo",
+        auth_server=settings["crontab.AUTH_SERVER"])
+    assert not dup, f"There are {len(dup)} duplicate classes: {dup}"
 
     common_cpr = check_duplicate_cpr(mora_base=mora_base)
     assert not common_cpr, f"There are {len(common_cpr)} users with the same CPR-number"
