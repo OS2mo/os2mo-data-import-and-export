@@ -16,6 +16,7 @@ from fastramqpi.ra_utils.load_settings import load_setting
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from fastramqpi.ra_utils.transpose_dict import transpose_dict
+from fastramqpi.raclients.graph.client import GraphQLClient
 from more_itertools import first
 from more_itertools import one
 from more_itertools import only
@@ -151,9 +152,10 @@ def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str
 
     Returns a list of lists containing uuids and titles of classes that are duplicates.
     """
+
     all_classes = read_classes(session, mox_base)
-    info = get_relevant_info(all_classes)
-    return filter_duplicates(*info)
+    class_uuids, class_bvns, class_titles, facet_uuids = get_relevant_info(all_classes)
+    return filter_duplicates(class_uuids, class_bvns, class_titles, facet_uuids)
 
 
 @click.group()
