@@ -38,17 +38,10 @@ async def _trigger(test_client: AsyncClient, resolve_dar: bool) -> None:
             "historic": False,
             "read_from_cache": False,
         },
-    )
-    assert response.status_code == 200
-    assert response.json() == {"detail": "Triggered"}
-
-    response = await test_client.post(
-        "/wait_for_finish",
-        params={"historic": False},
         timeout=60.0,
     )
     assert response.status_code == 200
-    assert response.json() == {"detail": "Finished"}
+    assert response.json() == {"detail": "Done"}
 
 
 @pytest.fixture
