@@ -7,7 +7,6 @@ import logging
 from threading import Lock
 
 from fastapi import APIRouter
-from fastapi import BackgroundTasks
 from fastapi import HTTPException
 from fastapi import Query
 from fastramqpi.metrics import dipex_last_success_timestamp
@@ -49,7 +48,6 @@ def refresh_db(
 
 @trigger_router.post("/trigger")
 def trigger(
-    background_tasks: BackgroundTasks,
     resolve_dar: bool = Query(False),
     historic: bool = Query(False),
     read_from_cache: bool = Query(False),
@@ -62,15 +60,5 @@ def trigger(
     if not acquired:
         raise HTTPException(409, "Already running")
 
-    background_tasks.add_task(refresh_db, resolve_dar, historic, read_from_cache, lock)
-    return {"detail": "Triggered"}
-
-
-@trigger_router.post("/wait_for_finish")
-def wait_for_finish(historic: bool = Query(False)) -> dict[str, str]:
-    if historic:
-        lock = lock_historic
-    else:
-        lock = lock_actual
-    with lock:
-        return {"detail": "Finished"}
+    refresh_db(resolve_dar, historic, read_from_cache, lock)
+    return {"detail": "Done"}
