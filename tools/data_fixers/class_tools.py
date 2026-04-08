@@ -160,7 +160,6 @@ def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str
 
     Returns a list of lists containing uuids and titles of classes that are duplicates.
     """
-
     all_classes = read_classes(session, mox_base)
     class_uuids, class_bvns, class_titles, facet_uuids = get_relevant_info(all_classes)
     return filter_duplicates(class_uuids, class_bvns, class_titles, facet_uuids)
@@ -179,7 +178,6 @@ def find_duplicate_classes(
 
     Returns a list of lists containing uuids and titles of classes that are duplicates.
     """
-
     with GraphQLClient(
         url=f"{mora_base}/graphql/v29",
         client_id=client_id,
