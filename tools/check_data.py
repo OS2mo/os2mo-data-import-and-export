@@ -1,4 +1,3 @@
-import requests
 from fastramqpi.ra_utils.load_settings import load_settings
 
 from tools.data_fixers.class_tools import find_duplicate_classes
@@ -11,17 +10,15 @@ def main():
     """Run checks on MO data"""
 
     settings = load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:5000/lora/")
     mora_base = settings.get("mora.base", "http://localhost:5000/")
-
-    session = requests.Session()
 
     dup = find_duplicate_classes(
         mora_base=mora_base,
         client_id=settings["crontab.CLIENT_ID"],
         client_secret=settings["crontab.CLIENT_SECRET"],
         auth_realm="mo",
-        auth_server=settings["crontab.AUTH_SERVER"])
+        auth_server=settings["crontab.AUTH_SERVER"],
+    )
     assert not dup, f"There are {len(dup)} duplicate classes: {dup}"
 
     common_cpr = check_duplicate_cpr(mora_base=mora_base)
