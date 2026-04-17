@@ -52,9 +52,9 @@ def local_db_insert(insert_tuple):
     conn.close()
 
 
-def initialize_db(run_db):
+def initialize_db(run_db: str):
     logger.info("Force is true, create new db")
-    conn = sqlite3.connect(str(run_db))
+    conn = sqlite3.connect(run_db)
     c = conn.cursor()
     c.execute(
         """
