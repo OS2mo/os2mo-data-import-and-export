@@ -6,6 +6,7 @@ import click
 import requests
 from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
+from fastramqpi.ra_utils.deprecation import deprecated
 from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import pairwise
 from more_itertools import prepend
@@ -17,9 +18,11 @@ from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
+@deprecated
 def truncate_db(MOX_BASE: str = "http://localhost:5000/lora") -> None:
-    r = requests.get(MOX_BASE + "/db/truncate")
-    r.raise_for_status()
+    raise NotImplementedError(
+        "the `/db/truncate` endpoint was removed from os2mo on commit 'a286d59d71f3eb564cec491ec7c528cea85ae740'"
+    )
 
 
 def prepare_re_import(
