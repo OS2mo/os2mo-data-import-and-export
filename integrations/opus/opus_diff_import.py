@@ -4,20 +4,20 @@ import sys
 from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
-from pathlib import Path
 from typing import Dict
 from typing import List
 from typing import Optional
 from uuid import UUID
 
 import requests
-from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import one
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
+from pydantic import AnyHttpUrl
+from pydantic.tools import parse_obj_as
 from requests import Session
 
 import constants
@@ -25,6 +25,7 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
+from integrations.opus.config import OpusDiffImportSettings
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -164,15 +165,13 @@ class OpusDiffImport(object):
         self.xml_date = xml_date
         self.ad_reader = ad_reader
 
-        self.settings = load_settings()
-        self.filter_ids = filter_ids or self.settings.get(
-            "integrations.opus.units.filter_ids", []
-        )
+        self.settings = OpusDiffImportSettings()
+        self.filter_ids = filter_ids or self.settings.integrations_opus_units_filter_ids
         self.dry_run = dry_run
 
         self.session = Session()
         self.helper = self._get_mora_helper(
-            hostname=self.settings["mora.base"], use_cache=False
+            hostname=self.settings.mora_base, use_cache=False
         )
         self.gql_client = self._setup_gql_client()
         if dry_run:
@@ -195,13 +194,16 @@ class OpusDiffImport(object):
         logger.info("__init__ done, now ready for import")
 
     def _setup_gql_client(self) -> GraphQLClient:
-        # TODO: pydantic settings!
+        assert self.settings.client_secret is not None
+        assert self.settings.auth_server is not None
+        # TODO: [#69727] JobSettings should use AnyHttpUrl for the type of auth_server, not str
+        auth_server = parse_obj_as(AnyHttpUrl, self.settings.auth_server)
         return GraphQLClient(
-            url=f"{self.settings['mora.base']}/graphql/v22",
-            client_id=self.settings["crontab.CLIENT_ID"],
-            client_secret=self.settings["crontab.CLIENT_SECRET"],
+            url=f"{self.settings.mora_base}/graphql/v22",
+            client_id=self.settings.client_id,
+            client_secret=self.settings.client_secret,
             auth_realm="mo",
-            auth_server=self.settings["crontab.AUTH_SERVER"],
+            auth_server=auth_server,
             httpx_client_kwargs={"timeout": 300},
             execute_timeout=300,
             sync=True,
@@ -222,7 +224,7 @@ class OpusDiffImport(object):
         return types_dict, facet
 
     def _get_mora_helper(self, hostname="localhost:5000", use_cache=False):
-        return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
+        return MoraHelper(hostname=self.settings.mora_base, use_cache=False)
 
     async def find_address(self, address_string: str, zip_code: str) -> str | None:
         address = (address_string, zip_code)
@@ -305,14 +307,13 @@ class OpusDiffImport(object):
 
     async def _condense_employee_opus_addresses(self, employee):
         opus_addresses = {}
-        if "email" in employee and not self.settings.get(
-            "integrations.opus.skip_employee_email", False
+        if (
+            "email" in employee
+            and not self.settings.integrations_opus_skip_employee_email
         ):
             opus_addresses["email"] = employee["email"]
 
-        skip_employee_phone = self.settings.get(
-            "integrations.opus.skip_employee_phone", False
-        )
+        skip_employee_phone = self.settings.integrations_opus_skip_employee_phone
         if employee["workPhone"] is not None:
             phone = opus_helpers.parse_phone(employee["workPhone"])
             if (phone is not None) and (not skip_employee_phone):
@@ -321,7 +322,7 @@ class OpusDiffImport(object):
         if (
             "postalCode" in employee
             and employee["address"]
-            and not self.settings.get("integrations.opus.skip_employee_address", False)
+            and not self.settings.integrations_opus_skip_employee_address
         ):
             if isinstance(employee["address"], dict):
                 logger.info("Protected addres, cannont import")
@@ -452,7 +453,10 @@ class OpusDiffImport(object):
             "org_unit_type", bvn=org_type_bvn, title=org_type_title
         )
         from_date = unit.get("startDate", "01-01-1900")
-        unit_user_key = self.settings.get("integrations.opus.unit_user_key", "@id")
+        maybe_unit_user_key = self.settings.integrations_opus_unit_user_key
+        unit_user_key = (
+            maybe_unit_user_key if maybe_unit_user_key is not None else "@id"
+        )
         unit_args = {
             "unit": unit,
             "unit_user_key": unit[unit_user_key],
@@ -995,11 +999,11 @@ async def start_opus_diff(ad_reader=None, dry_run: bool = False):
     Start an opus update, use the oldest available dump that has not
     already been imported.
     """
-    SETTINGS = load_settings()
+    settings = OpusDiffImportSettings()
 
     dumps = opus_helpers.read_available_dumps()
-    run_db = Path(SETTINGS["integrations.opus.import.run_db"])
-    filter_ids = SETTINGS.get("integrations.opus.units.filter_ids", [])
+    run_db = settings.integrations_opus_import_run_db
+    filter_ids = settings.integrations_opus_units_filter_ids
 
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
@@ -1022,9 +1026,9 @@ async def start_opus_diff(ad_reader=None, dry_run: bool = False):
 
 
 if __name__ == "__main__":
-    settings = load_settings()
+    settings = OpusDiffImportSettings()
 
-    reader = ad_reader.ADParameterReader() if settings.get("integrations.ad") else None
+    reader = ad_reader.ADParameterReader() if settings.integrations_ad else None
 
     try:
         asyncio.run(start_opus_diff(ad_reader=reader))
