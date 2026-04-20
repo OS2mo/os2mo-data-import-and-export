@@ -1,16 +1,15 @@
 import datetime
 from abc import ABC
 from abc import abstractmethod
-from pathlib import Path
 from typing import Dict
-from typing import Optional
 
 import click
 import fs
-from fastramqpi.ra_utils.load_settings import load_settings
 from google.cloud import storage
 from more_itertools import one
 from retrying import retry
+
+from integrations.opus.config import OpusFileReaderSettings
 
 
 class OpusReaderInterface(ABC):
@@ -38,9 +37,10 @@ class OpusReaderInterface(ABC):
 
 
 class GcloudOpusReader(OpusReaderInterface):
-    def __init__(self, settings):
+    def __init__(self, settings: OpusFileReaderSettings):
         settings = settings
-        bucket_name = settings["integrations.opus.gcloud_bucket_name"]
+        bucket_name = settings.integrations_opus_gcloud_bucket_name
+        assert bucket_name is not None
         self.client = storage.Client()
         self.bucket = storage.Bucket(self.client, bucket_name)
 
@@ -62,11 +62,14 @@ retry_args = {
 
 class SMBOpusReader(OpusReaderInterface):
     @retry(**retry_args)
-    def __init__(self, settings):
+    def __init__(self, settings: OpusFileReaderSettings):
         self.settings = settings
-        user = self.settings["integrations.opus.smb_user"]
-        password = self.settings["integrations.opus.smb_password"]
-        smb_host = self.settings["integrations.opus.smb_host"]
+        user = self.settings.integrations_opus_smb_user
+        assert user is not None
+        password = self.settings.integrations_opus_smb_password
+        assert password is not None
+        smb_host = self.settings.integrations_opus_smb_host
+        assert smb_host is not None
         self.smb_fs = fs.open_fs(f"smb://{user}:{password}@{smb_host}")
 
     @retry(**retry_args)
@@ -81,23 +84,26 @@ class SMBOpusReader(OpusReaderInterface):
 
 
 class LocalOpusReader(OpusReaderInterface):
-    def __init__(self, settings):
+    def __init__(self, settings: OpusFileReaderSettings):
         self.settings = settings
 
     def list_opus_files(self) -> Dict[datetime.datetime, str]:
-        dump_path = Path(self.settings["integrations.opus.import.xml_path"])
+        dump_path = self.settings.integrations_opus_import_xml_path
+        assert dump_path is not None
         return self.map_dates(dump_path.glob("*.xml"))
 
     def read_file(self, filename) -> str:
         return filename.read_text()
 
 
-def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
+def get_opus_filereader(
+    settings: OpusFileReaderSettings | None = None,
+) -> OpusReaderInterface:
     """Get the correct opus reader interface based on values from settings."""
-    settings = settings or load_settings()
-    if settings.get("integrations.opus.gcloud_bucket_name"):
+    settings = settings or OpusFileReaderSettings()
+    if settings.integrations_opus_gcloud_bucket_name is not None:
         return GcloudOpusReader(settings)
-    if settings.get("integrations.opus.smb_host"):
+    if settings.integrations_opus_smb_host is not None:
         return SMBOpusReader(settings)
     return LocalOpusReader(settings)
 

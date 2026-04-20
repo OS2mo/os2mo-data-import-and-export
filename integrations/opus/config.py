@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastramqpi.ra_utils.job_settings import JobSettings
 
 
@@ -28,3 +30,14 @@ class OpusDiffImportSettings(JobSettings):
     integrations_opus_unit_user_key: str | None = None
     integrations_opus_import_run_db: str | None = None
     integrations_ad: bool = False
+
+
+class OpusFileReaderSettings(JobSettings):
+    class Config(JobSettings.Config):
+        frozen = True
+
+    integrations_opus_gcloud_bucket_name: str | None = None
+    integrations_opus_smb_user: str | None = None
+    integrations_opus_smb_password: str | None = None
+    integrations_opus_smb_host: str | None = None
+    integrations_opus_import_xml_path: Path | None = None
