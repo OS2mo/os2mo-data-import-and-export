@@ -13,15 +13,15 @@ from typing import Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
-from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
 from more_itertools import partition
 
+from integrations.opus.config import OpusHelpersSettings
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 from integrations.opus.opus_file_reader import get_opus_filereader
 
-SETTINGS = load_settings()
+SETTINGS = OpusHelpersSettings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
@@ -40,8 +40,10 @@ def get_latest_dump():
 
 
 def local_db_insert(insert_tuple):
+    run_db = SETTINGS.integrations_opus_import_run_db
+    assert run_db is not None
     conn = sqlite3.connect(
-        SETTINGS["integrations.opus.import.run_db"],
+        run_db,
         detect_types=sqlite3.PARSE_DECLTYPES,
     )
     c = conn.cursor()
@@ -67,8 +69,10 @@ def initialize_db(run_db: str):
 
 
 def next_xml_file(run_db, dumps) -> Tuple[Optional[datetime.date], datetime.date]:
+    run_db = SETTINGS.integrations_opus_import_run_db
+    assert run_db is not None
     conn = sqlite3.connect(
-        SETTINGS["integrations.opus.import.run_db"],
+        run_db,
         detect_types=sqlite3.PARSE_DECLTYPES,
     )
     c = conn.cursor()
@@ -109,7 +113,9 @@ def generate_uuid(value):
     """
     Generate a predictable uuid based on org name and a unique value.
     """
-    base_hash = hashlib.md5(SETTINGS["municipality.name"].encode())
+    municipality_name = SETTINGS.municipality_name
+    assert municipality_name is not None
+    base_hash = hashlib.md5(municipality_name.encode())
     base_digest = base_hash.hexdigest()
     base_uuid = uuid.UUID(base_digest)
 
