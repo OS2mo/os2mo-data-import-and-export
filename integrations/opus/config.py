@@ -41,3 +41,11 @@ class OpusFileReaderSettings(JobSettings):
     integrations_opus_smb_password: str
     integrations_opus_smb_host: str | None = None
     integrations_opus_import_xml_path: Path
+
+
+class OpusHelpersSettings(JobSettings):
+    class Config(JobSettings.Config):
+        frozen = True
+
+    integrations_opus_import_run_db: str
+    municipality_name: str
