@@ -1,9 +1,11 @@
 import tempfile
 import unittest
+from pathlib import Path
 
 from hypothesis import given
 from hypothesis.strategies import text
 
+from integrations.opus.config import OpusFileReaderSettings
 from integrations.opus.opus_file_reader import LocalOpusReader
 from integrations.opus.opus_file_reader import get_opus_filereader
 
@@ -14,13 +16,15 @@ class OpusFileReader_test(unittest.TestCase):
     """
 
     def test_local(self):
-        settings = {}
+        settings = OpusFileReaderSettings()
         ofr = get_opus_filereader(settings=settings)
         assert isinstance(ofr, LocalOpusReader)
 
     def test_empty_path(self):
         with tempfile.TemporaryDirectory() as tmppath:
-            settings = {"integrations.opus.import.xml_path": tmppath}
+            settings = OpusFileReaderSettings(
+                integrations_opus_import_xml_path=Path(tmppath)
+            )
 
             ofr = get_opus_filereader(settings=settings)
             assert len(ofr.list_opus_files()) == 0
@@ -33,7 +37,9 @@ class OpusFileReader_test(unittest.TestCase):
             with open(tmppath + filename, "w") as opus_file:
                 opus_file.write(dummy_text)
 
-            settings = {"integrations.opus.import.xml_path": tmppath}
+            settings = OpusFileReaderSettings(
+                integrations_opus_import_xml_path=Path(tmppath)
+            )
             ofr = get_opus_filereader(settings=settings)
             files_list = ofr.list_opus_files()
             assert len(files_list) == 1
