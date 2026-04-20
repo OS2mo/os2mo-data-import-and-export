@@ -12,6 +12,7 @@ import pytest
 from parameterized import parameterized
 
 from integrations.opus import opus_helpers
+from integrations.opus.config import OpusDiffImportSettings
 from integrations.opus.opus_diff_import import MUTATION_DELETE_ENGAGEMENT
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT
 from integrations.opus.opus_diff_import import QUERY_FIND_ENGAGEMENT_PRESENT
@@ -308,10 +309,12 @@ class TestableOpus(OpusDiffImport):
 class _GetInstanceMixin:
     _xml_date = datetime.now()
 
-    def get_instance(self, settings: dict, dry_run=False) -> OpusDiffImport:
-        settings.setdefault("mora.base", "http://unused.url")
+    def get_instance(
+        self, settings: OpusDiffImportSettings, dry_run=False
+    ) -> OpusDiffImport:
         with patch(
-            "integrations.opus.opus_diff_import.load_settings", return_value=settings
+            "integrations.opus.opus_diff_import.OpusDiffImportSettings",
+            return_value=settings,
         ):
             with patch("integrations.opus.opus_diff_import.MoraHelper"):
                 instance = TestableOpus(
@@ -347,7 +350,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
         [
             # Test flow with all feature flags turned off
             (
-                {},  # empty feature flags
+                OpusDiffImportSettings(),  # empty feature flags
                 opus_employee,
                 dar_valid_uuid,
                 {
@@ -358,21 +361,21 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             ),
             # Test "skip_employee_email" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_email": True},
+                OpusDiffImportSettings(integrations_opus_skip_employee_email=True),
                 opus_employee,
                 dar_valid_uuid,
                 {"phone": opus_employee["workPhone"], "dar": dar_valid_uuid},
             ),
             # Test "skip_employee_address" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_address": True},
+                OpusDiffImportSettings(integrations_opus_skip_employee_address=True),
                 opus_employee,
                 dar_valid_uuid,
                 {"phone": opus_employee["workPhone"], "email": opus_employee["email"]},
             ),
             # Test "skip_employee_phone" flag with normal Opus employee and valid DAR
             (
-                {"integrations.opus.skip_employee_phone": True},
+                OpusDiffImportSettings(integrations_opus_skip_employee_phone=True),
                 opus_employee,
                 dar_valid_uuid,
                 {"email": opus_employee["email"], "dar": dar_valid_uuid},
@@ -380,7 +383,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             # Test protected addresses are always removed (regardless of
             # "skip_employee_address" flag.)
             (
-                {"integrations.opus.skip_employee_address": False},
+                OpusDiffImportSettings(integrations_opus_skip_employee_address=False),
                 opus_employee_protected_address,
                 dar_valid_uuid,
                 {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
@@ -388,7 +391,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
             # Test that failed DAR lookups result in no "dar" key being added to the
             # result (regardless of "skip_employee_address" flag.)
             (
-                {"integrations.opus.skip_employee_address": False},
+                OpusDiffImportSettings(integrations_opus_skip_employee_address=False),
                 opus_employee,
                 dar_invalid_uuid,
                 {"email": opus_employee["email"], "phone": opus_employee["workPhone"]},
@@ -398,7 +401,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
     @pytest.mark.asyncio
     async def test_feature_flags_are_respected(
         self,
-        settings: dict,
+        settings: OpusDiffImportSettings,
         opus_employee: dict,
         dar_response: Optional[str],
         expected_result: dict,
@@ -464,7 +467,7 @@ class TestUpdateEmployeeAddress(_GetInstanceMixin):
     async def test_dar_address_visibility(self):
         """Verify that we use the correct visibility class when creating or updating
         employee addresses of the type 'Adresse' (= postal addresses.)"""
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
             # Make sure "DAR" returns a "DAR UUID" so we trigger an update of the
             # "Adresse" address type (a postal address.)
@@ -506,7 +509,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
     def test_create_manager(self):
         # Arrange
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 # This manager function should be disregarded
@@ -551,7 +554,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
     def test_update_manager(self):
         # Arrange
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 {
@@ -609,7 +612,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_terminate_manager(self):
         # Arrange
         self.opus_employee["isManager"] = "false"
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 {
@@ -644,7 +647,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_dry_run(self):
         """Test that the dry_run flag overwrites the _mo_post function"""
         # Arrange
-        instance = self.get_instance({}, dry_run=False)
+        instance = self.get_instance(OpusDiffImportSettings(), dry_run=False)
         # Act
         response = instance.helper._mo_post("test", payload={"dummy": "payload"})
 
@@ -652,7 +655,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         assert isinstance(response, MagicMock)
 
         # Arrange
-        instance = self.get_instance({}, dry_run=True)
+        instance = self.get_instance(OpusDiffImportSettings(), dry_run=True)
         # Act
         response = instance.helper._mo_post("test", payload={"dummy": "payload"})
 
@@ -661,7 +664,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
     def test_update_engagement_noop(self):
         # Arrange
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_post = MagicMock()
         instance.helper._mo_post.return_value.status_code = 200
 
@@ -693,7 +696,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         start_date = "2000-01-01"
         self.opus_employee["entryDate"] = start_date
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_post = MagicMock()
         instance.helper._mo_post.return_value.status_code = 200
 
@@ -737,7 +740,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         termination_date = "2020-03-10"
         old_start_date = "2010-03-11"
         self.opus_employee["entryDate"] = new_start_date
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.helper._mo_post = MagicMock()
         instance.helper._mo_post.return_value.status_code = 200
 
@@ -789,7 +792,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_delete_canceled(self):
         # Arrange
         eng_uuid = str(uuid4())
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.gql_client.execute.return_value = {
             "engagement_delete": {"uuid": eng_uuid}
         }
@@ -807,7 +810,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         opus_id = 1234
         eng_uuid = str(uuid4())
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.gql_client.execute.return_value = {
             "engagements": {"objects": [{"uuid": eng_uuid}]}
         }
@@ -825,7 +828,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         opus_id = 1234
         eng_uuid = str(uuid4())
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.gql_client.execute.return_value = {
             "engagements": {"objects": [{"uuid": eng_uuid}]}
         }
@@ -843,7 +846,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         opus_id = 1234
         manager_uuid = str(uuid4())
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.gql_client.execute.return_value = {
             "managers": {"objects": [{"uuid": manager_uuid}]}
         }
@@ -861,7 +864,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         opus_id = 1234
         manager_uuid = str(uuid4())
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         instance.gql_client.execute.return_value = {
             "managers": {"objects": [{"uuid": manager_uuid}]}
         }
@@ -879,7 +882,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     async def test_dar_cache(self):
         """Test that DAR calls are cached so each address is only fetched once"""
         # Arrange
-        instance = self.get_instance({})
+        instance = self.get_instance(OpusDiffImportSettings())
         assert instance.dar_cache == {}
         with patch(
             "integrations.opus.opus_diff_import.dawa_helper.dawa_lookup"
