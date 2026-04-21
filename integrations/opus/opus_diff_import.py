@@ -196,7 +196,6 @@ class OpusDiffImport(object):
     def _setup_gql_client(self) -> GraphQLClient:
         assert self.settings.client_secret is not None
         assert self.settings.auth_server is not None
-        # TODO: [#69727] JobSettings should use AnyHttpUrl for the type of auth_server, not str
         auth_server = parse_obj_as(AnyHttpUrl, self.settings.auth_server)
         return GraphQLClient(
             url=f"{self.settings.mora_base}/graphql/v22",

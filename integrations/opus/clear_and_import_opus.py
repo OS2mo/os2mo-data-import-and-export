@@ -8,12 +8,14 @@ from fastramqpi.ra_utils.deprecation import deprecated
 from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import pairwise
 from more_itertools import prepend
+from pydantic import AnyHttpUrl
+from pydantic.tools import parse_obj_as
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.config import ClearAndImportOpusSettings
 from integrations.opus.opus_diff_import import import_one
-from tools.data_fixers.class_tools import find_duplicates_classes
+from tools.data_fixers.class_tools import find_duplicate_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
@@ -30,11 +32,19 @@ def prepare_re_import(
     connections: int = 4,
 ) -> None:
     """Remove all opus-units from MO"""
+
     settings = settings or ClearAndImportOpusSettings()
-    mox_base = settings.mox_base
+    mora_base = settings.mora_base
+    client_id = settings.client_id
+    client_secret = settings.client_secret
+    assert client_secret is not None
+    auth_realm = settings.auth_realm
+    auth_server = parse_obj_as(AnyHttpUrl, settings.auth_server)
+
     if opus_uuid:
-        session = requests.session()
-        dub = find_duplicates_classes(session=session, mox_base=mox_base)
+        dub = find_duplicate_classes(
+            mora_base, client_id, client_secret, auth_realm, auth_server
+        )
         if dub:
             raise Exception(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
