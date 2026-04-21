@@ -12,7 +12,8 @@ class OpusSettings(JobSettings):
 
 
 class ClearAndImportOpusSettings(OpusSettings):
-    mox_base: str = "http://localhost:5000/lora"
+    # this calss exists for consistency, even if it doesn't define any fields
+    pass
 
 
 class OpusCheckDarAddressesSettings(OpusSettings):
