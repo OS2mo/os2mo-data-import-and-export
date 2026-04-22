@@ -109,6 +109,8 @@
     "integrations.opus.import.run_db": "/path/to/CRON/run_db.sqlite",
     "integrations.opus.import.xml_path": "/path-to/customer-dumps",
     "integrations.opus.eng_types_primary_order": [],
+    "integrations.opus.smb_user": "DOMAIN\\user",
+    "integrations.opus.smb_password": "hunter2",
     "opus.addresses.employee.dar": "uuid-for-e-dar",
     "opus.addresses.employee.phone": "uuid-for-e-phone",
     "opus.addresses.employee.email": "uuid-for-e-email",
