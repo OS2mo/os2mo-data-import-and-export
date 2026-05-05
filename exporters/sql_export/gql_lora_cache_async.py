@@ -877,9 +877,12 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj.pop("primary_uuid")
+                prim = res_obj.pop("primary")
                 if prim:
-                    res_obj["primary_boolean"] = True
+                    if prim["user_key"] == "primary":
+                        res_obj["primary_boolean"] = True
+                    else:
+                        res_obj["primary_boolean"] = False
                 else:
                     res_obj["primary_boolean"] = None
 
@@ -906,7 +909,9 @@ class GQLLoraCache:
                                 user_key
                                 external_id
                                 itsystem_uuid
-                                primary_uuid
+                                primary {
+                                    user_key
+                                }
                                 engagement_uuids
                                 validity {
                                     from
@@ -948,7 +953,9 @@ class GQLLoraCache:
                                 user_key
                                 external_id
                                 itsystem_uuid
-                                primary_uuid
+                                primary {
+                                    user_key
+                                }
                                 engagement_uuids
                                 validity {
                                     from
