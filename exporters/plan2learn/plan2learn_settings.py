@@ -3,6 +3,7 @@ from enum import Enum
 from uuid import UUID
 
 from fastramqpi.ra_utils.job_settings import JobSettings
+from fastramqpi.config import Settings as FastRAMQPISettings
 from pydantic import AnyHttpUrl
 from pydantic import BaseModel
 from pydantic import BaseSettings
@@ -26,6 +27,10 @@ class Variant(Enum):
 
 
 class Settings(BaseSettings):
+
+    # Yes theese settings are duplicated for now...
+    fastramqpi: FastRAMQPISettings
+
     auth_server: AnyHttpUrl
     client_id: str
     client_secret: str

@@ -640,7 +640,7 @@ def export_leder(
     return rows, manager_titles
 
 
-def main(speedup, settings: Settings, dry_run=None):
+async def main(speedup, settings: Settings, dry_run=None):
     mh = MoraHelper(hostname=settings.mora_base)
 
     root_unit = str(settings.exporters_plan2learn_root_unit)
@@ -652,12 +652,12 @@ def main(speedup, settings: Settings, dry_run=None):
         # Full history does not calculate derived data, we must
         # fetch both kinds.
         lc = LoraCache(resolve_dar=True, full_history=False)
-        lc.populate_cache(dry_run=dry_run, skip_associations=True)
+        await lc.populate_cache_async(dry_run=dry_run, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
         lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=True)
-        lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
+        await lc_historic.populate_cache_async(dry_run=dry_run, skip_associations=True)
         # Here we should de-activate read-only mode
     else:
         lc = None
@@ -676,8 +676,7 @@ def main(speedup, settings: Settings, dry_run=None):
     # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
     eksporterede_afdelinger = [r["AfdelingsID"] for r in org_rows]
 
-    engagement_rows = asyncio.run(
-        export_engagement(
+    engagement_rows = await export_engagement(
             settings,
             mh,
             eksporterede_afdelinger,
@@ -685,7 +684,6 @@ def main(speedup, settings: Settings, dry_run=None):
             lc,
             lc_historic,
         )
-    )
 
     # TODO: Why is lc not passed into export_stillingskode?
     stillingskode_rows = export_stillingskode(mh)
@@ -765,10 +763,10 @@ def cli(**args):
     settings = get_unified_settings(kubernetes_environment=args["kubernetes"])
     if args["backend"]:
         # True -> use LoRa
-        main(settings=settings, speedup=True, dry_run=args["read_from_cache"])
+        asyncio.run(main(settings=settings, speedup=True, dry_run=args["read_from_cache"]))
     else:
         # False -> use MO
-        main(settings=settings, speedup=False)
+        asyncio.run(main(settings=settings, speedup=False))
     if args["ship_files"]:
         ship_files(settings=settings)
 
