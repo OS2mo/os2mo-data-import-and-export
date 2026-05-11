@@ -1,0 +1,27 @@
+services:
+  dipex:
+    extends:
+      file: ../../docker-compose.yml
+      service: dipex
+    command: ["uvicorn", "exporters.plan2learn.main:create_app"]
+
+    environment:
+      # Used by Plan2learn
+      FASTRAMQPI__CLIENT_ID: "dipex"
+      FASTRAMQPI__AUTH_SERVER: "http://keycloak:8080/auth"
+      FASTRAMQPI__CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+      FASTRAMQPI__MO_URL: "http://mo:5000"
+
+      # Plan2learn settings:
+      exporters_plan2learn_root_unit: "f06ee470-9f17-566f-acbe-e938112d46d9"
+      plan2learn_variant: "Viborg"
+    ports:
+      - 8000:8000
+
+volumes:
+  runs:
+
+networks:
+  os2mo:
+    name: os2mo_default
+    external: true

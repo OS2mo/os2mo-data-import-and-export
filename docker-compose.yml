@@ -1,6 +1,5 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
-version: "3.9"
 services:
   dipex:
     image: dipex
@@ -13,6 +12,7 @@ services:
       AUTH_SERVER: "http://keycloak:8080/auth"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
       MORA_BASE: "http://mo:5000"
+
     networks:
       - os2mo
     volumes:
@@ -20,9 +20,11 @@ services:
       - .:/code/
       - ./pyproject.toml:/code/pyproject.toml:rw
       - ./poetry.lock:/code/poetry.lock:rw
+
+volumes:
+  runs:
+
 networks:
   os2mo:
     name: os2mo_default
     external: true
-volumes:
-  runs:
