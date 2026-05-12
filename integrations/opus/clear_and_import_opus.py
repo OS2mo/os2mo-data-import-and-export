@@ -3,23 +3,27 @@ from typing import Dict
 from typing import Optional
 
 import click
-import requests
 from click_option_group import MutuallyExclusiveOptionGroup
 from click_option_group import optgroup
+from fastramqpi.ra_utils.deprecation import deprecated
 from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import pairwise
 from more_itertools import prepend
+from pydantic import AnyHttpUrl
+from pydantic.tools import parse_obj_as
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import import_one
-from tools.data_fixers.class_tools import find_duplicates_classes
+from tools.data_fixers.class_tools import find_duplicate_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
+@deprecated
 def truncate_db(MOX_BASE: str = "http://localhost:5000/lora") -> None:
-    r = requests.get(MOX_BASE + "/db/truncate")
-    r.raise_for_status()
+    raise NotImplementedError(
+        "the `/db/truncate` endpoint was removed from os2mo on commit 'a286d59d71f3eb564cec491ec7c528cea85ae740'"
+    )
 
 
 def prepare_re_import(
@@ -29,10 +33,17 @@ def prepare_re_import(
 ) -> None:
     """Remove all opus-units from MO"""
     settings = settings or load_settings()
-    mox_base = settings.get("mox.base")
+    mora_base = settings["mora_base"]
+    client_id = settings["client_id"]
+    client_secret = settings["client_secret"]
+    assert client_secret is not None
+    auth_realm = settings["auth_realm"]
+    auth_server = parse_obj_as(AnyHttpUrl, settings["auth_server"])
+
     if opus_uuid:
-        session = requests.session()
-        dub = find_duplicates_classes(session=session, mox_base=mox_base)
+        dub = find_duplicate_classes(
+            mora_base, client_id, client_secret, auth_realm, auth_server
+        )
         if dub:
             raise Exception(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
