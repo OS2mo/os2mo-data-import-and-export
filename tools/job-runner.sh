@@ -138,11 +138,6 @@ imports_ad_sync(){
     ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
 }
 
-imports_ad_group_into_mo(){
-    echo running imports_ad_group_into_mo
-    ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
-}
-
 imports_manager_sync(){
     echo running imports_manager_sync
     if ! curl -X POST http://localhost:8020/trigger/all; then
@@ -407,10 +402,6 @@ imports(){
 
     if [ "${RUN_AD_SYNC}" == "true" ]; then
         run-job imports_ad_sync || return 2
-    fi
-
-    if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
-        run-job imports_ad_group_into_mo || return 2
     fi
 
     if [ "${RUN_MANAGER_SYNC}" == "true" ]; then
