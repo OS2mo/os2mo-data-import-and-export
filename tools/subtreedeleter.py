@@ -10,7 +10,6 @@ from fastramqpi.ra_utils.headers import TokenSettings
 from fastramqpi.ra_utils.load_settings import load_settings
 from more_itertools import flatten
 from more_itertools import one
-from mox_helpers.utils import async_to_sync
 from tqdm.asyncio import tqdm
 
 all_functionnames = [
@@ -146,7 +145,6 @@ class SubtreeDeleter:
         print("Done")
 
 
-@async_to_sync
 async def subtreedeleter_helper(
     org_unit_uuid: str,
     delete_functions: bool = False,
@@ -205,12 +203,14 @@ def main(org_unit_uuid, delete_functions, keep, delete_subtree, connections):
     Example:
         python3 tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE --delete-subtree=True
     """
-    subtreedeleter_helper(
-        org_unit_uuid,
-        delete_functions,
-        keep_functions=keep,
-        delete_subtree=delete_subtree,
-        connections=connections,
+    asyncio.run(
+        subtreedeleter_helper(
+            org_unit_uuid,
+            delete_functions,
+            keep_functions=keep,
+            delete_subtree=delete_subtree,
+            connections=connections,
+        )
     )
 
 
