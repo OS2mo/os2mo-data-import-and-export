@@ -1,8 +1,9 @@
-import asyncio
 import json
+import logging
 from operator import itemgetter
 from typing import Dict
 from typing import List
+from typing import Never
 from typing import Set
 from typing import Tuple
 from uuid import UUID
@@ -11,7 +12,6 @@ from uuid import uuid4
 import click
 import jmespath
 import requests
-from aiohttp.client_exceptions import ClientResponseError
 from fastramqpi.ra_utils.deprecation import deprecated
 from fastramqpi.ra_utils.load_settings import load_setting
 from fastramqpi.ra_utils.load_settings import load_settings
@@ -20,11 +20,9 @@ from fastramqpi.ra_utils.transpose_dict import transpose_dict
 from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from gql.client import SyncClientSession
-from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
-from mox_helpers.mox_util import ensure_class_value_helper
 from pydantic import AnyHttpUrl
 
 jms_bvn = jmespath.compile(
@@ -32,6 +30,21 @@ jms_bvn = jmespath.compile(
 )
 jms_title = jmespath.compile("registreringer[0].attributter.klasseegenskaber[0].titel")
 jms_facet = jmespath.compile("registreringer[0].relationer.facet[0].uuid")
+
+logger = logging.getLogger(__name__)
+
+
+def raise_lora_discontinued_error() -> Never:
+    # HACK: this is not ideal. The "good" solution would be to figure out which
+    #   of these tools is needed and delete the ones that aren't, and then port
+    #   the remaining ones to GraphQL. But the practical reality is that these
+    #   tools get used very rarely and just the process of finding the right
+    #   people and context to decide what needs to go is too much work, not even
+    #   counting the time needed to then port to GraphQL and test, considering
+    #   there are no integration tests for this code.
+    raise NotImplementedError(
+        "The LoRa API has been discontinued, so this tool is likely broken. Please fix this tool or remove it if it's no longer needed."
+    )
 
 
 def check_relations(
@@ -364,28 +377,7 @@ def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base:
     help="Dry run and print the generated object.",
 )
 def ensure_static_classes(mox_base, dry_run):
-    session = requests.Session()
-    # Read all classes (historic)
-    for c in read_classes(session, mox_base, historic=True):
-        # Read `one` registration which can include more than one "klasseegenskaber"
-        properties = one(c["registreringer"])["attributter"]["klasseegenskaber"]
-        if len(properties) > 1:
-            # Sort by from-date to be able to choose the newest value
-            properties.sort(key=lambda x: x["virkning"]["from"], reverse=True)
-            try:
-                asyncio.run(
-                    ensure_class_value_helper(
-                        mox_base=mox_base,
-                        uuid=c["id"],
-                        variable="brugervendtnoegle",
-                        new_value=first(properties)["brugervendtnoegle"],
-                        dry_run=dry_run,
-                    )
-                )
-            except ClientResponseError:
-                click.echo(
-                    f"No new registration for class with uuid={c['id']} and name={first(properties)['brugervendtnoegle']}"
-                )
+    raise_lora_discontinued_error()
 
 
 @cli.command()
@@ -402,30 +394,7 @@ def ensure_static_classes(mox_base, dry_run):
     help="Dry run and print the generated object.",
 )
 def ensure_single_owner(mox_base, dry_run):
-    session = requests.Session()
-    # Read all classes (historic)
-    for c in read_classes(session, mox_base, historic=True):
-        # Read `one` registration which can include more than one "klasseegenskaber"
-        owners = only(c["registreringer"])["relationer"].get("ejer")  # type: ignore
-        if (not owners) or len(owners) <= 1:
-            continue
-
-        # Choose newest value for owner
-        owner = max(owners, key=lambda x: x["virkning"]["from"])
-        try:
-            asyncio.run(
-                ensure_class_value_helper(
-                    mox_base=mox_base,
-                    uuid=c["id"],
-                    variable="ejer",
-                    new_value=owner["uuid"],
-                    dry_run=dry_run,
-                )
-            )
-        except ClientResponseError:
-            click.echo(
-                f"No new registration for class with uuid={c['id']} and name={first(owners)['brugervendtnoegle']}"
-            )
+    raise_lora_discontinued_error()
 
 
 if __name__ == "__main__":
