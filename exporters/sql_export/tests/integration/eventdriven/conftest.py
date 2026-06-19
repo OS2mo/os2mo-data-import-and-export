@@ -142,6 +142,25 @@ async def assert_row(session: Session, model: type, expected: dict[str, Any]) ->
     await check()
 
 
+async def assert_rows(
+    session: Session, model: type, expected: list[dict[str, Any]]
+) -> None:
+    """Poll until the rows of ``model`` match ``expected`` (order-insensitive).
+
+    Used by historic (full-history) tests where a single entity is exported as
+    several rows, one per retained validity period.
+    """
+
+    @retry()
+    async def check() -> None:
+        session.expire_all()
+        results: list[Any] = session.query(model).all()
+        rows = [sql_to_dict(r) for r in results]
+        assert sorted(rows, key=str) == sorted(expected, key=str)
+
+    await check()
+
+
 async def assert_absent(session: Session, model: type) -> None:
     """Poll until no rows of ``model`` exist."""
 
