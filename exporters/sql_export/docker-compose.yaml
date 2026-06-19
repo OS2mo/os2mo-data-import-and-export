@@ -13,15 +13,15 @@ services:
       LOG_LEVEL: INFO
 
       ACTUAL_STATE__TYPE: Postgres
-      ACTUAL_STATE__HOST: export-db
+      ACTUAL_STATE__HOST: db
       ACTUAL_STATE__DB_NAME: actualstate
-      ACTUAL_STATE__USER: postgres
-      ACTUAL_STATE__PASSWORD: mysecretpassword
+      ACTUAL_STATE__USER: fastramqpi
+      ACTUAL_STATE__PASSWORD: fastramqpi
       HISTORIC_STATE__TYPE: Postgres
-      HISTORIC_STATE__HOST: export-db-historic
+      HISTORIC_STATE__HOST: db
       HISTORIC_STATE__DB_NAME: historic
-      HISTORIC_STATE__USER: postgres
-      HISTORIC_STATE__PASSWORD: mysecretpassword2
+      HISTORIC_STATE__USER: fastramqpi
+      HISTORIC_STATE__PASSWORD: fastramqpi
 
       EVENTDRIVEN: "true"
       USE_NEW_CACHE: "true"
@@ -53,6 +53,9 @@ services:
     networks:
       - os2mo_default
       - sql_export
+    depends_on:
+        db:
+           condition: service_healthy
 
   db:
     image: postgres:16
@@ -62,28 +65,14 @@ services:
       POSTGRES_DB: "fastramqpi"
     networks:
       - sql_export
-
-  export-db:
-    image: postgres:13
-    environment:
-      POSTGRES_PASSWORD: mysecretpassword
-      POSTGRES_DB: actualstate
-    tmpfs:
-      - /var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - sql_export
-
-  export-db-historic:
-    image: postgres:13
-    environment:
-      POSTGRES_PASSWORD: mysecretpassword2
-      POSTGRES_DB: historic
-    tmpfs:
-      - /var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - sql_export
+    volumes:
+      - ./init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
 
 networks:
   os2mo_default:
