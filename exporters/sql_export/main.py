@@ -121,9 +121,6 @@ async def handle_class(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_classes(uuid)
-    # Keep the in-memory class cache warm so entities referencing this class
-    # (org units, engagements, ...) can resolve its title without a refetch.
-    sql_exporter.lc.classes.update(result)
     res = result.get(str(uuid))
     if res:
         # A class row denormalises its facet's user_key.
@@ -160,10 +157,6 @@ async def handle_facet(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_facets(uuid)
-    # Keep the in-memory facet cache up to date so that classes referencing this
-    # facet can resolve its user_key. The cache is otherwise only populated at
-    # startup, missing facets created later.
-    sql_exporter.lc.facets.update(result)
     res = result.get(str(uuid))
     facets_objects = (
         [sql_exporter._generate_sql_facets(uuid, res, Facet)] if res else []
