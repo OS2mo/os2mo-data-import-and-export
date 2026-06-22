@@ -124,7 +124,7 @@ def test_extract_jobfunction_path_full():
 
 
 def test_extract_jobfunction_path_not_full():
-    """Simulats an engagement that has a job function not in the lowest level"""
+    """Simulates an engagement that has a job function not in the lowest level"""
     job_function_response = {
         "name": "level 2",
         "user_key": "2",

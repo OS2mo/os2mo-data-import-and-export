@@ -230,7 +230,9 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             person = one(engagement["person"])
             manager_role = find_manager_role_for_person(person, org_unit["managers"])
             email = extract_person_email(person)
-            ny3, ny2, ny1, current = extract_jobfunction_path(e["job_function"])
+            ny3, ny2, ny1, current = extract_jobfunction_path(
+                engagement["job_function"]
+            )
             yield (
                 *ancestors,
                 org_unit["name"],
@@ -367,7 +369,9 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 else ""
             )
             email = extract_person_email(person)
-            ny3, ny2, ny1, current = extract_jobfunction_path(e["job_function"])
+            ny3, ny2, ny1, current = extract_jobfunction_path(
+                engagement["job_function"]
+            )
 
             yield (
                 *ancestors,
@@ -437,11 +441,14 @@ def extract_jobfunction_path(job_function: dict) -> list[tuple[str, str]]:
 
     """
     if not job_function:
-        return [("", ""), ("", ""), ("", ""), ("", "")]
+        return 4 * [("", "")]
     layer = job_function
     ancestor_names = []
-    while layer := layer.get("parent_response"):
-        layer = layer["current"]
+    while (
+        layer := layer["parent_response"]["current"]
+        if layer.get("parent_response")
+        else {}
+    ):
         ancestor_names.append((layer["user_key"], layer["name"]))
 
     # Reverse ancestors list to start at root
@@ -577,7 +584,7 @@ def main(*args, **kwargs):
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
-    res = paginated_query(graphql_client=client, query=QUERY, page_size=10)
+    res = paginated_query(graphql_client=client, query=QUERY, page_size=100)
     res = [
         r["current"]
         for r in res
