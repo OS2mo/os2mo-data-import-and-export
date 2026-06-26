@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 from uuid import UUID
 
+import pytest
 from click.testing import CliRunner
 from fastramqpi.raclients.graph.client import GraphQLClient
 from more_itertools import last
@@ -14,6 +15,7 @@ from pydantic import SecretStr
 
 from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SourceSystem
+from reports.safetynet.safetynet import _remove_sd_user_key_prefix
 from reports.safetynet.safetynet import main
 from reports.safetynet.safetynet import process_adm_unit
 
@@ -279,3 +281,25 @@ def test_adm_engagements_sd_ou_manager_cpr_included(
         "Medarbejdernummer||CPR||Fornavn||Efternavn||Mail||Afdelingskode||Startdato||Slutdato||LedersMedarbejdernummer||LedersCPR||Brugernavn||Titel||Faggruppe\n",
         "12345||0101011255||Bruce||Lee||bruce@kung.fu||9d1af806-f4d6-44e2-a001-a5deb3aa6703||2021-10-22||2025-09-30||54321||2001011299||bruce||Kung Fu Master||Kung Fu Master\n",
     ]
+
+
+@pytest.mark.parametrize(
+    ("user_key", "expected"),
+    [
+        # No prefix
+        ("12345", "12345"),
+        # SD InstitutionIdentifier prefix
+        ("XY-12345", "12345"),
+        ("AB-987654", "987654"),
+        # UUID should be returned unchanged
+        (
+            "550e8400-e29b-41d4-a716-446655440000",
+            "550e8400-e29b-41d4-a716-446655440000",
+        ),
+        # Multiple hyphens (not a UUID) should be returned unchanged
+        ("ABC-123-456", "ABC-123-456"),
+        ("", ""),
+    ],
+)
+def test_remove_sd_user_key_prefix(user_key: str, expected: str) -> None:
+    assert _remove_sd_user_key_prefix(user_key) == expected
