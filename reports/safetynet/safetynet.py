@@ -279,6 +279,32 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
+def _remove_sd_user_key_prefix(user_key: str) -> str:
+    """
+    Remove SD InstitutionIdentifier prefix from user_key if present. I.e. the function
+    will return 12345 for both user_key=XY-12345 and user_key=12345.
+
+    If the user_key is a UUID (string), that string will just be returned.
+
+    Args:
+        user_key: the (employee or manager) engagement user_key.
+
+    Returns:
+        The user_key without the SD InstitutionIdentifier prefix.
+    """
+    try:
+        UUID(user_key)
+    except ValueError:
+        pass
+    else:
+        return user_key
+
+    if not user_key.count("-") == 1:
+        return user_key
+
+    return last(user_key.split("-"))
+
+
 def get_opus_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     org_unit: dict[str, Any],
