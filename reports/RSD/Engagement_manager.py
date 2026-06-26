@@ -72,6 +72,24 @@ query EngagementManagers($limit: int, $cursor: Cursor = null) {
           job_function {
             name
             user_key
+            parent_response {
+              current {
+                name
+                user_key
+                parent_response {
+                  current {
+                    name
+                    user_key
+                    parent_response {
+                      current {
+                        name
+                        user_key
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
           extension_1
           engagement_type {
@@ -159,7 +177,14 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
         "Tjenestenummer",
         "Medarbejder",
         "E-mail",
-        "Stillingskode nuværende",
+        "NY3",
+        "Tekst NY3",
+        "NY2",
+        "Tekst NY2",
+        "NY1",
+        "Tekst NY1",
+        "Stil.kode nuv.",
+        "Tekst",
         "Engagementstype",
         "Leders email",
     )
@@ -179,9 +204,8 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             manager_role = find_manager_role_for_person(person, org_unit["managers"])
 
             email = extract_person_email(person)
-            job_function = (
-                f"{e['job_function']['name']} ({e['job_function']['user_key']})"
-            )
+            ny3, ny2, ny1, current = extract_jobfunction_path(e["job_function"])
+
             yield (
                 *ancestors,
                 org_unit["name"],
@@ -191,7 +215,10 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 e["user_key"][3:],
                 name,
                 email,
-                job_function,
+                *ny3,
+                *ny2,
+                *ny1,
+                *current,
                 e["engagement_type"]["name"],
                 manager_email,
             )
@@ -203,7 +230,9 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
             person = one(engagement["person"])
             manager_role = find_manager_role_for_person(person, org_unit["managers"])
             email = extract_person_email(person)
-            job_function = f"{engagement['job_function']['name']} ({engagement['job_function']['user_key']})"
+            ny3, ny2, ny1, current = extract_jobfunction_path(
+                engagement["job_function"]
+            )
             yield (
                 *ancestors,
                 org_unit["name"],
@@ -213,7 +242,10 @@ class RSDReportsEngagementManagers(RSDReportsCommon):
                 engagement["user_key"][3:],
                 one(engagement["person"])["name"],
                 email,
-                job_function,
+                *ny3,
+                *ny2,
+                *ny1,
+                *current,
                 engagement["engagement_type"]["name"],
                 manager_email,
             )
@@ -232,6 +264,14 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
         "Enhedsnavn",
         "Enhedstype",
         "Medarbejder",
+        "NY3",
+        "Tekst NY3",
+        "NY2",
+        "Tekst NY2",
+        "NY1",
+        "Tekst NY1",
+        "Stil.kode nuv.",
+        "Tekst",
         "Stilling",
         "Lederniveau",
         "Lederbetegnelse",
@@ -284,12 +324,17 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 if manager_role
                 else ""
             )
+            ny3, ny2, ny1, current = extract_jobfunction_path(e["job_function"])
 
             yield (
                 *ancestors,
                 org_unit["name"],
                 org_unit["unit_type"]["name"],
                 person["name"],
+                *ny3,
+                *ny2,
+                *ny1,
+                *current,
                 e["extension_1"],
                 manager_level,
                 manager_type,
@@ -324,12 +369,19 @@ class RSDReportsEngagementManagersWithCPR(RSDReportsCommon):
                 else ""
             )
             email = extract_person_email(person)
+            ny3, ny2, ny1, current = extract_jobfunction_path(
+                engagement["job_function"]
+            )
 
             yield (
                 *ancestors,
                 org_unit["name"],
                 org_unit["unit_type"]["name"],
                 person["name"],
+                *ny3,
+                *ny2,
+                *ny1,
+                *current,
                 engagement["extension_1"],
                 manager_level,
                 manager_type,
@@ -378,6 +430,35 @@ def extract_path(org_unit: dict) -> list[str]:
     for _ in range(7 - len(ancestor_names)):
         ancestor_names.append("")
     return ancestor_names
+
+
+def extract_jobfunction_path(job_function: dict) -> list[tuple[str, str]]:
+    """Find the path to the jobfunction.
+
+    Returns a list of jobfunction tuples (user_keys and names) that are ancestors to the one given to the engagement.
+    Always returns 4 values to conform with the report scheme. Most engagements should have the jobfunctions in the
+    lowest levels of the hierarchy, but to handle those that are placed higher we need to add empty values for some layers.
+
+    """
+    if not job_function:
+        return 4 * [("", "")]
+    layer = job_function
+    ancestor_names = []
+    while (
+        layer := layer["parent_response"]["current"]
+        if layer.get("parent_response")
+        else {}
+    ):
+        ancestor_names.append((layer["user_key"], layer["name"]))
+
+    # Reverse ancestors list to start at root
+    ancestor_names.reverse()
+
+    # Append empty strings to conform to report schema of up to 3 ancestors
+    for _ in range(3 - len(ancestor_names)):
+        ancestor_names.append(("", ""))
+
+    return ancestor_names + [(job_function["user_key"], job_function["name"])]
 
 
 def find_managers_of_type(managers: list[dict], manager_type: str) -> list[dict]:
@@ -503,7 +584,7 @@ def main(*args, **kwargs):
         mo_base_url=settings.mora_base,
         gql_version=22,
     )
-    res = paginated_query(graphql_client=client, query=QUERY, page_size=10)
+    res = paginated_query(graphql_client=client, query=QUERY, page_size=100)
     res = [
         r["current"]
         for r in res

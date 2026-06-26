@@ -1,6 +1,7 @@
 import pytest
 from freezegun import freeze_time
 
+from reports.RSD.Engagement_manager import extract_jobfunction_path
 from reports.RSD.Engagement_manager import extract_path
 from reports.RSD.Engagement_manager import find_managers_of_type
 from reports.RSD.Engagement_manager import get_age
@@ -82,3 +83,85 @@ def test_has_responsibility():
         {"responsibilities": [{"name": "Ansvarlig for Sommerfesten"}]},
         "Ansvarlig for Sommerfesten",
     )
+
+
+def test_extract_jobfunction_path_empty():
+    job_function_response = {}
+    expected = [("", ""), ("", ""), ("", ""), ("", "")]
+    result = extract_jobfunction_path(job_function_response)
+
+    assert expected == result
+
+
+def test_extract_jobfunction_path_full():
+    job_function_response = {
+        "name": "level 4",
+        "user_key": "4",
+        "parent_response": {
+            "current": {
+                "name": "level 3",
+                "user_key": "3",
+                "parent_response": {
+                    "current": {
+                        "name": "level 2",
+                        "user_key": "2",
+                        "parent_response": {
+                            "current": {
+                                "name": "level 1",
+                                "user_key": "1",
+                                "parent_response": None,
+                            }
+                        },
+                    },
+                },
+            },
+        },
+    }
+    expected = [("1", "level 1"), ("2", "level 2"), ("3", "level 3"), ("4", "level 4")]
+    result = extract_jobfunction_path(job_function_response)
+
+    assert expected == result
+
+
+def test_extract_jobfunction_path_not_full():
+    """Simulates an engagement that has a job function not in the lowest level"""
+    job_function_response = {
+        "name": "level 2",
+        "user_key": "2",
+        "parent_response": {
+            "current": {
+                "name": "level 1",
+                "user_key": "1",
+                "parent_response": None,
+            }
+        },
+    }
+
+    expected = [
+        ("1", "level 1"),
+        ("", ""),
+        ("", ""),
+        ("2", "level 2"),
+    ]
+    result = extract_jobfunction_path(job_function_response)
+
+    assert expected == result
+
+
+def test_extract_jobfunction_path_top():
+    """Simulats an engagement that has a job function on the top level"""
+    job_function_response = {
+        "name": "level 1",
+        "user_key": "1",
+        "parent_response": None,
+    }
+
+    expected = [
+        ("", ""),
+        ("", ""),
+        ("", ""),
+        ("1", "level 1"),
+    ]
+    result = extract_jobfunction_path(job_function_response)
+
+    assert expected == result
