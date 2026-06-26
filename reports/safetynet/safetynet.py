@@ -27,7 +27,6 @@ from reports.safetynet.config import SafetyNetSettings
 from reports.safetynet.config import SafetyNetSFTP
 from reports.safetynet.config import SourceSystem
 from reports.safetynet.config import get_settings
-from reports.safetynet.exceptions import ManagerEngagementCouplingMissing
 from tools.log import LogLevel
 from tools.log import get_logger
 from tools.log import setup_logging
@@ -332,6 +331,12 @@ def _get_sd_manager_eng_user_key(
     person = only(manager.get("person", []), default=dict())  # type: ignore
     engagements = person.get("engagements", [])
 
+    eng_response = manager.get("engagement_response")
+    if eng_response is not None:
+        current = eng_response["current"]
+        manager_eng_user_key = current["user_key"]
+        return manager_eng_user_key
+
     try:
         manager_eng_user_key = one(
             eng["user_key"]
@@ -339,20 +344,13 @@ def _get_sd_manager_eng_user_key(
             if eng["engagement_type"]["user_key"] in allowed_engagement_types
         )
     except ValueError:
-        logger.info(
-            "More than one engagement for manager. Using manager-engagement coupling"
+        logger.warning(
+            "No manager-engagement coupling and more than one manager engagement",
+            person=person,
         )
-        eng_response = manager.get("engagement_response")
-        if eng_response is None:
-            logger.error(
-                "Manager engagement coupling missing",
-                manager_cpr=person.get("cpr_number", ""),
-            )
-            raise ManagerEngagementCouplingMissing()
-        current = eng_response["current"]
-        manager_eng_user_key = current["user_key"]
-
-    return manager_eng_user_key
+        return ""
+    else:
+        return manager_eng_user_key
 
 
 def get_sd_manager_eng_user_key_and_cpr(
