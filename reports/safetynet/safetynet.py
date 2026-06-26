@@ -429,6 +429,7 @@ def process_engagement(
 
     Args:
         gql_client: the GraphQL client
+        settings: the application settings
         eng_uuid: the UUID of the engagement
         org_unit: the GraphQL "current" org unit
 
