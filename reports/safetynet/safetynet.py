@@ -391,7 +391,7 @@ def get_sd_manager_eng_user_key_and_cpr(
         manager, settings.allowed_sd_engagement_types
     )
 
-    return manager_eng_user_key, manager_cpr
+    return _remove_sd_user_key_prefix(manager_eng_user_key), manager_cpr
 
 
 def get_manager_eng_user_key_and_cpr(
@@ -521,7 +521,11 @@ def process_engagement(
     )
 
     return AdmEngRow(
-        person_user_key=current["user_key"],
+        # TODO: handle variability with a proper strategy pattern if more than two cases
+        #       are required
+        person_user_key=current["user_key"]
+        if settings.source_system == SourceSystem.OPUS
+        else _remove_sd_user_key_prefix(current["user_key"]),
         cpr=cpr,
         first_name=person["given_name"],
         last_name=person["surname"],
