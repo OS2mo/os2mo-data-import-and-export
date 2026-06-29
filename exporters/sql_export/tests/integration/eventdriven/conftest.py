@@ -24,6 +24,7 @@ from more_itertools import one
 from sqlalchemy import create_engine
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from tenacity import stop_after_delay
 
 from sql_export.main import create_app
 from sql_export.sql_table_defs import Base
@@ -33,6 +34,12 @@ from ..conftest import sql_to_dict
 # A validity ending well in the past, so the terminated entity is no longer
 # "current" and is therefore removed from the export DB.
 TERMINATE_TO = "2021-01-01"
+
+# A single export can take several rounds of AMQP messages to settle, and event
+# propagation slows down under load (a busy broker/MO). The default retry budget
+# (20s) is too tight in those conditions, so the polling assertions below use a
+# more generous deadline to avoid flaky timeouts.
+ASSERT_STOP = stop_after_delay(60)
 
 
 @pytest.fixture
@@ -134,7 +141,7 @@ def terminate(
 async def assert_row(session: Session, model: type, expected: dict[str, Any]) -> None:
     """Poll until the single row of ``model`` matches ``expected``."""
 
-    @retry()
+    @retry(stop=ASSERT_STOP)
     async def check() -> None:
         session.expire_all()
         assert sql_to_dict(one(session.query(model).all())) == expected
@@ -151,7 +158,7 @@ async def assert_rows(
     several rows, one per retained validity period.
     """
 
-    @retry()
+    @retry(stop=ASSERT_STOP)
     async def check() -> None:
         session.expire_all()
         results: list[Any] = session.query(model).all()
@@ -164,7 +171,7 @@ async def assert_rows(
 async def assert_absent(session: Session, model: type) -> None:
     """Poll until no rows of ``model`` exist."""
 
-    @retry()
+    @retry(stop=ASSERT_STOP)
     async def check() -> None:
         session.expire_all()
         assert session.query(model).all() == []
