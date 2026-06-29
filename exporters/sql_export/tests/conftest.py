@@ -33,6 +33,13 @@ def pytest_collection_modifyitems(items: list[Item]) -> None:
                 # Ensure Export DB is cleaned between integration tests
                 "purge_export_db",
             ]
+            # OS2mo occasionally fails to deliver an AMQP event under load, so a
+            # single export never settles and the assertion times out. Each test
+            # is self-contained (it purges and recreates its own data), so a
+            # rerun starts from scratch and almost always succeeds. Retry rather
+            # than wait even longer, since a never-delivered event will not
+            # arrive no matter how long we poll.
+            item.add_marker(pytest.mark.flaky(reruns=2, reruns_delay=2))
 
 
 @pytest.fixture
