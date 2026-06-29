@@ -34,7 +34,7 @@ class SafetyNetSettings(BaseSettings):
 
     include_manager_cpr: bool = False
     # Only include these SD engagement types (user keys)
-    allowed_sd_engagement_types: list[str] = ["månedsløn"]
+    allowed_sd_engagement_types: list[str] = ["fuldtid", "månedsløn"]
 
     class Config:
         env_nested_delimiter = "__"

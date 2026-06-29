@@ -279,6 +279,32 @@ class MedOuRow(BaseModel):
     parent: UUID | None
 
 
+def _remove_sd_user_key_prefix(user_key: str) -> str:
+    """
+    Remove SD InstitutionIdentifier prefix from user_key if present. I.e. the function
+    will return 12345 for both user_key=XY-12345 and user_key=12345.
+
+    If the user_key is a UUID (string), that string will just be returned.
+
+    Args:
+        user_key: the (employee or manager) engagement user_key.
+
+    Returns:
+        The user_key without the SD InstitutionIdentifier prefix.
+    """
+    try:
+        UUID(user_key)
+    except ValueError:
+        pass
+    else:
+        return user_key
+
+    if not user_key.count("-") == 1:
+        return user_key
+
+    return last(user_key.split("-"))
+
+
 def get_opus_manager_eng_user_key_and_cpr(
     gql_client: GraphQLClient,
     org_unit: dict[str, Any],
@@ -331,6 +357,12 @@ def _get_sd_manager_eng_user_key(
     person = only(manager.get("person", []), default=dict())  # type: ignore
     engagements = person.get("engagements", [])
 
+    eng_response = manager.get("engagement_response")
+    if eng_response is not None:
+        current = eng_response["current"]
+        manager_eng_user_key = current["user_key"]
+        return manager_eng_user_key
+
     try:
         manager_eng_user_key = one(
             eng["user_key"]
@@ -338,22 +370,13 @@ def _get_sd_manager_eng_user_key(
             if eng["engagement_type"]["user_key"] in allowed_engagement_types
         )
     except ValueError:
-        logger.info(
-            "More than one engagement for manager. Using manager-engagement coupling"
+        logger.warning(
+            "No manager-engagement coupling and more than one manager engagement",
+            person=person,
         )
-        eng_response = manager.get("engagement_response")
-        if eng_response is None:
-            logger.error(
-                "Manager engagement coupling missing",
-                manager_cpr=person.get("cpr_number", ""),
-            )
-            # TODO: fix this later
-            return ""
-            # raise ManagerEngagementCouplingMissing()
-        current = eng_response["current"]
-        manager_eng_user_key = current["user_key"]
-
-    return manager_eng_user_key
+        return ""
+    else:
+        return manager_eng_user_key
 
 
 def get_sd_manager_eng_user_key_and_cpr(
@@ -368,7 +391,7 @@ def get_sd_manager_eng_user_key_and_cpr(
         manager, settings.allowed_sd_engagement_types
     )
 
-    return manager_eng_user_key, manager_cpr
+    return _remove_sd_user_key_prefix(manager_eng_user_key), manager_cpr
 
 
 def get_manager_eng_user_key_and_cpr(
@@ -406,6 +429,7 @@ def process_engagement(
 
     Args:
         gql_client: the GraphQL client
+        settings: the application settings
         eng_uuid: the UUID of the engagement
         org_unit: the GraphQL "current" org unit
 
@@ -498,7 +522,11 @@ def process_engagement(
     )
 
     return AdmEngRow(
-        person_user_key=current["user_key"],
+        # TODO: handle variability with a proper strategy pattern if more than two cases
+        #       are required
+        person_user_key=current["user_key"]
+        if settings.source_system == SourceSystem.OPUS
+        else _remove_sd_user_key_prefix(current["user_key"]),
         cpr=cpr,
         first_name=person["given_name"],
         last_name=person["surname"],
