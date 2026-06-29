@@ -35,10 +35,9 @@ from ..conftest import sql_to_dict
 # "current" and is therefore removed from the export DB.
 TERMINATE_TO = "2021-01-01"
 
-# A single export can take several rounds of AMQP messages to settle, and event
-# propagation slows down under load (a busy broker/MO). The default retry budget
-# (20s) is too tight in those conditions, so the polling assertions below use a
-# more generous deadline to avoid flaky timeouts.
+# A single export settles only once OS2mo (re)emits the relevant AMQP event and
+# the handler processes it. Under load that can take longer than the default 20s
+# retry budget, so the polling assertions below use a more generous deadline.
 ASSERT_STOP = stop_after_delay(60)
 
 
