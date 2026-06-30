@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import ItForbindelse
 
 from ..conftest import VALIDITY
-from .conftest import TERMINATE_TO
+from .conftest import TERMINATED_SLUTDATO
 from .conftest import assert_row
 
 UPDATE = """
@@ -101,5 +101,7 @@ async def test_it_connection_historic_lifecycle(
     await assert_row(
         session,
         ItForbindelse,
-        expected(uuid, it_system_uuid, person_uuid, "new_username", TERMINATE_TO),
+        expected(
+            uuid, it_system_uuid, person_uuid, "new_username", TERMINATED_SLUTDATO
+        ),
     )

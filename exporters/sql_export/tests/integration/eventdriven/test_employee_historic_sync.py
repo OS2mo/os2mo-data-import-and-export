@@ -74,9 +74,9 @@ async def test_employee_historic_lifecycle(
         session,
         Bruger,
         [
-            # slutdato is the inclusive last valid day, i.e. the day before the
-            # next period begins.
-            expected(uuid, "surname", "1970-01-01", "2019-12-31"),
+            # Since GraphQL v29 the closed period's slutdato is the (exclusive)
+            # date the next period begins, no longer off-by-one.
+            expected(uuid, "surname", "1970-01-01", "2020-01-01"),
             expected(uuid, "new_surname", "2020-01-01"),
         ],
     )

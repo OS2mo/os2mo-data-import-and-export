@@ -19,7 +19,7 @@ from sql_export.sql_table_defs import Leder
 from sql_export.sql_table_defs import LederAnsvar
 
 from ..conftest import VALIDITY
-from .conftest import TERMINATE_TO
+from .conftest import TERMINATED_SLUTDATO
 from .conftest import assert_row
 
 # Change the manager level to a second class, observable as niveautype_*.
@@ -195,6 +195,8 @@ async def test_manager_historic_lifecycle(
     # Terminate into the past: the closed periods are retained in historic.
     await terminate("manager", manager_uuid)
     await assert_row(
-        session, Leder, expected_manager(manager_level2_uuid, "Level 2", TERMINATE_TO)
+        session,
+        Leder,
+        expected_manager(manager_level2_uuid, "Level 2", TERMINATED_SLUTDATO),
     )
-    await assert_row(session, LederAnsvar, expected_responsibility(TERMINATE_TO))
+    await assert_row(session, LederAnsvar, expected_responsibility(TERMINATED_SLUTDATO))

@@ -35,6 +35,11 @@ from ..conftest import sql_to_dict
 # "current" and is therefore removed from the export DB.
 TERMINATE_TO = "2021-01-01"
 
+# The exported ``slutdato`` for a period terminated to ``TERMINATE_TO``. Since
+# GraphQL v29 the API no longer returns ``to`` off-by-one, so the closed period
+# now ends the day after the requested termination date.
+TERMINATED_SLUTDATO = "2021-01-02"
+
 # A single export settles only once OS2mo (re)emits the relevant AMQP event and
 # the handler processes it. Under load that can take longer than the default 20s
 # retry budget, so the polling assertions below use a more generous deadline.

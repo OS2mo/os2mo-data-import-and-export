@@ -4,7 +4,7 @@
 
 Mirrors ``test_address_sync`` but asserts the historic export DB. The create
 and update steps behave identically; only termination differs: the now-closed
-period is retained in historic (slutdato = TERMINATE_TO) instead of dropped.
+period is retained in historic (slutdato = TERMINATED_SLUTDATO) instead of dropped.
 """
 
 from typing import Any
@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import Adresse
 
 from ..conftest import VALIDITY
-from .conftest import TERMINATE_TO
+from .conftest import TERMINATED_SLUTDATO
 from .conftest import assert_row
 
 # address_update replaces the object, so the full payload must be re-sent.
@@ -135,4 +135,6 @@ async def test_address_historic_lifecycle(
 
     # Terminate into the past: the closed period is retained in historic.
     await terminate("address", uuid)
-    await assert_row(session, Adresse, expected(uuid, "new@example.com", TERMINATE_TO))
+    await assert_row(
+        session, Adresse, expected(uuid, "new@example.com", TERMINATED_SLUTDATO)
+    )

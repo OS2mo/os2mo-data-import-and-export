@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import Tilknytning
 
 from ..conftest import VALIDITY
-from .conftest import TERMINATE_TO
+from .conftest import TERMINATED_SLUTDATO
 from .conftest import assert_row
 
 UPDATE = """
@@ -128,5 +128,5 @@ async def test_association_historic_lifecycle(
     # Terminate into the past: the closed period is retained in historic.
     await terminate("association", uuid)
     await assert_row(
-        session, Tilknytning, expected(uuid, "new_association", TERMINATE_TO)
+        session, Tilknytning, expected(uuid, "new_association", TERMINATED_SLUTDATO)
     )

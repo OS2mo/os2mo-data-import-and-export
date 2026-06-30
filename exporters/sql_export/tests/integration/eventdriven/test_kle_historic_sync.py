@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import KLE
 
 from ..conftest import VALIDITY
-from .conftest import TERMINATE_TO
+from .conftest import TERMINATED_SLUTDATO
 from .conftest import assert_row
 
 # Change the KLE number to a second class, observable as kle_nummer_*.
@@ -148,5 +148,5 @@ async def test_kle_historic_lifecycle(
     # Terminate into the past: the closed period is retained in historic.
     await terminate("kle", uuid)
     await assert_row(
-        session, KLE, expected(uuid, kle_number2_uuid, "Number 2", TERMINATE_TO)
+        session, KLE, expected(uuid, kle_number2_uuid, "Number 2", TERMINATED_SLUTDATO)
     )
