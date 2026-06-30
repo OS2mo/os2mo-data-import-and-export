@@ -877,7 +877,7 @@ class GQLLoraCache:
             for res_obj in res["obj"]:
                 if res_obj is None:
                     continue
-                prim = res_obj.pop("primary")
+                prim = res_obj.pop("primary", None)
                 if prim:
                     if prim["user_key"] == "primary":
                         res_obj["primary_boolean"] = True
@@ -888,92 +888,70 @@ class GQLLoraCache:
 
             return res
 
-        if self.full_history:
-            query = """
-                query (
-                    $filter: ITUserFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: itusers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: validities {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                external_id
-                                itsystem_uuid
-                                primary {
-                                    user_key
-                                }
-                                engagement_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": str(uuid) if uuid is not None else None,
-                    "from_date": str(datetime.date.today()) if self.skip_past else None,
-                    "to_date": None,
-                },
+        _IT_USER_FIELDS = """
+            uuid
+            employee_uuid
+            org_unit_uuid
+            user_key
+            external_id
+            itsystem_uuid
+            primary {
+                user_key
             }
-        else:
-            query = """
-                query (
-                    $filter: ITUserFilter
-                    $limit: int
-                    $cursor: Cursor
-                ) {
-                    page: itusers(
-                        filter: $filter
-                        limit: $limit
-                        cursor: $cursor
-                    ) {
-                        objects {
-                            uuid
-                            obj: current {
-                                uuid
-                                employee_uuid
-                                org_unit_uuid
-                                user_key
-                                external_id
-                                itsystem_uuid
-                                primary {
-                                    user_key
-                                }
-                                engagement_uuids
-                                validity {
-                                    from
-                                    to
-                                }
-                            }
-                        }
-                        page_info {
-                            next_cursor
-                        }
-                    }
-                }
-            """
-            variables = {
-                "filter": {
-                    "uuids": str(uuid) if uuid is not None else None,
-                },
+            engagement_uuids
+            validity {
+                from
+                to
             }
+        """
+
+        _CURRENT_QUERY = f"""
+            query (
+                $filter: ITUserFilter
+                $limit: int
+                $cursor: Cursor
+            ) {{
+                page: itusers(
+                    filter: $filter
+                    limit: $limit
+                    cursor: $cursor
+                ) {{
+                    objects {{
+                        uuid
+                        obj: current {{
+                            {_IT_USER_FIELDS}
+                        }}
+                    }}
+                    page_info {{
+                        next_cursor
+                    }}
+                }}
+            }}
+        """
+
+        _VALIDITIES_QUERY = f"""
+            query (
+                $filter: ITUserFilter
+                $limit: int
+                $cursor: Cursor
+            ) {{
+                page: itusers(
+                    filter: $filter
+                    limit: $limit
+                    cursor: $cursor
+                ) {{
+                    objects {{
+                        uuid
+                        obj: validities {{
+                            {_IT_USER_FIELDS}
+                        }}
+                    }}
+                    page_info {{
+                        next_cursor
+                    }}
+                }}
+            }}
+        """
 
         dictionary = {
             "employee_uuid": "user",
@@ -982,19 +960,55 @@ class GQLLoraCache:
             "user_key": "username",
         }
 
-        res: dict = {}
-        async for obj in self._execute_query(
-            query=query, variable_values=variables, do_paged=uuid is None
-        ):
-            if obj is None:
-                return {}
-            if not self.full_history:
-                obj = align_current(obj)
+        async def _process(query: str, variables: dict, use_current: bool) -> dict:
+            res: dict = {}
+            async for obj in self._execute_query(
+                query=query, variable_values=variables, do_paged=uuid is None
+            ):
+                if obj is None:
+                    return {}
+                if use_current:
+                    obj = align_current(obj)
+                obj = await set_primary_boolean(obj)
+                obj = convert_dict(obj, replace_dict=dictionary)
+                insert_obj(obj, res)
+            return res
 
-            obj = await set_primary_boolean(obj)
-            obj = convert_dict(obj, replace_dict=dictionary)
-            insert_obj(obj, res)
-        return res
+        if self.full_history:
+            if uuid is not None:
+                # Event-driven historic: prefer current (always reflects the
+                # latest state after updates). Fall back to validities when
+                # current is null, i.e. the IT user is terminated/past — only
+                # then do we need the full validity history to retain the
+                # closed period.
+                current_result = await _process(
+                    _CURRENT_QUERY,
+                    {"filter": {"uuids": str(uuid)}},
+                    use_current=True,
+                )
+                if current_result:
+                    return current_result
+            # Bulk historic export, OR event-driven where current is null
+            # (terminated IT user) — fetch all validity periods.
+            return await _process(
+                _VALIDITIES_QUERY,
+                {
+                    "filter": {
+                        "uuids": str(uuid) if uuid is not None else None,
+                        "from_date": str(datetime.date.today())
+                        if self.skip_past
+                        else None,
+                        "to_date": None,
+                    },
+                },
+                use_current=False,
+            )
+        else:
+            return await _process(
+                _CURRENT_QUERY,
+                {"filter": {"uuids": str(uuid) if uuid is not None else None}},
+                use_current=True,
+            )
 
     async def _cache_lora_kles(self):
         obj = await self._fetch_kles()
