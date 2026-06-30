@@ -21,7 +21,7 @@ services:
       LOG_LEVEL: INFO
 
       ACTUAL_STATE__TYPE: Postgres
-      ACTUAL_STATE__HOST: db
+      ACTUAL_STATE__HOST: export-db
       ACTUAL_STATE__DB_NAME: actualstate
       ACTUAL_STATE__USER: fastramqpi
       ACTUAL_STATE__PASSWORD: fastramqpi
