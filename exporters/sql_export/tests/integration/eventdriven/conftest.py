@@ -3,10 +3,12 @@
 """Fixtures and helpers shared by the event-driven integration tests.
 
 Each test drives a full lifecycle (create -> update -> delete) of one entity
-type and asserts that the export DB stays in sync via AMQP events. The app is
-started (``server`` fixture) so it consumes events; OS2mo emits them via the
-``amqp_event_emitter`` fixture, and we poll the export DB with ``retry`` until
-the expected state is reached.
+type and asserts that the export DB stays in sync via OS2mo's GraphQL event
+system. The app is started (``server`` fixture) so its event fetchers run;
+OS2mo produces events via the ``amqp_event_emitter`` fixture (which also
+enqueues GraphQL events) and the ``graphql_events_quick_*`` fixtures keep
+fetch/retry fast, and we poll the export DB with ``retry`` until the expected
+state is reached.
 """
 
 import os
@@ -40,17 +42,17 @@ TERMINATE_TO = "2021-01-01"
 # now ends the day after the requested termination date.
 TERMINATED_SLUTDATO = "2021-01-02"
 
-# A single export settles only once OS2mo (re)emits the relevant AMQP event and
-# the handler processes it. Under load that can take longer than the default 20s
-# retry budget, so the polling assertions below use a more generous deadline.
+# A single export settles only once OS2mo delivers the relevant GraphQL event
+# and the handler processes it. Under load that can take longer than the default
+# 20s retry budget, so the polling assertions below use a more generous deadline.
 ASSERT_STOP = stop_after_delay(60)
 
 
 @pytest.fixture
 def app(load_marked_envvars: None) -> FastAPI:
-    # Ensure EVENTDRIVEN is True so AMQP handlers are registered (and the
-    # /trigger endpoint is not mounted). The app then syncs entities to the
-    # export DB in response to AMQP events emitted by OS2mo.
+    # Ensure EVENTDRIVEN is True so the GraphQL event listeners are declared
+    # (and the /trigger endpoint is not mounted). The app then syncs entities to
+    # the export DB in response to GraphQL events fetched from OS2mo.
     os.environ["EVENTDRIVEN"] = "true"
     return create_app()
 
