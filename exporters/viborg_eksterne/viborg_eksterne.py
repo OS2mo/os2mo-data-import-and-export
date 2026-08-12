@@ -122,6 +122,9 @@ class ViborgEksterne:
         # Medarbejder (månedsløn) and Medarbejder (timeløn)
         return self.settings["exporters.plan2learn.allowed_engagement_types"]
 
+    def _get_disallowed_org_units(self):
+        return self.settings["exporters.exports_viborg_eksterne.disallowed_org_units"]
+
     def _gen_from_loracache(self, employee, lc, lc_historic):
         for eng in filter(
             lambda x: x[0]["user"] == employee["uuid"], lc_historic.engagements.values()
@@ -135,6 +138,9 @@ class ViborgEksterne:
 
             org_unit_uuid = engv["unit"]
             org_unit_name = lc.units[org_unit_uuid][0]["name"]
+            if org_unit_uuid in self._get_disallowed_org_units():
+                continue
+
             org_unit_user_key = lc.units[org_unit_uuid][0]["user_key"]
             org_unit_type_uuid = lc.units[org_unit_uuid][0]["unit_type"]
             org_unit_type = lc.classes[org_unit_type_uuid]["title"]
@@ -201,6 +207,9 @@ class ViborgEksterne:
                 eng["engagement_type"]["uuid"]
                 in self._get_disallowed_engagement_types()
             ):
+                continue
+
+            if eng["org_unit"]["name"] in self._get_disallowed_org_units():
                 continue
 
             valid_from = datetime.datetime.strptime(eng["validity"]["from"], "%Y-%m-%d")
