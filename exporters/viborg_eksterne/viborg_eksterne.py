@@ -11,9 +11,18 @@ import time
 import click
 from fastramqpi.ra_utils.deprecation import deprecated
 from fastramqpi.ra_utils.load_settings import load_settings
+from fastramqpi.raclients.graph.client import GraphQLClient
 from fastramqpi.raclients.upload import file_uploader
+from gql import gql
+from gql.client import SyncClientSession
+from more_itertools.more import one
 from os2mo_helpers.mora_helpers import MoraHelper
+from tenacity import Retrying
+from tenacity import stop_after_delay
+from tenacity import wait_random_exponential
 
+from exporters.sql_export.gql_lora_cache_async import RETRY_MAX_TIME
+from exporters.sql_export.gql_lora_cache_async import get_gql_cache_settings
 from exporters.sql_export.lora_cache import get_cache as LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
 
@@ -40,6 +49,9 @@ class ViborgEksterne:
     def __init__(self):
         self._load_settings()
         self._configure_logging()
+        self._sync_client_session: SyncClientSession | None = None
+        self._gql_client: GraphQLClient | None = None
+        self._gql_settings = get_gql_cache_settings()
 
     def _load_settings(self):
         self.settings = load_settings()
@@ -93,6 +105,10 @@ class ViborgEksterne:
             shutil.copyfile(filename, f"/tmp/{outfile_name}")
         logger.info("Time: {}s".format(time.time() - t))
 
+        if self._sync_client_session is not None:
+            self._sync_client_session.close()
+        if self._gql_client is not None:
+            self._gql_client.close_sync()
         logger.info("Export completed")
 
     def export_engagement(self, mh: MoraHelper, filename, lc, lc_historic):
@@ -122,12 +138,68 @@ class ViborgEksterne:
         # Medarbejder (månedsløn) and Medarbejder (timeløn)
         return self.settings["exporters.plan2learn.allowed_engagement_types"]
 
-    def _get_disallowed_org_units(self) -> list[str]:
+    def _get_disallowed_root_org_units(self) -> list[str]:
         # Contains UUIDs for org-units to ignore under LoraCache
         # Contains org-unit names for org-units to ignore when running under MoraHelpers
         return self.settings.get(
-            "exporters.exports_viborg_eksterne.disallowed_org_units", []
+            "exporters.exports_viborg_eksterne.disallowed_root_org_units", []
         )
+
+    def make_client(self) -> GraphQLClient:
+        return GraphQLClient(
+            url=f"{self._gql_settings.mora_base}/graphql/v30",
+            client_id=self._gql_settings.client_id,
+            client_secret=self._gql_settings.client_secret,  # type: ignore
+            auth_realm=self._gql_settings.auth_realm,
+            auth_server=self._gql_settings.auth_server,  # type: ignore
+            httpx_client_kwargs={"timeout": 1000},
+            execute_timeout=1000,
+        )
+
+    def get_sync_client_session(self) -> SyncClientSession:
+        if self._sync_client_session is None:
+            if self._gql_client is None:
+                self._gql_client = self.make_client()
+            self._sync_client_session = SyncClientSession(
+                client=self._gql_client,
+            )
+        return self._sync_client_session
+
+    def is_org_unit_disallowed(self, org_unit_uuid: str) -> bool:
+        root_name = ""
+        filter = {"uuids": str(org_unit_uuid)}
+        query = """
+        query ($filter: OrganisationUnitFilter) {
+          org_units(filter: $filter) {
+            objects {
+              current {
+                root_response {
+                  current {
+                    uuid
+                    name
+                  }
+                }
+              }
+            }
+          }
+        }
+        """
+        for attempt in Retrying(
+            wait=wait_random_exponential(multiplier=2, max=30),
+            stop=stop_after_delay(RETRY_MAX_TIME),
+            reraise=True,
+        ):
+            with attempt:
+                result = self.get_sync_client_session().execute(
+                    document=gql(query), variable_values={"filter": filter}
+                )
+                org_unit_response = one(result["org_units"]["objects"])
+
+                root_name = org_unit_response["current"]["root_response"]["current"][
+                    "name"
+                ]
+
+        return root_name in self._get_disallowed_root_org_units()
 
     def _gen_from_loracache(self, employee, lc, lc_historic):
         for eng in filter(
@@ -142,7 +214,7 @@ class ViborgEksterne:
 
             org_unit_uuid = engv["unit"]
             org_unit_name = lc.units[org_unit_uuid][0]["name"]
-            if org_unit_uuid in self._get_disallowed_org_units():
+            if self.is_org_unit_disallowed(org_unit_uuid):
                 continue
 
             org_unit_user_key = lc.units[org_unit_uuid][0]["user_key"]
@@ -213,12 +285,13 @@ class ViborgEksterne:
             ):
                 continue
 
-            if eng["org_unit"]["name"] in self._get_disallowed_org_units():
-                continue
-
             valid_from = datetime.datetime.strptime(eng["validity"]["from"], "%Y-%m-%d")
 
             org_unit_uuid = eng["org_unit"]["uuid"]
+
+            if self.is_org_unit_disallowed(org_unit_uuid):
+                continue
+
             manager = self._find_manager(org_unit_uuid, mh)
             if manager:
                 manager_name = manager["person"]["name"]
