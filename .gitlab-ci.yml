@@ -141,7 +141,6 @@ Test Reports:
   script:
     - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
     - pytest reports/tests/RSD
-    - pytest reports/tests/safetynet
 
 Test Exporter Utils:
   extends: .test-python

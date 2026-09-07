@@ -1,2 +1,0 @@
-class ManagerEngagementCouplingMissing(Exception):
-    pass
