@@ -271,7 +271,9 @@ reports_employee_phonebook_for_frederikshavn(){
 
 reports_safetynet_frederikshavn(){
   echo "Running Frederikshavn Safetynet reports"
-  ${VENV}/bin/python3 -m reports.safetynet.safetynet
+  if ! curl -X POST http://localhost:8060/trigger; then
+    return $?
+  fi
 }
 
 reports_csv(){
