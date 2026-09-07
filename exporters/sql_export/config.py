@@ -20,7 +20,7 @@ class GqlLoraCacheSettings(JobSettings):  # type: ignore
     primary_manager_responsibility: str | None = None
     prometheus_pushgateway: str = "pushgateway"
     mox_base: str = "http://mo:5000/lora"
-    std_page_size: int = 300
+    std_page_size: int = 100
 
     def to_old_settings(self) -> dict[str, Any]:
         """Convert our DatabaseSettings to a settings.json format.
