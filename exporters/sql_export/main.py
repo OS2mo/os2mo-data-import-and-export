@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """Integration entrypoint."""
 
+import asyncio
 import logging
 import time
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import FastAPI
 from fastramqpi.config import Settings as FastRAMQPISettings
+from fastramqpi.depends import LegacyGraphQLSession
 from fastramqpi.depends import from_user_context
 from fastramqpi.events import Event
 from fastramqpi.events import GraphQLEvents
@@ -23,6 +25,8 @@ from fastramqpi.events import Listener
 from fastramqpi.main import FastRAMQPI
 from fastramqpi.metrics import dipex_last_success_timestamp
 from fastramqpi.ramqp.mo import _MORoutingKey
+from gql import gql
+from gql.client import AsyncClientSession
 
 from .config import DatabaseSettings
 from .config import GqlLoraCacheSettings
@@ -285,6 +289,67 @@ async def trigger_historic_event(
     handle_function = handle_function_map[mo_type]
     await handle_function(uuid=event.subject, sql_exporter=sql_exporter)
 
+async def get_owner(graphql_session: AsyncClientSession) -> UUID:
+    """Find owner uuid for the integration"""
+    result = await graphql_session.execute(
+        gql(
+            """
+            query Me {
+              me {
+                actor {
+                  uuid
+                }
+              }
+            }
+            """
+        )
+    )
+    return UUID(result["me"]["actor"]["uuid"])
+
+
+async def refresh_type(
+    object_type: _MORoutingKey,
+    graphql_session: AsyncClientSession,
+    owner: UUID,
+    limit: int,
+) -> None:
+    if object_type == "person":
+        # There is no person refresh mutator, only employee_refresh.
+        object_type = "employee"
+    field_name = f"{object_type}_refresh"
+    query = gql(
+        f"""
+        mutation refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {{
+          {field_name}(owner: $owner, cursor: $cursor, limit: $limit) {{
+            objects
+            page_info {{
+              next_cursor
+            }}
+          }}
+        }}
+        """
+    )
+    cursor = None
+    while True:
+        result = await graphql_session.execute(
+            query, variable_values={"owner": str(owner), "cursor": cursor, "limit": limit}
+        )
+        cursor = result[field_name]["page_info"]["next_cursor"]
+        if not cursor:
+            break
+
+
+@event_trigger_router.post("/refresh")
+async def trigger_full_refresh(
+    graphql_session: LegacyGraphQLSession,
+    limit: int = 1000,
+) -> None:
+    """Trigger a full refresh of all objects in MO. """
+    # TODO: Add events for each object in sql to remove any stale objects
+    owner = await get_owner(graphql_session)
+    async with asyncio.TaskGroup() as tg:
+        for mo_type in handle_function_map:
+            tg.create_task(refresh_type(mo_type, graphql_session, owner, limit))
 
 class Settings(DatabaseSettings):
     fastramqpi: FastRAMQPISettings
