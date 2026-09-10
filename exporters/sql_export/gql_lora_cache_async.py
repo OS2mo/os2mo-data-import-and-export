@@ -256,7 +256,10 @@ class GQLLoraCache:
                             user_key
                             name
                             scope
-                            facet_uuid
+                            facet {
+                                uuid
+                                user_key
+                            }
                         }
                     }
                     page_info {
@@ -270,7 +273,7 @@ class GQLLoraCache:
                 "uuids": str(uuid) if uuid is not None else None,
             },
         }
-        dictionary = {"name": "title", "facet_uuid": "facet"}
+        dictionary = {"name": "title"}
 
         res: dict = {}
         async for obj in self._execute_query(
@@ -284,6 +287,10 @@ class GQLLoraCache:
                 resolve_validity=False,
                 replace_dict=dictionary,
             )
+            # Flatten the nested facet object to its user_key and uuid
+            for class_obj in obj.values():
+                class_obj["facet_bvn"] = class_obj["facet"]["user_key"]
+                class_obj["facet"] = class_obj["facet"]["uuid"]
             res.update(obj)
         return res
 

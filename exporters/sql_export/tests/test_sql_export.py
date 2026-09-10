@@ -182,6 +182,7 @@ def _mock_lora_class(name: str) -> Tuple[Dict, Dict]:
         "title": f"{name}",
         "scope": "scope",
         "facet": facet_uuid,
+        "facet_bvn": facet,
     }
     return {cls_uuid: cls}, {facet_uuid: facet}
 

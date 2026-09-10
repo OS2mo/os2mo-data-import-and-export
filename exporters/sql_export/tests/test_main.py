@@ -47,16 +47,17 @@ async def test_handle_class():
     # Arrange
     uuid = uuid4()
     facet_uuid = uuid4()
+    facet_bvn = "test_facet"
     klasse_dict = {
         "user_key": "klasse",
         "title": "test klasse",
         "uuid": str(uuid),
         "facet": str(facet_uuid),
+        "facet_bvn": str(facet_bvn),
     }
 
     lc_data = {
         "classes": {str(uuid): {str(uuid): klasse_dict}},
-        "facets": {str(facet_uuid): {"user_key": "test_facet"}},
     }
     sql_export = _TestableSqlExport(inject_lc=lc_data)
     class_model = sql_export._generate_sql_classes(

@@ -266,7 +266,7 @@ class SqlExport:
             bvn=klasse_info["user_key"],
             titel=klasse_info["title"],
             facet_uuid=klasse_info["facet"],
-            facet_bvn=self.lc.facets[klasse_info["facet"]]["user_key"],
+            facet_bvn=klasse_info["facet_bvn"],
         )
 
     def _add_classes(self) -> None:
