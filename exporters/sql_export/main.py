@@ -93,6 +93,7 @@ async def handle_class(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_classes(uuid)
+    sql_exporter.lc.classes.update(result)
     res = result.get(str(uuid))
     class_objects = (
         [sql_exporter._generate_sql_classes(uuid, res, Klasse)] if res else []
@@ -118,6 +119,7 @@ async def handle_facet(
     sql_exporter: SqlExport,
 ):
     result = await sql_exporter.lc._fetch_facets(uuid)
+    sql_exporter.lc.facets.update(result)
     res = result.get(str(uuid))
     facets_objects = (
         [sql_exporter._generate_sql_facets(uuid, res, Facet)] if res else []
