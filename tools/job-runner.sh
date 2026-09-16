@@ -80,6 +80,15 @@ sd_changed_at_status(){
     fi
 }
 
+imports_ldap_stale_users_cleanup(){
+    echo running ldap_stale_users_cleanup
+    curl --no-progress-meter -X POST "localhost:8451/fixup/delete_non_existing_external_ids?dry_run=false"
+    CURL_STATUS=$?
+    if [[ ${CURL_STATUS} != 0 ]]; then
+        return ${CURL_STATUS}
+    fi
+}
+
 imports_test_ad_connectivity(){
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
@@ -380,6 +389,10 @@ imports(){
     [ "${BACKUP_OK}" == "false" ] \
         && echo ERROR: backup is in error - skipping imports \
         && return 1 # imports depend on backup
+
+    if [ "${RUN_LDAP_STALE_USERS_CLEANUP}" == "true" ]; then
+        run-job imports_ldap_stale_users_cleanup && return 2
+    fi
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
