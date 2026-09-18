@@ -53,9 +53,13 @@ services:
     networks:
       - os2mo_default
       - sql_export
+    depends_on:
+      - db
+      - export-db
+      - export-db-historic
 
   db:
-    image: postgres:16
+    image: postgres
     environment:
       POSTGRES_USER: "fastramqpi"
       POSTGRES_PASSWORD: "fastramqpi"
@@ -64,23 +68,23 @@ services:
       - sql_export
 
   export-db:
-    image: postgres:13
+    image: postgres
     environment:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: actualstate
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     restart: unless-stopped
     networks:
       - sql_export
 
   export-db-historic:
-    image: postgres:13
+    image: postgres
     environment:
       POSTGRES_PASSWORD: mysecretpassword2
       POSTGRES_DB: historic
     tmpfs:
-      - /var/lib/postgresql/data
+      - /var/lib/postgresql
     restart: unless-stopped
     networks:
       - sql_export
