@@ -391,7 +391,7 @@ imports(){
         && return 1 # imports depend on backup
 
     if [ "${RUN_LDAP_STALE_USERS_CLEANUP}" == "true" ]; then
-        run-job imports_ldap_stale_users_cleanup && return 2
+        run-job imports_ldap_stale_users_cleanup || return 2
     fi
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
