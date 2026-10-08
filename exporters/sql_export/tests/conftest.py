@@ -29,8 +29,6 @@ def pytest_collection_modifyitems(items: list[Item]) -> None:
             item.fixturenames[:0] = [  # type: ignore[attr-defined]
                 # Default environmental variables for integration tests
                 "integration_test_environment_variables",
-                # Ensure Export DB is cleaned between integration tests
-                "purge_export_db",
             ]
 
 
@@ -43,15 +41,13 @@ def integration_test_environment_variables(monkeypatch: pytest.MonkeyPatch) -> N
     pass
 
 
-@pytest.fixture
-def purge_export_db() -> Iterator[None]:
+def purge_export_db(prefix: str) -> Iterator[Session]:
     """Truncate all tables in the export DB before each integration test."""
-    db_user = os.environ["ACTUAL_STATE__USER"]
-    db_pass = os.environ["ACTUAL_STATE__PASSWORD"]
-    db_host = os.environ["ACTUAL_STATE__HOST"]
-    db_port = os.environ.get("ACTUAL_STATE__PORT", "5432")
-    db_name = os.environ["ACTUAL_STATE__DB_NAME"]
-
+    db_user = os.environ[f"{prefix}__USER"]
+    db_pass = os.environ[f"{prefix}__PASSWORD"]
+    db_host = os.environ[f"{prefix}__HOST"]
+    db_port = os.environ.get(f"{prefix}__PORT", "5432")
+    db_name = os.environ[f"{prefix}__DB_NAME"]
     url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
     engine = create_engine(url)
     Base.metadata.create_all(engine)
@@ -59,4 +55,14 @@ def purge_export_db() -> Iterator[None]:
         for table in reversed(Base.metadata.sorted_tables):
             session.execute(text(f"TRUNCATE TABLE {table.name} CASCADE"))
         session.commit()
-    yield
+        yield session
+
+
+@pytest.fixture
+def actual_state_db_session() -> Iterator[Session]:
+    yield from purge_export_db("ACTUAL_STATE")
+
+
+@pytest.fixture
+def historic_state_db_session() -> Iterator[Session]:
+    yield from purge_export_db("HISTORIC_STATE")

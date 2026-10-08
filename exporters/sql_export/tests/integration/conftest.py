@@ -3,7 +3,6 @@ from typing import Any
 from typing import AsyncIterator
 from typing import Awaitable
 from typing import Callable
-from typing import Iterator
 from uuid import UUID
 
 import pytest
@@ -14,8 +13,6 @@ from gql.client import AsyncClientSession
 from httpx import AsyncClient
 from pydantic import AnyHttpUrl
 from pydantic import parse_obj_as
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
 
 from sql_export.main import create_app
 
@@ -81,21 +78,6 @@ async def graphql_client(mo_client: AsyncClient) -> AsyncIterator[AsyncClientSes
     )
     async with client as c:
         yield c
-
-
-@pytest.fixture
-def actual_state_db_session() -> Iterator[Session]:
-    # Connect to the actual state DB
-    db_user = os.environ["ACTUAL_STATE__USER"]
-    db_pass = os.environ["ACTUAL_STATE__PASSWORD"]
-    db_host = os.environ["ACTUAL_STATE__HOST"]
-    db_port = os.environ.get("ACTUAL_STATE__PORT", "5432")
-    db_name = os.environ["ACTUAL_STATE__DB_NAME"]
-
-    url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-    engine = create_engine(url)
-    with Session(engine) as session:
-        yield session
 
 
 @pytest.fixture

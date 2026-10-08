@@ -1,10 +1,8 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
-import os
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from typing import Iterator
 from uuid import UUID
 
 import pytest
@@ -14,34 +12,12 @@ from fastramqpi.pytest_plugin import run_test_client
 from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import one
-from sqlalchemy import create_engine
-from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from sql_export.sql_table_defs import Base
 from sql_export.sql_table_defs import Enhed
 
 from ..conftest import VALIDITY
 from ..conftest import sql_to_dict
-
-
-@pytest.fixture
-def historic_state_db_session() -> Iterator[Session]:
-    """Session for the historic state DB, truncated before the test."""
-    db_user = os.environ["HISTORIC_STATE__USER"]
-    db_pass = os.environ["HISTORIC_STATE__PASSWORD"]
-    db_host = os.environ["HISTORIC_STATE__HOST"]
-    db_port = os.environ.get("HISTORIC_STATE__PORT", "5432")
-    db_name = os.environ["HISTORIC_STATE__DB_NAME"]
-
-    url = f"postgresql+psycopg2://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
-    engine = create_engine(url)
-    Base.metadata.create_all(engine)
-    with Session(engine) as session:
-        for table in reversed(Base.metadata.sorted_tables):
-            session.execute(text(f"TRUNCATE TABLE {table.name} CASCADE"))
-        session.commit()
-        yield session
 
 
 @pytest.fixture
