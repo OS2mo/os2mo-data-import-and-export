@@ -334,7 +334,7 @@ def create_app(**kwargs) -> FastAPI:
     fastramqpi = FastRAMQPI(
         application_name="sql-export",
         settings=settings.fastramqpi,
-        graphql_version=22,
+        graphql_version=30,
         graphql_events=graphql_events,
     )
     if settings.eventdriven:
