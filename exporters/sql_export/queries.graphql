@@ -1,0 +1,127 @@
+# SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
+# SPDX-License-Identifier: MPL-2.0
+
+query Me {
+  me {
+    actor {
+      uuid
+    }
+  }
+}
+
+mutation address_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  address_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation association_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  association_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation class_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  class_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation employee_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  employee_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation engagement_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  engagement_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation facet_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  facet_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation itsystem_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  itsystem_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation ituser_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  ituser_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation kle_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  kle_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation leave_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  leave_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation manager_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  manager_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation org_unit_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  org_unit_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
+
+mutation related_unit_refresh($owner: UUID!, $cursor: Cursor = null, $limit: int!) {
+  related_unit_refresh(owner: $owner, cursor: $cursor, limit: $limit) {
+    objects
+    page_info {
+      next_cursor
+    }
+  }
+}
