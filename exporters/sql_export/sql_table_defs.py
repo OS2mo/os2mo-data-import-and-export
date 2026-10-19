@@ -67,6 +67,9 @@ class BaseBruger(Compare):
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
+    start = Column(DateTime)
+    slut = Column(DateTime)
+
 
 class WBruger(Base, BaseBruger):  # type: ignore
     __tablename__ = "wbrugere"

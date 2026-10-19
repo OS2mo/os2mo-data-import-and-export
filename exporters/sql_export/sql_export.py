@@ -288,6 +288,8 @@ class SqlExport:
             cpr=user_info["cpr"] if self.export_cpr else "",
             startdato=user_info["from_date"],
             slutdato=user_info["to_date"],
+            start=user_info["validity"]["from"],
+            slut=user_info["validity"]["to"],
         )
 
     def _add_users(self) -> None:

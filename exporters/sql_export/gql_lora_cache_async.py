@@ -59,7 +59,7 @@ def convert_dict(
         return d
 
     def res_validity(d: dict):
-        validity = d.pop("validity")
+        validity = d.get("validity")
         if "from" in validity:
             if validity["from"]:
                 d["from_date"] = str(

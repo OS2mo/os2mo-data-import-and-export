@@ -72,6 +72,10 @@ expected = {
             "unit": "1c690f27-35c5-5c02-975a-930e6b524805",
             "primary_type": "0644cd06-b84b-42e0-95fe-ce131c21fbe6",
             "primary_boolean": True,
+            "validity": {
+                "from": "2000-06-29T00:00:00+02:00",
+                "to": None,
+            },
         }
     ]
 }

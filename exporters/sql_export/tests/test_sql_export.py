@@ -238,6 +238,7 @@ def test_sql_export_writes_users(cpr: Optional[str]):
         "kaldenavn_efternavn": "KaldenavnEfternavn",
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
+        "validity": {"from": "2020-01-01T00:00:00Z", "to": "2020-01-01T00:00:00Z"},
     }
     lc_data = {"users": {user_uuid: [user]}}
     sql_export = _TestableSqlExport(inject_lc=lc_data)
