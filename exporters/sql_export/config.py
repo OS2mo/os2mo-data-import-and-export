@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 from functools import lru_cache
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastramqpi.ra_utils.job_settings import JobSettings
 from pydantic import AnyHttpUrl
@@ -10,6 +11,8 @@ from pydantic import BaseSettings
 from pydantic import Field
 from pydantic import SecretStr
 from pydantic.tools import parse_obj_as
+
+TIMEZONE = ZoneInfo("Europe/Copenhagen")
 
 
 class GqlLoraCacheSettings(JobSettings):  # type: ignore

@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
+from datetime import datetime
 from typing import Any
 from typing import Awaitable
 from typing import Callable
@@ -14,6 +15,7 @@ from gql import gql
 from more_itertools import one
 from sqlalchemy.orm import Session
 
+from sql_export.config import TIMEZONE
 from sql_export.sql_table_defs import Enhed
 
 from ..conftest import VALIDITY
@@ -143,6 +145,8 @@ async def test_org_unit_event(
         "organisatorisk_sti": "Parent Unit\\Renamed Unit",
         "startdato": "2021-01-01",
         "slutdato": "9999-12-31",
+        "start": datetime(2021, 1, 1, 0, 0, tzinfo=TIMEZONE),
+        "slut": None,
     }
 
     units = (
@@ -159,6 +163,8 @@ async def test_org_unit_event(
             "organisatorisk_sti": None,
             "startdato": "2020-01-01",
             "slutdato": "2020-12-31",
+            "start": datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
+            "slut": datetime(2021, 1, 1, 0, 0, tzinfo=TIMEZONE),
         },
         {
             **common,
@@ -166,5 +172,7 @@ async def test_org_unit_event(
             "organisatorisk_sti": None,
             "startdato": "2021-01-01",
             "slutdato": "9999-12-31",
+            "start": datetime(2021, 1, 1, 0, 0, tzinfo=TIMEZONE),
+            "slut": None,
         },
     ]

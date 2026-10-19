@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from typing import Any
 from typing import AsyncIterator
 from typing import Awaitable
@@ -14,10 +15,12 @@ from httpx import AsyncClient
 from pydantic import AnyHttpUrl
 from pydantic import parse_obj_as
 
+from sql_export.config import TIMEZONE
 from sql_export.main import create_app
 
 GRAPHQL_VERSION = 30
 LAST_DAY = "2300-01-01"
+END_DATETIME = datetime(2300, 1, 2, 0, 0, tzinfo=TIMEZONE)
 VALIDITY = {
     "from": "2020-01-01",
     "to": "2300-01-02",

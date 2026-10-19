@@ -93,6 +93,13 @@ class SqlExportSettings(JobSettings):
 logger = logging.getLogger(__name__)
 
 
+def _parse_datetime(value: str | None) -> datetime.datetime | None:
+    """Convert a MO timestamp into a datetime."""
+    if value is None:
+        return None
+    return datetime.datetime.fromisoformat(value)
+
+
 class SqlExport:
     def __init__(self, force_sqlite=False, historic=False, settings=None):
         logger.info("Start SQL export")
@@ -288,6 +295,8 @@ class SqlExport:
             cpr=user_info["cpr"] if self.export_cpr else "",
             startdato=user_info["from_date"],
             slutdato=user_info["to_date"],
+            start=_parse_datetime(user_info["validity"]["from"]),
+            slut=_parse_datetime(user_info["validity"]["to"]),
         )
 
     def _add_users(self) -> None:
@@ -340,6 +349,8 @@ class SqlExport:
             opmærkning_titel=org_unit_hierarchy_class["title"],
             startdato=unit_info["from_date"],
             slutdato=unit_info["to_date"],
+            start=_parse_datetime(unit_info["validity"]["from"]),
+            slut=_parse_datetime(unit_info["validity"]["to"]),
         )
 
     def _add_units(self) -> None:

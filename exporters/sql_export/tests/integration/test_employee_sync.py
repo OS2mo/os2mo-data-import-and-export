@@ -1,5 +1,7 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from typing import Awaitable
 from typing import Callable
@@ -40,4 +42,6 @@ async def test_employee_sync(
         "cpr": input_data["cpr_number"],
         "startdato": "1970-01-01",
         "slutdato": "9999-12-31",
+        "start": datetime(1969, 12, 31, 23, 0, tzinfo=timezone.utc),
+        "slut": None,
     }

@@ -25,6 +25,7 @@ async def test_handle_person():
         "to_date": "9999-12-31",
         "user_key": "GrejsL",
         "uuid": str(uuid),
+        "validity": {"from": "1942-09-27T00:00:00Z", "to": None},
     }
 
     lc_data = {"users": {str(uuid): {str(uuid): [user_dict]}}}

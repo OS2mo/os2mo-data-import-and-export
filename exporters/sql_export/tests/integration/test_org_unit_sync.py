@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Magenta ApS <https://magenta.dk>
 # SPDX-License-Identifier: MPL-2.0
+from datetime import datetime
 from typing import Any
 from typing import Awaitable
 from typing import Callable
@@ -9,8 +10,10 @@ import pytest
 from more_itertools import one
 from sqlalchemy.orm import Session
 
+from sql_export.config import TIMEZONE
 from sql_export.sql_table_defs import Enhed
 
+from .conftest import END_DATETIME
 from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
@@ -74,6 +77,8 @@ async def test_org_unit_sync(
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
         "slutdato": LAST_DAY,
+        "start": datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
+        "slut": END_DATETIME,
     }
 
 
@@ -146,4 +151,6 @@ async def test_org_unit_with_parent_sync(
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
         "slutdato": LAST_DAY,
+        "start": datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
+        "slut": END_DATETIME,
     }

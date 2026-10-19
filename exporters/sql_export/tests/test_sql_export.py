@@ -1,6 +1,8 @@
 import os
 import unittest.mock
 from collections import ChainMap
+from datetime import datetime
+from datetime import timezone
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -17,6 +19,7 @@ from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from ..config import TIMEZONE
 from ..sql_export import SqlExport
 from ..sql_export import wrap_export
 from ..sql_table_defs import Base
@@ -238,6 +241,7 @@ def test_sql_export_writes_users(cpr: Optional[str]):
         "kaldenavn_efternavn": "KaldenavnEfternavn",
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
+        "validity": {"from": "2020-01-01T00:00:00Z", "to": "2020-01-01T00:01:00Z"},
     }
     lc_data = {"users": {user_uuid: [user]}}
     sql_export = _TestableSqlExport(inject_lc=lc_data)
@@ -258,7 +262,44 @@ def test_sql_export_writes_users(cpr: Optional[str]):
         kaldenavn_efternavn=user["kaldenavn_efternavn"],
         startdato=user["from_date"],
         slutdato=user["to_date"],
+        start=datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+        slut=datetime(2020, 1, 1, 0, 1, tzinfo=timezone.utc),
     )
+
+
+def test_sql_export_user_row_matches_database_roundtrip():
+    # Arrange
+    user_uuid = _mk_uuid()
+    user = {
+        "uuid": user_uuid,
+        "cpr": None,
+        "user_key": user_uuid,
+        "fornavn": "Fornavn",
+        "efternavn": "Efternavn",
+        "kaldenavn_fornavn": "KaldenavnFornavn",
+        "kaldenavn_efternavn": "KaldenavnEfternavn",
+        "from_date": "2020-01-01",
+        "to_date": "9999-12-31",
+        "validity": {"from": "2020-01-01T00:00:00+01:00", "to": None},
+    }
+    sql_export = _TestableSqlExport(inject_lc={"users": {user_uuid: [user]}})
+    exported = sql_export._generate_sql_users(user_uuid, user, WBruger)
+    from_database = WBruger(
+        uuid=user_uuid,
+        bvn=user["user_key"],
+        fornavn=user["fornavn"],
+        efternavn=user["efternavn"],
+        kaldenavn_fornavn=user["kaldenavn_fornavn"],
+        kaldenavn_efternavn=user["kaldenavn_efternavn"],
+        cpr=None,
+        startdato=user["from_date"],
+        slutdato=user["to_date"],
+        start=datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
+        slut=None,
+    )
+
+    # Assert
+    assert exported == from_database
 
 
 def test_sql_export_writes_org_units():
@@ -279,6 +320,10 @@ def test_sql_export_writes_org_units():
         "org_unit_hierarchy": _get_cls_uuid(hierarchy_cls),
         "from_date": "2020-01-01",
         "to_date": "2020-01-01",
+        "validity": {
+            "from": "2020-01-01T00:00:00+01:00",
+            "to": "2020-01-01T00:00:00+01:00",
+        },
     }
     lc_data = {
         "facets": _join_dicts(
@@ -318,6 +363,8 @@ def test_sql_export_writes_org_units():
         fungerende_leder_uuid=None,
         startdato=unit["from_date"],
         slutdato=unit["to_date"],
+        start=datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
+        slut=datetime(2020, 1, 1, 0, 0, tzinfo=TIMEZONE),
     )
 
 

@@ -67,6 +67,9 @@ class BaseBruger(Compare):
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
+    start = Column(DateTime(timezone=True))
+    slut = Column(DateTime(timezone=True), nullable=True)
+
 
 class WBruger(Base, BaseBruger):  # type: ignore
     __tablename__ = "wbrugere"
@@ -95,6 +98,9 @@ class BaseEnhed(Compare):
     opmærkning_titel = Column(String(250))  # Export title of "org_unit_hierarchy"
     startdato = Column(String(10))
     slutdato = Column(String(10))
+
+    start = Column(DateTime(timezone=True))
+    slut = Column(DateTime(timezone=True), nullable=True)
 
 
 class WEnhed(Base, BaseEnhed):  # type: ignore
