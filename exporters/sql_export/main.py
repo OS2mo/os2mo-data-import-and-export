@@ -15,6 +15,7 @@ from uuid import UUID
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastramqpi.config import Settings as FastRAMQPISettings
 from fastramqpi.depends import from_user_context
 from fastramqpi.events import Event
@@ -45,6 +46,8 @@ from .sql_table_defs import Leder
 from .sql_table_defs import LederAnsvar
 from .sql_table_defs import Orlov
 from .sql_table_defs import Tilknytning
+from .trigger import lock_actual
+from .trigger import lock_historic
 from .trigger import trigger_router
 
 logger = logging.getLogger(__name__)
@@ -274,6 +277,9 @@ async def trigger_actual_state_event(
     event: Event[UUID],
     sql_exporter: SqlExport,
 ) -> None:
+    if lock_actual.locked():
+        # Ensures we don't miss updates when data from the full export is swaped from the temporary tables
+        raise HTTPException(503, "Full export running, retry event later")
     handle_function = handle_function_map[mo_type]
     await handle_function(uuid=event.subject, sql_exporter=sql_exporter)
 
@@ -284,6 +290,9 @@ async def trigger_historic_event(
     event: Event[UUID],
     sql_exporter: SqlExportHistoric,
 ) -> None:
+    if lock_historic.locked():
+        # Ensures we don't miss updates when data from the full export is swaped from the temporary tables
+        raise HTTPException(503, "Full historic export running, retry event later")
     handle_function = handle_function_map[mo_type]
     await handle_function(uuid=event.subject, sql_exporter=sql_exporter)
 
@@ -341,8 +350,8 @@ def create_app(**kwargs) -> FastAPI:
         # "Disable" last run metric to avoid erroneous alerts; it does not make
         # sense for an event-driven integration without a rundb.
         dipex_last_success_timestamp.set_function(time.time)
-    else:
-        fastramqpi.get_app().include_router(trigger_router)
+
+    fastramqpi.get_app().include_router(trigger_router)
     fastramqpi.add_context(settings=settings, sql_exporter=None)
 
     app = fastramqpi.get_app()
