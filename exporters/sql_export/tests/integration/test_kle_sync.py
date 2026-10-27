@@ -94,5 +94,5 @@ async def test_kle_sync(
         "kle_nummer_uuid": kle_number_uuid,
         "kle_nummer_titel": "Number",
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

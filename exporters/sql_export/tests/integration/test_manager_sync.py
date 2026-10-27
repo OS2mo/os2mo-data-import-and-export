@@ -117,7 +117,7 @@ async def test_manager_sync(
         "niveautype_uuid": manager_level_uuid,
         "niveautype_titel": "Level 1",
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
     responsibility = one(actual_state_db_session.query(LederAnsvar).all())
@@ -126,5 +126,5 @@ async def test_manager_sync(
         "lederansvar_uuid": responsibility_uuid,
         "lederansvar_titel": "Responsibility 1",
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

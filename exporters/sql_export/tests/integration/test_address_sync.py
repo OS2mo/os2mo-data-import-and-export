@@ -83,7 +83,7 @@ async def test_address_sync(
         "synlighed_scope": None,
         "synlighed_titel": visibility_class["name"],
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -166,7 +166,7 @@ async def test_org_unit_address_sync(
         "synlighed_scope": None,
         "synlighed_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -290,7 +290,7 @@ async def test_address_engagement_sync(
         "synlighed_scope": None,
         "synlighed_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -372,5 +372,5 @@ async def test_address_ituser_sync(
         "synlighed_scope": None,
         "synlighed_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

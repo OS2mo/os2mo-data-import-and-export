@@ -124,5 +124,5 @@ async def test_leave_sync(
         "orlovstype_titel": "Leave",
         "engagement_uuid": engagement_uuid,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

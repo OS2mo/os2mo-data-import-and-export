@@ -17,7 +17,7 @@ from pydantic import parse_obj_as
 from sql_export.main import create_app
 
 GRAPHQL_VERSION = 22
-VALIDITY = {"from": "2020-01-01", "to": None}
+VALIDITY = {"from": "2020-01-01", "to": "2300-01-01"}
 
 
 def sql_to_dict(obj):

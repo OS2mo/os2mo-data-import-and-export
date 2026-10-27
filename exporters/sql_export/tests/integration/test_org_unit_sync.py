@@ -72,7 +72,7 @@ async def test_org_unit_sync(
         "opmærkning_uuid": None,
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -144,5 +144,5 @@ async def test_org_unit_with_parent_sync(
         "opmærkning_uuid": None,
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

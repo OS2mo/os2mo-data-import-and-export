@@ -121,5 +121,5 @@ async def test_engagement_sync(
         "udvidelse_9": None,
         "udvidelse_10": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }

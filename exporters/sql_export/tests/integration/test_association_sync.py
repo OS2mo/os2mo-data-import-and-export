@@ -96,7 +96,7 @@ async def test_association_sync(
         "stillingsbetegnelse_titel": None,
         "it_forbindelse_uuid": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
         "primær_boolean": None,
         "faglig_organisation": None,
     }

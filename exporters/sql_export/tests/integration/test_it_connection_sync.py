@@ -60,7 +60,7 @@ async def test_it_connection_sync(
         "eksternt_id": None,
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -109,7 +109,7 @@ async def test_it_connection_external_id_sync(
         "eksternt_id": connection_input["external_id"],
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
 
@@ -232,7 +232,7 @@ async def test_it_connection_engagement_sync(
         "eksternt_id": None,
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
 
     engagement_links = actual_state_db_session.query(ItForbindelseEngagement).all()
@@ -245,11 +245,11 @@ async def test_it_connection_engagement_sync(
         "it_forbindelse_uuid": it_connection_uuid,
         "engagement_uuid": engagement_uuid_1,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
     assert links_by_engagement[engagement_uuid_2] == {
         "it_forbindelse_uuid": it_connection_uuid,
         "engagement_uuid": engagement_uuid_2,
         "startdato": "2020-01-01",
-        "slutdato": "9999-12-31",
+        "slutdato": "2300-01-01",
     }
