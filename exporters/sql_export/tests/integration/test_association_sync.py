@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import Tilknytning
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -96,7 +97,7 @@ async def test_association_sync(
         "stillingsbetegnelse_titel": None,
         "it_forbindelse_uuid": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
         "primær_boolean": None,
         "faglig_organisation": None,
     }

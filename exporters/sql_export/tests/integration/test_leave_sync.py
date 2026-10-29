@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import Orlov
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -124,5 +125,5 @@ async def test_leave_sync(
         "orlovstype_titel": "Leave",
         "engagement_uuid": engagement_uuid,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }

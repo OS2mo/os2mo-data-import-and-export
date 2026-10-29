@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import KLE
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -94,5 +95,5 @@ async def test_kle_sync(
         "kle_nummer_uuid": kle_number_uuid,
         "kle_nummer_titel": "Number",
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }

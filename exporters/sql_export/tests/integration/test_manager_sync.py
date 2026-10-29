@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import Leder
 from sql_export.sql_table_defs import LederAnsvar
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -117,7 +118,7 @@ async def test_manager_sync(
         "niveautype_uuid": manager_level_uuid,
         "niveautype_titel": "Level 1",
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
 
     responsibility = one(actual_state_db_session.query(LederAnsvar).all())
@@ -126,5 +127,5 @@ async def test_manager_sync(
         "lederansvar_uuid": responsibility_uuid,
         "lederansvar_titel": "Responsibility 1",
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }

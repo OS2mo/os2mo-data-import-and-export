@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import Engagement
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -121,5 +122,5 @@ async def test_engagement_sync(
         "udvidelse_9": None,
         "udvidelse_10": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }

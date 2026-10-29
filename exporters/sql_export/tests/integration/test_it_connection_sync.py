@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sql_export.sql_table_defs import ItForbindelse
 from sql_export.sql_table_defs import ItForbindelseEngagement
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -60,7 +61,7 @@ async def test_it_connection_sync(
         "eksternt_id": None,
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
 
 
@@ -109,7 +110,7 @@ async def test_it_connection_external_id_sync(
         "eksternt_id": connection_input["external_id"],
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
 
 
@@ -232,7 +233,7 @@ async def test_it_connection_engagement_sync(
         "eksternt_id": None,
         "primær_boolean": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
 
     engagement_links = actual_state_db_session.query(ItForbindelseEngagement).all()
@@ -245,11 +246,11 @@ async def test_it_connection_engagement_sync(
         "it_forbindelse_uuid": it_connection_uuid,
         "engagement_uuid": engagement_uuid_1,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
     assert links_by_engagement[engagement_uuid_2] == {
         "it_forbindelse_uuid": it_connection_uuid,
         "engagement_uuid": engagement_uuid_2,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }

@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import Enhed
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -72,7 +73,7 @@ async def test_org_unit_sync(
         "opmærkning_uuid": None,
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
 
 
@@ -144,5 +145,5 @@ async def test_org_unit_with_parent_sync(
         "opmærkning_uuid": None,
         "opmærkning_titel": None,
         "startdato": "2020-01-01",
-        "slutdato": "2300-01-01",
+        "slutdato": LAST_DAY,
     }
