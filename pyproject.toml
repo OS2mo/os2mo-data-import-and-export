@@ -75,8 +75,8 @@ fastramqpi = "^17"
 
 
 [tool.poetry.group.pre-commit.dependencies]
-ruff = "^0.9"
-mypy = "^1"
+ruff = "^0.9.6"
+mypy = "^1.15.0"
 types-python-dateutil = "^2"
 pre-commit = "^3"
 types-requests = "^2"
