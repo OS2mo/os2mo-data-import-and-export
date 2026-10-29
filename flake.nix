@@ -20,12 +20,6 @@
           pkgs.python311
           pkgs.poetry
 
-          # Pre-commit hooks use `language: system`, so ruff/mypy must be
-          # available on PATH.
-          pkgs.ruff
-          pkgs.mypy
-          pkgs.pre-commit
-
           # pyodbc
           pkgs.unixODBC
 
@@ -50,6 +44,20 @@
 
           # Convenience utilities
           pkgs.jq
+        ];
+
+        # python-gssapi (dependency of requests-kerberos) uses krb5-config to
+        # detect headers, but nixpkgs' krb5-config reports the lib output as
+        # prefix, so gssapi_ext.h is never found and the build fails with
+        # implicit-declaration errors. Pass the flags explicitly instead.
+        GSSAPI_COMPILER_ARGS = "-I${pkgs.krb5.dev}/include -DHAS_GSSAPI_EXT_H";
+        GSSAPI_LINKER_ARGS = "-L${pkgs.krb5.out}/lib -lgssapi_krb5 -lkrb5 -lk5crypto -lcom_err";
+
+        # Runtime library lookup for the pyodbc manylinux wheel (libodbc) and
+        # C extension wheels linking libstdc++ (pyodbc, numpy).
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+          pkgs.unixODBC
+          pkgs.stdenv.cc.cc.lib
         ];
 
         shellHook = ''
