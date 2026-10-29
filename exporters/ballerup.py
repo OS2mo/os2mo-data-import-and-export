@@ -23,6 +23,7 @@ from gql import gql
 from gql.client import SyncClientSession
 from more_itertools import first
 from more_itertools import one
+
 from os2mo_helpers.mora_helpers import MoraHelper
 
 MORA_BASE = os.environ.get("MORA_BASE", "http://localhost:5000")

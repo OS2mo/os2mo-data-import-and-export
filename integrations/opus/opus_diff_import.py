@@ -17,7 +17,6 @@ from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import one
 from more_itertools import only
-from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 
 import constants
@@ -27,6 +26,7 @@ from integrations.opus import opus_helpers
 from integrations.opus import payloads
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("opusDiff")
 

@@ -25,6 +25,7 @@ import mock
 import requests
 import viborg_managers
 from freezegun import freeze_time
+
 from os2mo_helpers.mora_helpers import MoraHelper
 
 sys.path[0:0] = [
