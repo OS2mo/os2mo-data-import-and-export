@@ -71,6 +71,7 @@ def convert_dict(
             if validity["to"]:
                 d["to_date"] = str(
                     datetime.datetime.fromisoformat(validity["to"]).date()
+                    - datetime.timedelta(days=1)
                 )
             else:
                 d["to_date"] = "9999-12-31"
@@ -135,7 +136,7 @@ class GQLLoraCache:
 
     def make_client(self) -> GraphQLClient:
         return GraphQLClient(
-            url=f"{self.settings.mora_base}/graphql/v22",
+            url=f"{self.settings.mora_base}/graphql/v30",
             client_id=self.settings.client_id,
             client_secret=self.settings.client_secret,  # type: ignore
             auth_realm=self.settings.auth_realm,
