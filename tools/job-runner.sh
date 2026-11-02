@@ -155,14 +155,6 @@ imports_manager_sync(){
 }
 
 
-
-exports_mox_rollekatalog(){
-    export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
-    export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
-
-    ${VENV}/bin/python3 -m exporters.os2rollekatalog.os2rollekatalog_integration
-}
-
 exports_os2sync(){
     echo running exports_os2sync
     cd exporters/os2sync_export || exit 1
@@ -487,10 +479,6 @@ exports(){
 
     if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
         run-job exports_mo_to_ad_sync &
-    fi
-
-    if [ "${RUN_MOX_ROLLE}" == "true" ]; then
-        run-job exports_mox_rollekatalog &
     fi
 
     if [ "${RUN_PLAN2LEARN}" == "true" ]; then
