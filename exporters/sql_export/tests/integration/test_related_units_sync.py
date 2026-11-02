@@ -51,7 +51,8 @@ async def test_related_units_sync(
             "name": "Unit 1",
             "org_unit_type": unit_type_uuid,
             "org_unit_level": level_uuid,
-            "validity": VALIDITY,
+            # MO requires related units to be valid until infinity
+            "validity": {"from": VALIDITY["from"], "to": None},
         }
     )
     unit2_uuid = await create_org_unit(
@@ -60,15 +61,16 @@ async def test_related_units_sync(
             "name": "Unit 2",
             "org_unit_type": unit_type_uuid,
             "org_unit_level": level_uuid,
-            "validity": VALIDITY,
+            # MO requires related units to be valid until infinity
+            "validity": {"from": VALIDITY["from"], "to": None},
         }
     )
-
+    related_validity = {"from": "2020-01-02", "to": "2300-01-01"}
     await create_related(
         {
             "origin": unit1_uuid,
             "destination": [unit2_uuid],
-            "validity": VALIDITY,
+            "validity": related_validity,
         }
     )
 
@@ -83,6 +85,7 @@ async def test_related_units_sync(
         "uuid": ANY,
         "enhed1_uuid": enhed1_uuid,
         "enhed2_uuid": enhed2_uuid,
-        "startdato": "2020-01-01",
+        "startdato": related_validity["from"],
+        # MO ignores the "to" date and always relates units until infinity
         "slutdato": "9999-12-31",
     }
