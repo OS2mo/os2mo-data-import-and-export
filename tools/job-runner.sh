@@ -63,6 +63,24 @@ sanity_check_mo_data(){
     ${VENV}/bin/python3 tools/check_data.py
 }
 
+fixup_ldap_stale_users_cleanup(){
+    echo running ldap_stale_users_cleanup
+    curl --no-progress-meter -X POST "localhost:8451/fixup/delete_non_existing_external_ids?dry_run=false"
+    CURL_STATUS=$?
+    if [[ ${CURL_STATUS} != 0 ]]; then
+        return ${CURL_STATUS}
+    fi
+}
+
+fixup_ldap_cleanup_orphaned_addresses(){
+    echo running ldap_orphaned_addresses_cleanup
+    curl --no-progress-meter -X POST "localhost:8451/fixup/cleanup_orphaned_addresses?dry_run=false&address_type_user_keys=EmailEmployee&address_type_user_keys=MitIDEmployee&address_type_user_keys=PhoneEmployee&address_type_user_keys=MobileEmployee"
+    CURL_STATUS=$?
+    if [[ ${CURL_STATUS} != 0 ]]; then
+        return ${CURL_STATUS}
+    fi
+}
+
 sd_changed_at_status(){
     PROM_STATUS=$(curl -s localhost:8030/metrics | grep sd_changed_at_state | grep "1.0" | awk -F\" '{print $2}')
     if [[ $? != 0 ]]; then
@@ -77,15 +95,6 @@ sd_changed_at_status(){
         return 2
     else
         return 3
-    fi
-}
-
-imports_ldap_stale_users_cleanup(){
-    echo running ldap_stale_users_cleanup
-    curl --no-progress-meter -X POST "localhost:8451/fixup/delete_non_existing_external_ids?dry_run=false"
-    CURL_STATUS=$?
-    if [[ ${CURL_STATUS} != 0 ]]; then
-        return ${CURL_STATUS}
     fi
 }
 
@@ -390,10 +399,6 @@ imports(){
         && echo ERROR: backup is in error - skipping imports \
         && return 1 # imports depend on backup
 
-    if [ "${RUN_LDAP_STALE_USERS_CLEANUP}" == "true" ]; then
-        run-job imports_ldap_stale_users_cleanup || return 2
-    fi
-
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
     fi
@@ -441,7 +446,7 @@ prepare_exports(){
     if [ "${RUN_CACHE_HISTORIC_SKIP_PAST_LORACACHE}" == "true" ]; then
         run-job exports_historic_skip_past_cache_loracache || return 2
     fi
-    
+
     if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
         run-job exports_lc_for_jobs_db || return 2
     fi
@@ -450,9 +455,9 @@ prepare_exports(){
 exports(){
     [ "${PREPARE_EXPORTS_OK}" == "false" ] \
         && echo "ERROR in preparing exports" \
-        && return 1 
+        && return 1
     # Remaining exports are independent an can be run concurrently
-    
+
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
         run-job exports_actual_state_export &
     fi
@@ -504,7 +509,7 @@ reports(){
     #set -x # debug log
     [ "${PREPARE_EXPORTS_OK}" == "false" ] \
         && echo "ERROR in preparing exports" \
-        && return 1 
+        && return 1
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
         run-job reports_viborg_managers &
@@ -521,7 +526,7 @@ reports(){
     if [ "${RUN_SAFETYNET_FREDERIKSHAVN}" == "true" ]; then
       run-job reports_safetynet_frederikshavn &
     fi
-    
+
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
         run-job reports_csv &
     fi
@@ -616,7 +621,7 @@ post_backup(){
 }
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
-    
+
     # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
 
     if [ ! -d "${VENV}" ]; then
@@ -660,6 +665,17 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     else
         echo "Skipping MO data sanity check"
     fi
+    if [[ "${RUN_LDAP_STALE_USERS_CLEANUP}" == "true" ]]; then
+        run-job imports_ldap_stale_users_cleanup || echo "LDAP stale users cleanup failed"
+    fi
+
+    if [[ "${RUN_LDAP_CLEANUP_ORPHANED_ADDRESSES}" == "true" ]]; then
+        run-job imports_ldap_cleanup_orphaned_addresses || echo "LDAP cleanup orphaned addresses failed"
+    fi
+
+
+
+
     imports && IMPORTS_OK=true
     prepare_exports && PREPARE_EXPORTS_OK=true
     exports &
