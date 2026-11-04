@@ -16,11 +16,11 @@ from pydantic import parse_obj_as
 
 from sql_export.main import create_app
 
-GRAPHQL_VERSION = 22
+GRAPHQL_VERSION = 30
 LAST_DAY = "2300-01-01"
 VALIDITY = {
     "from": "2020-01-01",
-    "to": "2300-01-01",
+    "to": "2300-01-02",
 }
 
 
