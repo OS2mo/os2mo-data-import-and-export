@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from sql_export.sql_table_defs import Enhedssammenkobling
 
+from .conftest import LAST_DAY
 from .conftest import VALIDITY
 from .conftest import sql_to_dict
 
@@ -65,7 +66,7 @@ async def test_related_units_sync(
             "validity": {"from": VALIDITY["from"], "to": None},
         }
     )
-    related_validity = {"from": "2020-01-02", "to": "2300-01-01"}
+    related_validity = {"from": "2020-01-02", "to": LAST_DAY}
     await create_related(
         {
             "origin": unit1_uuid,
