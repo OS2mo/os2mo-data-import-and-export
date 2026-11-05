@@ -167,7 +167,7 @@ def run_preview_command_for_uuid(
         # Retrieve AD user data for manager, if available
         (
             reader.read_user(cpr=mo_values["manager_cpr"])
-            if mo_values.get("manager_cpr")
+            if mo_values is not None and mo_values.get("manager_cpr")
             else {}
         ),
     ]

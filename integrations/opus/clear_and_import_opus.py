@@ -48,7 +48,9 @@ def prepare_re_import(
             raise Exception(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
             )
-        subtreedeleter_helper(
+        # FIXME: this is clearly a bug, this function in never awaited, but I'm
+        #   too scared to touch anything without tests...
+        subtreedeleter_helper(  # type: ignore
             opus_uuid,
             delete_functions=True,
             keep_functions=["KLE", "Relateret Enhed"],
@@ -80,6 +82,8 @@ async def import_opus(
     all_export_dates = prepend(None, export_dates)
     date_pairs = pairwise(all_export_dates)
     for date1, date2 in date_pairs:
+        # only date1 can be None, because date2 starts from the second element
+        assert date2 is not None
         await import_one(
             ad_reader,
             date2,
