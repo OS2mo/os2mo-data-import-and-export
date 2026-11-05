@@ -78,6 +78,22 @@ include:
 # Lint stage
 ############
 
+Pre-commit:
+  # The `common/pre-commit.v1.yml` template installs the root package (poetry install),
+  # but there are also packages in `integrations/*`, which are ignored by CI
+  # since they are considered to be "dependencies". By overriding `before_script`
+  # adding `--no-root`, mypy actually reports type errors in sub-directories.
+  # TODO: remove this override if/when a pre-commit.v2.yml with `--no-root` lands
+  before_script:
+    - export PRECOMMIT_USE_POETRY=${PRECOMMIT_USE_POETRY:-false}
+    - if [ "$PRECOMMIT_USE_POETRY" = false ]; then
+        pip install pre-commit;
+        pre-commit install;
+      else
+        python3 -m venv "$POETRY_HOME";
+        "$POETRY_HOME/bin/pip" install poetry=="$POETRY_VERSION";
+        "$POETRY_HOME/bin/poetry" install --no-root;
+      fi;
 .Lint Dockerfiles:
   stage: lint
   needs: []
