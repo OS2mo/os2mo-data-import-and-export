@@ -20,4 +20,3 @@ repos:
             "--explicit-package-bases",
             "--namespace-packages",
           ]
-        exclude: integrations/opus/
