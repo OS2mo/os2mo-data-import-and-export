@@ -64,8 +64,10 @@ sanity_check_mo_data(){
 }
 
 fixup_ldap_stale_users_cleanup(){
-    echo running ldap_stale_users_cleanup
-    curl --no-progress-meter -X POST "localhost:8451/fixup/delete_non_existing_external_ids?dry_run=false"
+    local AD_NAME=$1
+    local PORT=$2
+    echo "running ldap_stale_users_cleanup for ${AD_NAME}"
+    curl --no-progress-meter -X POST "localhost:${PORT}/fixup/delete_non_existing_external_ids?dry_run=false"
     CURL_STATUS=$?
     if [[ ${CURL_STATUS} != 0 ]]; then
         return ${CURL_STATUS}
@@ -73,12 +75,41 @@ fixup_ldap_stale_users_cleanup(){
 }
 
 fixup_ldap_cleanup_orphaned_addresses(){
-    echo running ldap_orphaned_addresses_cleanup
-    curl --no-progress-meter -X POST "localhost:8451/fixup/cleanup_orphaned_addresses?dry_run=false&address_type_user_keys=EmailEmployee&address_type_user_keys=MitIDEmployee&address_type_user_keys=PhoneEmployee&address_type_user_keys=MobileEmployee"
-    CURL_STATUS=$?
-    if [[ ${CURL_STATUS} != 0 ]]; then
-        return ${CURL_STATUS}
+    local AD_NAME=$1
+    local PORT=$2
+    echo "running ldap_orphaned_addresses_cleanup for ${AD_NAME}"
+    "${VENV}/bin/python3" tools/ldap_cleanup_orphaned_addresses.py \
+        --ad-name "${AD_NAME}" \
+        --port "${PORT}"
+}
+
+run_ldap_fixup_for_integrations(){
+    local FIXUP=$1
+    local LDAP_INTEGRATIONS
+    LDAP_INTEGRATIONS=$("${VENV}/bin/python3" tools/ldap_cleanup_orphaned_addresses.py --list-integrations) || return $?
+    if [[ -z "${LDAP_INTEGRATIONS}" ]]; then
+        echo "LDAP cleanup integrations are not configured; skipping ${FIXUP}"
+        return 0
     fi
+
+    local JOB_STATUS=0
+    local AD_NAME
+    local PORT
+    while IFS=$'\t' read -r AD_NAME PORT; do
+        [[ -z "${AD_NAME}" ]] && continue
+        run-job "${FIXUP}" \
+            "${FIXUP}_${AD_NAME}" \
+            "${AD_NAME}" "${PORT}" || JOB_STATUS=1
+    done <<< "${LDAP_INTEGRATIONS}"
+    return "${JOB_STATUS}"
+}
+
+run_ldap_cleanup_orphaned_addresses(){
+    run_ldap_fixup_for_integrations fixup_ldap_cleanup_orphaned_addresses
+}
+
+run_ldap_stale_users_cleanup(){
+    run_ldap_fixup_for_integrations fixup_ldap_stale_users_cleanup
 }
 
 sd_changed_at_status(){
@@ -341,20 +372,26 @@ exports_historic_skip_past_cache_loracache() {
 
 run-job(){
     local JOB=$1
-    prometrics-job-start ${JOB}
+    local JOB_NAME=${2:-${JOB}}
+    if [[ $# -gt 1 ]]; then
+        shift 2
+    else
+        shift
+    fi
+    prometrics-job-start "${JOB_NAME}"
     set -o pipefail
     # Detect if we are running from cron
     if [ "$TERM" == "dumb" ]; then
         # Capture both stdout and stderr using "|&" (requires Bash 4+.)
         # Send stdout and stderr to systemd journal using the identifier given by the "-t" option.
         # Job output can be retrieved using e.g. "journalctl -t dipex:job-runner.sh:exports_actual_state_export", etc.
-        $JOB |& systemd-cat -t "dipex:job-runner.sh:$JOB"
+        "$JOB" "$@" |& systemd-cat -t "dipex:job-runner.sh:${JOB_NAME}"
     else
-        $JOB
+        "$JOB" "$@"
     fi
 
     JOB_STATUS=$?
-    prometrics-job-end ${JOB} ${JOB_STATUS}
+    prometrics-job-end "${JOB_NAME}" "${JOB_STATUS}"
     return $JOB_STATUS
 }
 
@@ -666,11 +703,11 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         echo "Skipping MO data sanity check"
     fi
     if [[ "${RUN_LDAP_STALE_USERS_CLEANUP}" == "true" ]]; then
-        run-job imports_ldap_stale_users_cleanup || echo "LDAP stale users cleanup failed"
+        run_ldap_stale_users_cleanup || echo "LDAP stale users cleanup failed"
     fi
 
     if [[ "${RUN_LDAP_CLEANUP_ORPHANED_ADDRESSES}" == "true" ]]; then
-        run-job imports_ldap_cleanup_orphaned_addresses || echo "LDAP cleanup orphaned addresses failed"
+        run_ldap_cleanup_orphaned_addresses || echo "LDAP cleanup orphaned addresses failed"
     fi
 
 

@@ -17,6 +17,10 @@
     "crontab.RUN_HISTORIC_SQL_EXPORT": false,
     "crontab.RUN_EXPORTS_AD_LIFE_CYCLE": false,
     "crontab.RUN_EXPORTS_MO_TO_AD_SYNC": false,
+    "crontab.RUN_LDAP_CLEANUP_ORPHANED_ADDRESSES": false,
+    "crontab.LDAP_CLEANUP_ORPHANED_ADDRESSES_INTEGRATIONS": [
+        {"ad_name": "AD_NAME", "port": 8451}
+    ],
 
     "crontab.SAML_TOKEN": "",
     "crontab.SVC_USER": "USER@KOMMUNE.NET",
