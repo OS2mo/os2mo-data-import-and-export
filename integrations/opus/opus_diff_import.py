@@ -151,7 +151,7 @@ class MOPostDryRun:
 
 
 class OpusDiffImport(object):
-    dar_cache: dict[str, UUID | None] = {}
+    dar_cache: dict[tuple[str, str], str | None] = {}
 
     def __init__(
         self,

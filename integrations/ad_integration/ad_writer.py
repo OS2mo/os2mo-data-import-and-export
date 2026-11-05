@@ -678,7 +678,9 @@ class ADWriter(AD):
         }
         return addresses
 
-    def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
+    def read_ad_information_from_mo(
+        self, uuid, read_manager=True, ad_dump=None
+    ) -> LazyDict | None:
         """
         Retrive the necessary information from MO to contruct a new AD user.
         The final information object should of this type, notice that end-date

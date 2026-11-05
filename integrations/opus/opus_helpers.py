@@ -173,11 +173,11 @@ def find_changes(
         diff = DeepDiff(
             obj,
             old_obj,
-            exclude_paths={
+            exclude_paths=[
                 "root['@lastChanged']",
                 "root['numerator']",
                 "root['denominator']",
-            },
+            ],
         )
         # Changed object
         if diff:
