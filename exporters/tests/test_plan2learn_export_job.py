@@ -8,6 +8,7 @@ import pytest
 from more_itertools import first
 
 from exporters.plan2learn.plan2learn import find_start_date_rsd
+from exporters.plan2learn.plan2learn import _split_dar
 from exporters.plan2learn.plan2learn import get_filtered_phone_addresses
 
 
@@ -228,3 +229,15 @@ def test_rsd_start_date_2() -> None:
 
     with pytest.raises(ValueError):
         asyncio.run(find_start_date_rsd(session, str(uuid4())))
+
+
+@pytest.mark.parametrize(
+    "address, expected",
+    [
+        (None, ("", "", "")),
+        ("Banegårdsgade 1, 8800 Viborg", ("Banegårdsgade 1", "8800", "Viborg")),
+        ("Banegårdsgade 1", ("Banegårdsgade 1", "", "")),
+    ],
+)
+def test_split_dar(address, expected) -> None:
+    assert _split_dar(address) == expected
