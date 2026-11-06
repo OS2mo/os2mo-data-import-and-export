@@ -220,7 +220,8 @@ exports_mo_to_ad_sync(){
 
 exports_plan2learn(){
     echo "running exports_plan2learn"
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora || return $?
+    # Never ship files if the export failed, as they would be stale
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py
 }
 

@@ -274,9 +274,18 @@ def export_bruger(settings: Settings, mh, nodes, lc, lc_historic):
 def _split_dar(address):
     gade = post = by = ""
     if address:
-        gade = address.split(",")[0]
-        post = address.split(",")[1][1:5]
-        by = address.split(",")[1][6:]
+        parts = address.split(",")
+        gade = parts[0]
+        if len(parts) > 1:
+            post = parts[1][1:5]
+            by = parts[1][6:]
+        else:
+            # Do not crash the whole export on a single malformed address
+            logger.warning(
+                "DAR address has unexpected format (no comma), "
+                "exporting street only: %r",
+                address,
+            )
     return gade, post, by
 
 
