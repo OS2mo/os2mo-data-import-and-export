@@ -490,7 +490,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         "@id": "1",
         "isManager": "true",
         "leaveDate": None,
-        "entryDate": datetime.now(),
+        "entryDate": datetime.now().strftime("%Y-%m-%d"),
         "superiorLevel": "ledertype",
         "subordinateLevel": "niveau 1",
         "position": "stillingsbetegnelse",
@@ -605,6 +605,52 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                     },
                 },
             )
+
+    def test_future_entry_date_does_not_duplicate_manager(self):
+        """A manager created with a future entryDate must be found on later runs.
+
+        Regression test: the manager function was created from entryDate but
+        looked up at the file date, so every run before entryDate created a
+        new duplicate, and the first run on/after entryDate failed the
+        `len(manager_functions) == 1` assertion.
+        """
+        # Arrange
+        employee = {**self.opus_employee, "entryDate": "2020-01-03"}
+        mo_managers: list[dict] = []
+
+        def mo_lookup(uuid, url):
+            # Emulate MO: only return manager functions active at the `at` date
+            at = url.split("at=")[1]
+            return [
+                m
+                for m in mo_managers
+                if m["validity"]["from"] <= at
+                and (m["validity"]["to"] is None or at <= m["validity"]["to"])
+            ]
+
+        def mo_post(url, payload):
+            if url == "details/create":
+                mo_managers.append({**payload, "uuid": str(uuid4())})
+                return MagicMock(status_code=201)
+            return MagicMock(status_code=200)
+
+        # Act
+        for xml_date in ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-04"]:
+            instance = self.get_instance({})
+            instance.xml_date = datetime.fromisoformat(xml_date)
+            instance.helper._mo_lookup = MagicMock(side_effect=mo_lookup)
+            instance.helper._mo_post = MagicMock(side_effect=mo_post)
+            with patch.object(instance, "ensure_class_in_facet") as ensure_class:
+                ensure_class.side_effect = [
+                    self.manager_level,
+                    self.manager_type,
+                    self.manager_responsibility,
+                ]
+                instance.update_manager_status("mo_uuid", employee)
+
+        # Assert
+        assert len(mo_managers) == 1
+        assert mo_managers[0]["validity"] == {"from": "2020-01-03", "to": None}
 
     def test_terminate_manager(self):
         # Arrange
