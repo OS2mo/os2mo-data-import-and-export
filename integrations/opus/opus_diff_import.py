@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import sys
+from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
@@ -668,8 +669,25 @@ class OpusDiffImport(object):
             item_datetime = datetime.strptime(item, "%Y-%m-%d")
         return item_datetime
 
+    def _manager_effective_date(self, employee) -> date:
+        """
+        The date at which the manager function should be looked up and edited.
+
+        New manager functions are created from the employee's entryDate, which
+        can be later than the date of the Opus file. Looking up managers at the
+        file date would then miss the future manager function and create a
+        duplicate on every run until the entryDate is reached. Use the latest
+        of the two dates to ensure lookups and creations agree.
+        """
+        xml_date = self.xml_date.date()
+        if employee["entryDate"] is None:
+            return xml_date
+        entry_date = date.fromisoformat(employee["entryDate"])
+        return max(xml_date, entry_date)
+
     def update_manager_status(self, employee_mo_uuid, employee):
-        url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
+        effective_date = self._manager_effective_date(employee).isoformat()
+        url = "e/{}/details/manager?at=" + effective_date
         all_manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
         manager_functions = [
             manager_function
@@ -709,7 +727,7 @@ class OpusDiffImport(object):
                 "manager_type": str(manager_type_uuid),
                 "level": str(manager_level_uuid),
                 "responsibility": str(responsibility_uuid),
-                "validity": self.validity(employee, edit=True),
+                "validity": {"from": effective_date, "to": employee["leaveDate"]},
             }
             if manager_functions:
                 logger.info("Attempt manager update of {}:".format(employee_mo_uuid))
