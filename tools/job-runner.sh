@@ -213,7 +213,13 @@ exports_mo_to_ad_sync(){
 exports_plan2learn(){
     echo "running exports_plan2learn"
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
+    EXIT_CODE=$?
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py
+    EXIT_CODE_UPLOAD=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        return $EXIT_CODE
+    fi
+    return $EXIT_CODE_UPLOAD
 }
 
 exports_queries_ballerup(){
