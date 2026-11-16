@@ -2,6 +2,8 @@ import click
 from fastramqpi.ra_utils.load_settings import load_setting
 from more_itertools import first
 from more_itertools import only
+
+# TODO: here
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from integrations.ad_integration import ad_reader
@@ -48,10 +50,12 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     Optionally deletes the object and all related orgfuncs directly from Lora.
     Defaults to reading latest file only, but supports reading full history
     """
+    # TODO: here
     helper = MoraHelper(hostname=mora_base)
     object_type, obj = find_type(opus_id, full_history)
     if object_type == "bruger":
         cpr = opus_helpers.read_cpr(obj)
+        # TODO: here
         user = helper.read_user(user_cpr=cpr)
         uuid = user["uuid"] if user else None
     else:

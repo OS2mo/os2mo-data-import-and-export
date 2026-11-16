@@ -17,6 +17,8 @@ from fastramqpi.raclients.graph.client import GraphQLClient
 from gql import gql
 from more_itertools import one
 from more_itertools import only
+
+# TODO: here
 from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 
@@ -171,13 +173,17 @@ class OpusDiffImport(object):
         self.dry_run = dry_run
 
         self.session = Session()
+
+        # TODO: here
         self.helper = self._get_mora_helper(
             hostname=self.settings["mora.base"], use_cache=False
         )
         self.gql_client = self._setup_gql_client()
         if dry_run:
+            # TODO: here
             self.helper._mo_post = MOPostDryRun
         try:
+            # TODO: here
             self.org_uuid = self.helper.read_organisation()
         except KeyError:
             msg = "No root organisation in MO"
@@ -189,6 +195,7 @@ class OpusDiffImport(object):
             print(e)
             exit()
 
+        # TODO: here
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
 
@@ -209,11 +216,13 @@ class OpusDiffImport(object):
 
     def ensure_class_in_facet(self, *args, **kwargs):
         """Helper function to call ensure_class_in_facet from morahelpers with owner"""
+        # TODO: here
         return self.helper.ensure_class_in_facet(
             *args, owner=opus_helpers.find_opus_root_unit_uuid(), **kwargs
         )
 
     def _find_classes(self, facet):
+        # TODO: here
         class_types = self.helper.read_classes_in_facet(facet)
         types_dict = {}
         facet = class_types[1]
@@ -222,6 +231,7 @@ class OpusDiffImport(object):
         return types_dict, facet
 
     def _get_mora_helper(self, hostname="localhost:5000", use_cache=False):
+        # TODO: here
         return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
 
     async def find_address(self, address_string: str, zip_code: str) -> str | None:
@@ -285,6 +295,7 @@ class OpusDiffImport(object):
         Read all addresses from MO an return as a simple dict
         """
         # Unfortunately, mora-helper currently does not read all addresses
+        # TODO: here
         user_addresses = self.helper._mo_lookup(mo_uuid, "e/{}/details/address")
         address_dict = {}  # Condensate of all MO addresses for the employee
         if not isinstance(user_addresses, list):
@@ -340,6 +351,7 @@ class OpusDiffImport(object):
         if current is None:  # Create address
             payload = payloads.create_address(**args)
             logger.debug("Create {} address payload: {}".format(addr_type, payload))
+            # TODO: here
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
         elif (args.get("value") == current.get("value")) and (
@@ -349,6 +361,7 @@ class OpusDiffImport(object):
         else:  # Edit address
             payload = payloads.edit_address(args, current["uuid"])
             logger.debug("Edit address {}, payload: {}".format(addr_type, payload))
+            # TODO: here
             response = self.helper._mo_post("details/edit", payload)
             response.raise_for_status()
 
@@ -388,6 +401,7 @@ class OpusDiffImport(object):
 
     async def _update_unit_addresses(self, unit):
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
+        # TODO: here
         unit_addresses = self.helper.read_ou_address(
             calculated_uuid, scope=None, return_all=True
         )
@@ -440,8 +454,10 @@ class OpusDiffImport(object):
         parent_uuid = (
             opus_helpers.generate_uuid(parent_name)
             if parent_name
+            # TODO: here
             else self.helper.read_organisation()
         )
+        # TODO: here
         mo_unit = self.helper.read_ou(calculated_uuid)
 
         # Default to "Enhed" as unittype
@@ -466,6 +482,7 @@ class OpusDiffImport(object):
             unit_args["from_date"] = self.xml_date.strftime("%Y-%m-%d")
             payload = payloads.edit_org_unit(**unit_args)
             logger.info("Edit unit: {}".format(payload))
+            # TODO: here
             response = self.helper._mo_post("details/edit", payload)
             if response.status_code == 400:
                 assert response.text.find("raise to a new registration") > 0
@@ -474,6 +491,7 @@ class OpusDiffImport(object):
         else:  # Create
             payload = payloads.create_org_unit(**unit_args)
             logger.debug("Create department payload: {}".format(payload))
+            # TODO: here
             response = self.helper._mo_post("ou/create", payload)
             response.raise_for_status()
             logger.info("Created unit {}".format(unit["@id"]))
@@ -517,6 +535,7 @@ class OpusDiffImport(object):
             "validity": validity,
         }
 
+        # TODO: here
         engagement_unit = self.helper.read_ou(unit_uuid)
         if "error" in engagement_unit:
             msg = "The wanted unit does not exit: {}"
@@ -548,6 +567,7 @@ class OpusDiffImport(object):
         if something_new:
             payload = payloads.edit_engagement(data, mo_engagement["uuid"])
             logger.debug("Update engagement payload: {}".format(payload))
+            # TODO: here
             response = self.helper._mo_post("details/edit", payload)
             self._assert(response)
 
@@ -575,6 +595,7 @@ class OpusDiffImport(object):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
         unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
 
+        # TODO: here
         engagement_unit = self.helper.read_ou(unit_uuid)
         if "error" in engagement_unit:
             msg = "The wanted unit does not exit: {}"
@@ -591,6 +612,7 @@ class OpusDiffImport(object):
             validity=validity,
         )
         logger.debug("Create engagement payload: {}".format(payload))
+        # TODO: here
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
 
@@ -598,6 +620,7 @@ class OpusDiffImport(object):
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info("Create user payload: {}".format(payload))
+        # TODO: here
         r = self.helper._mo_post("e/create", payload)
         r.raise_for_status()
         return_uuid = r.json()
@@ -612,6 +635,7 @@ class OpusDiffImport(object):
     def connect_it_system(self, username, it_system, employee, person_uuid):
         it_system_uuid = self.it_systems[it_system]
         try:
+            # TODO: here
             current = self.helper.get_e_itsystems(
                 person_uuid, it_system_uuid=it_system_uuid
             )
@@ -642,6 +666,7 @@ class OpusDiffImport(object):
                 self.xml_date.strftime("%Y-%m-%d"),
             )
             logger.debug(f"{it_system} account payload: {payload}")
+            # TODO: here
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
             logger.info(f"Added {it_system} info for {person_uuid}")
@@ -657,6 +682,7 @@ class OpusDiffImport(object):
                 self.xml_date.strftime("%Y-%m-%d"),
             )
             logger.debug(f"{it_system} account payload: {payload}")
+            # TODO: here
             response = self.helper._mo_post("details/edit", payload)
             response.raise_for_status()
             logger.info(f"Changed {it_system} info for {person_uuid}")
@@ -670,6 +696,7 @@ class OpusDiffImport(object):
 
     def update_manager_status(self, employee_mo_uuid, employee):
         url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
+        # TODO: here
         all_manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
         manager_functions = [
             manager_function
@@ -754,6 +781,7 @@ class OpusDiffImport(object):
 
                 logger.debug("Update manager payload: {}".format(payload))
                 if payload is not None:
+                    # TODO: here
                     response = self.helper._mo_post("details/edit", payload)
                     self._assert(response)
             else:  # No existing manager functions
@@ -761,6 +789,7 @@ class OpusDiffImport(object):
                 args["validity"] = self.validity(employee, edit=False)
                 payload = payloads.create_manager(user_key=employee["@id"], **args)
                 logger.debug("Create manager payload: {}".format(payload))
+                # TODO: here
                 response = self.helper._mo_post("details/create", payload)
                 assert response.status_code == 201
 
@@ -780,6 +809,7 @@ class OpusDiffImport(object):
                 "Error in opus-file. No entryDate for this employee. Skipping."
             )
             return
+        # TODO: here
         mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}
@@ -813,6 +843,7 @@ class OpusDiffImport(object):
         await self._update_employee_address(employee_mo_uuid, employee)
 
         # Now we have a MO uuid, update engagement:
+        # TODO: here
         mo_engagements = self.helper.read_user_engagement(
             employee_mo_uuid, read_all=True
         )
@@ -858,6 +889,7 @@ class OpusDiffImport(object):
             uuid, end_date, detail_type, terminate_from=terminate_from_date
         )
         logger.debug("Terminate payload: {}".format(payload))
+        # TODO: here
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Terminate response: {}".format(response.text))
         self._assert(response)
@@ -866,7 +898,9 @@ class OpusDiffImport(object):
         """Check if units are in MO."""
 
         # Read all active MO org_units
+        # TODO: here
         mo_units = self.helper.read_ou_root(
+            # TODO: here
             org=self.helper.read_organisation(),
         )
         current_uuids = set(map(itemgetter("uuid"), mo_units))

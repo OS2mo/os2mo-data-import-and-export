@@ -170,6 +170,7 @@ class Opus_diff_import_tester(unittest.TestCase):
             await diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
             if unit.get("street"):
+                # TODO: here
                 diff.helper._mo_post.assert_called_with(
                     "details/create",
                     {
@@ -199,9 +200,11 @@ class Opus_diff_import_tester(unittest.TestCase):
         current = {"uuid": address_type_uuid}
         # Same
         diff._perform_address_update(args, current)
+        # TODO: here
         diff.helper.assert_not_called()
         # new
         diff._perform_address_update(args, None)
+        # TODO: here
         diff.helper._mo_post.assert_called_with(
             "details/create",
             {
@@ -295,6 +298,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         diff = OpusDiffImportTestbase("2022-07-13", ad_reader=None)
 
         diff.ensure_class_in_facet("Facetname", "classbvn")
+        # TODO: here
         diff.helper.ensure_class_in_facet.assert_called_once_with(
             "Facetname", "classbvn", owner=root_uuid
         )
@@ -425,6 +429,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
 
         # Assert
         # If no position is found the function returns early and never calls 'read_user'
+        # TODO: here
         diff.helper.read_user.assert_not_called()
 
     def test_skip_user_if_no_entrydate(
@@ -440,6 +445,7 @@ class TestCondenseEmployeeOpusAddresses(_GetInstanceMixin):
 
         # Assert
         # If no entryDate is found the function returns early and never calls 'read_user'
+        # TODO: here
         diff.helper.read_user.assert_not_called()
 
 
@@ -507,6 +513,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_create_manager(self):
         # Arrange
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 # This manager function should be disregarded
@@ -516,7 +523,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 }
             ]
         )
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 201
 
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
@@ -535,6 +544,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 call("manager_type", "stillingsbetegnelse"),
                 call("responsibility", "Lederansvar"),
             ]
+            # TODO: here
             instance.helper._mo_post.assert_called_once_with(
                 "details/create",
                 {
@@ -552,6 +562,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_update_manager(self):
         # Arrange
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 {
@@ -571,7 +582,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 },
             ]
         )
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 200
         validity = instance.validity(employee=self.opus_employee, edit=True)
         with patch.object(instance, "ensure_class_in_facet") as ensure_class:
@@ -590,6 +603,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 call("manager_type", "stillingsbetegnelse"),
                 call("responsibility", "Lederansvar"),
             ]
+            # TODO: here
             instance.helper._mo_post.assert_called_once_with(
                 "details/edit",
                 {
@@ -610,6 +624,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         self.opus_employee["isManager"] = "false"
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_lookup = MagicMock(
             return_value=[
                 {
@@ -622,7 +637,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
                 },
             ]
         )
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
@@ -632,6 +649,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             instance.update_manager_status("mo_uuid", self.opus_employee)
 
             # Assert
+            # TODO: here
             instance.helper._mo_post.assert_called_once_with(
                 "details/terminate",
                 {
@@ -646,6 +664,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         instance = self.get_instance({}, dry_run=False)
         # Act
+        # TODO: here
         response = instance.helper._mo_post("test", payload={"dummy": "payload"})
 
         # Assert
@@ -654,6 +673,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         # Arrange
         instance = self.get_instance({}, dry_run=True)
         # Act
+        # TODO: here
         response = instance.helper._mo_post("test", payload={"dummy": "payload"})
 
         # Assert
@@ -662,7 +682,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
     def test_update_engagement_noop(self):
         # Arrange
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 200
 
         start_date = "2000-01-01"
@@ -686,6 +708,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             instance.update_engagement(mo_engagement, self.opus_employee)
 
         # Assert
+        # TODO: here
         instance.helper._mo_post.assert_not_called()
 
     def test_update_engagement_earlier_start_date_(self):
@@ -694,7 +717,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         start_date = "2000-01-01"
         self.opus_employee["entryDate"] = start_date
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
@@ -716,6 +741,7 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
             instance.update_engagement(mo_engagement, self.opus_employee)
 
         # Assert
+        # TODO: here
         instance.helper._mo_post.assert_called_once_with(
             "details/edit",
             {
@@ -738,7 +764,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
         old_start_date = "2010-03-11"
         self.opus_employee["entryDate"] = new_start_date
         instance = self.get_instance({})
+        # TODO: here
         instance.helper._mo_post = MagicMock()
+        # TODO: here
         instance.helper._mo_post.return_value.status_code = 200
 
         validity = instance.validity(employee=self.opus_employee, edit=True)
@@ -761,7 +789,9 @@ class TestUpdateEmployeeManagerFunctions(_GetInstanceMixin):
 
         # Assert
 
+        # TODO: here
         assert instance.helper._mo_post.call_count == 2
+        # TODO: here
         assert instance.helper._mo_post.call_args_list == [
             call(
                 "details/edit",

@@ -52,11 +52,13 @@ def terminate_filtered_employees(dry_run):
 
     # Check users in MO - if no engagements are left then delete the user and all details to it.
     user_cprs = set(map(opus_helpers.read_cpr, filtered_employees))
+    # TODO: here
     users = [diff.helper.read_user(user_cpr=cpr) for cpr in user_cprs]
     users = filter(lambda x: x, users)
     user_uuids = set(map(itemgetter("uuid"), users))
 
     user_engagements = {
+        # TODO: here
         user_uuid: diff.helper.read_user_engagements(user_uuid, read_all=True)
         for user_uuid in user_uuids
     }
