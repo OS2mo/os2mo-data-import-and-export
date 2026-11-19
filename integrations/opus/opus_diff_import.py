@@ -181,7 +181,7 @@ class OpusDiffImport(object):
         self.gql_client = self._setup_gql_client()
         if dry_run:
             # TODO: here
-            self.helper._mo_post = MOPostDryRun
+            self.helper._mo_post = MOPostDryRun  # type: ignore
         try:
             # TODO: here
             self.org_uuid = self.helper.read_organisation()
@@ -403,19 +403,21 @@ class OpusDiffImport(object):
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
         # TODO: here
         unit_addresses = self.helper.read_ou_address(
-            calculated_uuid, scope=None, return_all=True
+            calculated_uuid,
+            scope=None,  # type: ignore
+            return_all=True,
         )
 
         address_dict = {}
         for address in unit_addresses:
-            if address_dict.get(address["type"]) is not None:
+            if address_dict.get(address["type"]) is not None:  # type: ignore
                 # More than one of this type exist in MO, this is not allowed.
                 msg = "Inconsistent addresses for unit: {}"
                 logger.error(msg.format(calculated_uuid))
             # if address['value'] not in ('9999999999999', '0000000000'):
-            address_dict[address["type"]] = {
-                "value": address["value"],
-                "uuid": address["uuid"],
+            address_dict[address["type"]] = {  # type: ignore
+                "value": address["value"],  # type: ignore
+                "uuid": address["uuid"],  # type: ignore
             }
 
         if unit.get("street") and unit.get("zipCode"):
@@ -864,8 +866,8 @@ class OpusDiffImport(object):
         if current_mo_eng is None:
             self.create_engagement(employee_mo_uuid, employee)
         else:
-            logger.info("Validity for {}: {}".format(employee["@id"], eng["validity"]))
-            self.update_engagement(eng, employee)
+            logger.info("Validity for {}: {}".format(employee["@id"], eng["validity"]))  # type: ignore
+            self.update_engagement(eng, employee)  # type: ignore
 
         try:
             self.update_manager_status(employee_mo_uuid, employee)
@@ -886,7 +888,10 @@ class OpusDiffImport(object):
             end_date = self.xml_date
 
         payload = payloads.terminate_detail(
-            uuid, end_date, detail_type, terminate_from=terminate_from_date
+            uuid,
+            end_date,  # type: ignore
+            detail_type,
+            terminate_from=terminate_from_date,
         )
         logger.debug("Terminate payload: {}".format(payload))
         # TODO: here
