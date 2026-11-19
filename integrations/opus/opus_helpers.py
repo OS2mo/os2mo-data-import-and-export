@@ -12,7 +12,7 @@ from typing import Optional
 from typing import Tuple
 
 import xmltodict
-from deepdiff import DeepDiff
+from deepdiff import DeepDiff  # type: ignore
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 from more_itertools import first
@@ -186,7 +186,7 @@ def find_changes(
         # Unchanged object
         return False
 
-    after = tqdm(after, desc="Finding changes", disable=disable_tqdm)
+    after = tqdm(after, desc="Finding changes", disable=disable_tqdm)  # type: ignore
     changed_obj = list(filter(find_changed, after))
 
     return changed_obj

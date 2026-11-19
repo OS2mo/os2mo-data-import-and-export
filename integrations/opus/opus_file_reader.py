@@ -50,7 +50,7 @@ class GcloudOpusReader(OpusReaderInterface):
             f.name = f.name.replace("production/", "")
         return self.map_dates(all_files)
 
-    def read_file(self, blob) -> str:
+    def read_file(self, blob) -> str:  # type: ignore
         return blob.download_as_text()
 
 
@@ -70,12 +70,12 @@ class SMBOpusReader(OpusReaderInterface):
         self.smb_fs = fs.open_fs(f"smb://{user}:{password}@{smb_host}")
 
     @retry(**retry_args)
-    def list_opus_files(self) -> Dict[datetime.datetime, str]:
+    def list_opus_files(self) -> Dict[datetime.datetime, str]:  # type: ignore
         all_files = self.smb_fs.glob("*.xml")
         return self.map_dates(x.info for x in all_files)
 
     @retry(**retry_args)
-    def read_file(self, glob) -> str:
+    def read_file(self, glob) -> str:  # type: ignore
         f = one(self.smb_fs.glob(glob.name))
         return self.smb_fs.readtext(f.path)
 
@@ -88,7 +88,7 @@ class LocalOpusReader(OpusReaderInterface):
         dump_path = Path(self.settings["integrations.opus.import.xml_path"])
         return self.map_dates(dump_path.glob("*.xml"))
 
-    def read_file(self, filename) -> str:
+    def read_file(self, filename) -> str:  # type: ignore
         return filename.read_text()
 
 

@@ -29,7 +29,7 @@ def find_type(opus_id, full_history):
         elif employees:
             return "bruger", only(employees)
 
-    terminated_employees = list(terminated_employees)
+    terminated_employees = list(terminated_employees)  # type: ignore
     if terminated_employees:
         msg = "Employee was terminated, try --full-history"
     else:
@@ -54,20 +54,20 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     helper = MoraHelper(hostname=mora_base)
     object_type, obj = find_type(opus_id, full_history)
     if object_type == "bruger":
-        cpr = opus_helpers.read_cpr(obj)
+        cpr = opus_helpers.read_cpr(obj)  # type: ignore
         # TODO: here
         user = helper.read_user(user_cpr=cpr)
         uuid = user["uuid"] if user else None
     else:
-        uuid = opus_helpers.generate_uuid(obj["@id"])
+        uuid = opus_helpers.generate_uuid(obj["@id"])  # type: ignore
 
     if delete and uuid and not dry_run:
-        delete_object_and_orgfuncs(uuid, mox_base, object_type)
+        delete_object_and_orgfuncs(uuid, mox_base, object_type)  # type: ignore
     click.echo(
         f"{'Delete and reimport' if delete else 'Reimport'} '{object_type}' with {uuid=}"
     )
     AD = ad_reader.ADParameterReader() if use_ad else None
-    import_opus(
+    import_opus(  # type: ignore
         ad_reader=AD,
         import_all=full_history,
         import_last=not full_history,
