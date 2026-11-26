@@ -5,14 +5,12 @@ import sqlite3
 import uuid
 from functools import lru_cache
 from operator import itemgetter
-from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypedDict
-from typing import TypeVar
 
 import xmltodict
 from deepdiff import DeepDiff  # type: ignore
@@ -28,6 +26,10 @@ SETTINGS = load_settings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
+
+OpusObject = TypedDict("OpusObject", {"@id": str})
+"""Loosely models the data returned by OPUS, which is parsed from XML. This does
+not include fields we never access."""
 
 
 def read_available_dumps() -> Dict[datetime.datetime, str]:
@@ -108,7 +110,7 @@ def parse_phone(phone_number):
 
 
 @lru_cache(maxsize=None)
-def generate_uuid(value):
+def generate_uuid(value) -> uuid.UUID:
     """
     Generate a predictable uuid based on org name and a unique value.
     """
@@ -123,53 +125,38 @@ def generate_uuid(value):
     return value_uuid
 
 
-def gen_unit_uuid(unit):
+def gen_unit_uuid(unit: OpusObject) -> str:
     """generate uuids for given units."""
     return str(generate_uuid(unit["@id"]))
 
 
-def parser(target_file: str, opus_id: Optional[int] = None) -> Tuple[List, List]:
+def parser(
+    target_file: str, opus_id: Optional[int] = None
+) -> tuple[list[OpusObject], list[OpusObject]]:
     """Read an opus file and return units and employees"""
     text_input = get_opus_filereader().read_file(target_file)
 
     data = xmltodict.parse(text_input)
     data = data["kmd"]
-    units = data.get("orgUnit", [])
-    employees = data.get("employee", [])
+    units: list[OpusObject] = data.get("orgUnit", [])
+    employees: list[OpusObject] = data.get("employee", [])
     if opus_id is not None:
         employees = list(filter(lambda x: int(x["@id"]) == opus_id, employees))
         units = list(filter(lambda x: int(x["@id"]) == opus_id, units))
     return units, employees
 
 
-# A dict as emitted by xmltodict (the Opus XML parser): string keys and
-# arbitrary JSON-like values. Every dict passed to find_changes() must
-# additionally contain an "@id" key with a hashable value; a dict type
-# with one required key but otherwise open keys cannot be expressed in
-# Python's type system, so that constraint is documented in the
-# docstring instead.
-_T_OpusObject = TypeVar("_T_OpusObject", bound=dict[str, Any])
-
-
 def find_changes(
-    before: list[_T_OpusObject],
-    after: list[_T_OpusObject],
+    before: list[OpusObject],
+    after: list[OpusObject],
     disable_tqdm: bool = True,
-) -> list[_T_OpusObject]:
+) -> list[OpusObject]:
     """Filter a list of dictionaries based on differences to another list of dictionaries
     Used to find changes to org_units and employees in opus files.
     Any registration in lastChanged is ignored here.
     Use disable_tqdm in tests etc.
 
-    Each dictionary in 'before' and 'after' is an xmltodict-produced Opus
-    object and must contain an "@id" key with a hashable value. Duplicate
-    "@id"s in 'before' are silently collapsed. Values must be
-    DeepDiff-comparable (JSON-like). The "root['@lastChanged']",
-    "root['numerator']" and "root['denominator']" paths are ignored
-    when diffing.
-
-    Returns: list of dictionaries from 'after' where there are changes from 'before'.
-    The returned elements are the very objects from 'after', not copies.
+    Returns: list of dictionaries from 'after' where there are changes from 'before'
     >>> a = [{"@id":1, "text":"unchanged", '@lastChanged': 'some day'}, {"@id":2, "text":"before", '@lastChanged':'today'}]
     >>> b = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}, {"@id":2, "text":"after"}]
     >>> c = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}]
@@ -186,7 +173,7 @@ def find_changes(
     old_map = dict(zip(old_ids, before))
     changed_obj = []
 
-    def find_changed(obj: Dict) -> bool:
+    def find_changed(obj: OpusObject) -> bool:
         # New object
         if obj["@id"] not in old_ids:
             return True
@@ -214,7 +201,7 @@ def find_changes(
     return changed_obj
 
 
-def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
+def find_missing(before: list[OpusObject], after: list[OpusObject]) -> list[OpusObject]:
     """Check if an element is missing. This happens when an object is cancled in Opus.
 
     >>> a = [{"@id":1}, {"@id":2}, {"@id":3}]
@@ -233,10 +220,10 @@ def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
 
 
 class FileDiff(TypedDict):
-    units: list[dict[Any, Any]]
-    employees: list[dict[Any, Any]]
-    cancelled_units: list[dict[Any, Any]]
-    cancelled_employees: list[dict[Any, Any]]
+    units: list[OpusObject]
+    employees: list[OpusObject]
+    cancelled_units: list[OpusObject]
+    cancelled_employees: list[OpusObject]
 
 
 def file_diff(
@@ -246,8 +233,8 @@ def file_diff(
     opus_id: Optional[int] = None,
 ) -> FileDiff:
     """Compares two files and returns all units and employees that have been changed."""
-    units1: List[Dict] = []
-    employees1: List[Dict] = []
+    units1: list[OpusObject] = []
+    employees1: list[OpusObject] = []
     if file1:
         units1, employees1 = parser(file1, opus_id=opus_id)
     units2, employees2 = parser(file2, opus_id=opus_id)
@@ -364,7 +351,7 @@ def filter_employees(employees: Iterable[Dict], all_filtered_ids: set):
     return filter(lambda empl: empl.get("orgUnit") not in all_filtered_ids, employees)
 
 
-def split_employees_leaves(employees: List[Dict]) -> Tuple[Iterable, Iterable]:
+def split_employees_leaves(employees: List[OpusObject]) -> Tuple[Iterable, Iterable]:
     """Split list of employees into two iterables, with either active employees or terminated employees
 
     >>> e = [{'@action': "test"}, {'@action': "leave"}]
@@ -390,7 +377,7 @@ def read_cpr(employee: dict) -> str:
     return cpr
 
 
-def find_all_filtered_units(inputfile, filter_ids) -> list[dict]:
+def find_all_filtered_units(inputfile, filter_ids) -> list[OpusObject]:
     file_diffs = file_diff(None, inputfile)
     all_units = file_diffs["units"]
     all_units.extend(file_diffs["cancelled_units"])
@@ -404,7 +391,9 @@ def read_and_transform_data(
     filter_ids: List[str],
     disable_tqdm=False,
     opus_id: Optional[int] = None,
-) -> tuple[list[dict], list[dict], list[dict], list[dict], list[dict]]:
+) -> tuple[
+    list[OpusObject], list[OpusObject], list[dict], list[dict], list[OpusObject]
+]:
     """Gets the diff of two files and transforms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit,
     terminated employees and canceled employees

@@ -5,9 +5,9 @@ from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
 from pathlib import Path
-from typing import Any
 from typing import Dict
 from typing import Iterable
+from typing import Iterator
 from typing import List
 from typing import Optional
 from uuid import UUID
@@ -29,12 +29,15 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
+from integrations.opus.mora_helper_shim import Engagement
 from integrations.opus.mora_helper_shim import ItSystem
 from integrations.opus.mora_helper_shim import MoObject
 from integrations.opus.mora_helper_shim import OrgUnit
 from integrations.opus.mora_helper_shim import ReformattedAddress
+from integrations.opus.mora_helper_shim import User
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
+from integrations.opus.opus_helpers import OpusObject
 
 logger = logging.getLogger("opusDiff")
 
@@ -647,7 +650,7 @@ class OpusDiffImport(object):
         it_system_uuid = self.it_systems[it_system]
         try:
             # TODO: here
-            current = self.helper.get_e_itsystems(
+            current_systems: list[MoObject] = self.helper.get_e_itsystems(
                 person_uuid, it_system_uuid=it_system_uuid
             )
         except TypeError as e:
@@ -659,7 +662,7 @@ class OpusDiffImport(object):
             raise (e)
 
         try:
-            current = only(current, default={})
+            current: MoObject | None = only(current_systems, default=None)
         except ValueError:
             logger.warning(
                 f"Skipped connecting {it_system} IT system . More than one IT system found for {person_uuid=}"
@@ -821,7 +824,7 @@ class OpusDiffImport(object):
             )
             return
         # TODO: here
-        mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
+        mo_user: User | None = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}
         if self.ad_reader is not None:
@@ -855,10 +858,10 @@ class OpusDiffImport(object):
 
         # Now we have a MO uuid, update engagement:
         # TODO: here
-        mo_engagements = self.helper.read_user_engagement(
+        mo_engagements: list[Engagement] = self.helper.read_user_engagement(
             employee_mo_uuid, read_all=True
         )
-        user_engagements = filter(
+        user_engagements: Iterator[Engagement] = filter(
             lambda eng: eng["user_key"] == employee["@id"], mo_engagements
         )
         current_mo_eng = None
@@ -908,7 +911,9 @@ class OpusDiffImport(object):
         logger.debug("Terminate response: {}".format(response.text))
         self._assert(response)
 
-    def find_unterminated_filtered_units(self, units: Iterable[dict[Any, Any]]):
+    def find_unterminated_filtered_units(
+        self, units: Iterable[OpusObject]
+    ) -> Iterator[OpusObject]:
         """Check if units are in MO."""
 
         # Read all active MO org_units
@@ -919,10 +924,9 @@ class OpusDiffImport(object):
         )
         current_uuids: set[str] = set(map(itemgetter("uuid"), mo_units))
         # return the units that are active in os2mo, but should be terminated
-        mo_units = filter(
+        return filter(
             lambda unit: opus_helpers.gen_unit_uuid(unit) in current_uuids, units
         )
-        return mo_units
 
     def handle_filtered_units(self, units, dry_run=False):
         """Rules for handling units that are not imported from opus.
@@ -1033,7 +1037,7 @@ async def import_one(
         dry_run=dry_run,
     )
     await diff.start_import(units, employees, terminated_employees, cancelled_employees)
-    filtered_units = diff.find_unterminated_filtered_units(filtered_units)
+    filtered_units = list(diff.find_unterminated_filtered_units(filtered_units))
 
     diff.handle_filtered_units(filtered_units)
     if rundb_write and not dry_run:

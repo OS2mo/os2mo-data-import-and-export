@@ -6,6 +6,7 @@ from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from integrations.opus import opus_helpers
+from integrations.opus.mora_helper_shim import Engagement
 from integrations.opus.opus_diff_import import OpusDiffImport
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
@@ -57,7 +58,7 @@ def terminate_filtered_employees(dry_run):
     users = filter(lambda x: x, users)
     user_uuids = set(map(itemgetter("uuid"), users))
 
-    user_engagements = {
+    user_engagements: dict[str, list[Engagement]] = {
         # TODO: here
         user_uuid: diff.helper.read_user_engagements(user_uuid, read_all=True)
         for user_uuid in user_uuids

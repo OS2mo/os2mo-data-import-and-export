@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from functools import lru_cache
 from typing import Any
 from typing import Final
@@ -11,10 +10,33 @@ from uuid import UUID
 from os2mo_helpers.mora_helpers import MoraHelper
 
 
-class MoObject(TypedDict):
-    uuid: str
-    # user_key: str
+class UuidObject(TypedDict):
+    """Some objects returned by service API only have a "uuid" field, or that's
+    the only field we care about."""
 
+    uuid: str
+
+
+class MoObject(TypedDict):
+    """Most objects returned by service API have at least these fields."""
+
+    uuid: str
+    user_key: str
+
+
+class User(MoObject):
+    givenname: str
+    surname: str
+
+
+Validity = TypedDict("Validity", {"from": str, "to": str | None})
+
+
+class Engagement(MoObject):
+    validity: Validity
+
+
+# ---
 
 # returned by service/o endpoint
 # see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/ramodels/mo/organisation.py
@@ -61,9 +83,6 @@ class ManagerLevel(TypedDict):
 
 class Responsibility(TypedDict):
     uuid: str
-
-
-Validity: Final = TypedDict("Validity", {"from": datetime, "to": datetime | None})
 
 
 class Visibility(TypedDict):
@@ -147,6 +166,18 @@ class MoraHelperShim:
     def _mo_post(self, url, payload):
         pass
 
+    @lru_cache(maxsize=None)
+    def ensure_class_in_facet(
+        self,
+        facet: str,
+        bvn: str,
+        title: str | None = None,
+        scope: str = "TEXT",
+        uuid: UUID | None = None,
+        owner: UUID | None = None,
+    ) -> UUID:
+        raise NotImplementedError
+
     def read_organisation(self) -> str:
         return self._helper.read_organisation()
 
@@ -165,33 +196,24 @@ class MoraHelperShim:
     def read_ou(self, uuid: str) -> OrgUnit:
         return self._helper.read_ou(uuid)  # type: ignore
 
-    # TODO: got here
-    def read_ou_root(self, org: str) -> list[MoObject]:
+    def read_ou_root(self, org: str) -> list[UuidObject]:
         return self._helper.read_ou_root(org)
 
-    def get_e_itsystems(self, uuid, it_system_uuid) -> list[object]:
-        raise NotImplementedError
+    def get_e_itsystems(self, e_uuid, it_system_uuid) -> list[MoObject]:
+        return self._helper.get_e_itsystems(e_uuid, it_system_uuid)
 
-    def read_user(self, user_cpr: str, use_cache=False) -> object:
-        raise NotImplementedError
+    def read_user(
+        self, user_cpr: str, use_cache: Literal[False] | None = None
+    ) -> User | None:
+        # pay attention to use_cache: `None` and `False` have different semantics!
+        return self._helper.read_user(user_cpr, use_cache=use_cache)
 
-    def read_user_engagement(self, uuid, read_all: Literal[True]) -> list[object]:
-        raise NotImplementedError
+    def read_user_engagement(self, uuid, read_all: Literal[True]) -> list[Engagement]:
+        """Alias for read_user_egagements"""
+        return self.read_user_engagements(uuid, read_all)
 
-    def read_user_engagements(self, uuid, read_all: Literal[True]) -> list[object]:
-        raise NotImplementedError
-
-    @lru_cache(maxsize=None)
-    def ensure_class_in_facet(
-        self,
-        facet: str,
-        bvn: str,
-        title: str | None = None,
-        scope: str = "TEXT",
-        uuid: UUID | None = None,
-        owner: UUID | None = None,
-    ) -> UUID:
-        raise NotImplementedError
+    def read_user_engagements(self, uuid, read_all: Literal[True]) -> list[Engagement]:
+        return self._helper.read_user_engagements(uuid, read_all=read_all)
 
     # TODO: copied from calculate primary
     # async def read_classes_in_facet(self, facet: str) -> tuple[list[ClassDict], str]:

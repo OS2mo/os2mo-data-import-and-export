@@ -9,6 +9,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.clear_and_import_opus import import_opus
+from integrations.opus.mora_helper_shim import User
 from integrations.opus.opus_file_reader import get_opus_filereader
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
@@ -56,7 +57,7 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     if object_type == "bruger":
         cpr = opus_helpers.read_cpr(obj)  # type: ignore
         # TODO: here
-        user = helper.read_user(user_cpr=cpr)
+        user: User | None = helper.read_user(user_cpr=cpr)
         uuid = user["uuid"] if user else None
     else:
         uuid = opus_helpers.generate_uuid(obj["@id"])  # type: ignore
