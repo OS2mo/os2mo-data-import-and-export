@@ -30,8 +30,11 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
+from integrations.opus.mora_helper_shim import Address
+from integrations.opus.mora_helper_shim import CondensedAddress
 from integrations.opus.mora_helper_shim import Engagement
 from integrations.opus.mora_helper_shim import ItSystem
+from integrations.opus.mora_helper_shim import ManagerFunction
 from integrations.opus.mora_helper_shim import MoObject
 from integrations.opus.mora_helper_shim import OrgUnit
 from integrations.opus.mora_helper_shim import ReformattedAddress
@@ -316,14 +319,18 @@ class OpusDiffImport(object):
         validity = {"from": from_date, "to": to_date}
         return validity
 
-    def _condense_employee_mo_addresses(self, mo_uuid):
+    def _condense_employee_mo_addresses(self, mo_uuid) -> dict[str, CondensedAddress]:
         """
         Read all addresses from MO an return as a simple dict
         """
         # Unfortunately, mora-helper currently does not read all addresses
         # TODO: here
-        user_addresses = self.helper._mo_lookup(mo_uuid, "e/{}/details/address")
-        address_dict = {}  # Condensate of all MO addresses for the employee
+        user_addresses: list[Address] = self.helper._mo_lookup(
+            mo_uuid, "e/{}/details/address"
+        )
+        address_dict: dict[
+            str, CondensedAddress
+        ] = {}  # Condensate of all MO addresses for the employee
         if not isinstance(user_addresses, list):
             # In case the request to mo fails we assume no addresses in MO.
             # This has happend when the something in lora has been deleted.
@@ -372,7 +379,7 @@ class OpusDiffImport(object):
                     logger.warning("Could not find address in DAR")
         return opus_addresses
 
-    def _perform_address_update(self, args, current):
+    def _perform_address_update(self, args, current: CondensedAddress | None) -> None:
         addr_type = args["address_type"]["uuid"]
         if current is None:  # Create address
             payload = payloads.create_address(**args)
@@ -721,10 +728,11 @@ class OpusDiffImport(object):
             item_datetime = datetime.strptime(item, "%Y-%m-%d")
         return item_datetime
 
-    def update_manager_status(self, employee_mo_uuid, employee):
+    def update_manager_status(self, employee_mo_uuid, employee) -> None:
         url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
-        # TODO: here
-        all_manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
+        all_manager_functions: list[ManagerFunction] = self.helper._mo_lookup(
+            employee_mo_uuid, url
+        )
         manager_functions = [
             manager_function
             for manager_function in all_manager_functions

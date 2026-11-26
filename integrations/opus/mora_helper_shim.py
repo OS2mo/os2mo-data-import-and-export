@@ -36,6 +36,40 @@ class Engagement(MoObject):
     validity: Validity
 
 
+class Address(MoObject):
+    address_type: UuidObject
+    value: str
+
+
+class CondensedAddress(TypedDict):
+    uuid: str
+    value: str
+
+
+class ManagerFunction(MoObject):
+    org_unit: MoObject
+    person: MoObject
+    manager_type: MoObject
+    manager_level: MoObject
+    responsibility: list[MoObject]
+    validity: Validity
+
+
+class CreateAddressPayload(TypedDict):
+    type: Literal["address"]
+    address_type: UuidObject
+    value: str
+    validity: Validity
+    org: NotRequired[UuidObject]
+    # org_unit: NotRequired[OrgUnit]
+    # person: NotRequired[Person]
+
+
+class CreateEngagementPayload(TypedDict):
+    # TODO: got here
+    pass
+
+
 # ---
 
 # returned by service/o endpoint
@@ -63,10 +97,10 @@ class AddressType(TypedDict):
     uuid: str
 
 
-class Address(TypedDict):
-    address_type: AddressType
-    value: Any
-    uuid: str
+# class Address(TypedDict):
+#     address_type: AddressType
+#     value: Any
+#     uuid: str
 
 
 class Person(TypedDict):
@@ -89,28 +123,28 @@ class Visibility(TypedDict):
     uuid: str
 
 
-class CreateAddressPayload(TypedDict):
-    type: Literal["address"]
-    value: object
-    address_type: object
-    validity: Validity
-    org_unit: NotRequired[OrgUnit]
-    person: NotRequired[Person]
+# class CreateAddressPayload(TypedDict):
+#     type: Literal["address"]
+#     value: object
+#     address_type: object
+#     validity: Validity
+#     org_unit: NotRequired[OrgUnit]
+#     person: NotRequired[Person]
 
 
 class EditAddressPayload(TypedDict):
     type: Literal["address"]
 
 
-class ManagerFunction(TypedDict):
-    user_key: str
-    uuid: str
-    org_unit: OrgUnit
-    person: Person
-    manager_type: ManagerType
-    manager_level: ManagerLevel
-    responsibility: list[Responsibility]
-    validity: Validity
+# class ManagerFunction(TypedDict):
+#     user_key: str
+#     uuid: str
+#     org_unit: OrgUnit
+#     person: Person
+#     manager_type: ManagerType
+#     manager_level: ManagerLevel
+#     responsibility: list[Responsibility]
+#     validity: Validity
 
 
 class PossiblyAddress(TypedDict):
@@ -155,7 +189,7 @@ class MoraHelperShim:
 
     # e/{}/details/address
     # e/{}/details/manager?at=
-    def _mo_lookup(self, uuid, url) -> list[Address] | list[ManagerFunction]:
+    def _mo_lookup(self, uuid: str, url: str) -> list[Address] | list[ManagerFunction]:
         return self._helper._mo_lookup(uuid, url)
 
     # details/create
@@ -163,7 +197,7 @@ class MoraHelperShim:
     # ou/create
     # e/create
     # details/terminate
-    def _mo_post(self, url, payload):
+    def _mo_post(self, url: Literal["details/create"], payload: CreateAddressPayload):
         pass
 
     @lru_cache(maxsize=None)
