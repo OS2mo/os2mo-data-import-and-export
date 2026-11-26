@@ -4,6 +4,9 @@ from typing import Optional
 from uuid import UUID
 
 from integrations.opus import opus_helpers
+from integrations.opus.mora_helper_shim import CreateEngagementPayload
+from integrations.opus.mora_helper_shim import CreateItUserPayload
+from integrations.opus.mora_helper_shim import CreateManagerPayload
 
 
 def create_user(employee, org_uuid, uuid=None):
@@ -33,8 +36,8 @@ def edit_engagement(data, mo_engagement_uuid):
 
 def create_engagement(
     employee, user_uuid, unit_uuid, job_function, engagement_type, validity
-):
-    payload = {
+) -> CreateEngagementPayload:
+    payload: CreateEngagementPayload = {
         "type": "engagement",
         "org_unit": {"uuid": str(unit_uuid)},
         "person": {"uuid": user_uuid},
@@ -105,8 +108,10 @@ def terminate_manager(uuid, terminate_date):
     return payload
 
 
-def connect_it_system_to_user(username, it_system, person_uuid, from_date):
-    payload = {
+def connect_it_system_to_user(
+    username, it_system, person_uuid, from_date
+) -> CreateItUserPayload:
+    payload: CreateItUserPayload = {
         "type": "it",
         "user_key": username,
         "itsystem": {"uuid": it_system},
@@ -163,8 +168,8 @@ def edit_address(data, mo_address_uuid):
 
 def create_manager(
     user_key, unit, person, manager_type, level, responsibility, validity
-):
-    payload = {
+) -> CreateManagerPayload:
+    payload: CreateManagerPayload = {
         "type": "manager",
         "user_key": user_key,
         "org_unit": {"uuid": unit},

@@ -1,13 +1,12 @@
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Any
-from typing import Final
 from typing import Literal
 from typing import NotRequired
 from typing import TypedDict
 from uuid import UUID
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from requests import Response
 
 
 class UuidObject(TypedDict):
@@ -36,8 +35,23 @@ class Engagement(MoObject):
     validity: Validity
 
 
+# returned by service/o/{}/it
+# see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/service/shimmed/it_systems.py
+class ItSystem(MoObject):
+    name: str
+    system_type: None
+
+
 class Address(MoObject):
     address_type: UuidObject
+    value: str
+
+
+# https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/graphapi/shim.py#L182-191
+# https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/graphapi/gmodels/mo/details/address.py
+class ReformattedAddress(TypedDict):
+    uuid: str
+    type: str
     value: str
 
 
@@ -66,121 +80,41 @@ class CreateAddressPayload(TypedDict):
 
 
 class CreateEngagementPayload(TypedDict):
-    # TODO: got here
-    pass
-
-
-# ---
-
-# returned by service/o endpoint
-# see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/ramodels/mo/organisation.py
-OrganisationRead: Final = TypedDict(
-    "OrganisationRead", {"type": Literal["organisation"], "name": str}
-)
-
-
-# returned by service/o/{}/it
-# see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/service/shimmed/it_systems.py
-class ItSystem(MoObject):
-    name: str
-    system_type: None
-
-
-# returned by service/ou/{}
-# see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/service/shimmed/org_unit.py
-# see: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/graphapi/gmodels/mo/organisation_unit.py
-class OrgUnit(MoObject):
-    pass
-
-
-class AddressType(TypedDict):
-    uuid: str
-
-
-# class Address(TypedDict):
-#     address_type: AddressType
-#     value: Any
-#     uuid: str
-
-
-class Person(TypedDict):
-    uuid: str
-
-
-class ManagerType(TypedDict):
-    uuid: str
-
-
-class ManagerLevel(TypedDict):
-    uuid: str
-
-
-class Responsibility(TypedDict):
-    uuid: str
-
-
-class Visibility(TypedDict):
-    uuid: str
-
-
-# class CreateAddressPayload(TypedDict):
-#     type: Literal["address"]
-#     value: object
-#     address_type: object
-#     validity: Validity
-#     org_unit: NotRequired[OrgUnit]
-#     person: NotRequired[Person]
-
-
-class EditAddressPayload(TypedDict):
-    type: Literal["address"]
-
-
-# class ManagerFunction(TypedDict):
-#     user_key: str
-#     uuid: str
-#     org_unit: OrgUnit
-#     person: Person
-#     manager_type: ManagerType
-#     manager_level: ManagerLevel
-#     responsibility: list[Responsibility]
-#     validity: Validity
-
-
-class PossiblyAddress(TypedDict):
-    value: object
-    uuid: object
-
-
-class PerformAddressUpdateArgs(TypedDict):
-    address_type: AddressType
-    value: Any
+    type: Literal["engagement"]
+    org_unit: UuidObject
+    person: UuidObject
+    job_function: UuidObject
+    engagement_type: UuidObject
+    user_key: str
     validity: Validity
-    visibility: NotRequired[Visibility]
-    user_uuid: NotRequired[Any]
-    unit_uuid: NotRequired[str]
+
+
+class CreateItUserPayload(TypedDict):
+    type: Literal["it"]
+    user_key: str
+    itsystem: UuidObject
+    person: UuidObject
+    validity: Validity
+
+
+class CreateManagerPayload(TypedDict):
+    type: Literal["manager"]
+    user_key: str
+    org_unit: UuidObject
+    person: UuidObject
+    manager_type: UuidObject
+    manager_level: UuidObject
+    responsibility: list[UuidObject]
+    validity: Validity
 
 
 class CreateOrgUnitPayload(TypedDict):
-    uuid: object
-    user_key: object
-    name: object
-    parent: MoObject
-    org_unit_type: MoObject
-    validity: Validity
-
-
-class EditOrgUnitPayload(TypedDict):
-    type: Literal["org_unit"]
-    data: Any
-
-
-# https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/graphapi/shim.py#L182-191
-# https://git.magenta.dk/rammearkitektur/os2mo/-/blob/ca0862d9d9e19acef28759042e4451ba25a3354b/mora/graphapi/gmodels/mo/details/address.py
-class ReformattedAddress(TypedDict):
     uuid: str
-    type: str
-    value: Any
+    user_key: str
+    name: str
+    parent: UuidObject
+    org_unit_type: UuidObject
+    validity: Validity
 
 
 @dataclass
@@ -192,13 +126,20 @@ class MoraHelperShim:
     def _mo_lookup(self, uuid: str, url: str) -> list[Address] | list[ManagerFunction]:
         return self._helper._mo_lookup(uuid, url)
 
-    # details/create
+    # details/create  # <-- TODO: got here
     # details/edit
     # ou/create
     # e/create
     # details/terminate
-    def _mo_post(self, url: Literal["details/create"], payload: CreateAddressPayload):
-        pass
+    def _mo_post(
+        self,
+        url: Literal["details/create"],
+        payload: CreateAddressPayload
+        | CreateEngagementPayload
+        | CreateItUserPayload
+        | CreateManagerPayload,
+    ) -> Response:
+        return self._helper._mo_post(url, payload)
 
     @lru_cache(maxsize=None)
     def ensure_class_in_facet(

@@ -646,7 +646,6 @@ class OpusDiffImport(object):
             validity=validity,
         )
         logger.debug("Create engagement payload: {}".format(payload))
-        # TODO: here
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
 
