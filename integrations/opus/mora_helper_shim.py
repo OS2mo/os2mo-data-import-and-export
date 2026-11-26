@@ -167,7 +167,7 @@ class MoraHelperShim:
 
     # TODO: got here
     def read_ou_root(self, org: str) -> list[MoObject]:
-        raise NotImplementedError
+        return self._helper.read_ou_root(org)
 
     def get_e_itsystems(self, uuid, it_system_uuid) -> list[object]:
         raise NotImplementedError

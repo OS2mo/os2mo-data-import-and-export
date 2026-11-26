@@ -12,6 +12,7 @@ from typing import List
 from typing import Optional
 from typing import Tuple
 from typing import TypedDict
+from typing import TypeVar
 
 import xmltodict
 from deepdiff import DeepDiff  # type: ignore
@@ -141,15 +142,34 @@ def parser(target_file: str, opus_id: Optional[int] = None) -> Tuple[List, List]
     return units, employees
 
 
+# A dict as emitted by xmltodict (the Opus XML parser): string keys and
+# arbitrary JSON-like values. Every dict passed to find_changes() must
+# additionally contain an "@id" key with a hashable value; a dict type
+# with one required key but otherwise open keys cannot be expressed in
+# Python's type system, so that constraint is documented in the
+# docstring instead.
+_T_OpusObject = TypeVar("_T_OpusObject", bound=dict[str, Any])
+
+
 def find_changes(
-    before: List[Dict], after: List[Dict], disable_tqdm: bool = True
-) -> List[Dict]:
+    before: list[_T_OpusObject],
+    after: list[_T_OpusObject],
+    disable_tqdm: bool = True,
+) -> list[_T_OpusObject]:
     """Filter a list of dictionaries based on differences to another list of dictionaries
     Used to find changes to org_units and employees in opus files.
     Any registration in lastChanged is ignored here.
     Use disable_tqdm in tests etc.
 
-    Returns: list of dictionaries from 'after' where there are changes from 'before'
+    Each dictionary in 'before' and 'after' is an xmltodict-produced Opus
+    object and must contain an "@id" key with a hashable value. Duplicate
+    "@id"s in 'before' are silently collapsed. Values must be
+    DeepDiff-comparable (JSON-like). The "root['@lastChanged']",
+    "root['numerator']" and "root['denominator']" paths are ignored
+    when diffing.
+
+    Returns: list of dictionaries from 'after' where there are changes from 'before'.
+    The returned elements are the very objects from 'after', not copies.
     >>> a = [{"@id":1, "text":"unchanged", '@lastChanged': 'some day'}, {"@id":2, "text":"before", '@lastChanged':'today'}]
     >>> b = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}, {"@id":2, "text":"after"}]
     >>> c = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}]
