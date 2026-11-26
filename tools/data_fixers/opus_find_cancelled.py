@@ -1,3 +1,5 @@
+from typing import Any
+
 import click
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
@@ -19,7 +21,7 @@ def find_cancelled(dry_run):
         file_diffs = opus_helpers.file_diff(
             dumps[date1], dumps[date2], disable_tqdm=True
         )
-        units = file_diffs["units"]
+        units: list[dict[Any, Any]] = file_diffs["units"]
         employees, _ = opus_helpers.split_employees_leaves(
             file_diffs["cancelled_employees"]
         )

@@ -5,11 +5,13 @@ import sqlite3
 import uuid
 from functools import lru_cache
 from operator import itemgetter
+from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypedDict
 
 import xmltodict
 from deepdiff import DeepDiff  # type: ignore
@@ -210,12 +212,19 @@ def find_missing(before: List[Dict], after: List[Dict]) -> List[Dict]:
     return list(missing_elements)
 
 
+class FileDiff(TypedDict):
+    units: list[dict[Any, Any]]
+    employees: list[dict[Any, Any]]
+    cancelled_units: list[dict[Any, Any]]
+    cancelled_employees: list[dict[Any, Any]]
+
+
 def file_diff(
     file1: Optional[str],
     file2: str,
     disable_tqdm: bool = True,
     opus_id: Optional[int] = None,
-):
+) -> FileDiff:
     """Compares two files and returns all units and employees that have been changed."""
     units1: List[Dict] = []
     employees1: List[Dict] = []

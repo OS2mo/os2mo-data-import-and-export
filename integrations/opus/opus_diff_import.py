@@ -5,7 +5,9 @@ from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
 from pathlib import Path
+from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import Optional
 from uuid import UUID
@@ -27,6 +29,10 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus import payloads
+from integrations.opus.mora_helper_shim import ItSystem
+from integrations.opus.mora_helper_shim import MoObject
+from integrations.opus.mora_helper_shim import OrgUnit
+from integrations.opus.mora_helper_shim import ReformattedAddress
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 
@@ -154,6 +160,7 @@ class MOPostDryRun:
 
 class OpusDiffImport(object):
     dar_cache: dict[tuple[str, str], str | None] = {}
+    org_uuid: str
 
     def __init__(
         self,
@@ -196,7 +203,7 @@ class OpusDiffImport(object):
             exit()
 
         # TODO: here
-        it_systems = self.helper.read_it_systems()
+        it_systems: list[ItSystem] = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter("name", "uuid"), it_systems))
 
         logger.info("__init__ done, now ready for import")
@@ -223,7 +230,9 @@ class OpusDiffImport(object):
 
     def _find_classes(self, facet):
         # TODO: here
-        class_types = self.helper.read_classes_in_facet(facet)
+        class_types: tuple[list[MoObject], str] = self.helper.read_classes_in_facet(
+            facet
+        )
         types_dict = {}
         facet = class_types[1]
         for class_type in class_types[0]:
@@ -402,7 +411,7 @@ class OpusDiffImport(object):
     async def _update_unit_addresses(self, unit):
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
         # TODO: here
-        unit_addresses = self.helper.read_ou_address(
+        unit_addresses: list[ReformattedAddress] = self.helper.read_ou_address(
             calculated_uuid,
             scope=None,  # type: ignore
             return_all=True,
@@ -410,14 +419,14 @@ class OpusDiffImport(object):
 
         address_dict = {}
         for address in unit_addresses:
-            if address_dict.get(address["type"]) is not None:  # type: ignore
+            if address_dict.get(address["type"]) is not None:
                 # More than one of this type exist in MO, this is not allowed.
                 msg = "Inconsistent addresses for unit: {}"
                 logger.error(msg.format(calculated_uuid))
             # if address['value'] not in ('9999999999999', '0000000000'):
-            address_dict[address["type"]] = {  # type: ignore
-                "value": address["value"],  # type: ignore
-                "uuid": address["uuid"],  # type: ignore
+            address_dict[address["type"]] = {
+                "value": address["value"],
+                "uuid": address["uuid"],
             }
 
         if unit.get("street") and unit.get("zipCode"):
@@ -453,14 +462,14 @@ class OpusDiffImport(object):
     async def update_unit(self, unit):
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
         parent_name = unit["parentOrgUnit"]
-        parent_uuid = (
+        parent_uuid: str | UUID = (
             opus_helpers.generate_uuid(parent_name)
             if parent_name
             # TODO: here
             else self.helper.read_organisation()
         )
         # TODO: here
-        mo_unit = self.helper.read_ou(calculated_uuid)
+        mo_unit: OrgUnit = self.helper.read_ou(calculated_uuid)  # type: ignore
 
         # Default to "Enhed" as unittype
         org_type_title = unit.get("orgTypeTxt", "Enhed")
@@ -538,7 +547,7 @@ class OpusDiffImport(object):
         }
 
         # TODO: here
-        engagement_unit = self.helper.read_ou(unit_uuid)
+        engagement_unit: OrgUnit = self.helper.read_ou(unit_uuid)  # type: ignore
         if "error" in engagement_unit:
             msg = "The wanted unit does not exit: {}"
             logger.error(msg.format(unit_uuid))
@@ -598,7 +607,7 @@ class OpusDiffImport(object):
         unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
 
         # TODO: here
-        engagement_unit = self.helper.read_ou(unit_uuid)
+        engagement_unit: OrgUnit = self.helper.read_ou(unit_uuid)  # type: ignore
         if "error" in engagement_unit:
             msg = "The wanted unit does not exit: {}"
             logger.error(msg.format(opus_employee["orgUnit"]))
@@ -899,16 +908,16 @@ class OpusDiffImport(object):
         logger.debug("Terminate response: {}".format(response.text))
         self._assert(response)
 
-    def find_unterminated_filtered_units(self, units):
+    def find_unterminated_filtered_units(self, units: Iterable[dict[Any, Any]]):
         """Check if units are in MO."""
 
         # Read all active MO org_units
         # TODO: here
-        mo_units = self.helper.read_ou_root(
+        mo_units: list[MoObject] = self.helper.read_ou_root(
             # TODO: here
             org=self.helper.read_organisation(),
         )
-        current_uuids = set(map(itemgetter("uuid"), mo_units))
+        current_uuids: set[str] = set(map(itemgetter("uuid"), mo_units))
         # return the units that are active in os2mo, but should be terminated
         mo_units = filter(
             lambda unit: opus_helpers.gen_unit_uuid(unit) in current_uuids, units
