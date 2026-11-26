@@ -1,5 +1,3 @@
-from typing import Any
-
 import click
 from fastramqpi.ra_utils.load_settings import load_settings
 from fastramqpi.ra_utils.tqdm_wrapper import tqdm
@@ -8,9 +6,10 @@ from more_itertools import pairwise
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
 from integrations.opus.opus_exceptions import UnknownOpusUnit
+from integrations.opus.opus_helpers import OpusObject
 
 
-def find_cancelled(dry_run):
+def find_cancelled(dry_run) -> None:
     """Find cancelled data and delete it"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
@@ -21,23 +20,25 @@ def find_cancelled(dry_run):
         file_diffs = opus_helpers.file_diff(
             dumps[date1], dumps[date2], disable_tqdm=True
         )
-        units: list[dict[Any, Any]] = file_diffs["units"]
+        units: list[OpusObject] = file_diffs["units"]
         employees, _ = opus_helpers.split_employees_leaves(
             file_diffs["cancelled_employees"]
         )
         # set enddate to filedate for cancelled employees
-        employees = opus_helpers.include_cancelled(dumps[date2], [], list(employees))
+        # FIXME: this function does not exist
+        employees = opus_helpers.include_cancelled(dumps[date2], [], list(employees))  # type: ignore
         if units or employees:
-            msg = f"Found {len(units)} units and {len(employees)} employees wich were cancelled on {date2}"
+            msg = f"Found {len(units)} units and {len(employees)} employees wich were cancelled on {date2}"  # type: ignore
             if dry_run:
                 click.echo(msg + "(Dry-run)")
                 continue
             click.echo(msg + ". Terminating now.")
-            diff = OpusDiffImport(date2, None, {}, filter_ids=filter_ids)
+            diff = OpusDiffImport(date2, None, {}, filter_ids=filter_ids)  # type: ignore
             for employee in employees:
                 # Updates each employee with their leave-date overwritten, so that their engagement will be terminated.
                 try:
-                    diff.update_employee(employee)
+                    # FIXME: this coroutine is never awaited
+                    diff.update_employee(employee)  # type: ignore
                 except UnknownOpusUnit:
                     # The unit might be terminated by now, since we're looking through older files. No problem, carry on.
                     continue

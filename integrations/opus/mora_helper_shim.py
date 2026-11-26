@@ -146,7 +146,7 @@ class EditOrgUnitPayload(TypedDict):
 class ReformattedAddress(TypedDict):
     uuid: str
     type: str
-    value: object
+    value: Any
 
 
 @dataclass
@@ -171,12 +171,23 @@ class MoraHelperShim:
         self,
         facet: str,
         bvn: str,
+        *args,
         title: str | None = None,
-        scope: str = "TEXT",
+        scope: str | None = "TEXT",
         uuid: UUID | None = None,
         owner: UUID | None = None,
+        **kwargs,
     ) -> UUID:
-        raise NotImplementedError
+        assert len(args) == 0, "leftover args"
+        assert len(kwargs) == 0, "leftover kwargs"
+        return self._helper.ensure_class_in_facet(
+            facet,
+            bvn,
+            title=title,
+            scope=scope,
+            uuid=uuid,
+            owner=owner,
+        )
 
     def read_organisation(self) -> str:
         return self._helper.read_organisation()

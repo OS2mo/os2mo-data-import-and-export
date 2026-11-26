@@ -5,6 +5,7 @@ from datetime import datetime
 from datetime import timedelta
 from operator import itemgetter
 from pathlib import Path
+from typing import Any
 from typing import Dict
 from typing import Iterable
 from typing import Iterator
@@ -171,7 +172,7 @@ class OpusDiffImport(object):
         ad_reader,
         filter_ids={},
         dry_run: bool = False,
-    ):
+    ) -> None:
         logger.info("Opus diff importer __init__ started")
         self.xml_date = xml_date
         self.ad_reader = ad_reader
@@ -224,15 +225,28 @@ class OpusDiffImport(object):
             sync=True,
         )
 
-    def ensure_class_in_facet(self, *args, **kwargs):
+    def ensure_class_in_facet(
+        self,
+        facet: str,
+        bvn: str,
+        *args,
+        scope: str | None = "TEXT",
+        title: str | None = None,
+        **kwargs,
+    ) -> UUID:
         """Helper function to call ensure_class_in_facet from morahelpers with owner"""
         # TODO: here
         return self.helper.ensure_class_in_facet(
-            *args, owner=opus_helpers.find_opus_root_unit_uuid(), **kwargs
+            facet,
+            bvn,
+            *args,
+            scope=scope,
+            title=title,
+            owner=opus_helpers.find_opus_root_unit_uuid(),
+            **kwargs,
         )
 
-    def _find_classes(self, facet):
-        # TODO: here
+    def _find_classes(self, facet) -> tuple[dict[str, str], str]:
         class_types: tuple[list[MoObject], str] = self.helper.read_classes_in_facet(
             facet
         )
@@ -411,16 +425,15 @@ class OpusDiffImport(object):
                 address_args["visibility"] = {"uuid": str(visibility)}
             self._perform_address_update(address_args, current)
 
-    async def _update_unit_addresses(self, unit):
+    async def _update_unit_addresses(self, unit) -> None:
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
-        # TODO: here
         unit_addresses: list[ReformattedAddress] = self.helper.read_ou_address(
             calculated_uuid,
             scope=None,  # type: ignore
             return_all=True,
         )
 
-        address_dict = {}
+        address_dict: dict[str, Any | None] = {}
         for address in unit_addresses:
             if address_dict.get(address["type"]) is not None:
                 # More than one of this type exist in MO, this is not allowed.
@@ -462,7 +475,7 @@ class OpusDiffImport(object):
             }
             self._perform_address_update(args, current)
 
-    async def update_unit(self, unit):
+    async def update_unit(self, unit) -> None:
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
         parent_name = unit["parentOrgUnit"]
         parent_uuid: str | UUID = (
@@ -646,7 +659,7 @@ class OpusDiffImport(object):
 
         return return_uuid
 
-    def connect_it_system(self, username, it_system, employee, person_uuid):
+    def connect_it_system(self, username, it_system, employee, person_uuid) -> None:
         it_system_uuid = self.it_systems[it_system]
         try:
             # TODO: here
@@ -807,7 +820,7 @@ class OpusDiffImport(object):
                 response = self.helper._mo_post("details/create", payload)
                 assert response.status_code == 201
 
-    async def update_employee(self, employee):
+    async def update_employee(self, employee) -> None:
         cpr = opus_helpers.read_cpr(employee)
         logger.info("----")
         logger.info("Now updating {}".format(employee.get("@id")))
@@ -823,7 +836,6 @@ class OpusDiffImport(object):
                 "Error in opus-file. No entryDate for this employee. Skipping."
             )
             return
-        # TODO: here
         mo_user: User | None = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}

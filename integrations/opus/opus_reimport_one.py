@@ -46,7 +46,7 @@ def find_type(opus_id, full_history):
 @click.option("--opus-id", type=int, required=True)
 @click.option("--use-ad", is_flag=True, help="Read from AD")
 @click.option("--dry-run", is_flag=True)
-def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
+def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run) -> None:
     """Reimport object from opus with given opus-ID to MO
     Optionally deletes the object and all related orgfuncs directly from Lora.
     Defaults to reading latest file only, but supports reading full history

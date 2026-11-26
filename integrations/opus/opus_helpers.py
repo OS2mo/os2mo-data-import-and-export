@@ -8,6 +8,7 @@ from operator import itemgetter
 from typing import Dict
 from typing import Iterable
 from typing import List
+from typing import NotRequired
 from typing import Optional
 from typing import Tuple
 from typing import TypedDict
@@ -27,7 +28,9 @@ START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
 
-OpusObject = TypedDict("OpusObject", {"@id": str})
+OpusCpr = TypedDict("OpusCpr", {"#text": str})
+
+OpusObject = TypedDict("OpusObject", {"@id": int, "cpr": NotRequired[OpusCpr | str]})
 """Loosely models the data returned by OPUS, which is parsed from XML. This does
 not include fields we never access."""
 
@@ -366,10 +369,10 @@ def split_employees_leaves(employees: List[OpusObject]) -> Tuple[Iterable, Itera
     return partition(lambda empl: empl.get("@action") == "leave", employees)
 
 
-def read_cpr(employee: dict) -> str:
+def read_cpr(employee: OpusObject) -> str:
     cpr = employee.get("cpr")
     if isinstance(cpr, dict):
-        cpr = employee["cpr"]["#text"]
+        cpr = employee["cpr"]["#text"]  # type: ignore
     elif isinstance(cpr, str):
         assert isinstance(int(cpr), int)
     else:

@@ -1,4 +1,7 @@
 from operator import itemgetter
+from typing import Iterable
+from typing import cast
+from uuid import UUID
 
 import click
 import httpx
@@ -7,6 +10,7 @@ from fastramqpi.ra_utils.tqdm_wrapper import tqdm
 
 from integrations.opus import opus_helpers
 from integrations.opus.mora_helper_shim import Engagement
+from integrations.opus.mora_helper_shim import User
 from integrations.opus.opus_diff_import import OpusDiffImport
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
@@ -23,7 +27,7 @@ def terminate_filtered_units(dry_run):
     return mo_units
 
 
-def terminate_filtered_employees(dry_run):
+def terminate_filtered_employees(dry_run) -> list[UUID | None] | None:
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
     mox_base = settings.get("mox.base", "localhost:5000/lora")
@@ -37,7 +41,7 @@ def terminate_filtered_employees(dry_run):
     filtered_employees = list(
         filter(lambda emp: emp.get("orgUnit") in all_ids, file_diffs["employees"])
     )
-    diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
+    diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})  # type: ignore
     # Check if any engagements exist that should have been filtered
     eng_info = [diff._find_engagement(e["@id"]) for e in filtered_employees]
     eng_info = list(filter(lambda x: x is not None, eng_info))
@@ -53,13 +57,13 @@ def terminate_filtered_employees(dry_run):
 
     # Check users in MO - if no engagements are left then delete the user and all details to it.
     user_cprs = set(map(opus_helpers.read_cpr, filtered_employees))
-    # TODO: here
-    users = [diff.helper.read_user(user_cpr=cpr) for cpr in user_cprs]
+    users: Iterable[User | None] = [
+        diff.helper.read_user(user_cpr=cpr) for cpr in user_cprs
+    ]
     users = filter(lambda x: x, users)
-    user_uuids = set(map(itemgetter("uuid"), users))
+    user_uuids = set(map(itemgetter("uuid"), cast(Iterable[User], users)))
 
     user_engagements: dict[str, list[Engagement]] = {
-        # TODO: here
         user_uuid: diff.helper.read_user_engagements(user_uuid, read_all=True)
         for user_uuid in user_uuids
     }
@@ -71,6 +75,7 @@ def terminate_filtered_employees(dry_run):
         delete_object_and_orgfuncs(
             uuid=user_uuid, mox_base=mox_base, object_type="bruger", dry_run=dry_run
         )
+    return None
 
 
 @click.command()
